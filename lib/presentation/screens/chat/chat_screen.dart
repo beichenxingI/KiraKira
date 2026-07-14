@@ -43,6 +43,8 @@ import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:kirakira/presentation/widgets/chat/typing_indicator.dart';
 import 'package:kirakira/presentation/widgets/chat/input_menu_button.dart';
+import 'package:kirakira/presentation/widgets/chat/model_selector_dialog.dart';
+
 import 'package:kirakira/presentation/screens/chat/widgets/chat_app_bar.dart';
 import 'package:kirakira/presentation/widgets/kira_menu.dart';
 import 'package:kirakira/presentation/models/kira_menu_item.dart';
@@ -236,7 +238,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       // Show model selection dialog
       final selectedModel = await showDialog<String>(
         context: context,
-        builder: (context) => _ModelSelectorDialog(
+        builder: (context) => ModelSelectorDialog(
           models: models,
           currentModel: llmConfig.model,
           providerName: llmConfig.provider.name,
@@ -2422,194 +2424,10 @@ class _MessageBubbleState extends State<_MessageBubble> {
 
 
 /// Dialog for selecting a model from available models
-class _ModelSelectorDialog extends StatefulWidget {
-  final List<String> models;
-  final String currentModel;
-  final String providerName;
 
-  const _ModelSelectorDialog({
-    required this.models,
-    required this.currentModel,
-    required this.providerName,
-  });
-
-  @override
-  State<_ModelSelectorDialog> createState() => _ModelSelectorDialogState();
-}
-
-class _ModelSelectorDialogState extends State<_ModelSelectorDialog> {
-  final TextEditingController _searchController = TextEditingController();
-  List<String> _filteredModels = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredModels = widget.models;
-    _searchController.addListener(_filterModels);
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _filterModels() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      if (query.isEmpty) {
-        _filteredModels = widget.models;
-      } else {
-        _filteredModels = widget.models
-            .where((model) => model.toLowerCase().contains(query))
-            .toList();
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Dialog(
-      backgroundColor: AppTheme.darkCard,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 400,
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.smart_toy, color: AppTheme.primaryColor),
-                      const SizedBox(width: 8),
-                      Text(
-                        l10n.selectModel,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${l10n.provider}: ${widget.providerName}',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Search field
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: l10n.searchModels,
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  isDense: true,
-                  filled: true,
-                  fillColor: AppTheme.darkBackground,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Model list
-            Flexible(
-              child: _filteredModels.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Text(
-                          l10n.noModelsMatchSearch,
-                          style: TextStyle(color: AppTheme.textMuted),
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: _filteredModels.length,
-                      itemBuilder: (context, index) {
-                        final model = _filteredModels[index];
-                        final isSelected = model == widget.currentModel;
-
-                        return ListTile(
-                          leading: Icon(
-                            isSelected
-                                ? Icons.check_circle
-                                : Icons.circle_outlined,
-                            color: isSelected
-                                ? AppTheme.accentColor
-                                : AppTheme.textMuted,
-                            size: 20,
-                          ),
-                          title: Text(
-                            model,
-                            style: TextStyle(
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              color: isSelected
-                                  ? AppTheme.accentColor
-                                  : AppTheme.textPrimary,
-                            ),
-                          ),
-                          selected: isSelected,
-                          selectedTileColor:
-                              AppTheme.accentColor.withValues(alpha: 0.1),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          onTap: () => Navigator.pop(context, model),
-                        );
-                      },
-                    ),
-            ),
-
-            // Actions
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(l10n.cancel),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// Button widget for the input menu panel
+
 
 
 
