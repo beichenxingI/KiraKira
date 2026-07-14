@@ -1,4 +1,4 @@
-// ignore: unused_import
+﻿// ignore: unused_import
 import 'package:intl/intl.dart' as intl;
 import 'app_localizations.dart';
 
@@ -9,7 +9,7 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
-  String get appTitle => 'NativeTavern';
+  String get appTitle => 'KiraKira';
 
   @override
   String get home => 'होम';
@@ -306,7 +306,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get jsonlSillyTavernFormat => 'JSONL (SillyTavern प्रारूप)';
 
   @override
-  String get jsonNativeTavernFormat => 'JSON (NativeTavern प्रारूप)';
+  String get jsonKiraKiraFormat => 'JSON (KiraKira प्रारूप)';
 
   @override
   String get importNote => 'नोट: आयातित संदेश वर्तमान चैट में जोड़े जाएंगे।';

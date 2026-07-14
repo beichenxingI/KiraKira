@@ -4,7 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../../data/models/app_theme_config.dart';
 import '../../providers/theme_providers.dart';
 import '../../theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Screen for managing app themes
 class ThemeSettingsScreen extends ConsumerWidget {

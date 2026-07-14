@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
-import 'package:native_tavern/presentation/providers/locale_provider.dart';
-import 'package:native_tavern/presentation/providers/persona_providers.dart';
-import 'package:native_tavern/presentation/providers/settings_providers.dart';
-import 'package:native_tavern/presentation/router/app_router.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/providers/locale_provider.dart';
+import 'package:kirakira/presentation/providers/persona_providers.dart';
+import 'package:kirakira/presentation/providers/settings_providers.dart';
+import 'package:kirakira/presentation/router/app_router.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/screens/settings/log_view_screen.dart';
 
 /// Settings screen - App settings only (AI config is in separate tab)
 class SettingsScreen extends ConsumerWidget {
@@ -24,34 +24,6 @@ class SettingsScreen extends ConsumerWidget {
       ),
       body: ListView(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.language),
-                    label: const Text('Official Website'),
-                    onPressed: () => launchUrl(
-                      Uri.parse('https://nativetavern.com'),
-                      mode: LaunchMode.externalApplication,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.forum),
-                    label: const Text('Discord'),
-                    onPressed: () => launchUrl(
-                      Uri.parse('https://discord.com/invite/URQvW2FvZa'),
-                      mode: LaunchMode.externalApplication,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
           const Divider(height: 16),
           _buildSectionHeader(context, l10n.user),
           _PersonaTile(),
@@ -79,7 +51,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           
           const Divider(height: 32),
-          _buildSectionHeader(context, 'Multimedia'),
+          _buildSectionHeader(context, '\u591a\u5a92\u4f53'),
           ListTile(
             leading: const Icon(Icons.record_voice_over),
             title: Text(l10n.tts),
@@ -170,6 +142,17 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => context.push(AppRoutes.statistics),
           ),
           
+          const Divider(height: 32),
+          _buildSectionHeader(context, '调试'),
+          ListTile(
+            leading: const Icon(Icons.terminal),
+            title: const Text('日志查看器'),
+            subtitle: const Text('查看应用运行日志'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const LogViewScreen()),
+            ),
+          ),
           const Divider(height: 32),
           _buildSectionHeader(context, l10n.about),
           ListTile(

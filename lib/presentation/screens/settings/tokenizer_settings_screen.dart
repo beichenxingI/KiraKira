@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/tokenizer.dart';
-import 'package:native_tavern/domain/services/tokenizer_service.dart';
-import 'package:native_tavern/presentation/providers/tokenizer_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/data/models/tokenizer.dart';
+import 'package:kirakira/domain/services/tokenizer_service.dart';
+import 'package:kirakira/presentation/providers/tokenizer_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Settings and visualization screen for tokenizer
 class TokenizerSettingsScreen extends ConsumerStatefulWidget {

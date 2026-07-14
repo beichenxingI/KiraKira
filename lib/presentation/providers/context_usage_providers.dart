@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/world_info.dart';
-import 'package:native_tavern/domain/services/context_usage_service.dart';
-import 'package:native_tavern/domain/services/tokenizer_service.dart';
-import 'package:native_tavern/presentation/providers/chat_providers.dart';
-import 'package:native_tavern/presentation/providers/settings_providers.dart';
-import 'package:native_tavern/presentation/providers/persona_providers.dart';
-import 'package:native_tavern/presentation/providers/prompt_manager_providers.dart';
-import 'package:native_tavern/presentation/providers/world_info_providers.dart';
+import 'package:kirakira/data/models/world_info.dart';
+import 'package:kirakira/domain/services/context_usage_service.dart';
+import 'package:kirakira/domain/services/tokenizer_service.dart';
+import 'package:kirakira/presentation/providers/chat_providers.dart';
+import 'package:kirakira/presentation/providers/settings_providers.dart';
+import 'package:kirakira/presentation/providers/persona_providers.dart';
+import 'package:kirakira/presentation/providers/prompt_manager_providers.dart';
+import 'package:kirakira/presentation/providers/world_info_providers.dart';
 
 /// Provider for context usage service
 final contextUsageServiceProvider = Provider<ContextUsageService>((ref) {

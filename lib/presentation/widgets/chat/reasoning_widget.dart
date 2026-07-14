@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/presentation/widgets/chat/message_content_widget.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/widgets/chat/message_content_widget.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// A collapsible widget that displays AI reasoning/thinking content
 /// 

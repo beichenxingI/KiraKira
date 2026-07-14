@@ -1,4 +1,4 @@
-import 'package:native_tavern/data/models/regex_script.dart';
+import 'package:kirakira/data/models/regex_script.dart';
 
 /// Service for managing and executing regex scripts
 /// Based on SillyTavern's regex extension engine

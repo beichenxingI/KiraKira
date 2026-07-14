@@ -1,17 +1,17 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/core/services/initialization_service.dart';
-import 'package:native_tavern/domain/services/backup_service.dart';
-import 'package:native_tavern/domain/services/cloud_backup_service.dart';
-import 'package:native_tavern/domain/services/database_backup_service.dart';
-import 'package:native_tavern/domain/services/google_drive_service.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
-import 'package:native_tavern/presentation/providers/backup_providers.dart';
-import 'package:native_tavern/presentation/providers/cloud_backup_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
+import 'package:kirakira/core/services/initialization_service.dart';
+import 'package:kirakira/domain/services/backup_service.dart';
+import 'package:kirakira/domain/services/cloud_backup_service.dart';
+import 'package:kirakira/domain/services/database_backup_service.dart';
+import 'package:kirakira/domain/services/google_drive_service.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/providers/backup_providers.dart';
+import 'package:kirakira/presentation/providers/cloud_backup_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
 
 /// Screen for managing backups (local + cloud)
 class BackupSettingsScreen extends ConsumerStatefulWidget {
@@ -602,7 +602,7 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen> {
                     ListTile(
                       leading: const Icon(Icons.folder, color: AppTheme.textMuted),
                       title: Text(l10n.backupLocation),
-                      subtitle: const Text('Documents/NativeTavern/backups/'),
+                      subtitle: const Text('Documents/KiraKira/backups/'),
                     ),
                   ],
                 ),

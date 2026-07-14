@@ -5,7 +5,7 @@ import '../../providers/character_filter_providers.dart';
 import '../../providers/tag_providers.dart';
 import '../../screens/tags/tags_screen.dart';
 import '../../theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Filter bar for character list
 class CharacterFilterBar extends ConsumerWidget {

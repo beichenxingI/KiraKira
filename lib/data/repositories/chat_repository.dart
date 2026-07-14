@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/database/database.dart' hide Chat, Message;
-import 'package:native_tavern/data/database/database.dart' as db;
-import 'package:native_tavern/data/models/chat.dart' as models;
+import 'package:kirakira/data/database/database.dart' hide Chat, Message;
+import 'package:kirakira/data/database/database.dart' as db;
+import 'package:kirakira/data/models/chat.dart' as models;
 import 'package:uuid/uuid.dart';
 
 /// Provider for chat repository

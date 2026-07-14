@@ -16,7 +16,7 @@ class SqliteBackupService {
   /// Get the database file path
   Future<File> getDatabaseFile() async {
     final dbFolder = await getApplicationDocumentsDirectory();
-    return File(p.join(dbFolder.path, 'NativeTavern', 'database.sqlite'));
+    return File(p.join(dbFolder.path, 'KiraKira', 'database.sqlite'));
   }
   
   /// Get WAL and SHM files (SQLite journal files)
@@ -46,7 +46,7 @@ class SqliteBackupService {
     
     // Generate backup filename
     final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    final backupName = customName ?? 'NativeTavern_backup_$timestamp';
+    final backupName = customName ?? 'KiraKira_backup_$timestamp';
     final backupFile = File(p.join(backupDir.path, '$backupName.ntbackup'));
     
     debugPrint('[SqliteBackup] Creating backup: ${backupFile.path}');

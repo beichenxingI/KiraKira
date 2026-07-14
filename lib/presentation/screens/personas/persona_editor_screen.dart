@@ -3,16 +3,16 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:native_tavern/data/models/persona.dart';
-import 'package:native_tavern/presentation/providers/persona_providers.dart';
-import 'package:native_tavern/presentation/providers/character_providers.dart';
-import 'package:native_tavern/presentation/providers/group_providers.dart';
-import 'package:native_tavern/presentation/providers/world_info_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
+import 'package:kirakira/data/models/persona.dart';
+import 'package:kirakira/presentation/providers/persona_providers.dart';
+import 'package:kirakira/presentation/providers/character_providers.dart';
+import 'package:kirakira/presentation/providers/group_providers.dart';
+import 'package:kirakira/presentation/providers/world_info_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Enhanced Persona Editor Screen with all new fields
 class PersonaEditorScreen extends ConsumerStatefulWidget {
@@ -544,7 +544,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
   Future<void> _saveAvatarImage(String sourcePath) async {
     try {
       final appDir = await getApplicationDocumentsDirectory();
-      final avatarsDir = Directory(p.join(appDir.path, 'NativeTavern', 'avatars', 'personas'));
+      final avatarsDir = Directory(p.join(appDir.path, 'KiraKira', 'avatars', 'personas'));
       await avatarsDir.create(recursive: true);
       
       const uuid = Uuid();

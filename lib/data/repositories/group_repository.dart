@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/database/database.dart' hide Group;
-import 'package:native_tavern/data/database/database.dart' as db;
-import 'package:native_tavern/data/models/group.dart';
-import 'package:native_tavern/core/services/initialization_service.dart';
+import 'package:kirakira/data/database/database.dart' hide Group;
+import 'package:kirakira/data/database/database.dart' as db;
+import 'package:kirakira/data/models/group.dart';
+import 'package:kirakira/core/services/initialization_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Provider for group repository

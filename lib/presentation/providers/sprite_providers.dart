@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/sprite.dart';
-import 'package:native_tavern/domain/services/emotion_detection_service.dart';
-import 'package:native_tavern/domain/services/sprite_service.dart';
+import 'package:kirakira/data/models/sprite.dart';
+import 'package:kirakira/domain/services/emotion_detection_service.dart';
+import 'package:kirakira/domain/services/sprite_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 

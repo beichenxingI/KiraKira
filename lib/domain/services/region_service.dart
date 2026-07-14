@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 
 /// Service to detect the user's region for provider filtering
 class RegionService {
-  static const _channel = MethodChannel('com.nativetavern/region');
+  static const _channel = MethodChannel('com.KiraKira/region');
   
   static bool? _cachedIsChinaRegion;
   static List<String>? _cachedReasons;

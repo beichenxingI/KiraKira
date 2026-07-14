@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -65,7 +65,7 @@ class AICustomPresetsNotifier extends StateNotifier<List<AIPreset>> {
     await _save();
   }
 
-  /// Import a preset from JSON (supports both SillyTavern and NativeTavern formats)
+  /// Import a preset from JSON (supports both SillyTavern and KiraKira formats)
   Future<AIPreset> importPreset(Map<String, dynamic> json) async {
     final id = const Uuid().v4();
     final preset = AIPreset.fromExportJson(json, id);

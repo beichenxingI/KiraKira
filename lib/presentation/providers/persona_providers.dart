@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/persona.dart';
-import 'package:native_tavern/data/repositories/persona_repository.dart';
+import 'package:kirakira/data/models/persona.dart';
+import 'package:kirakira/data/repositories/persona_repository.dart';
 
 /// All personas provider
 final allPersonasProvider = FutureProvider<List<Persona>>((ref) async {

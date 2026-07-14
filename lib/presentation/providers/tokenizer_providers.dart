@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:native_tavern/data/models/tokenizer.dart';
-import 'package:native_tavern/domain/services/tokenizer_service.dart';
+import 'package:kirakira/data/models/tokenizer.dart';
+import 'package:kirakira/domain/services/tokenizer_service.dart';
 
 /// Provider for TokenizerService
 final tokenizerServiceProvider = Provider<TokenizerService>((ref) {

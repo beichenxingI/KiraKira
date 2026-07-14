@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/character.dart';
-import 'package:native_tavern/data/models/chat.dart';
-import 'package:native_tavern/data/models/persona.dart';
-import 'package:native_tavern/domain/services/macro_service.dart';
-import 'package:native_tavern/presentation/providers/chat_providers.dart';
-import 'package:native_tavern/presentation/providers/persona_providers.dart';
-import 'package:native_tavern/presentation/providers/settings_providers.dart';
+import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/data/models/chat.dart';
+import 'package:kirakira/data/models/persona.dart';
+import 'package:kirakira/domain/services/macro_service.dart';
+import 'package:kirakira/presentation/providers/chat_providers.dart';
+import 'package:kirakira/presentation/providers/persona_providers.dart';
+import 'package:kirakira/presentation/providers/settings_providers.dart';
 
 /// Provider for creating a MacroContext based on current chat state
 final macroContextProvider = Provider<MacroContext>((ref) {

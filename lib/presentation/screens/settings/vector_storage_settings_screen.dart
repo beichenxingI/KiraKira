@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/vector_storage.dart';
-import 'package:native_tavern/domain/services/vector_storage_service.dart';
-import 'package:native_tavern/presentation/providers/vector_storage_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/data/models/vector_storage.dart';
+import 'package:kirakira/domain/services/vector_storage_service.dart';
+import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Settings screen for Vector Storage / RAG
 class VectorStorageSettingsScreen extends ConsumerWidget {
@@ -20,7 +20,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vector Storage / RAG'),
+        title: Text(AppLocalizations.of(context)!.vectorStorageRag),
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline),
@@ -195,7 +195,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Vector Storage Help'),
+        title: Text('\u5411\u91cf\u68c0\u7d22\u5e2e\u52a9'),
         content: SingleChildScrollView(
           child: Text(service.getHelpText()),
         ),

@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -136,7 +136,7 @@ abstract class AppLocalizations {
   /// The application title
   ///
   /// In en, this message translates to:
-  /// **'NativeTavern'**
+  /// **'KiraKira'**
   String get appTitle;
 
   /// Home navigation label
@@ -673,11 +673,11 @@ abstract class AppLocalizations {
   /// **'JSONL (SillyTavern format)'**
   String get jsonlSillyTavernFormat;
 
-  /// JSON NativeTavern format description
+  /// JSON KiraKira format description
   ///
   /// In en, this message translates to:
-  /// **'JSON (NativeTavern format)'**
-  String get jsonNativeTavernFormat;
+  /// **'JSON (KiraKira format)'**
+  String get jsonKiraKiraFormat;
 
   /// Import note
   ///

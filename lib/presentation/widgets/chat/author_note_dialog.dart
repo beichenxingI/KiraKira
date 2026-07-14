@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/presentation/providers/chat_providers.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/providers/chat_providers.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Dialog for editing Author's Note settings
 class AuthorNoteDialog extends ConsumerStatefulWidget {

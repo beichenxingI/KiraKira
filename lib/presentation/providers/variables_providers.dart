@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/domain/services/variables_service.dart';
+import 'package:kirakira/domain/services/variables_service.dart';
 
 /// Provider for the variables service singleton
 final variablesServiceProvider = Provider<VariablesService>((ref) {

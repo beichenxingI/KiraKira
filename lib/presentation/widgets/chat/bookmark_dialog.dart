@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/bookmark.dart';
-import 'package:native_tavern/data/models/chat.dart';
-import 'package:native_tavern/presentation/providers/bookmark_providers.dart';
-import 'package:native_tavern/presentation/providers/chat_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/data/models/bookmark.dart';
+import 'package:kirakira/data/models/chat.dart';
+import 'package:kirakira/presentation/providers/bookmark_providers.dart';
+import 'package:kirakira/presentation/providers/chat_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Dialog for creating a new bookmark
 class CreateBookmarkDialog extends ConsumerStatefulWidget {

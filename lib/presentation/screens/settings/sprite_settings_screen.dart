@@ -1,12 +1,12 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:native_tavern/data/models/sprite.dart';
-import 'package:native_tavern/presentation/providers/sprite_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/presentation/widgets/chat/sprite_display.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/data/models/sprite.dart';
+import 'package:kirakira/presentation/providers/sprite_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/widgets/chat/sprite_display.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Screen for managing sprite settings
 class SpriteSettingsScreen extends ConsumerWidget {

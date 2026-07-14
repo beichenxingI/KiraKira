@@ -246,7 +246,7 @@ enum WorldInfoPosition {
 }
 
 // Backwards compatibility - static getters for old names
-// These are used internally in NativeTavern for prompt building
+// These are used internally in KiraKira for prompt building
 class WorldInfoPositionAlias {
   static const WorldInfoPosition beforeCharDefs = WorldInfoPosition.before;
   static const WorldInfoPosition afterCharDefs = WorldInfoPosition.after;

@@ -1,4 +1,4 @@
-/// Character model for NativeTavern
+/// Character model for KiraKira
 class Character {
   final String id;
   final String name;

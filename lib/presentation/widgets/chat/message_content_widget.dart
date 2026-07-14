@@ -2,10 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/presentation/widgets/chat/html_webview_widget.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/widgets/chat/html_webview_widget.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Widget that renders message content with support for Markdown
 ///

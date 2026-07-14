@@ -38,7 +38,7 @@ pub fn parse_png_card(data: &[u8]) -> Result<ParsedCharacterCard> {
     } else if let Some(data) = chara_data {
         (data, "chara_card_v2")
     } else {
-        return Err(CoreError::NoMetadata);
+        return Err(CoreError::InvalidCharacterCard("RUST_PNG_PARSER_CALLED_MARKER_12345".to_string()));
     };
     
     // Decode base64

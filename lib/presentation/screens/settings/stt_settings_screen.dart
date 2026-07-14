@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/domain/services/stt_service.dart';
-import 'package:native_tavern/presentation/providers/stt_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/domain/services/stt_service.dart';
+import 'package:kirakira/presentation/providers/stt_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Screen for STT settings
 class STTSettingsScreen extends ConsumerWidget {

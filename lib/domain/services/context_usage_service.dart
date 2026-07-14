@@ -1,9 +1,9 @@
-import 'package:native_tavern/data/models/chat.dart';
-import 'package:native_tavern/data/models/character.dart';
-import 'package:native_tavern/data/models/persona.dart';
-import 'package:native_tavern/data/models/world_info.dart';
-import 'package:native_tavern/data/models/prompt_manager.dart';
-import 'package:native_tavern/domain/services/tokenizer_service.dart';
+import 'package:kirakira/data/models/chat.dart';
+import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/data/models/persona.dart';
+import 'package:kirakira/data/models/world_info.dart';
+import 'package:kirakira/data/models/prompt_manager.dart';
+import 'package:kirakira/domain/services/tokenizer_service.dart';
 
 /// Represents the token usage of a single context component
 class ContextComponentUsage {

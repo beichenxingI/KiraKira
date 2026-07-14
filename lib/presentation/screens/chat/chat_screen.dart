@@ -2,44 +2,53 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:kirakira/core/logger/logger.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:native_tavern/data/models/character.dart';
-import 'package:native_tavern/data/models/chat.dart';
-import 'package:native_tavern/data/models/chat_background.dart';
-import 'package:native_tavern/domain/services/chat_export_service.dart';
-import 'package:native_tavern/domain/services/llm_service.dart';
-import 'package:native_tavern/domain/services/markdown_hotkey_service.dart';
-import 'package:native_tavern/domain/services/slash_command_service.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
-import 'package:native_tavern/presentation/providers/bookmark_providers.dart';
-import 'package:native_tavern/presentation/providers/background_providers.dart';
-import 'package:native_tavern/presentation/providers/chat_providers.dart';
-import 'package:native_tavern/presentation/providers/persona_providers.dart';
-import 'package:native_tavern/presentation/providers/quick_reply_providers.dart';
-import 'package:native_tavern/presentation/providers/settings_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/presentation/widgets/chat/author_note_dialog.dart';
-import 'package:native_tavern/presentation/widgets/chat/bookmark_dialog.dart';
-import 'package:native_tavern/presentation/widgets/chat/chat_background_widget.dart';
-import 'package:native_tavern/presentation/widgets/chat/message_content_widget.dart';
-import 'package:native_tavern/presentation/widgets/chat/quick_reply_bar.dart';
-import 'package:native_tavern/presentation/widgets/chat/markdown_input_field.dart';
-import 'package:native_tavern/presentation/widgets/chat/reasoning_widget.dart';
-import 'package:native_tavern/presentation/widgets/chat/slash_command_suggestions.dart';
-import 'package:native_tavern/presentation/widgets/chat/context_usage_indicator.dart';
-import 'package:native_tavern/presentation/providers/context_usage_providers.dart';
-import 'package:native_tavern/presentation/providers/image_gen_providers.dart';
-import 'package:native_tavern/presentation/widgets/chat/image_generation_dialog.dart';
-import 'package:native_tavern/presentation/widgets/common/character_avatar_image.dart';
-import 'package:native_tavern/domain/services/image_generation_service.dart';
-import 'package:native_tavern/presentation/screens/chat/chat_layout_mode.dart';
-import 'package:native_tavern/presentation/widgets/chat/visual_novel_message_view.dart';
+import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/data/models/chat.dart';
+import 'package:kirakira/data/models/chat_background.dart';
+import 'package:kirakira/domain/services/chat_export_service.dart';
+import 'package:kirakira/domain/services/llm_service.dart';
+import 'package:kirakira/domain/services/markdown_hotkey_service.dart';
+import 'package:kirakira/domain/services/slash_command_service.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/providers/bookmark_providers.dart';
+import 'package:kirakira/presentation/providers/background_providers.dart';
+import 'package:kirakira/presentation/providers/chat_providers.dart';
+import 'package:kirakira/presentation/providers/persona_providers.dart';
+import 'package:kirakira/presentation/providers/quick_reply_providers.dart';
+import 'package:kirakira/presentation/providers/settings_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/widgets/chat/author_note_dialog.dart';
+import 'package:kirakira/presentation/widgets/chat/bookmark_dialog.dart';
+import 'package:kirakira/presentation/widgets/chat/chat_background_widget.dart';
+import 'package:kirakira/presentation/widgets/chat/message_content_widget.dart';
+import 'package:kirakira/presentation/widgets/chat/quick_reply_bar.dart';
+import 'package:kirakira/presentation/widgets/chat/markdown_input_field.dart';
+import 'package:kirakira/presentation/widgets/chat/reasoning_widget.dart';
+import 'package:kirakira/presentation/widgets/chat/slash_command_suggestions.dart';
+import 'package:kirakira/presentation/widgets/chat/context_usage_indicator.dart';
+import 'package:kirakira/presentation/providers/context_usage_providers.dart';
+import 'package:kirakira/presentation/providers/image_gen_providers.dart';
+import 'package:kirakira/presentation/widgets/chat/image_generation_dialog.dart';
+import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
+import 'package:kirakira/domain/services/image_generation_service.dart';
+import 'package:kirakira/presentation/screens/chat/chat_layout_mode.dart';
+import 'package:kirakira/presentation/widgets/chat/visual_novel_message_view.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
+import 'package:kirakira/presentation/widgets/chat/typing_indicator.dart';
+import 'package:kirakira/presentation/widgets/chat/input_menu_button.dart';
+import 'package:kirakira/presentation/screens/chat/widgets/chat_app_bar.dart';
+import 'package:kirakira/presentation/widgets/kira_menu.dart';
+import 'package:kirakira/presentation/models/kira_menu_item.dart';
+import 'package:kirakira/presentation/screens/world_info/world_info_screen.dart';
+
+
 
 /// Provider for chat export service
 final chatExportServiceProvider = Provider<ChatExportService>((ref) {
@@ -159,11 +168,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text('• ${l10n.claude} (Anthropic)'),
-            Text('• ${l10n.openRouter}'),
-            Text('• ${l10n.gemini} (Google)'),
-            Text('• ${l10n.ollama} (${l10n.local})'),
-            Text('• ${l10n.koboldCpp} (${l10n.local})'),
+            Text('�?${l10n.claude} (Anthropic)'),
+            Text('�?${l10n.openRouter}'),
+            Text('�?${l10n.gemini} (Google)'),
+            Text('�?${l10n.ollama} (${l10n.local})'),
+            Text('�?${l10n.koboldCpp} (${l10n.local})'),
           ],
         ),
         actions: [
@@ -555,7 +564,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
 
     return Scaffold(
-      appBar: _buildAppBar(chatState),
+      appBar: ChatAppBar(onAuthorNotes:()=>showAuthorNoteDialog(context),onWorldInfo:()=>context.push('/world-info'),onExportChat:()=>_showExportDialog(),onResponseLength:()=>{},onClearChat:()=>{}),
       body: ChatBackgroundWidget(
         characterId: chatState.character?.id,
         child: Column(
@@ -658,188 +667,79 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  AppBar _buildAppBar(ActiveChatState chatState) {
-    final l10n = AppLocalizations.of(context);
-    final hasAuthorNote = chatState.chat?.authorNoteEnabled == true &&
-        (chatState.chat?.authorNote.isNotEmpty ?? false);
-    final llmConfig = ref.watch(llmConfigProvider);
 
-    return AppBar(
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            chatState.character?.name ?? l10n.chat,
-            style: const TextStyle(fontSize: 16),
-          ),
-          // Model selector - tap to change model
-          GestureDetector(
-            onTap: () => _showModelSelector(),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  llmConfig.model.isEmpty ? l10n.selectModel : llmConfig.model,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: chatState.isGenerating
-                        ? AppTheme.textMuted
-                        : AppTheme.accentColor,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.expand_more,
-                  size: 14,
-                  color: chatState.isGenerating
-                      ? AppTheme.textMuted
-                      : AppTheme.accentColor,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        // Author's Note button
-        IconButton(
-          icon: Icon(
-            Icons.note_alt_outlined,
-            color: hasAuthorNote ? AppTheme.accentColor : null,
-          ),
-          tooltip: l10n.authorsNote,
-          onPressed: () => showAuthorNoteDialog(context),
-        ),
-        // Bookmarks button
-        IconButton(
-          icon: const Icon(Icons.bookmark_border),
-          tooltip: l10n.bookmarks,
-          onPressed: () => _showBookmarksDialog(context),
-        ),
-        // Layout mode toggle (only show when there's a background)
-        if (ref
-                .watch(effectiveBackgroundProvider(chatState.character?.id))
-                .valueOrNull
-                ?.type ==
-            BackgroundType.image)
-          IconButton(
-            icon: Icon(
-              ref.watch(appSettingsProvider.select((s) => s.chatLayoutMode)) ==
-                      'bubble'
-                  ? Icons.auto_stories // Novel mode icon
-                  : Icons.chat_bubble, // Bubble mode icon
-            ),
-            tooltip: '切换布局',
-            onPressed: () {
-              final currentMode = ref.read(appSettingsProvider).chatLayoutMode;
-              final newMode =
-                  currentMode == 'bubble' ? 'visualNovel' : 'bubble';
-              ref
-                  .read(appSettingsProvider.notifier)
-                  .updateChatLayoutMode(newMode);
-            },
-          ),
-        if (chatState.messages.isNotEmpty &&
-            chatState.messages.last.role == MessageRole.assistant &&
-            !chatState.isGenerating)
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: l10n.regenerate,
-            onPressed: _regenerateMessage,
-          ),
-        PopupMenuButton(
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'character',
-              child: ListTile(
-                leading: const Icon(Icons.person),
-                title: Text(l10n.viewCharacter),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-            PopupMenuItem(
-              value: 'author_note',
-              child: ListTile(
-                leading: Icon(
-                  Icons.note_alt,
-                  color: hasAuthorNote ? AppTheme.accentColor : null,
-                ),
-                title: Text(l10n.authorsNote),
-                subtitle: Text(
-                  hasAuthorNote ? l10n.enabled : l10n.disabled,
-                  style: TextStyle(
-                    color: hasAuthorNote
-                        ? AppTheme.accentColor
-                        : AppTheme.textMuted,
-                    fontSize: 12,
-                  ),
-                ),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-            PopupMenuItem(
-              value: 'bookmarks',
-              child: ListTile(
-                leading:
-                    const Icon(Icons.bookmark, color: AppTheme.accentColor),
-                title: Text(l10n.bookmarks),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-            PopupMenuItem(
-              value: 'export',
-              child: ListTile(
-                leading: const Icon(Icons.upload),
-                title: Text(l10n.exportChat),
-                subtitle: Text(l10n.saveAsJsonl),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-            PopupMenuItem(
-              value: 'import',
-              child: ListTile(
-                leading: const Icon(Icons.download),
-                title: Text(l10n.importChat),
-                subtitle: Text(l10n.chooseFile),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-            PopupMenuItem(
-              value: 'clear',
-              child: ListTile(
-                leading: const Icon(Icons.delete_sweep, color: Colors.orange),
-                title: Text(l10n.clearMessages),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ],
-          onSelected: (value) {
-            switch (value) {
-              case 'character':
-                // Navigate to character
-                break;
-              case 'author_note':
-                showAuthorNoteDialog(context);
-                break;
-              case 'bookmarks':
-                _showBookmarksDialog(context);
-                break;
-              case 'export':
-                _showExportDialog();
-                break;
-              case 'import':
-                _showImportDialog();
-                break;
-              case 'clear':
-                _showClearConfirmation();
-                break;
-            }
-          },
-        ),
-      ],
+
+
+  Future<void> _showChatMenu() async {
+    final id = await showKiraMenu(
+      context: context,
+      title: '聊天菜单',
+      items: _buildChatMenuItems(),
     );
+    if (id == null || !mounted) return;
+    _handleMenuSelection(id);
   }
 
+  List<KiraMenuItem> _buildChatMenuItems() {
+    return [
+      KiraMenuItem(
+        id: 'role',
+        label: '角色',
+        icon: Icons.person,
+        children: [
+          KiraMenuItem(id: 'char_edit', label: '角色设定', icon: Icons.edit),
+          KiraMenuItem(id: 'author_note', label: '作者注释', icon: Icons.note_alt),
+        ],
+      ),
+      KiraMenuItem(
+        id: 'regex',
+        label: '正则',
+        icon: Icons.code,
+        children: [
+          KiraMenuItem(id: 'global_regex', label: '全局正则', icon: Icons.public),
+          KiraMenuItem(id: 'char_regex', label: '角色正则', icon: Icons.person_outline),
+        ],
+      ),
+      KiraMenuItem(id: 'world', label: '世界书', icon: Icons.menu_book),
+      KiraMenuItem(
+        id: 'tools',
+        label: '工具',
+        icon: Icons.build,
+        children: [
+          KiraMenuItem(id: 'response_len', label: '回复字数', icon: Icons.format_size),
+          KiraMenuItem(id: 'clear_chat', label: '清空聊天', icon: Icons.delete, isDestructive: true),
+          KiraMenuItem(id: 'export_chat', label: '导出聊天', icon: Icons.share),
+        ],
+      ),
+      KiraMenuItem(id: 'search', label: '搜索聊天', icon: Icons.search),
+      KiraMenuItem(id: 'image_gen', label: '生图设置', icon: Icons.image),
+    ];
+  }
+
+  Future<void> _handleMenuSelection(String id) async {
+    switch (id) {
+      case 'author_note':
+        await showAuthorNoteDialog(context);
+        break;
+      case 'export_chat':
+        _showExportDialog();
+        break;
+      case 'image_gen':
+        context.push('/image-gen-settings');
+        break;
+      case 'world':
+        KiraLogger().info('MENU', '菜单点击：世界书 - 准备导航到 /world-info');
+        context.push('/world-info');
+        KiraLogger().info('MENU', '菜单点击：世界书 - push 已执行');
+        break;
+      default:
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('功能开发中：$id')),
+          );
+        }
+    }
+  }
   Widget _buildEmptyState() {
     final l10n = AppLocalizations.of(context);
     final character = ref.read(activeChatProvider).character;
@@ -1199,18 +1099,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _buildQuickReplyBar(ActiveChatState chatState) {
-    final quickReplyConfig = ref.watch(quickReplyConfigProvider);
-
-    // Don't show if generating or if quick replies are disabled
-    if (chatState.isGenerating || !quickReplyConfig.showQuickReplies) {
-      return const SizedBox.shrink();
-    }
-
-    return QuickReplyBar(
-      onQuickReply: (message, autoSend) => _handleQuickReply(message, autoSend),
-    );
-  }
 
   void _handleQuickReply(String message, bool autoSend) {
     final config = ref.read(llmConfigProvider);
@@ -1354,7 +1242,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Row(
             children: [
               // Image attachment
-              _InputMenuButton(
+              InputMenuButton(
                 icon: Icons.image,
                 label: AppLocalizations.of(context).attachImage,
                 onTap: () {
@@ -1364,7 +1252,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
               const SizedBox(width: 8),
               // Markdown formatting
-              _InputMenuButton(
+              InputMenuButton(
                 icon: Icons.text_format,
                 label: AppLocalizations.of(context).formatting,
                 onTap: () => _showFormattingMenu(),
@@ -1805,7 +1693,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         return 'image/webp';
       case '.bmp':
         return 'image/bmp';
-      default:
+            default:
         return 'image/jpeg';
     }
   }
@@ -1891,58 +1779,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  void _showImportDialog() {
-    final l10n = AppLocalizations.of(context);
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.download, color: AppTheme.primaryColor),
-            const SizedBox(width: 8),
-            Text(l10n.importChat),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.importChatHistory),
-            const SizedBox(height: 16),
-            Text(
-              l10n.supportedFormats,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text('• ${l10n.jsonlSillyTavernFormat}'),
-            Text('• ${l10n.jsonNativeTavernFormat}'),
-            const SizedBox(height: 16),
-            Text(
-              l10n.importNote,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.textMuted,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(l10n.cancel),
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              await _importChat();
-            },
-            icon: const Icon(Icons.folder_open),
-            label: Text(l10n.chooseFile),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _importChat() async {
     final l10n = AppLocalizations.of(context);
@@ -2157,7 +1993,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
                                 _buildReasoningSection(),
                               if (widget.isGenerating &&
                                   widget.message.content.isEmpty)
-                                const _TypingIndicator()
+                                const TypingIndicator()
                               else
                                 MessageContentWidget(
                                   content: widget.message.content,
@@ -2583,61 +2419,7 @@ class _MessageBubbleState extends State<_MessageBubble> {
   }
 }
 
-class _TypingIndicator extends StatefulWidget {
-  const _TypingIndicator();
 
-  @override
-  State<_TypingIndicator> createState() => _TypingIndicatorState();
-}
-
-class _TypingIndicatorState extends State<_TypingIndicator>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(3, (index) {
-            final delay = index * 0.2;
-            final animationValue = ((_controller.value + delay) % 1.0);
-            final size = 4.0 + (animationValue * 4.0);
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  color: AppTheme.textMuted,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            );
-          }),
-        );
-      },
-    );
-  }
-}
 
 /// Dialog for selecting a model from available models
 class _ModelSelectorDialog extends StatefulWidget {
@@ -2828,43 +2610,7 @@ class _ModelSelectorDialogState extends State<_ModelSelectorDialog> {
 }
 
 /// Button widget for the input menu panel
-class _InputMenuButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
 
-  const _InputMenuButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
 
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppTheme.darkCard,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: AppTheme.primaryColor),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+
+

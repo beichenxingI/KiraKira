@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'package:native_tavern/data/models/regex_script.dart';
-import 'package:native_tavern/domain/services/regex_service.dart';
-import 'package:native_tavern/presentation/providers/regex_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/data/models/regex_script.dart';
+import 'package:kirakira/domain/services/regex_service.dart';
+import 'package:kirakira/presentation/providers/regex_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Screen for managing regex scripts
 class RegexSettingsScreen extends ConsumerWidget {

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/world_info.dart';
-import 'package:native_tavern/presentation/providers/world_info_providers.dart';
-import 'package:native_tavern/presentation/providers/character_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/data/models/world_info.dart';
+import 'package:kirakira/presentation/providers/world_info_providers.dart';
+import 'package:kirakira/presentation/providers/character_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Enhanced World Info Entry Editor Screen with all new fields
 class WorldInfoEntryEditorScreen extends ConsumerStatefulWidget {

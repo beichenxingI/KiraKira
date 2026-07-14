@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/group.dart';
-import 'package:native_tavern/data/repositories/group_repository.dart';
+import 'package:kirakira/data/models/group.dart';
+import 'package:kirakira/data/repositories/group_repository.dart';
 
 /// All groups list provider
 final allGroupsProvider = FutureProvider<List<Group>>((ref) async {

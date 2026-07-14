@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
-import 'package:native_tavern/domain/services/import_service.dart';
-import 'package:native_tavern/data/models/character.dart';
+import 'package:kirakira/domain/services/import_service.dart';
+import 'package:kirakira/data/models/character.dart';
 
 enum UrlSource {
-  nativeTavern,
+  KiraKira,
   chub,
   janitorAI,
   pygmalion,
@@ -37,7 +37,7 @@ class UrlImportService {
           connectTimeout: const Duration(seconds: 30),
           receiveTimeout: const Duration(seconds: 60),
           headers: {
-            'User-Agent': 'NativeTavern/1.0',
+            'User-Agent': 'KiraKira/1.0',
           },
         ));
 
@@ -48,8 +48,8 @@ class UrlImportService {
     final host = uri.host.toLowerCase();
     final path = uri.path.toLowerCase();
 
-    if (host.contains('nativetavern.com')) {
-      return UrlSource.nativeTavern;
+    if (host.contains('KiraKira.com')) {
+      return UrlSource.KiraKira;
     }
     if (host.contains('chub.ai') || host.contains('characterhub.org')) {
       return UrlSource.chub;
@@ -80,8 +80,8 @@ class UrlImportService {
 
   String getSourceDisplayName(UrlSource source) {
     switch (source) {
-      case UrlSource.nativeTavern:
-        return 'NativeTavern';
+      case UrlSource.KiraKira:
+        return 'KiraKira';
       case UrlSource.chub:
         return 'Chub.ai';
       case UrlSource.janitorAI:
@@ -105,8 +105,8 @@ class UrlImportService {
     final source = identifySource(url);
 
     switch (source) {
-      case UrlSource.nativeTavern:
-        return await _importFromNativeTavern(url);
+      case UrlSource.KiraKira:
+        return await _importFromKiraKira(url);
       case UrlSource.chub:
         return await _importFromChub(url);
       case UrlSource.janitorAI:
@@ -126,9 +126,9 @@ class UrlImportService {
     }
   }
 
-  /// NativeTavern: Auto-detect format from community URL
-  /// URL format: https://nativetavern.com/characters/{id} or direct file links
-  Future<UrlImportResult> _importFromNativeTavern(String url) async {
+  /// KiraKira: Auto-detect format from community URL
+  /// URL format: https://KiraKira.com/characters/{id} or direct file links
+  Future<UrlImportResult> _importFromKiraKira(String url) async {
     try {
       final response = await _dio.get<List<int>>(
         url.trim(),
@@ -146,7 +146,7 @@ class UrlImportService {
           final character = await _importService.importFromPngBytes(bytes);
           return UrlImportResult(
             character: character,
-            source: UrlSource.nativeTavern,
+            source: UrlSource.KiraKira,
             sourceUrl: url,
           );
         }
@@ -155,16 +155,16 @@ class UrlImportService {
         final character = await _importService.importFromJson(jsonStr);
         return UrlImportResult(
           character: character,
-          source: UrlSource.nativeTavern,
+          source: UrlSource.KiraKira,
           sourceUrl: url,
         );
       }
-      throw Exception('NativeTavern returned status ${response.statusCode}');
+      throw Exception('KiraKira returned status ${response.statusCode}');
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
-        throw Exception('Character not found on NativeTavern');
+        throw Exception('Character not found on KiraKira');
       }
-      throw Exception('Failed to download from NativeTavern: ${e.message}');
+      throw Exception('Failed to download from KiraKira: ${e.message}');
     }
   }
 

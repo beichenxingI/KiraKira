@@ -1,4 +1,4 @@
-// ignore: unused_import
+﻿// ignore: unused_import
 import 'package:intl/intl.dart' as intl;
 import 'app_localizations.dart';
 
@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => 'NativeTavern';
+  String get appTitle => 'KiraKira';
 
   @override
   String get home => '首页';
@@ -299,7 +299,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get jsonlSillyTavernFormat => 'JSONL (SillyTavern格式)';
 
   @override
-  String get jsonNativeTavernFormat => 'JSON (NativeTavern格式)';
+  String get jsonKiraKiraFormat => 'JSON (KiraKira格式)';
 
   @override
   String get importNote => '注意：导入的消息将添加到当前聊天中。';
@@ -3632,7 +3632,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   AppLocalizationsZhTw() : super('zh_TW');
 
   @override
-  String get appTitle => 'NativeTavern';
+  String get appTitle => 'KiraKira';
 
   @override
   String get home => '首頁';
@@ -3916,7 +3916,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get jsonlSillyTavernFormat => 'JSONL (SillyTavern格式)';
 
   @override
-  String get jsonNativeTavernFormat => 'JSON (NativeTavern格式)';
+  String get jsonKiraKiraFormat => 'JSON (KiraKira格式)';
 
   @override
   String get importNote => '注意：匯入的訊息將新增到目前的聊天中。';

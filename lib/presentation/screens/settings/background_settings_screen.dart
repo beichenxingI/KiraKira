@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -412,7 +412,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
         if (file.path != null) {
           // Copy to app directory
           final appDir = await getApplicationDocumentsDirectory();
-          final bgDir = Directory(p.join(appDir.path, 'NativeTavern', 'backgrounds'));
+          final bgDir = Directory(p.join(appDir.path, 'KiraKira', 'backgrounds'));
           await bgDir.create(recursive: true);
 
           final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.name}';

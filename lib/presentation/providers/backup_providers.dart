@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:native_tavern/domain/services/backup_service.dart';
+import 'package:kirakira/domain/services/backup_service.dart';
 
 /// Provider for the backup service singleton
 final backupServiceProvider = Provider<BackupService>((ref) {

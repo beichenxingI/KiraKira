@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/services/slash_command_service.dart';
 import '../../theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Widget that shows slash command suggestions
 class SlashCommandSuggestions extends ConsumerWidget {

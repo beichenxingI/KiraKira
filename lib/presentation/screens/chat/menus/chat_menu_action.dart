@@ -1,0 +1,1 @@
+enum ChatMenuAction { authorNotes, worldInfo, exportChat, responseLength, clearChat }

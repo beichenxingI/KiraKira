@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/domain/services/translation_service.dart';
+import 'package:kirakira/domain/services/translation_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Provider for translation service

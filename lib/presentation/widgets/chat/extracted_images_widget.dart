@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:native_tavern/domain/services/image_generation_service.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
+import 'package:kirakira/domain/services/image_generation_service.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Widget to display images extracted from text content

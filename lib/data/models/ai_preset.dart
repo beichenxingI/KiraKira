@@ -83,8 +83,8 @@ class AIPreset {
       if (promptManagerConfig != null)
         'prompt_order': _promptConfigToSillyTavernFormat(promptManagerConfig!),
       
-      // NativeTavern-specific fields
-      '_native_tavern': {
+      // KiraKira-specific fields
+      '_kirakira': {
         'version': 1,
         'instructTemplateId': instructTemplateId,
         'createdAt': createdAt.toIso8601String(),
@@ -168,9 +168,9 @@ class AIPreset {
     );
   }
 
-  /// Import from export format - supports both SillyTavern and legacy NativeTavern formats
+  /// Import from export format - supports both SillyTavern and legacy KiraKira formats
   factory AIPreset.fromExportJson(Map<String, dynamic> json, String id) {
-    // Check if it's the legacy NativeTavern format with nested generationSettings
+    // Check if it's the legacy KiraKira format with nested generationSettings
     if (json['generationSettings'] != null) {
       return AIPreset(
         id: id,
@@ -217,24 +217,24 @@ class AIPreset {
     // Extract description
     final description = json['description'] as String?;
 
-    // Extract NativeTavern-specific metadata if present
-    final nativeTavernMeta = json['_native_tavern'] as Map<String, dynamic>?;
+    // Extract KiraKira-specific metadata if present
+    final KiraKiraMeta = json['_kirakira'] as Map<String, dynamic>?;
     DateTime createdAt = DateTime.now();
     String? instructTemplateId;
     
-    if (nativeTavernMeta != null) {
-      if (nativeTavernMeta['createdAt'] != null) {
-        createdAt = DateTime.parse(nativeTavernMeta['createdAt'] as String);
+    if (KiraKiraMeta != null) {
+      if (KiraKiraMeta['createdAt'] != null) {
+        createdAt = DateTime.parse(KiraKiraMeta['createdAt'] as String);
       }
-      instructTemplateId = nativeTavernMeta['instructTemplateId'] as String?;
+      instructTemplateId = KiraKiraMeta['instructTemplateId'] as String?;
     }
 
-    // Extract connection settings from _native_tavern if available
-    final provider = nativeTavernMeta?['provider'] as String?;
+    // Extract connection settings from _kirakira if available
+    final provider = KiraKiraMeta?['provider'] as String?;
     
     Map<String, Map<String, dynamic>>? providerSettings;
-    if (nativeTavernMeta?['providerSettings'] != null) {
-      providerSettings = (nativeTavernMeta!['providerSettings'] as Map<String, dynamic>).map(
+    if (KiraKiraMeta?['providerSettings'] != null) {
+      providerSettings = (KiraKiraMeta!['providerSettings'] as Map<String, dynamic>).map(
         (key, value) => MapEntry(
           key,
           (value as Map<String, dynamic>).map(
@@ -242,15 +242,15 @@ class AIPreset {
           ),
         ),
       );
-    } else if (nativeTavernMeta?['model'] != null) {
+    } else if (KiraKiraMeta?['model'] != null) {
       // Legacy support: migrate single provider settings to map if present
       // Assume it belongs to the active 'provider' if set, or just skip
        if (provider != null) {
          providerSettings = {
            provider: {
-             'model': nativeTavernMeta!['model'],
-             'apiKey': nativeTavernMeta['apiKey'],
-             'apiUrl': nativeTavernMeta['apiUrl'],
+             'model': KiraKiraMeta!['model'],
+             'apiKey': KiraKiraMeta['apiKey'],
+             'apiUrl': KiraKiraMeta['apiUrl'],
            }
          };
        }

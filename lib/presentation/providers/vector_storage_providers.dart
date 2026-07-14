@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:native_tavern/data/models/vector_storage.dart';
-import 'package:native_tavern/domain/services/vector_storage_service.dart';
+import 'package:kirakira/data/models/vector_storage.dart';
+import 'package:kirakira/domain/services/vector_storage_service.dart';
 
 /// Provider for VectorStorageService
 final vectorStorageServiceProvider = Provider<VectorStorageService>((ref) {

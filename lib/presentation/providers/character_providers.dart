@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/character.dart';
-import 'package:native_tavern/data/repositories/character_repository.dart';
+import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/data/repositories/character_repository.dart';
 
 // Note: characterRepositoryProvider is defined in character_repository.dart
 

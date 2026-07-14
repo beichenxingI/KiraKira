@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:kirakira/core/logger/logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:native_tavern/app.dart';
-import 'package:native_tavern/core/services/initialization_service.dart';
-import 'package:native_tavern/data/repositories/character_repository.dart';
-import 'package:native_tavern/data/repositories/chat_repository.dart';
-import 'package:native_tavern/data/repositories/world_info_repository.dart';
-import 'package:native_tavern/domain/services/llm_service.dart';
-import 'package:native_tavern/domain/services/import_service.dart';
-import 'package:native_tavern/presentation/providers/settings_providers.dart';
-import 'package:native_tavern/presentation/screens/import/import_screen.dart';
+import 'package:kirakira/app.dart';
+import 'package:kirakira/core/services/initialization_service.dart';
+import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/data/repositories/chat_repository.dart';
+import 'package:kirakira/data/repositories/world_info_repository.dart';
+import 'package:kirakira/domain/services/llm_service.dart';
+import 'package:kirakira/domain/services/import_service.dart';
+import 'package:kirakira/presentation/providers/settings_providers.dart';
+import 'package:kirakira/presentation/screens/import/import_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterError.onError = (details) { KiraLogger().error('FLUTTER', details.exceptionAsString(), details.stack); };
   
   // Initialize core services
   final initData = await InitializationService.initialize();
+  KiraLogger().init();
   
   // Get shared preferences
   final prefs = await SharedPreferences.getInstance();

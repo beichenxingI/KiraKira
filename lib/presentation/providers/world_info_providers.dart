@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/world_info.dart';
-import 'package:native_tavern/data/repositories/world_info_repository.dart';
-import 'package:native_tavern/core/services/initialization_service.dart';
+import 'package:kirakira/data/models/world_info.dart';
+import 'package:kirakira/data/repositories/world_info_repository.dart';
+import 'package:kirakira/core/services/initialization_service.dart';
 
 /// Provider for WorldInfo repository (properly initialized)
 final worldInfoRepositoryProvider = Provider<WorldInfoRepository>((ref) {

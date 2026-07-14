@@ -1,13 +1,13 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/chat.dart';
-import 'package:native_tavern/data/models/character.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/presentation/widgets/chat/message_content_widget.dart';
-import 'package:native_tavern/presentation/widgets/chat/reasoning_widget.dart';
-import 'package:native_tavern/presentation/widgets/common/character_avatar_image.dart';
+import 'package:kirakira/data/models/chat.dart';
+import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/widgets/chat/message_content_widget.dart';
+import 'package:kirakira/presentation/widgets/chat/reasoning_widget.dart';
+import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
 
 /// Visual novel style message view - displays messages at the bottom of the screen
 /// with the background image visible above

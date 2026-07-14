@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
-import 'package:native_tavern/data/models/regex_script.dart';
-import 'package:native_tavern/domain/services/regex_service.dart';
+import 'package:kirakira/data/models/regex_script.dart';
+import 'package:kirakira/domain/services/regex_service.dart';
 
 const _uuid = Uuid();
 

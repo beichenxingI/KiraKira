@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:native_tavern/domain/services/cloud_backup_service.dart';
-import 'package:native_tavern/domain/services/google_drive_service.dart';
+import 'package:kirakira/domain/services/cloud_backup_service.dart';
+import 'package:kirakira/domain/services/google_drive_service.dart';
 
 /// Provider for cloud backup service
 final cloudBackupServiceProvider = Provider<CloudBackupService>((ref) {

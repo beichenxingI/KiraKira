@@ -1,4 +1,4 @@
-// ignore: unused_import
+﻿// ignore: unused_import
 import 'package:intl/intl.dart' as intl;
 import 'app_localizations.dart';
 
@@ -9,7 +9,7 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
-  String get appTitle => 'NativeTavern';
+  String get appTitle => 'KiraKira';
 
   @override
   String get home => '홈';
@@ -299,7 +299,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get jsonlSillyTavernFormat => 'JSONL (SillyTavern 형식)';
 
   @override
-  String get jsonNativeTavernFormat => 'JSON (NativeTavern 형식)';
+  String get jsonKiraKiraFormat => 'JSON (KiraKira 형식)';
 
   @override
   String get importNote => '참고: 가져온 메시지는 현재 채팅에 추가됩니다.';

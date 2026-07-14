@@ -235,7 +235,7 @@ class AIPresetsScreen extends ConsumerWidget {
       // ignore: deprecated_member_use
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: 'NativeTavern AI Preset: $name',
+        subject: 'KiraKira AI Preset: $name',
       );
     } catch (e) {
       if (context.mounted) {
@@ -338,7 +338,7 @@ class AIPresetsScreen extends ConsumerWidget {
       // ignore: deprecated_member_use
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: 'NativeTavern AI Preset: ${preset.name}',
+        subject: 'KiraKira AI Preset: ${preset.name}',
       );
     } catch (e) {
       if (context.mounted) {

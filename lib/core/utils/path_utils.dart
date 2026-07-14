@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 /// Mobile platforms (iOS/Android) have sandbox that changes root path on each app restart
 /// We need to store relative paths and resolve them at runtime
 class PathUtils {
-  static const String _relativePath = 'NativeTavern';
+  static const String _relativePath = 'KiraKira';
   
   /// Get the base application documents directory
   static Future<String> getAppDocumentsPath() async {
@@ -14,7 +14,7 @@ class PathUtils {
     return appDir.path;
   }
   
-  /// Get the NativeTavern data directory
+  /// Get the KiraKira data directory
   static Future<String> getDataPath() async {
     final appDir = await getApplicationDocumentsDirectory();
     final dataPath = p.join(appDir.path, _relativePath);
@@ -26,7 +26,7 @@ class PathUtils {
   }
   
   /// Convert absolute path to relative path (for storage)
-  /// Returns path relative to NativeTavern folder
+  /// Returns path relative to KiraKira folder
   static Future<String> toRelativePath(String absolutePath) async {
     final dataPath = await getDataPath();
     if (absolutePath.startsWith(dataPath)) {
@@ -42,7 +42,7 @@ class PathUtils {
   }
   
   /// Convert relative path to absolute path (for file access)
-  /// Takes path relative to NativeTavern folder and returns full absolute path
+  /// Takes path relative to KiraKira folder and returns full absolute path
   /// Also handles legacy absolute paths from old app versions
   static Future<String> toAbsolutePath(String relativePath) async {
     final dataPath = await getDataPath();
@@ -55,13 +55,13 @@ class PathUtils {
       }
       
       // File doesn't exist - this is likely an old absolute path from previous app launch
-      // Extract the relative portion after 'NativeTavern'
+      // Extract the relative portion after 'KiraKira'
       final pathParts = p.split(relativePath);
       
-      // Find 'NativeTavern' in the path
+      // Find 'KiraKira' in the path
       final nativeIndex = pathParts.indexOf(_relativePath);
       if (nativeIndex >= 0 && nativeIndex < pathParts.length - 1) {
-        // Reconstruct relative path from NativeTavern folder onwards
+        // Reconstruct relative path from KiraKira folder onwards
         final relParts = pathParts.sublist(nativeIndex + 1);
         final newRelativePath = p.joinAll(relParts);
         final newAbsolutePath = p.join(dataPath, newRelativePath);

@@ -1,41 +1,43 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/core/logger/logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:native_tavern/presentation/screens/home/home_screen.dart';
-import 'package:native_tavern/presentation/screens/chat/chat_screen.dart';
-import 'package:native_tavern/presentation/screens/character/character_list_screen.dart';
-import 'package:native_tavern/presentation/screens/character/character_detail_screen.dart';
-import 'package:native_tavern/presentation/screens/character_editor/character_editor_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/prompt_manager_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/advanced_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/quick_reply_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/background_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/theme_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/statistics_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/ai_presets_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/sprite_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/tts_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/stt_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/translation_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/image_gen_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/regex_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/variables_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/backup_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/cloud_backup_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/logit_bias_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/cfg_scale_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/tokenizer_settings_screen.dart';
-import 'package:native_tavern/presentation/screens/settings/vector_storage_settings_screen.dart';
-import 'package:native_tavern/presentation/widgets/chat/logprobs_panel.dart';
-import 'package:native_tavern/presentation/screens/ai_config/ai_config_screen.dart';
-import 'package:native_tavern/presentation/screens/import/import_screen.dart';
-import 'package:native_tavern/presentation/screens/personas/personas_screen.dart';
-import 'package:native_tavern/presentation/screens/world_info/world_info_screen.dart';
-import 'package:native_tavern/presentation/screens/groups/groups_screen.dart';
-import 'package:native_tavern/presentation/screens/groups/group_detail_screen.dart';
-import 'package:native_tavern/presentation/screens/tags/tags_screen.dart';
-import 'package:native_tavern/presentation/widgets/common/app_shell.dart';
+import 'package:kirakira/presentation/screens/home/home_screen.dart';
+import 'package:kirakira/presentation/screens/main_page/main_page.dart';
+import 'package:kirakira/presentation/screens/chat/chat_screen.dart';
+import 'package:kirakira/presentation/screens/character/character_list_screen.dart';
+import 'package:kirakira/presentation/screens/character/character_detail_screen.dart';
+import 'package:kirakira/presentation/screens/character_editor/character_editor_screen.dart';
+import 'package:kirakira/presentation/screens/settings/settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/prompt_manager_screen.dart';
+import 'package:kirakira/presentation/screens/settings/advanced_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/quick_reply_screen.dart';
+import 'package:kirakira/presentation/screens/settings/background_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/theme_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/statistics_screen.dart';
+import 'package:kirakira/presentation/screens/settings/ai_presets_screen.dart';
+import 'package:kirakira/presentation/screens/settings/sprite_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/tts_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/stt_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/translation_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/image_gen_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/regex_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/variables_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/backup_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/cloud_backup_screen.dart';
+import 'package:kirakira/presentation/screens/settings/logit_bias_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/cfg_scale_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/tokenizer_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/vector_storage_settings_screen.dart';
+import 'package:kirakira/presentation/widgets/chat/logprobs_panel.dart';
+import 'package:kirakira/presentation/screens/ai_config/ai_config_screen.dart';
+import 'package:kirakira/presentation/screens/import/import_screen.dart';
+import 'package:kirakira/presentation/screens/personas/personas_screen.dart';
+import 'package:kirakira/presentation/screens/world_info/world_info_screen.dart';
+import 'package:kirakira/presentation/screens/groups/groups_screen.dart';
+import 'package:kirakira/presentation/screens/groups/group_detail_screen.dart';
+import 'package:kirakira/presentation/screens/tags/tags_screen.dart';
+import 'package:kirakira/presentation/widgets/common/app_shell.dart';
 
 /// Route paths
 abstract class AppRoutes {
@@ -44,6 +46,7 @@ abstract class AppRoutes {
   static const characterDetail = '/characters/:id';
   static const characterCreate = '/characters/new';
   static const characterEdit = '/characters/:id/edit';
+  static const chats = '/chats';
   static const chat = '/chat/:id';
   static const settings = '/settings';
   static const aiConfig = '/ai-config';
@@ -82,12 +85,34 @@ abstract class AppRoutes {
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
+
+class _NavObserver extends NavigatorObserver {
+  @override
+  void didPush(Route route, Route? previousRoute) {
+    final name = route.settings.name ?? route.runtimeType.toString();
+    final prev = previousRoute?.settings.name ?? 'none';
+    KiraLogger().route('PUSH: $prev -> $name');
+  }
+  @override
+  void didPop(Route route, Route? previousRoute) {
+    final name = route.settings.name;
+    KiraLogger().route('POP: $name');
+  }
+  @override
+  void didReplace({Route? newRoute, Route? oldRoute}) {
+    final n = newRoute?.settings.name ?? '?';
+    final o = oldRoute?.settings.name ?? '?';
+    KiraLogger().route('REPLACE:  -> ');
+  }
+}
+
 /// App router provider
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: AppRoutes.home,
     debugLogDiagnostics: true,
+    observers: [_NavObserver()],
     routes: [
       // Main shell with bottom navigation
       ShellRoute(
@@ -95,10 +120,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(
+            path: AppRoutes.chats,
+            name: 'chats',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: HomeScreen(),
+            ),
+          ),
+          GoRoute(
             path: AppRoutes.home,
             name: 'home',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: HomeScreen(),
+              child: MainPage(),
             ),
           ),
           GoRoute(

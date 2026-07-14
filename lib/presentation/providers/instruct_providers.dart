@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/instruct_template.dart';
+import 'package:kirakira/data/models/instruct_template.dart';
 
 /// Current active instruct template ID
 final activeInstructTemplateIdProvider = StateProvider<String>((ref) => 'none');

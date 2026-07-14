@@ -1,13 +1,13 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/core/services/initialization_service.dart';
-import 'package:native_tavern/domain/services/cloud_backup_service.dart';
-import 'package:native_tavern/domain/services/database_backup_service.dart';
-import 'package:native_tavern/domain/services/google_drive_service.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
-import 'package:native_tavern/presentation/providers/cloud_backup_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
+import 'package:kirakira/core/services/initialization_service.dart';
+import 'package:kirakira/domain/services/cloud_backup_service.dart';
+import 'package:kirakira/domain/services/database_backup_service.dart';
+import 'package:kirakira/domain/services/google_drive_service.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/providers/cloud_backup_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
 
 /// Screen for cloud backup settings (Google Drive & iCloud)
 class CloudBackupScreen extends ConsumerWidget {

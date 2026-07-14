@@ -1,5 +1,5 @@
-import 'dart:collection';
-import 'package:native_tavern/data/models/tokenizer.dart';
+﻿import 'dart:collection';
+import 'package:kirakira/data/models/tokenizer.dart';
 
 /// Service for tokenization operations
 class TokenizerService {

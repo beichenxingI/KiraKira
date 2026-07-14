@@ -1,4 +1,4 @@
-// ignore: unused_import
+﻿// ignore: unused_import
 import 'package:intl/intl.dart' as intl;
 import 'app_localizations.dart';
 
@@ -9,7 +9,7 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get appTitle => 'NativeTavern';
+  String get appTitle => 'KiraKira';
 
   @override
   String get home => 'الرئيسية';
@@ -303,7 +303,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get jsonlSillyTavernFormat => 'JSONL (صيغة SillyTavern)';
 
   @override
-  String get jsonNativeTavernFormat => 'JSON (صيغة NativeTavern)';
+  String get jsonKiraKiraFormat => 'JSON (صيغة KiraKira)';
 
   @override
   String get importNote =>

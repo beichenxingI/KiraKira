@@ -1,4 +1,4 @@
-
+﻿
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +11,7 @@ import '../../providers/instruct_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Provider for China region detection
 final isChinaRegionProvider = FutureProvider<bool>((ref) async {

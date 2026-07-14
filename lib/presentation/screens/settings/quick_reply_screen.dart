@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../data/models/quick_reply.dart';
 import '../../providers/quick_reply_providers.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Screen for managing quick replies
 class QuickReplyScreen extends ConsumerWidget {

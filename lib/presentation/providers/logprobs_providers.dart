@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:native_tavern/data/models/logprobs.dart';
+import 'package:kirakira/data/models/logprobs.dart';
 
 /// Provider for logprobs settings
 final logprobsSettingsProvider =

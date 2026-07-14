@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/cfg_scale.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
-import 'package:native_tavern/presentation/providers/cfg_scale_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
+import 'package:kirakira/data/models/cfg_scale.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/providers/cfg_scale_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
 
 /// Settings screen for CFG Scale configuration
 class CFGScaleSettingsScreen extends ConsumerWidget {

@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
-import 'package:native_tavern/data/models/sprite.dart';
-import 'package:native_tavern/domain/services/emotion_detection_service.dart';
+import 'package:kirakira/data/models/sprite.dart';
+import 'package:kirakira/domain/services/emotion_detection_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Service for managing character expression sprites
@@ -18,7 +18,7 @@ class SpriteService {
   Future<Directory> getSpritesDirectory(String characterId) async {
     final appDir = await getApplicationDocumentsDirectory();
     final spritesDir = Directory(
-      p.join(appDir.path, 'NativeTavern', 'sprites', characterId),
+      p.join(appDir.path, 'KiraKira', 'sprites', characterId),
     );
     if (!await spritesDir.exists()) {
       await spritesDir.create(recursive: true);

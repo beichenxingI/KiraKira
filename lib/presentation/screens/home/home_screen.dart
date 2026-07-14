@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:native_tavern/data/models/chat.dart';
-import 'package:native_tavern/data/repositories/character_repository.dart';
-import 'package:native_tavern/data/repositories/chat_repository.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
-import 'package:native_tavern/presentation/providers/chat_providers.dart';
-import 'package:native_tavern/presentation/router/app_router.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/presentation/widgets/common/character_avatar_image.dart';
+import 'package:kirakira/data/models/chat.dart';
+import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/data/repositories/chat_repository.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/providers/chat_providers.dart';
+import 'package:kirakira/presentation/router/app_router.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
 
 /// Home screen showing recent chats
 class HomeScreen extends ConsumerStatefulWidget {

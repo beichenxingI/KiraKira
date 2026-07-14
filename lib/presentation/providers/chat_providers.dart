@@ -1,27 +1,27 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/bookmark.dart';
-import 'package:native_tavern/data/models/chat.dart';
-import 'package:native_tavern/data/models/character.dart';
-import 'package:native_tavern/data/models/group.dart';
-import 'package:native_tavern/data/models/persona.dart';
-import 'package:native_tavern/data/models/prompt_manager.dart';
-import 'package:native_tavern/data/models/world_info.dart';
-import 'package:native_tavern/data/repositories/chat_repository.dart';
-import 'package:native_tavern/data/repositories/character_repository.dart';
-import 'package:native_tavern/data/repositories/persona_repository.dart';
-import 'package:native_tavern/domain/services/llm_service.dart';
-import 'package:native_tavern/domain/services/macro_service.dart';
-import 'package:native_tavern/domain/services/chat_summarization_service.dart';
-import 'package:native_tavern/presentation/providers/group_providers.dart';
-import 'package:native_tavern/presentation/providers/persona_providers.dart';
-import 'package:native_tavern/presentation/providers/prompt_manager_providers.dart';
-import 'package:native_tavern/presentation/providers/settings_providers.dart';
-import 'package:native_tavern/presentation/providers/world_info_providers.dart';
+import 'package:kirakira/data/models/bookmark.dart';
+import 'package:kirakira/data/models/chat.dart';
+import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/data/models/group.dart';
+import 'package:kirakira/data/models/persona.dart';
+import 'package:kirakira/data/models/prompt_manager.dart';
+import 'package:kirakira/data/models/world_info.dart';
+import 'package:kirakira/data/repositories/chat_repository.dart';
+import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/data/repositories/persona_repository.dart';
+import 'package:kirakira/domain/services/llm_service.dart';
+import 'package:kirakira/domain/services/macro_service.dart';
+import 'package:kirakira/domain/services/chat_summarization_service.dart';
+import 'package:kirakira/presentation/providers/group_providers.dart';
+import 'package:kirakira/presentation/providers/persona_providers.dart';
+import 'package:kirakira/presentation/providers/prompt_manager_providers.dart';
+import 'package:kirakira/presentation/providers/settings_providers.dart';
+import 'package:kirakira/presentation/providers/world_info_providers.dart';
 
 // Note: Repository providers are defined in their respective repository files
 // llmServiceProvider is defined in settings_providers.dart

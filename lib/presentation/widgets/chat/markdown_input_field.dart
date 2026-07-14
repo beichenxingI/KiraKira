@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:native_tavern/domain/services/markdown_hotkey_service.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
+import 'package:kirakira/domain/services/markdown_hotkey_service.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
 
 /// A text input field with markdown formatting support
 /// 

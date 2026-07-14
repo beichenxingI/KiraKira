@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
-import 'package:native_tavern/data/database/database.dart';
+import 'package:kirakira/data/database/database.dart';
 
 /// Service for exporting and importing database data for backup purposes
 class DatabaseBackupService {

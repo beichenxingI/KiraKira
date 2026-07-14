@@ -1,0 +1,1 @@
+String formatChatTime(DateTime dt){var h=dt.hour;var m=dt.minute;return ':';}

@@ -1,4 +1,4 @@
-// ignore: unused_import
+﻿// ignore: unused_import
 import 'package:intl/intl.dart' as intl;
 import 'app_localizations.dart';
 
@@ -9,7 +9,7 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
-  String get appTitle => 'NativeTavern';
+  String get appTitle => 'KiraKira';
 
   @override
   String get home => 'ホーム';
@@ -301,7 +301,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get jsonlSillyTavernFormat => 'JSONL (SillyTavern形式)';
 
   @override
-  String get jsonNativeTavernFormat => 'JSON (NativeTavern形式)';
+  String get jsonKiraKiraFormat => 'JSON (KiraKira形式)';
 
   @override
   String get importNote => '注意：インポートされたメッセージは現在のチャットに追加されます。';

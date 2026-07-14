@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:native_tavern/data/models/vector_storage.dart';
+import 'package:kirakira/data/models/vector_storage.dart';
 
 /// Service for vector storage and RAG operations
 class VectorStorageService {

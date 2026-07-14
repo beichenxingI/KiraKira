@@ -126,7 +126,7 @@ class CloudBackupService {
   /// Get the cloud backups cache directory
   Future<Directory> getCloudCacheDirectory() async {
     final appDir = await getApplicationDocumentsDirectory();
-    final cacheDir = Directory(path.join(appDir.path, 'NativeTavern', 'cloud_cache'));
+    final cacheDir = Directory(path.join(appDir.path, 'KiraKira', 'cloud_cache'));
     if (!await cacheDir.exists()) {
       await cacheDir.create(recursive: true);
     }
@@ -148,7 +148,7 @@ class CloudBackupService {
         
         // First try the app container path (sandboxed app)
         // This is where the app can write to, and it syncs with iCloud
-        final containerPath = '/Users/${homeDir.split('/').last}/Library/Containers/com.miaomiaoxworld.nativetavern/Data/Library/Mobile Documents/iCloud~com~miaomiaoxworld~nativetavern/Documents';
+        final containerPath = '/Users/${homeDir.split('/').last}/Library/Containers/com.miaomiaoxworld.KiraKira/Data/Library/Mobile Documents/iCloud~com~miaomiaoxworld~KiraKira/Documents';
         final containerDir = Directory(containerPath);
         
         print('CloudBackupService: Checking container iCloud path: $containerPath');
@@ -172,7 +172,7 @@ class CloudBackupService {
           homeDir,
           'Library',
           'Mobile Documents',
-          'iCloud~com~miaomiaoxworld~nativetavern',
+          'iCloud~com~miaomiaoxworld~KiraKira',
           'Documents',
         );
         final systemICloudDir = Directory(systemICloudPath);
@@ -209,7 +209,7 @@ class CloudBackupService {
           parentDir.path,
           'Library',
           'Mobile Documents',
-          'iCloud~com~miaomiaoxworld~nativetavern',
+          'iCloud~com~miaomiaoxworld~KiraKira',
           'Documents',
         );
         final iCloudDir = Directory(iCloudPath);
@@ -300,13 +300,13 @@ class CloudBackupService {
   }) async {
     final cacheDir = await getCloudCacheDirectory();
     final timestamp = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
-    final fileName = 'NativeTavern_cloud_backup_$timestamp.ntb'; // .ntb = NativeTavern Backup
+    final fileName = 'KiraKira_cloud_backup_$timestamp.ntb'; // .ntb = KiraKira Backup
     final filePath = path.join(cacheDir.path, fileName);
     
     // Create backup package with metadata
     final backupPackage = {
       'version': 2,
-      'app': 'NativeTavern',
+      'app': 'KiraKira',
       'createdAt': DateTime.now().toIso8601String(),
       'provider': provider.name,
       'data': data,
@@ -448,8 +448,8 @@ class CloudBackupService {
     final data = jsonDecode(content) as Map<String, dynamic>;
     
     // Validate backup format
-    if (data['app'] != 'NativeTavern') {
-      throw Exception('Invalid backup file: not a NativeTavern backup');
+    if (data['app'] != 'KiraKira') {
+      throw Exception('Invalid backup file: not a KiraKira backup');
     }
     
     return data;

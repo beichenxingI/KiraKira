@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/domain/services/context_usage_service.dart';
-import 'package:native_tavern/presentation/providers/context_usage_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/domain/services/context_usage_service.dart';
+import 'package:kirakira/presentation/providers/context_usage_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Compact context usage indicator for chat input area
 class ContextUsageIndicator extends ConsumerWidget {

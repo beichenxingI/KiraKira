@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Widget that renders HTML content using a WebView for full CSS support

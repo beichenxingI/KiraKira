@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/tag.dart';
-import 'package:native_tavern/presentation/providers/tag_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/data/models/tag.dart';
+import 'package:kirakira/presentation/providers/tag_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Screen for managing tags
 class TagsScreen extends ConsumerStatefulWidget {
@@ -332,7 +332,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
               spacing: 8,
               runSpacing: 8,
               children: TagColors.presetColors.map((color) {
-                final isSelected = color.toARGB32() == _selectedColor.toARGB32();
+                final isSelected = color.value == _selectedColor.value;
                 return GestureDetector(
                   onTap: () => setState(() => _selectedColor = color),
                   child: Container(

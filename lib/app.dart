@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
-import 'package:native_tavern/presentation/router/app_router.dart';
-import 'package:native_tavern/presentation/providers/theme_providers.dart';
-import 'package:native_tavern/presentation/providers/locale_provider.dart';
-import 'package:native_tavern/presentation/providers/settings_providers.dart';
-import 'package:native_tavern/domain/services/debug_log_service.dart';
-import 'package:native_tavern/presentation/widgets/debug_log_overlay.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/router/app_router.dart';
+import 'package:kirakira/presentation/providers/theme_providers.dart';
+import 'package:kirakira/presentation/providers/locale_provider.dart';
+import 'package:kirakira/presentation/providers/settings_providers.dart';
+import 'package:kirakira/domain/services/debug_log_service.dart';
+import 'package:kirakira/presentation/widgets/debug_log_overlay.dart';
 
 /// Global navigator key for showing dialogs from anywhere
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -56,14 +56,14 @@ class _NativeTavernAppState extends ConsumerState<NativeTavernApp> {
       darkTheme: activeTheme.toThemeData(),
       themeMode: activeTheme.isDark ? ThemeMode.dark : ThemeMode.light,
       routerConfig: router,
-      locale: locale,
+      locale: const Locale('zh', 'CN'),
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: AppLocalizations.supportedLocales,
+      supportedLocales: const [Locale('zh', 'CN')],
       builder: (context, child) {
         return DebugLogOverlayWrapper(
           enabled: settings.enableDebugLog,

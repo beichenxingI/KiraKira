@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:native_tavern/data/models/chat.dart';
-import 'package:native_tavern/domain/services/llm_service.dart';
-import 'package:native_tavern/domain/services/tokenizer_service.dart';
+import 'package:kirakira/data/models/chat.dart';
+import 'package:kirakira/domain/services/llm_service.dart';
+import 'package:kirakira/domain/services/tokenizer_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Service for automatic chat history summarization

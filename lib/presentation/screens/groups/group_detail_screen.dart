@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:native_tavern/data/models/group.dart';
-import 'package:native_tavern/data/models/character.dart';
-import 'package:native_tavern/presentation/providers/group_providers.dart';
-import 'package:native_tavern/presentation/providers/character_providers.dart';
-import 'package:native_tavern/data/repositories/character_repository.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/data/models/group.dart';
+import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/presentation/providers/group_providers.dart';
+import 'package:kirakira/presentation/providers/character_providers.dart';
+import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 class GroupDetailScreen extends ConsumerStatefulWidget {
   final String groupId;

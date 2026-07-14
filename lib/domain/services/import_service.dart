@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
-import 'package:native_tavern/data/models/character.dart';
-import 'package:native_tavern/core/utils/path_utils.dart';
+import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/domain/services/png_character_card_parser.dart';
+import 'package:kirakira/core/utils/path_utils.dart';
 import 'package:path/path.dart' as p;
 
 /// Service for importing and exporting character cards
@@ -16,20 +18,31 @@ class ImportService {
   Future<Character> importFromPng(String filePath) async {
     final file = File(filePath);
     final bytes = await file.readAsBytes();
+
+    // DIAGNOSTIC: log file info and dump to temp
+    debugPrint('[PNG-FILE] path=' + filePath);
+    debugPrint('[PNG-FILE] size=' + bytes.length.toString());
+    debugPrint('[PNG-FILE] exists=' + (await file.exists()).toString());
+    if (bytes.isNotEmpty) {
+      final sig = String.fromCharCodes(bytes.take(8));
+      debugPrint('[PNG-FILE] first8bytes=' + sig);
+      final tempPath = filePath + '.dump.bin';
+      await File(tempPath).writeAsBytes(bytes);
+      debugPrint('[PNG-FILE] dumped to=' + tempPath);
+    try {
+      File(filePath + '.diagnostic.txt').writeAsStringSync('PNG file at: ' + filePath + '\nSize: ' + bytes.length.toString() + ' bytes\nFirst 8 bytes: ' + bytes.take(8).toList().toString());
+      debugPrint('[PNG-FILE] diagnostic info saved');
+    } catch (_) {}
+    }
+
     return importFromPngBytes(bytes);
   }
 
   /// Import character from PNG bytes (extracts embedded JSON from tEXt chunk)
   Future<Character> importFromPngBytes(Uint8List bytes) async {
-    // Extract character data from PNG tEXt chunk
-    final json = _extractPngTextChunk(bytes, 'chara');
-    if (json == null) {
-      throw Exception('No character data found in PNG');
-    }
-
-    // Decode base64 and parse JSON
-    final decoded = utf8.decode(base64Decode(json));
-    final data = jsonDecode(decoded) as Map<String, dynamic>;
+    // Step 3: Try dedicated parser
+    final data = await PngCharacterCardParser.parse(bytes, sourcePath: null);
+    if (data == null) { throw Exception('No character data found in PNG - Diagnostic report saved to Downloads folder'); }
 
     // Parse character from JSON
     final character = _parseCharacterJson(data);
@@ -388,6 +401,25 @@ class ImportService {
            (DateTime.now().microsecond % 1000).toString().padLeft(3, '0');
   }
 
+  /// Dump all PNG text chunk keys + content preview
+  void _dumpPngInfo(Uint8List bytes) {
+    debugPrint("[PNG-DUMP] size=" + bytes.length.toString());
+    int off = 8; int n = 0;
+    while (off + 8 <= bytes.length) {
+      final len = (bytes[off] << 24) | (bytes[off + 1] << 16) | (bytes[off + 2] << 8) | bytes[off + 3]; off += 4;
+      final tp = String.fromCharCodes(bytes.sublist(off, off + 4)); off += 4; n++;
+      if (tp == "tEXt" || tp == "iTXt" || tp == "zTXt") {
+        int ke = off; while (ke < off + len && bytes[ke] != 0) { ke++; }
+        final key = String.fromCharCodes(bytes.sublist(off, ke));
+        String prev = ""; if (ke + 1 < off + len) { final mx = (ke + 1 + 200) > (off + len) ? (off + len) : (ke + 1 + 200); prev = String.fromCharCodes(bytes.sublist(ke + 1, mx)); }
+        debugPrint("[PNG-DUMP] #" + n.toString() + " " + tp + " key=" + key + " len=" + len.toString());
+        debugPrint("[PNG-DUMP]   preview=" + prev);
+      }
+      off += len + 4;
+    }
+    debugPrint("[PNG-DUMP] Done: " + n.toString() + " chunks");
+  }
+
   /// Extract text chunk from PNG
   String? _extractPngTextChunk(Uint8List bytes, String keyword) {
     // PNG signature is 8 bytes
@@ -432,6 +464,13 @@ class ImportService {
     return null;
   }
 
+
+
+  String _safeDecodeText(List<int> bytes) {
+    try { return utf8.decode(bytes, allowMalformed: true); } catch (_) {}
+    try { return latin1.decode(bytes); } catch (_) {}
+    return String.fromCharCodes(bytes);
+  }
   /// Embed text chunk in PNG
   Uint8List _embedPngTextChunk(Uint8List bytes, String keyword, String value) {
     // Find IEND chunk position

@@ -1,4 +1,4 @@
-import 'package:native_tavern/data/models/sprite.dart';
+import 'package:kirakira/data/models/sprite.dart';
 
 /// Service for detecting emotions from message content
 class EmotionDetectionService {

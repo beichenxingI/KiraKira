@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/logprobs.dart';
-import 'package:native_tavern/presentation/providers/logprobs_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
+import 'package:kirakira/data/models/logprobs.dart';
+import 'package:kirakira/presentation/providers/logprobs_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
 
 /// Panel for displaying token log probabilities
 class LogprobsPanel extends ConsumerWidget {

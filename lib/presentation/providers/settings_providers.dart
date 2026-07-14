@@ -3,12 +3,12 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:native_tavern/domain/services/llm_service.dart';
-import 'package:native_tavern/domain/services/chat_summarization_service.dart';
-import 'package:native_tavern/domain/services/tokenizer_service.dart';
+import 'package:kirakira/domain/services/llm_service.dart';
+import 'package:kirakira/domain/services/chat_summarization_service.dart';
+import 'package:kirakira/domain/services/tokenizer_service.dart';
 import 'package:drift/drift.dart' as drift;
-import 'package:native_tavern/data/database/database.dart';
-import 'package:native_tavern/core/services/initialization_service.dart';
+import 'package:kirakira/data/database/database.dart';
+import 'package:kirakira/core/services/initialization_service.dart';
 
 /// Log a message to the console
 void _log(String message, {String? error, StackTrace? stackTrace}) {

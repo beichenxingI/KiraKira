@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
 
 /// A widget that displays text with long-press to copy functionality.
 /// Shows a snackbar when text is copied to clipboard.

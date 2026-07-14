@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
-import 'package:native_tavern/data/database/database.dart';
-import 'package:native_tavern/data/models/tag.dart' as models;
+import 'package:kirakira/data/database/database.dart';
+import 'package:kirakira/data/models/tag.dart' as models;
 import 'package:uuid/uuid.dart';
 
 /// Repository for managing tags

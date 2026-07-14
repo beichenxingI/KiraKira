@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/bookmark.dart';
-import 'package:native_tavern/data/repositories/bookmark_repository.dart';
+import 'package:kirakira/data/models/bookmark.dart';
+import 'package:kirakira/data/repositories/bookmark_repository.dart';
 
 /// Provider for bookmarks of a specific chat
 final chatBookmarksProvider = FutureProvider.family<List<Bookmark>, String>((ref, chatId) async {

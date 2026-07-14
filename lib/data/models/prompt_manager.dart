@@ -601,7 +601,7 @@ class PromptManagerPreset {
         'name': name,
         'description': description,
         'version': 1,
-        'format': 'native_tavern_prompt_preset',
+        'format': 'kirakira_prompt_preset',
         'sections': config.sections.map((s) => s.toJson()).toList(),
         'createdAt': createdAt.toIso8601String(),
       };

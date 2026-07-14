@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'package:intl/intl.dart';
-import 'package:native_tavern/data/models/character.dart';
-import 'package:native_tavern/data/models/chat.dart';
-import 'package:native_tavern/data/models/persona.dart';
+import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/data/models/chat.dart';
+import 'package:kirakira/data/models/persona.dart';
 
 /// Service for expanding macros in text
 /// Supports SillyTavern-compatible macros: {{user}}, {{char}}, {{time}}, etc.

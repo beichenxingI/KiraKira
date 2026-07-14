@@ -6,12 +6,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/world_info.dart';
-import 'package:native_tavern/presentation/providers/character_providers.dart';
-import 'package:native_tavern/presentation/providers/world_info_providers.dart';
-import 'package:native_tavern/presentation/screens/world_info/world_info_entry_editor_screen.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/data/models/world_info.dart';
+import 'package:kirakira/presentation/providers/character_providers.dart';
+import 'package:kirakira/presentation/providers/world_info_providers.dart';
+import 'package:kirakira/presentation/screens/world_info/world_info_entry_editor_screen.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -306,7 +306,7 @@ class WorldInfoScreen extends ConsumerWidget {
     }
   }
   
-  /// Parse world info entries from various formats (SillyTavern, NativeTavern, etc.)
+  /// Parse world info entries from various formats (SillyTavern, KiraKira, etc.)
   List<Map<String, dynamic>> _parseWorldInfoEntries(Map<String, dynamic> json) {
     final entries = <Map<String, dynamic>>[];
     
@@ -324,9 +324,9 @@ class WorldInfoScreen extends ConsumerWidget {
         }
       }
     }
-    // Check for NativeTavern format: entries is a List<Entry>
+    // Check for KiraKira format: entries is a List<Entry>
     else if (json['entries'] is List) {
-      _log('Detected NativeTavern format (entries as List)');
+      _log('Detected KiraKira format (entries as List)');
       final entriesList = json['entries'] as List<dynamic>;
       
       for (var i = 0; i < entriesList.length; i++) {
@@ -344,7 +344,7 @@ class WorldInfoScreen extends ConsumerWidget {
   
   /// Parse a single entry, handling type conversions
   Map<String, dynamic> _parseEntry(Map<String, dynamic> data) {
-    // Handle keys - SillyTavern uses 'key', NativeTavern uses 'keys'
+    // Handle keys - SillyTavern uses 'key', KiraKira uses 'keys'
     List<String> keys;
     if (data['keys'] != null) {
       keys = _parseStringList(data['keys']);
@@ -567,7 +567,7 @@ class _WorldInfoCard extends StatelessWidget {
       // ignore: deprecated_member_use
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: 'NativeTavern World Info: ${worldInfo.name}',
+        subject: 'KiraKira World Info: ${worldInfo.name}',
       );
     } catch (e) {
       if (context.mounted) {

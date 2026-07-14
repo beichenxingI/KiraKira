@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/models/prompt_manager.dart';
-import 'package:native_tavern/presentation/providers/settings_providers.dart';
+import 'package:kirakira/data/models/prompt_manager.dart';
+import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -100,7 +100,7 @@ class PromptManagerNotifier extends StateNotifier<PromptManagerConfig> {
   Future<void> loadFromJson(Map<String, dynamic> json) async {
     try {
       // Try to parse as export format first
-      if (json['format'] == 'native_tavern_prompt_preset' && json['sections'] != null) {
+      if (json['format'] == 'kirakira_prompt_preset' && json['sections'] != null) {
         final sectionsJson = json['sections'] as List<dynamic>;
         state = PromptManagerConfig(
           sections: sectionsJson
@@ -122,9 +122,9 @@ class PromptManagerNotifier extends StateNotifier<PromptManagerConfig> {
   Map<String, dynamic> exportToJson(String name) {
     return {
       'name': name,
-      'description': 'Exported from NativeTavern',
+      'description': 'Exported from KiraKira',
       'version': 1,
-      'format': 'native_tavern_prompt_preset',
+      'format': 'kirakira_prompt_preset',
       'sections': state.sections.map((s) => s.toJson()).toList(),
       'createdAt': DateTime.now().toIso8601String(),
     };

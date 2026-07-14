@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:native_tavern/core/utils/path_utils.dart';
+import 'package:kirakira/core/utils/path_utils.dart';
 
 /// Widget that displays character avatar image
 /// Handles both absolute and relative paths for mobile compatibility

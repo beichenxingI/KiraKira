@@ -1,14 +1,14 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:native_tavern/data/models/prompt_manager.dart';
-import 'package:native_tavern/presentation/providers/prompt_manager_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
+import 'package:kirakira/data/models/prompt_manager.dart';
+import 'package:kirakira/presentation/providers/prompt_manager_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Screen for managing prompt section order and visibility
 class PromptManagerScreen extends ConsumerWidget {
@@ -265,7 +265,7 @@ class PromptManagerScreen extends ConsumerWidget {
       final json = jsonDecode(jsonString) as Map<String, dynamic>;
 
       // Check if it's a valid preset format
-      if (json['sections'] != null || json['format'] == 'native_tavern_prompt_preset') {
+      if (json['sections'] != null || json['format'] == 'kirakira_prompt_preset') {
         // Import as preset
         final preset = await ref.read(customPresetsProvider.notifier).importPreset(json);
         ref.read(promptManagerProvider.notifier).applyPreset(preset);
@@ -331,7 +331,7 @@ class PromptManagerScreen extends ConsumerWidget {
       // ignore: deprecated_member_use
       await Share.shareXFiles(
         [XFile(file.path)],
-        subject: 'NativeTavern Prompt Preset: $name',
+        subject: 'KiraKira Prompt Preset: $name',
       );
     } catch (e) {
       if (context.mounted) {

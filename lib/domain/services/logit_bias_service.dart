@@ -1,5 +1,5 @@
-import 'dart:convert';
-import 'package:native_tavern/data/models/logit_bias.dart';
+﻿import 'dart:convert';
+import 'package:kirakira/data/models/logit_bias.dart';
 
 /// Service for processing logit bias entries
 class LogitBiasService {

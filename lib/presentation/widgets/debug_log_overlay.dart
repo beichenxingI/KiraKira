@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/domain/services/debug_log_service.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/domain/services/debug_log_service.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Floating debug ball widget that can be dragged around
 class DebugFloatingBall extends StatefulWidget {

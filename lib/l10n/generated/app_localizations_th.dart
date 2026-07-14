@@ -1,4 +1,4 @@
-// ignore: unused_import
+﻿// ignore: unused_import
 import 'package:intl/intl.dart' as intl;
 import 'app_localizations.dart';
 
@@ -9,7 +9,7 @@ class AppLocalizationsTh extends AppLocalizations {
   AppLocalizationsTh([String locale = 'th']) : super(locale);
 
   @override
-  String get appTitle => 'NativeTavern';
+  String get appTitle => 'KiraKira';
 
   @override
   String get home => 'หน้าแรก';
@@ -304,7 +304,7 @@ class AppLocalizationsTh extends AppLocalizations {
   String get jsonlSillyTavernFormat => 'JSONL (รูปแบบ SillyTavern)';
 
   @override
-  String get jsonNativeTavernFormat => 'JSON (รูปแบบ NativeTavern)';
+  String get jsonKiraKiraFormat => 'JSON (รูปแบบ KiraKira)';
 
   @override
   String get importNote => 'หมายเหตุ: ข้อความที่นำเข้าจะถูกเพิ่มในแชทปัจจุบัน';

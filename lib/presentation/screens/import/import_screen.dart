@@ -6,14 +6,14 @@ import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:native_tavern/data/models/character.dart';
-import 'package:native_tavern/data/models/world_info.dart';
-import 'package:native_tavern/data/repositories/world_info_repository.dart';
-import 'package:native_tavern/domain/services/import_service.dart';
-import 'package:native_tavern/domain/services/url_import_service.dart';
-import 'package:native_tavern/presentation/providers/character_providers.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/data/models/world_info.dart';
+import 'package:kirakira/data/repositories/world_info_repository.dart';
+import 'package:kirakira/domain/services/import_service.dart';
+import 'package:kirakira/domain/services/url_import_service.dart';
+import 'package:kirakira/presentation/providers/character_providers.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Import service provider
 final importServiceProvider = Provider<ImportService>((ref) {
@@ -535,18 +535,18 @@ class _FilePickerViewState extends State<_FilePickerView> {
                       const SizedBox(height: 24),
                       if (_isMobile) ...[
                         ElevatedButton.icon(
-                          onPressed: widget.onPickFromGallery,
-                          icon: const Icon(Icons.photo_library),
-                          label: Text(AppLocalizations.of(context)!.chooseFromGallery),
+                          onPressed: widget.onPickFile,
+                          icon: const Icon(Icons.folder_open),
+                          label: Text(AppLocalizations.of(context)!.browseFiles),
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(200, 48),
                           ),
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
-                          onPressed: widget.onPickFile,
-                          icon: const Icon(Icons.folder_open),
-                          label: Text(AppLocalizations.of(context)!.browseFiles),
+                          onPressed: widget.onPickFromGallery,
+                          icon: const Icon(Icons.photo_library),
+                          label: Text(AppLocalizations.of(context)!.chooseFromGallery),
                           style: OutlinedButton.styleFrom(
                             minimumSize: const Size(200, 48),
                           ),
@@ -641,7 +641,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                         runSpacing: 8,
                         alignment: WrapAlignment.center,
                         children: const [
-                          _CommunityChip(name: 'NativeTavern', url: 'https://nativetavern.com', isPrimary: true),
+                          _CommunityChip(name: 'KiraKira', url: 'https://KiraKira.com', isPrimary: true),
                           _CommunityChip(name: 'Chub.ai', url: 'https://chub.ai/characters'),
                           _CommunityChip(name: 'JanitorAI', url: 'https://janitorai.com'),
                           _CommunityChip(name: 'Pygmalion', url: 'https://pygmalion.chat'),
@@ -724,7 +724,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
         const _FormatTile(
           icon: Icons.link,
           title: '社区链接',
-          description: 'NativeTavern, Chub.ai, JanitorAI, Pygmalion, RisuRealm, AICharacterCards',
+          description: 'KiraKira, Chub.ai, JanitorAI, Pygmalion, RisuRealm, AICharacterCards',
         ),
       ],
     );

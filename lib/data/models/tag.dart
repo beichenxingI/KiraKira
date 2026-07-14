@@ -68,7 +68,7 @@ class Tag {
 
   /// Convert a Color to hex string
   static String colorToHex(Color color) {
-    final argb = color.toARGB32();
+    final argb = color.value;
     return '#${argb.toRadixString(16).substring(2).toUpperCase()}';
   }
 

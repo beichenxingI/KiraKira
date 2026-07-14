@@ -71,7 +71,7 @@ class GoogleDriveService {
   static String get webClientId => _configuredWebClientId ?? _defaultWebClientId;
   
   /// Folder name in Google Drive for backups
-  static const _backupFolderName = 'NativeTavern Backups';
+  static const _backupFolderName = 'KiraKira Backups';
   
   GoogleSignIn? _googleSignIn;
   GoogleSignInAccount? _currentUser;
@@ -300,11 +300,11 @@ class GoogleDriveService {
       
       // Create backup data
       final timestamp = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
-      final fileName = 'NativeTavern_backup_$timestamp.ntb';
+      final fileName = 'KiraKira_backup_$timestamp.ntb';
       
       final backupPackage = {
         'version': 2,
-        'app': 'NativeTavern',
+        'app': 'KiraKira',
         'createdAt': DateTime.now().toIso8601String(),
         'provider': 'googleDrive',
         'data': data,

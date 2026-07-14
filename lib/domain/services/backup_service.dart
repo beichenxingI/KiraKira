@@ -14,7 +14,7 @@ class BackupService {
   /// Get the backups directory
   Future<Directory> getBackupsDirectory() async {
     final appDir = await getApplicationDocumentsDirectory();
-    final backupsDir = Directory(path.join(appDir.path, 'NativeTavern', 'backups'));
+    final backupsDir = Directory(path.join(appDir.path, 'KiraKira', 'backups'));
     if (!await backupsDir.exists()) {
       await backupsDir.create(recursive: true);
     }
@@ -182,13 +182,13 @@ class BackupService {
   }) async {
     final backupsDir = await getFullBackupsDirectory();
     final timestamp = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
-    final fileName = 'NativeTavern_backup_$timestamp.json';
+    final fileName = 'KiraKira_backup_$timestamp.json';
     final filePath = path.join(backupsDir.path, fileName);
 
     final backupData = {
       'version': 1,
       'createdAt': DateTime.now().toIso8601String(),
-      'app': 'NativeTavern',
+      'app': 'KiraKira',
       'characters': characters,
       'chats': chats,
       'settings': settings,

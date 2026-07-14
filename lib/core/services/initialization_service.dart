@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:native_tavern/data/database/database.dart';
-import 'package:native_tavern/data/models/character.dart' as models;
-import 'package:native_tavern/data/repositories/character_repository.dart';
-import 'package:native_tavern/data/repositories/world_info_repository.dart';
+import 'package:kirakira/data/database/database.dart';
+import 'package:kirakira/data/models/character.dart' as models;
+import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
@@ -38,11 +38,11 @@ class InitializationService {
       return _initData!;
     }
     
-    debugPrint('🚀 Initializing NativeTavern...');
+    debugPrint('🚀 Initializing KiraKira...');
     
     // Get data directory
     final appDir = await getApplicationDocumentsDirectory();
-    final dataPath = '${appDir.path}/NativeTavern';
+    final dataPath = '${appDir.path}/KiraKira';
     
     // Ensure directories exist
     await _ensureDirectories(dataPath);
@@ -65,7 +65,7 @@ class InitializationService {
     await _loadBuiltInWorldInfos(database);
     
     _initialized = true;
-    debugPrint('✅ NativeTavern initialized successfully');
+    debugPrint('✅ KiraKira initialized successfully');
     debugPrint('📁 Data path: $dataPath');
     
     return _initData!;
@@ -84,7 +84,7 @@ class InitializationService {
       
       // Get data path for repository
       final appDir = await getApplicationDocumentsDirectory();
-      final dataPath = '${appDir.path}/NativeTavern';
+      final dataPath = '${appDir.path}/KiraKira';
       
       // Check if any characters exist
       final repo = CharacterRepository(database, dataPath);
@@ -110,7 +110,7 @@ class InitializationService {
           postHistoryInstructions: '',
           creatorNotes: 'This is the default character created on first launch. Feel free to edit or delete it.',
           tags: ['assistant', 'default'],
-          creator: 'NativeTavern',
+          creator: 'KiraKira',
           version: '1.0.0',
           createdAt: now,
           modifiedAt: now,

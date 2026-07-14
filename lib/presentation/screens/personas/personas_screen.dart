@@ -3,14 +3,14 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:native_tavern/data/models/persona.dart';
-import 'package:native_tavern/presentation/providers/persona_providers.dart';
-import 'package:native_tavern/presentation/screens/personas/persona_editor_screen.dart';
-import 'package:native_tavern/presentation/theme/app_theme.dart';
+import 'package:kirakira/data/models/persona.dart';
+import 'package:kirakira/presentation/providers/persona_providers.dart';
+import 'package:kirakira/presentation/screens/personas/persona_editor_screen.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
-import 'package:native_tavern/l10n/generated/app_localizations.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Screen for managing user personas
 class PersonasScreen extends ConsumerWidget {
@@ -638,7 +638,7 @@ class _PersonaDialogState extends State<_PersonaDialog> {
     try {
       // Copy file to app's documents directory for persistence
       final appDir = await getApplicationDocumentsDirectory();
-      final avatarsDir = Directory(p.join(appDir.path, 'NativeTavern', 'avatars', 'personas'));
+      final avatarsDir = Directory(p.join(appDir.path, 'KiraKira', 'avatars', 'personas'));
       await avatarsDir.create(recursive: true);
       
       const uuid = Uuid();
