@@ -38,19 +38,9 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
             tooltip: _viewMode.getDisplayName(l10n),
           ),
           IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: l10n.createCharacter,
-            onPressed: () => context.push(AppRoutes.characterCreate),
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: l10n.retry,
             onPressed: () => ref.read(characterListProvider.notifier).refresh(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.file_download_outlined),
-            tooltip: l10n.import,
-            onPressed: () => context.push(AppRoutes.import_),
           ),
         ],
       ),
@@ -102,9 +92,59 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showFabMenu(context),
+        child: const Icon(Icons.add_rounded, size: 28),
+      ),
     );
   }
-  
+
+  void _showFabMenu(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.textMuted,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.file_download_outlined, color: AppTheme.primaryColor),
+              title: Text(l10n.importCharacter),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onTap: () {
+                Navigator.pop(ctx);
+                context.push(AppRoutes.import_);
+              },
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.add, color: AppTheme.primaryColor),
+              title: Text(l10n.createCharacter),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onTap: () {
+                Navigator.pop(ctx);
+                context.push(AppRoutes.characterCreate);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Icon _getViewModeIcon() {
     switch (_viewMode) {
       case CharacterViewMode.list:
@@ -195,10 +235,10 @@ class _CharacterCompactGridView extends StatelessWidget {
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 0.65,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        crossAxisCount: 2,
+        childAspectRatio: 0.82,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
       ),
       itemCount: characters.length,
       itemBuilder: (context, index) {

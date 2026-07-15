@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/core/services/initialization_service.dart';
@@ -95,7 +95,7 @@ class CloudBackupScreen extends ConsumerWidget {
                             height: 24,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
-                          title: Text('Checking iCloud availability...'),
+                          title: Text('正在检查 iCloud 可用性...'),
                         ),
                         error: (_, __) => ListTile(
                           leading: const Icon(Icons.error, color: Colors.red),

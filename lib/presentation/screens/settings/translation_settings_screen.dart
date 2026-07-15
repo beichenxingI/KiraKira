@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/translation_service.dart';
 import 'package:kirakira/presentation/providers/translation_providers.dart';
@@ -66,8 +66,8 @@ class TranslationSettingsScreen extends ConsumerWidget {
                     : null,
               ),
               SwitchListTile(
-                title: const Text('Show Original'),
-                subtitle: const Text('Display original text alongside translation'),
+                title: const Text('显示原文'),
+                subtitle: const Text('在翻译旁显示原文'),
                 value: settings.showOriginal,
                 onChanged: settings.enabled
                     ? (value) {
@@ -158,7 +158,7 @@ class TranslationSettingsScreen extends ConsumerWidget {
               Center(
                 child: IconButton(
                   icon: const Icon(Icons.swap_vert),
-                  tooltip: 'Swap languages',
+                  tooltip: '交换语言',
                   onPressed: settings.enabled && settings.sourceLanguage != 'auto'
                       ? () {
                           ref.read(translationSettingsProvider.notifier).swapLanguages();
@@ -214,7 +214,7 @@ class TranslationSettingsScreen extends ConsumerWidget {
             children: [
               const ListTile(
                 leading: Icon(Icons.info_outline, color: AppTheme.accentColor),
-                title: Text('About Translation'),
+                title: Text('关于翻译'),
                 subtitle: Text(
                   'Translation allows you to communicate in different languages. '
                   'Messages can be automatically translated or translated on demand.',
@@ -452,7 +452,7 @@ class TranslateButton extends ConsumerWidget {
 
     return IconButton(
       icon: Icon(Icons.translate, size: size),
-      tooltip: 'Translate',
+      tooltip: '翻译',
       onPressed: () async {
         final result = await ref.read(translateProvider)(text);
         if (result != null && onTranslated != null) {

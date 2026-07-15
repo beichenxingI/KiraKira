@@ -381,7 +381,7 @@ class AdvancedSettingsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           FilledButton(
             onPressed: () {
@@ -391,7 +391,7 @@ class AdvancedSettingsScreen extends ConsumerWidget {
               }
               Navigator.pop(context);
             },
-            child: const Text('Save'),
+            child: const Text('保存'),
           ),
         ],
       ),

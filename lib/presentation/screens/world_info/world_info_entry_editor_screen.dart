@@ -7,6 +7,8 @@ import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Enhanced World Info Entry Editor Screen with all new fields
+/// {@deprecated Use _EntryEditDialog in world_info_screen.dart instead}
+@Deprecated('Use _EntryEditDialog showDialog instead')
 class WorldInfoEntryEditorScreen extends ConsumerStatefulWidget {
   final String worldInfoId;
   final WorldInfoEntry? entry; // null for creating new entry

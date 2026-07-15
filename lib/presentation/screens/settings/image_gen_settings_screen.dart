@@ -1,4 +1,4 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
@@ -243,11 +243,11 @@ class ImageGenSettingsScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             _buildSection(
               context: context,
-              title: 'NovelAI Settings',
+              title: 'NovelAI 设置',
               children: [
                 SwitchListTile(
-                  title: const Text('Anlas Guard'),
-                  subtitle: const Text('Limit image size and steps to reduce costs'),
+                  title: const Text('Anlas 保护'),
+                  subtitle: const Text('限制图片尺寸和步数以降低成本'),
                   value: settings.novelaiAnlasGuard,
                   onChanged: settings.enabled
                       ? (value) {
@@ -257,7 +257,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                 ),
                 SwitchListTile(
                   title: const Text('SM (SMEA)'),
-                  subtitle: const Text('Enhanced sampling for better details'),
+                  subtitle: const Text('增强采样以获得更好细节'),
                   value: settings.novelaiSm,
                   onChanged: settings.enabled
                       ? (value) {
@@ -268,7 +268,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                 if (settings.novelaiSm)
                   SwitchListTile(
                     title: const Text('SM DYN'),
-                    subtitle: const Text('Dynamic SMEA (more creative)'),
+                    subtitle: const Text('动态 SMEA（更富创意）'),
                     value: settings.novelaiSmDyn,
                     onChanged: settings.enabled
                         ? (value) {
@@ -278,7 +278,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                   ),
                 SwitchListTile(
                   title: const Text('Decrisper'),
-                  subtitle: const Text('Reduce over-saturation in images'),
+                  subtitle: const Text('减少图片过度饱和'),
                   value: settings.novelaiDecrisper,
                   onChanged: settings.enabled
                       ? (value) {
@@ -288,7 +288,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                 ),
                 SwitchListTile(
                   title: const Text('Variety+'),
-                  subtitle: const Text('Higher variety in generated images'),
+                  subtitle: const Text('生成图片的更高多样性'),
                   value: settings.novelaiVarietyBoost,
                   onChanged: settings.enabled
                       ? (value) {
@@ -305,10 +305,10 @@ class ImageGenSettingsScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             _buildSection(
               context: context,
-              title: 'DALL-E 3 Settings',
+              title: 'DALL-E 3 设置',
               children: [
                 ListTile(
-                  title: const Text('Style'),
+                  title: const Text('风格'),
                   subtitle: Text(settings.openaiStyle == 'vivid' 
                       ? 'Vivid - Hyper-real and dramatic' 
                       : 'Natural - More natural, less hyper-real'),
@@ -322,13 +322,13 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                           }
                         : null,
                     items: const [
-                      DropdownMenuItem(value: 'vivid', child: Text('Vivid')),
-                      DropdownMenuItem(value: 'natural', child: Text('Natural')),
+                      DropdownMenuItem(value: 'vivid', child: Text('鲜明')),
+                      DropdownMenuItem(value: 'natural', child: Text('自然')),
                     ],
                   ),
                 ),
                 ListTile(
-                  title: const Text('Quality'),
+                  title: const Text('质量'),
                   subtitle: Text(settings.openaiQuality == 'hd' 
                       ? 'HD - Higher detail and consistency' 
                       : 'Standard - Faster, lower cost'),
@@ -342,8 +342,8 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                           }
                         : null,
                     items: const [
-                      DropdownMenuItem(value: 'standard', child: Text('Standard')),
-                      DropdownMenuItem(value: 'hd', child: Text('HD')),
+                      DropdownMenuItem(value: 'standard', child: Text('标准')),
+                      DropdownMenuItem(value: 'hd', child: Text('高清')),
                     ],
                   ),
                 ),
@@ -395,7 +395,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                 const ListTile(
                   leading: Icon(Icons.chat, color: AppTheme.textMuted),
                   title: Text('OpenAI-Chat'),
-                  subtitle: Text('Uses chat/completions API for image generation. Works with compatible APIs that return images via chat format.'),
+                  subtitle: Text('使用 chat/completions API 生成图像。适用于通过聊天格式返回图像的兼容 API。'),
                 ),
             ],
           ),
@@ -466,7 +466,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.refresh, size: 20),
-              tooltip: 'Refresh models',
+              tooltip: '刷新模型列表',
               onPressed: settings.enabled && !fetchedState.isLoading
                   ? () => ref.read(fetchedModelsProvider.notifier).fetchModels()
                   : null,

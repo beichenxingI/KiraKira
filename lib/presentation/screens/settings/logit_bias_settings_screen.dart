@@ -564,7 +564,7 @@ class _BiasEntryCardState extends ConsumerState<_BiasEntryCard> {
                     controller: _textController,
                     decoration: InputDecoration(
                       labelText: AppLocalizations.of(context)!.textOrToken,
-                      hintText: 'word, {verbatim}, or [1234]',
+                      hintText: '词、{原文} 或 [1234]',
                       isDense: true,
                       border: const OutlineInputBorder(),
                       errorText: validation.errors.isNotEmpty ? validation.errors.first : null,

@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -551,7 +551,7 @@ class PromptManagerScreen extends ConsumerWidget {
                   TextField(
                     controller: nameController,
                     decoration: const InputDecoration(
-                      labelText: 'Prompt Name',
+                      labelText: '提示词名称',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -603,7 +603,7 @@ class PromptManagerScreen extends ConsumerWidget {
                     minLines: 5,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
-                      hintText: 'Enter prompt content...',
+                      hintText: '输入提示词内容...',
                     ),
                   ),
                 ),
@@ -618,7 +618,7 @@ class PromptManagerScreen extends ConsumerWidget {
                 // Reset to default
                 contentController.text = PromptSection.getDefaultContent(section.type);
               },
-              child: const Text('Reset to Default'),
+              child: const Text('重置为默认'),
             ),
           TextButton(
             onPressed: () => Navigator.pop(context),

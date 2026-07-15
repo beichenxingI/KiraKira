@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -191,7 +191,7 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen> {
                           height: 24,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
-                        title: Text('Connecting to Google Drive...'),
+                        title: Text('正在连接 Google Drive...'),
                       )
                     else if (!isGoogleDriveSignedIn) ...[
                       ListTile(
@@ -289,7 +289,7 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen> {
                             height: 24,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
-                          title: Text('Checking iCloud availability...'),
+                          title: Text('正在检查 iCloud 可用性...'),
                         ),
                         error: (_, __) => ListTile(
                           leading: const Icon(Icons.error, color: Colors.red),
@@ -602,7 +602,7 @@ class _BackupSettingsScreenState extends ConsumerState<BackupSettingsScreen> {
                     ListTile(
                       leading: const Icon(Icons.folder, color: AppTheme.textMuted),
                       title: Text(l10n.backupLocation),
-                      subtitle: const Text('Documents/KiraKira/backups/'),
+                      subtitle: const Text('文档/KiraKira/备份/'),
                     ),
                   ],
                 ),

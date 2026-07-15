@@ -206,11 +206,11 @@ class RegexSettingsScreen extends ConsumerWidget {
           // Info section
           _buildSection(
             context: context,
-            title: 'Information',
+            title: '信息',
             children: [
               const ListTile(
                 leading: Icon(Icons.info_outline, color: AppTheme.accentColor),
-                title: Text('About Regex Scripts'),
+                title: Text('关于正则脚本'),
                 subtitle: Text(
                   'Regex scripts allow you to find and replace text patterns in messages. '
                   'Use capture groups (\$1, \$2) in replacements.',
@@ -218,7 +218,7 @@ class RegexSettingsScreen extends ConsumerWidget {
               ),
               const ListTile(
                 leading: Icon(Icons.code, color: AppTheme.textMuted),
-                title: Text('Pattern Format'),
+                title: Text('模式格式'),
                 subtitle: Text(
                   'Use /pattern/flags format (e.g., /hello/gi) or plain patterns. '
                   'Flags: i=case-insensitive, m=multiline, s=dotall',
@@ -581,7 +581,7 @@ class _RegexScriptEditorState extends State<_RegexScriptEditor> {
                     TextField(
                       controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: 'Script Name',
+                        labelText: '脚本名称',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -589,7 +589,7 @@ class _RegexScriptEditorState extends State<_RegexScriptEditor> {
                     TextField(
                       controller: _descriptionController,
                       decoration: const InputDecoration(
-                        labelText: 'Description (optional)',
+                        labelText: '描述（可选）',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -597,8 +597,8 @@ class _RegexScriptEditorState extends State<_RegexScriptEditor> {
                     TextField(
                       controller: _findController,
                       decoration: const InputDecoration(
-                        labelText: 'Find Pattern',
-                        hintText: '/pattern/flags or plain pattern',
+                        labelText: '查找模式',
+                        hintText: '/模式/标志 或纯文本模式',
                         border: OutlineInputBorder(),
                       ),
                       style: const TextStyle(fontFamily: 'monospace'),
@@ -607,7 +607,7 @@ class _RegexScriptEditorState extends State<_RegexScriptEditor> {
                     TextField(
                       controller: _replaceController,
                       decoration: const InputDecoration(
-                        labelText: 'Replace With',
+                        labelText: '替换为',
                         hintText: r'Use $1, $2 for capture groups',
                         border: OutlineInputBorder(),
                       ),
@@ -644,20 +644,20 @@ class _RegexScriptEditorState extends State<_RegexScriptEditor> {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     SwitchListTile(
-                      title: const Text('Markdown Only'),
-                      subtitle: const Text('Only apply during markdown rendering'),
+                      title: const Text('仅 Markdown'),
+                      subtitle: const Text('仅在 Markdown 渲染时应用'),
                       value: _markdownOnly,
                       onChanged: (value) => setState(() => _markdownOnly = value),
                     ),
                     SwitchListTile(
-                      title: const Text('Prompt Only'),
-                      subtitle: const Text('Only apply during prompt generation'),
+                      title: const Text('仅提示词'),
+                      subtitle: const Text('仅在提示词生成时应用'),
                       value: _promptOnly,
                       onChanged: (value) => setState(() => _promptOnly = value),
                     ),
                     SwitchListTile(
-                      title: const Text('Run on Edit'),
-                      subtitle: const Text('Apply when editing messages'),
+                      title: const Text('编辑时运行'),
+                      subtitle: const Text('编辑消息时应用'),
                       value: _runOnEdit,
                       onChanged: (value) => setState(() => _runOnEdit = value),
                     ),
@@ -665,7 +665,7 @@ class _RegexScriptEditorState extends State<_RegexScriptEditor> {
                     DropdownButtonFormField<SubstituteRegex>(
                       value: _substituteRegex,
                       decoration: const InputDecoration(
-                        labelText: 'Macro Substitution',
+                        labelText: '宏替换',
                         border: OutlineInputBorder(),
                       ),
                       items: SubstituteRegex.values.map((s) {
@@ -693,7 +693,7 @@ class _RegexScriptEditorState extends State<_RegexScriptEditor> {
   void _save() {
     if (_nameController.text.isEmpty || _findController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name and pattern are required')),
+        const SnackBar(content: Text('名称和模式为必填')),
       );
       return;
     }
@@ -765,7 +765,7 @@ class _RegexTestWidgetState extends ConsumerState<_RegexTestWidget> {
           TextField(
             controller: _patternController,
             decoration: const InputDecoration(
-              labelText: 'Pattern',
+              labelText: '模式',
               hintText: '/pattern/flags',
               border: OutlineInputBorder(),
             ),
@@ -775,7 +775,7 @@ class _RegexTestWidgetState extends ConsumerState<_RegexTestWidget> {
           TextField(
             controller: _testController,
             decoration: const InputDecoration(
-              labelText: 'Test String',
+              labelText: '测试字符串',
               border: OutlineInputBorder(),
             ),
             maxLines: 3,
@@ -784,7 +784,7 @@ class _RegexTestWidgetState extends ConsumerState<_RegexTestWidget> {
           TextField(
             controller: _replaceController,
             decoration: const InputDecoration(
-              labelText: 'Replacement',
+              labelText: '替换',
               hintText: r'$1, $2, {{match}}',
               border: OutlineInputBorder(),
             ),

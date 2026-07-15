@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/stt_service.dart';
 import 'package:kirakira/presentation/providers/stt_providers.dart';
@@ -272,7 +272,7 @@ class STTSettingsScreen extends ConsumerWidget {
             children: [
               const ListTile(
                 leading: Icon(Icons.info_outline, color: AppTheme.accentColor),
-                title: Text('About STT'),
+                title: Text('关于语音识别'),
                 subtitle: Text(
                   'Speech-to-Text allows you to dictate messages using your voice. '
                   'Tap the microphone button in the chat input to start speaking.',
@@ -281,7 +281,7 @@ class STTSettingsScreen extends ConsumerWidget {
               if (settings.provider == STTProvider.system)
                 const ListTile(
                   leading: Icon(Icons.phone_android, color: AppTheme.textMuted),
-                  title: Text('System STT'),
+                  title: Text('系统语音识别'),
                   subtitle: Text(
                     'Using your device\'s built-in speech recognition. '
                     'Accuracy depends on your system settings.',

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/tts_service.dart';
 import 'package:kirakira/presentation/providers/tts_providers.dart';
@@ -58,8 +58,8 @@ class TTSSettingsScreen extends ConsumerWidget {
                     : null,
               ),
               SwitchListTile(
-                title: const Text('Queue Messages'),
-                subtitle: const Text('Queue multiple messages instead of interrupting'),
+                title: const Text('消息队列'),
+                subtitle: const Text('排队多条消息而非打断'),
                 value: settings.queueMessages,
                 onChanged: settings.enabled
                     ? (value) {
@@ -146,8 +146,8 @@ class TTSSettingsScreen extends ConsumerWidget {
                   ),
                 ),
                 loading: () => const ListTile(
-                  title: Text('Voice'),
-                  subtitle: Text('Loading voices...'),
+                  title: Text('语音'),
+                  subtitle: Text('正在加载语音...'),
                   trailing: SizedBox(
                     width: 20,
                     height: 20,
@@ -155,8 +155,8 @@ class TTSSettingsScreen extends ConsumerWidget {
                   ),
                 ),
                 error: (_, __) => const ListTile(
-                  title: Text('Voice'),
-                  subtitle: Text('Failed to load voices'),
+                  title: Text('语音'),
+                  subtitle: Text('加载语音失败'),
                   trailing: Icon(Icons.error, color: Colors.red),
                 ),
               ),
@@ -274,7 +274,7 @@ class TTSSettingsScreen extends ConsumerWidget {
             children: [
               const ListTile(
                 leading: Icon(Icons.info_outline, color: AppTheme.accentColor),
-                title: Text('About TTS'),
+                title: Text('关于语音合成'),
                 subtitle: Text(
                   'Text-to-Speech allows you to hear messages read aloud. '
                   'You can configure different voices for different characters '
@@ -284,7 +284,7 @@ class TTSSettingsScreen extends ConsumerWidget {
               if (settings.provider == TTSProvider.system)
                 const ListTile(
                   leading: Icon(Icons.phone_android, color: AppTheme.textMuted),
-                  title: Text('System TTS'),
+                  title: Text('系统语音合成'),
                   subtitle: Text(
                     'Using your device\'s built-in text-to-speech engine. '
                     'Available voices depend on your system settings.',
@@ -419,7 +419,7 @@ class TTSControls extends ConsumerWidget {
         if (isSpeaking)
           IconButton(
             icon: const Icon(Icons.stop, size: 20),
-            tooltip: 'Stop speaking',
+            tooltip: '停止朗读',
             onPressed: () => ref.read(ttsStopProvider)(),
           ),
         Icon(

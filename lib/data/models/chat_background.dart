@@ -6,6 +6,7 @@ enum BackgroundType {
   color,
   gradient,
   image,
+  video,
 }
 
 /// Chat background configuration

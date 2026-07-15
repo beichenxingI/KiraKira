@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,15 +18,15 @@ class SpriteSettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Expression Sprites'),
+        title: const Text('表情精灵图'),
         actions: [
           IconButton(
             icon: const Icon(Icons.restore),
-            tooltip: 'Reset to defaults',
+            tooltip: '重置为默认值',
             onPressed: () {
               ref.read(spriteSettingsProvider.notifier).reset();
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings reset to defaults')),
+                const SnackBar(content: Text('设置已重置为默认值')),
               );
             },
           ),
@@ -37,11 +37,11 @@ class SpriteSettingsScreen extends ConsumerWidget {
         children: [
           // Enable/Disable toggle
           _buildSection(
-            title: 'General',
+            title: '通用',
             children: [
               SwitchListTile(
-                title: const Text('Enable Sprites'),
-                subtitle: const Text('Show character expression images in chat'),
+                title: const Text('启用精灵图'),
+                subtitle: const Text('在聊天中显示角色表情图'),
                 value: settings.enabled,
                 onChanged: (value) {
                   ref.read(spriteSettingsProvider.notifier).setEnabled(value);
@@ -54,11 +54,11 @@ class SpriteSettingsScreen extends ConsumerWidget {
 
           // Display settings
           _buildSection(
-            title: 'Display',
+            title: '显示',
             children: [
               // Size slider
               ListTile(
-                title: const Text('Sprite Size'),
+                title: const Text('精灵图尺寸'),
                 subtitle: Slider(
                   value: settings.size,
                   min: 50,
@@ -79,8 +79,8 @@ class SpriteSettingsScreen extends ConsumerWidget {
 
               // Position dropdown
               ListTile(
-                title: const Text('Position'),
-                subtitle: const Text('Where to display sprites'),
+                title: const Text('位置'),
+                subtitle: const Text('精灵图显示位置'),
                 trailing: DropdownButton<SpritePosition>(
                   value: settings.position,
                   onChanged: settings.enabled
@@ -101,7 +101,7 @@ class SpriteSettingsScreen extends ConsumerWidget {
 
               // Opacity slider
               ListTile(
-                title: const Text('Opacity'),
+                title: const Text('透明度'),
                 subtitle: Slider(
                   value: settings.opacity,
                   min: 0.1,
@@ -126,11 +126,11 @@ class SpriteSettingsScreen extends ConsumerWidget {
 
           // Animation settings
           _buildSection(
-            title: 'Animation',
+            title: '动画',
             children: [
               SwitchListTile(
-                title: const Text('Animate Transitions'),
-                subtitle: const Text('Smooth fade when sprite changes'),
+                title: const Text('动画过渡'),
+                subtitle: const Text('精灵图切换时平滑过渡'),
                 value: settings.animateTransitions,
                 onChanged: settings.enabled
                     ? (value) {
@@ -140,7 +140,7 @@ class SpriteSettingsScreen extends ConsumerWidget {
               ),
 
               ListTile(
-                title: const Text('Transition Duration'),
+                title: const Text('过渡时长'),
                 subtitle: Slider(
                   value: settings.transitionDurationMs.toDouble(),
                   min: 0,
@@ -161,8 +161,8 @@ class SpriteSettingsScreen extends ConsumerWidget {
               ),
 
               SwitchListTile(
-                title: const Text('Show During Streaming'),
-                subtitle: const Text('Display sprites while AI is generating'),
+                title: const Text('流式生成时显示'),
+                subtitle: const Text('AI 生成时显示精灵图'),
                 value: settings.showDuringStreaming,
                 onChanged: settings.enabled
                     ? (value) {
@@ -177,11 +177,11 @@ class SpriteSettingsScreen extends ConsumerWidget {
 
           // Emotion detection info
           _buildSection(
-            title: 'Emotion Detection',
+            title: '情感检测',
             children: [
               const ListTile(
                 leading: Icon(Icons.info_outline, color: AppTheme.accentColor),
-                title: Text('How it works'),
+                title: Text('工作原理'),
                 subtitle: Text(
                   'Sprites are automatically selected based on emotion keywords detected in messages. '
                   'Action text like *smiles* or *laughs* is prioritized.',
@@ -189,7 +189,7 @@ class SpriteSettingsScreen extends ConsumerWidget {
               ),
               const Divider(),
               ExpansionTile(
-                title: const Text('Supported Emotions'),
+                title: const Text('支持的情感'),
                 children: SpriteEmotion.values.map((emotion) {
                   return ListTile(
                     dense: true,
@@ -283,7 +283,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.folder_open),
-            tooltip: 'Import from folder',
+            tooltip: '从文件夹导入',
             onPressed: _importFromFolder,
           ),
           PopupMenuButton(
@@ -292,7 +292,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
                 value: 'delete_all',
                 child: ListTile(
                   leading: Icon(Icons.delete_sweep, color: Colors.red),
-                  title: Text('Delete All Sprites'),
+                  title: Text('删除所有精灵图'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -315,7 +315,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addSprite,
         icon: const Icon(Icons.add_photo_alternate),
-        label: const Text('Add Sprite'),
+        label: const Text('添加精灵图'),
       ),
     );
   }
@@ -433,7 +433,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added $emotion sprite')),
+        SnackBar(content: Text('已添加 $emotion 精灵图')),
       );
     }
   }
@@ -442,7 +442,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Emotion'),
+        title: const Text('选择情感'),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
@@ -505,7 +505,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
             
             ListTile(
               leading: const Icon(Icons.star, color: AppTheme.accentColor),
-              title: const Text('Set as Default'),
+              title: const Text('设为默认'),
               onTap: () {
                 Navigator.pop(context);
                 ref.read(spritePackNotifierProvider(widget.characterId).notifier)
@@ -515,7 +515,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
             
             ListTile(
               leading: const Icon(Icons.swap_horiz),
-              title: const Text('Change Emotion'),
+              title: const Text('更改情感'),
               onTap: () async {
                 Navigator.pop(context);
                 final newEmotion = await _selectEmotion();
@@ -549,8 +549,8 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Sprite'),
-        content: Text('Delete the ${sprite.emotion} sprite?'),
+        title: const Text('删除精灵图'),
+        content: Text('删除 ${sprite.emotion} 精灵图？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -574,7 +574,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete All Sprites'),
+        title: const Text('删除所有精灵图'),
         content: const Text(
           'Are you sure you want to delete all sprites for this character? '
           'This cannot be undone.',
@@ -603,7 +603,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Import Sprites'),
+        title: const Text('导入精灵图'),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -630,7 +630,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Select Folder'),
+            child: const Text('选择文件夹'),
           ),
         ],
       ),
@@ -643,7 +643,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Folder import requires file_picker package'),
+          content: Text('文件夹导入需要 file_picker 包'),
           duration: Duration(seconds: 3),
         ),
       );

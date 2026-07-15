@@ -1,734 +1,331 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/data/models/world_info.dart';
+import 'package:kirakira/presentation/providers/character_providers.dart';
+import 'package:kirakira/presentation/providers/world_info_providers.dart';
+import 'package:kirakira/presentation/screens/world_info/world_info_screen.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 
-/// Character editor screen for creating/editing characters
+/// Character editor screen
 class CharacterEditorScreen extends ConsumerStatefulWidget {
-  final String? characterId; // null for new character
-
+  final String? characterId;
   const CharacterEditorScreen({super.key, this.characterId});
-
   @override
   ConsumerState<CharacterEditorScreen> createState() => _CharacterEditorScreenState();
 }
 
-class _CharacterEditorScreenState extends ConsumerState<CharacterEditorScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final _formKey = GlobalKey<FormState>();
-  
-  // Controllers for all fields
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _personalityController = TextEditingController();
-  final _scenarioController = TextEditingController();
-  final _firstMessageController = TextEditingController();
-  final _exampleMessagesController = TextEditingController();
-  final _systemPromptController = TextEditingController();
-  final _postHistoryController = TextEditingController();
-  final _creatorNotesController = TextEditingController();
-  final _tagsController = TextEditingController();
-  final _creatorController = TextEditingController();
-  final _versionController = TextEditingController();
-  
-  // Alternate greetings controllers
-  final List<TextEditingController> _alternateGreetingControllers = [];
-  
-  // State
-  bool _isLoading = true;
+class _CharacterEditorScreenState extends ConsumerState<CharacterEditorScreen> with TickerProviderStateMixin {
+  TabController? _tabController;
+  String? _editingCharacterId;
+  late TextEditingController _nameCtrl, _descCtrl, _personalityCtrl, _scenarioCtrl, _firstMsgCtrl, _systemPromptCtrl, _creatorNotesCtrl, _tagsCtrl;
   bool _isSaving = false;
-  Character? _character;
-  Uint8List? _avatarData;
-  String? _avatarPath;
-  bool _hasChanges = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-    _loadCharacter();
+    _editingCharacterId = widget.characterId;
+    _nameCtrl = TextEditingController();
+    _descCtrl = TextEditingController();
+    _personalityCtrl = TextEditingController();
+    _scenarioCtrl = TextEditingController();
+    _firstMsgCtrl = TextEditingController();
+    _systemPromptCtrl = TextEditingController();
+    _creatorNotesCtrl = TextEditingController();
+    _tagsCtrl = TextEditingController();
+    if (_editingCharacterId != null) { _initTabs(2); _loadCharacter(); } else { _initTabs(1); }
+  }
+
+  void _initTabs(int count) { _tabController = TabController(length: count, vsync: this); }
+
+  Future<void> _loadCharacter() async {
+    if (_editingCharacterId == null) return;
+    final repo = ref.read(characterRepositoryProvider);
+    final character = await repo.getCharacter(_editingCharacterId!);
+    if (character != null && mounted) {
+      _nameCtrl.text = character.name;
+      _descCtrl.text = character.description;
+      _personalityCtrl.text = character.personality;
+      _scenarioCtrl.text = character.scenario;
+      _firstMsgCtrl.text = character.firstMessage;
+      _systemPromptCtrl.text = character.systemPrompt;
+      _creatorNotesCtrl.text = character.creatorNotes;
+      _tagsCtrl.text = character.tags.join(', ');
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _nameController.dispose();
-    _descriptionController.dispose();
-    _personalityController.dispose();
-    _scenarioController.dispose();
-    _firstMessageController.dispose();
-    _exampleMessagesController.dispose();
-    _systemPromptController.dispose();
-    _postHistoryController.dispose();
-    _creatorNotesController.dispose();
-    _tagsController.dispose();
-    _creatorController.dispose();
-    _versionController.dispose();
-    for (final controller in _alternateGreetingControllers) {
-      controller.dispose();
-    }
+    _tabController?.dispose();
+    _nameCtrl.dispose(); _descCtrl.dispose(); _personalityCtrl.dispose();
+    _scenarioCtrl.dispose(); _firstMsgCtrl.dispose(); _systemPromptCtrl.dispose();
+    _creatorNotesCtrl.dispose(); _tagsCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadCharacter() async {
-    if (widget.characterId == null) {
-      setState(() => _isLoading = false);
-      return;
-    }
-
-    try {
-      final repo = ref.read(characterRepositoryProvider);
-      final character = await repo.getCharacter(widget.characterId!);
-      
-      if (character != null) {
-        _character = character;
-        _nameController.text = character.name;
-        _descriptionController.text = character.description;
-        _personalityController.text = character.personality;
-        _scenarioController.text = character.scenario;
-        _firstMessageController.text = character.firstMessage;
-        _exampleMessagesController.text = character.exampleMessages;
-        _systemPromptController.text = character.systemPrompt;
-        _postHistoryController.text = character.postHistoryInstructions;
-        _creatorNotesController.text = character.creatorNotes;
-        _tagsController.text = character.tags.join(', ');
-        _creatorController.text = character.creator;
-        _versionController.text = character.version;
-        _avatarPath = character.assets?.avatarPath;
-        
-        // Load alternate greetings
-        for (final greeting in character.alternateGreetings) {
-          _alternateGreetingControllers.add(TextEditingController(text: greeting));
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.failedToLoadCharacter(e.toString()))),
-        );
-      }
-    }
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _pickAvatar() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
-        Uint8List? bytes;
-        
-        if (file.bytes != null) {
-          bytes = file.bytes;
-        } else if (file.path != null) {
-          bytes = await File(file.path!).readAsBytes();
-        }
-
-        if (bytes != null) {
-          setState(() {
-            _avatarData = bytes;
-            _hasChanges = true;
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.failedToPickImage(e.toString()))),
-        );
-      }
-    }
-  }
-
-  Future<void> _saveCharacter() async {
-    if (!_formKey.currentState!.validate()) return;
-
+  Future<void> _save() async {
+    if (_isSaving) return;
     setState(() => _isSaving = true);
-
     try {
-      final repo = ref.read(characterRepositoryProvider);
-      final now = DateTime.now();
-      
-      // Parse tags
-      final tags = _tagsController.text
-          .split(',')
-          .map((t) => t.trim())
-          .where((t) => t.isNotEmpty)
-          .toList();
-      
-      // Get alternate greetings
-      final alternateGreetings = _alternateGreetingControllers
-          .map((c) => c.text.trim())
-          .where((t) => t.isNotEmpty)
-          .toList();
-
-      Character character;
-      
-      if (_character != null) {
-        // Update existing character
-        character = _character!.copyWith(
-          name: _nameController.text,
-          description: _descriptionController.text,
-          personality: _personalityController.text,
-          scenario: _scenarioController.text,
-          firstMessage: _firstMessageController.text,
-          alternateGreetings: alternateGreetings,
-          exampleMessages: _exampleMessagesController.text,
-          systemPrompt: _systemPromptController.text,
-          postHistoryInstructions: _postHistoryController.text,
-          creatorNotes: _creatorNotesController.text,
-          tags: tags,
-          creator: _creatorController.text,
-          version: _versionController.text,
-          modifiedAt: now,
-        );
-        character = await repo.updateCharacter(character);
+      final notifier = ref.read(characterListProvider.notifier);
+      final tags = _tagsCtrl.text.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+      if (_editingCharacterId != null) {
+        final existingList = ref.read(characterListProvider).valueOrNull ?? [];
+        final existing = existingList.cast<Character?>().firstWhere((c) => c?.id == _editingCharacterId, orElse: () => null);
+        if (existing != null) {
+          await notifier.updateCharacter(existing.copyWith(
+            name: _nameCtrl.text.trim(), description: _descCtrl.text.trim(),
+            personality: _personalityCtrl.text.trim(), scenario: _scenarioCtrl.text.trim(),
+            firstMessage: _firstMsgCtrl.text.trim(), systemPrompt: _systemPromptCtrl.text.trim(),
+            creatorNotes: _creatorNotesCtrl.text.trim(), tags: tags, modifiedAt: DateTime.now(),
+          ));
+        }
       } else {
-        // Create new character
-        character = Character(
-          id: '',
-          name: _nameController.text,
-          description: _descriptionController.text,
-          personality: _personalityController.text,
-          scenario: _scenarioController.text,
-          firstMessage: _firstMessageController.text,
-          alternateGreetings: alternateGreetings,
-          exampleMessages: _exampleMessagesController.text,
-          systemPrompt: _systemPromptController.text,
-          postHistoryInstructions: _postHistoryController.text,
-          creatorNotes: _creatorNotesController.text,
-          tags: tags,
-          creator: _creatorController.text,
-          version: _versionController.text,
-          createdAt: now,
-          modifiedAt: now,
-        );
-        character = await repo.createCharacter(character);
+        final now = DateTime.now();
+        final newChar = Character(id: '', name: _nameCtrl.text.trim(), description: _descCtrl.text.trim(),
+          personality: _personalityCtrl.text.trim(), scenario: _scenarioCtrl.text.trim(),
+          firstMessage: _firstMsgCtrl.text.trim(), systemPrompt: _systemPromptCtrl.text.trim(),
+          creatorNotes: _creatorNotesCtrl.text.trim(), tags: tags, createdAt: now, modifiedAt: now);
+        final created = await notifier.addCharacter(newChar);
+        _editingCharacterId = created.id;
+        if (mounted) { _tabController?.dispose(); _initTabs(2); setState(() {}); }
       }
-
-      // Save avatar if changed
-      if (_avatarData != null) {
-        await repo.saveAvatar(character.id, _avatarData!);
-      }
-
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.characterSavedSuccessfully)),
-        );
-        context.pop();
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.save)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.failedToSaveCharacter(e.toString()))),
-        );
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.error}: $e')));
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
-    }
-  }
-
-  void _markChanged() {
-    if (!_hasChanges) {
-      setState(() => _hasChanges = true);
-    }
+    } finally { if (mounted) setState(() => _isSaving = false); }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isNew = widget.characterId == null;
-    
+    final l10n = AppLocalizations.of(context);
+    final isEdit = _editingCharacterId != null;
     return Scaffold(
       appBar: AppBar(
-        title: Text(isNew ? AppLocalizations.of(context)!.createCharacter : AppLocalizations.of(context)!.editCharacter),
+        title: Text(isEdit ? l10n.editCharacter : l10n.createCharacter),
         actions: [
-          if (_hasChanges)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(
-                Icons.circle,
-                size: 12,
-                color: Theme.of(context).colorScheme.error,
-              ),
-            ),
           TextButton.icon(
-            onPressed: _isSaving ? null : _saveCharacter,
-            icon: _isSaving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.save),
-            label: Text(AppLocalizations.of(context)!.save),
+            onPressed: _isSaving ? null : _save,
+            icon: _isSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save),
+            label: Text(l10n.save),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: AppLocalizations.of(context)!.basic),
-            Tab(text: AppLocalizations.of(context)!.prompts),
-            Tab(text: AppLocalizations.of(context)!.messages),
-            Tab(text: AppLocalizations.of(context)!.meta),
-          ],
-        ),
+        bottom: isEdit && _tabController != null ? TabBar(controller: _tabController, tabs: [
+          Tab(text: l10n.characterName),
+          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.auto_stories_outlined, size: 18), const SizedBox(width: 6), Text(l10n.worldInfo)])),
+        ]) : null,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              onChanged: _markChanged,
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildBasicTab(),
-                  _buildPromptsTab(),
-                  _buildMessagesTab(),
-                  _buildMetaTab(),
-                ],
-              ),
-            ),
+      body: isEdit && _tabController != null
+          ? TabBarView(controller: _tabController, children: [_buildBasicInfoTab(l10n), _WorldBookTab(characterId: _editingCharacterId!)])
+          : _buildBasicInfoTab(l10n),
     );
   }
 
-  Widget _buildBasicTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Avatar
-          Center(
-            child: GestureDetector(
-              onTap: _pickAvatar,
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    backgroundImage: _getAvatarImage(),
-                    child: _avatarData == null && _avatarPath == null
-                        ? Icon(
-                            Icons.person,
-                            size: 60,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          )
-                        : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      child: Icon(
-                        Icons.camera_alt,
-                        size: 20,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          
-          // Name
-          TextFormField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.nameRequired,
-              hintText: AppLocalizations.of(context)!.characterName,
-              border: const OutlineInputBorder(),
-            ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return AppLocalizations.of(context)!.nameIsRequired;
+  Widget _buildBasicInfoTab(AppLocalizations l10n) {
+    return SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _field(l10n.name, _nameCtrl, hint: l10n.characterName), const SizedBox(height: 12),
+      _field(l10n.description, _descCtrl, maxLines: 3, hint: l10n.description), const SizedBox(height: 12),
+      _field(l10n.personality, _personalityCtrl, maxLines: 4, hint: l10n.personality), const SizedBox(height: 12),
+      _field(l10n.scenario, _scenarioCtrl, maxLines: 3, hint: l10n.scenario), const SizedBox(height: 12),
+      _field(l10n.firstMessage, _firstMsgCtrl, maxLines: 4, hint: l10n.firstMessage), const SizedBox(height: 12),
+      _field(l10n.systemPrompt, _systemPromptCtrl, maxLines: 4, hint: l10n.systemPrompt), const SizedBox(height: 12),
+      _field(l10n.creatorNotes, _creatorNotesCtrl, maxLines: 2, hint: l10n.creatorNotes), const SizedBox(height: 12),
+      _field(l10n.tags, _tagsCtrl, hint: l10n.tagsHint), const SizedBox(height: 24),
+      ElevatedButton.icon(onPressed: _isSaving ? null : _save, icon: const Icon(Icons.save), label: Text(l10n.save)),
+    ]));
+  }
+
+  Widget _field(String label, TextEditingController ctrl, {int maxLines = 1, String? hint}) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppTheme.textSecondary)),
+      const SizedBox(height: 4),
+      TextField(controller: ctrl, maxLines: maxLines, decoration: InputDecoration(hintText: hint, border: const OutlineInputBorder(), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10))),
+    ]);
+  }
+}
+
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?//  World Book Tab (embedded inside the editor)
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+class _WorldBookTab extends ConsumerWidget {
+  final String characterId;
+  const _WorldBookTab({required this.characterId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final worldInfosAsync = ref.watch(characterWorldInfosProvider(characterId));
+
+    return worldInfosAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.error_outline, size: 40, color: Colors.red),
+        const SizedBox(height: 8), Text('${l10n.error}: $e'),
+        const SizedBox(height: 12),
+        ElevatedButton(onPressed: () => ref.invalidate(characterWorldInfosProvider(characterId)), child: Text(l10n.retry)),
+      ])),
+      data: (worldBooks) {
+        return Column(children: [
+          Padding(padding: const EdgeInsets.fromLTRB(16, 8, 8, 4), child: Row(children: [
+            Text('${l10n.worldInfo} (${worldBooks.length})',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(color: AppTheme.textSecondary)),
+            const Spacer(),
+            IconButton(icon: const Icon(Icons.add_circle_outline), tooltip: l10n.createLorebook,
+                onPressed: () => _showCreateDialog(context, ref, l10n)),
+          ])),
+          Expanded(child: worldBooks.isEmpty
+              ? _buildEmpty(context, ref, l10n)
+              : ListView.builder(padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: worldBooks.length, itemBuilder: (_, i) => _WorldBookCard(worldBook: worldBooks[i]))),
+        ]);
+      },
+    );
+  }
+
+  Widget _buildEmpty(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+    return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(Icons.auto_stories_outlined, size: 48, color: AppTheme.textMuted), const SizedBox(height: 12),
+      Text(l10n.noLorebooksYet, style: const TextStyle(color: AppTheme.textSecondary)), const SizedBox(height: 16),
+      ElevatedButton.icon(onPressed: () => _showCreateDialog(context, ref, l10n),
+          icon: const Icon(Icons.add), label: Text(l10n.createLorebook)),
+    ]));
+  }
+
+  void _showCreateDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+    showDialog(context: context, builder: (ctx) => _WorldBookDialog(title: l10n.createLorebook, characterId: characterId,
+      onSave: (name, desc) async {
+        await ref.read(worldInfoNotifierProvider.notifier).createWorldInfo(name: name, description: desc, isGlobal: false, characterId: characterId);
+      }));
+  }
+}
+
+class _WorldBookCard extends ConsumerWidget {
+  final WorldInfo worldBook;
+  const _WorldBookCard({required this.worldBook});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final entryCount = worldBook.entries.length;
+
+    return Card(margin: const EdgeInsets.only(bottom: 8), child: InkWell(borderRadius: BorderRadius.circular(12),
+      onTap: () => _openEntries(context),
+      child: Padding(padding: const EdgeInsets.all(12), child: Row(children: [
+        const Icon(Icons.auto_stories, color: AppTheme.textSecondary), const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(worldBook.name, style: Theme.of(context).textTheme.titleSmall, overflow: TextOverflow.ellipsis),
+          if (worldBook.description != null && worldBook.description!.isNotEmpty)
+            Padding(padding: const EdgeInsets.only(top: 2), child: Text(worldBook.description!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textMuted),
+                maxLines: 1, overflow: TextOverflow.ellipsis)),
+          const SizedBox(height: 4),
+          Text('$entryCount entries',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppTheme.textSecondary)),
+        ])),
+        IconButton(icon: const Icon(Icons.edit_outlined, size: 20), tooltip: l10n.edit,
+            onPressed: () => _showEditDialog(context, ref, l10n)),
+        IconButton(icon: const Icon(Icons.delete_outline, size: 20), tooltip: l10n.delete,
+            onPressed: () => _confirmDelete(context, ref, l10n)),
+      ]))),
+    );
+  }
+
+  void _openEntries(BuildContext context) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => WorldInfoEntriesScreen(worldInfo: worldBook)));
+  }
+
+  void _showEditDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+    showDialog(context: context, builder: (ctx) => _WorldBookDialog(title: l10n.editGroup,
+      initialName: worldBook.name, initialDescription: worldBook.description, characterId: worldBook.characterId ?? '',
+      onSave: (name, desc) async {
+        await ref.read(worldInfoNotifierProvider.notifier).updateWorldInfo(worldBook.copyWith(name: name, description: desc));
+      }));
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: Text(l10n.deleteGroup), content: Text('Delete "' + worldBook.name + '"?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
+        TextButton(onPressed: () { Navigator.pop(ctx); ref.read(worldInfoNotifierProvider.notifier).deleteWorldInfo(worldBook.id); },
+            style: TextButton.styleFrom(foregroundColor: Colors.red), child: Text(l10n.delete)),
+      ],
+    ));
+  }
+}
+
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?//  World Book create / edit dialog
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+class _WorldBookDialog extends StatefulWidget {
+  final String title;
+  final String? initialName;
+  final String? initialDescription;
+  final String? characterId;
+  final Future<void> Function(String name, String? description) onSave;
+
+  const _WorldBookDialog({required this.title, required this.onSave, this.initialName, this.initialDescription, this.characterId});
+  @override
+  State<_WorldBookDialog> createState() => _WorldBookDialogState();
+}
+
+class _WorldBookDialogState extends State<_WorldBookDialog> {
+  late TextEditingController _nameCtrl;
+  late TextEditingController _descCtrl;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.initialName ?? '');
+    _descCtrl = TextEditingController(text: widget.initialDescription ?? '');
+  }
+
+  @override
+  void dispose() { _nameCtrl.dispose(); _descCtrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(widget.title),
+      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        TextField(controller: _nameCtrl, autofocus: true,
+            decoration: InputDecoration(labelText: l10n.name, border: const OutlineInputBorder())),
+        const SizedBox(height: 12),
+        TextField(controller: _descCtrl, maxLines: 3,
+            decoration: InputDecoration(labelText: l10n.description, border: const OutlineInputBorder())),
+      ])),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+        ElevatedButton(
+          onPressed: _saving ? null : () async {
+            final name = _nameCtrl.text.trim();
+            if (name.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.nameRequired)));
+              return;
+            }
+            setState(() => _saving = true);
+            try {
+              await widget.onSave(name, _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim());
+              if (mounted) Navigator.pop(context);
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.error}: $e')));
+                setState(() => _saving = false);
               }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          
-          // Description
-          TextFormField(
-            controller: _descriptionController,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.description,
-              hintText: AppLocalizations.of(context)!.characterDescription,
-              border: const OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-            maxLines: 6,
-          ),
-          const SizedBox(height: 16),
-          
-          // Personality
-          TextFormField(
-            controller: _personalityController,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.personality,
-              hintText: AppLocalizations.of(context)!.characterPersonalityTraits,
-              border: const OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-            maxLines: 4,
-          ),
-          const SizedBox(height: 16),
-          
-          // Scenario
-          TextFormField(
-            controller: _scenarioController,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.scenario,
-              hintText: AppLocalizations.of(context)!.currentCircumstancesContext,
-              border: const OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-            maxLines: 4,
-          ),
-        ],
-      ),
-    );
-  }
-
-  ImageProvider? _getAvatarImage() {
-    if (_avatarData != null) {
-      return MemoryImage(_avatarData!);
-    }
-    if (_avatarPath != null) {
-      return FileImage(File(_avatarPath!));
-    }
-    return null;
-  }
-
-  Widget _buildPromptsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppLocalizations.of(context)!.systemPrompt,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            AppLocalizations.of(context)!.customInstructionsSystemMessage,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _systemPromptController,
-            decoration: const InputDecoration(
-              hintText: 'You are {char}. You will...',
-              border: OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-            maxLines: 8,
-          ),
-          const SizedBox(height: 24),
-          
-          Text(
-            AppLocalizations.of(context)!.postHistoryInstructions,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            AppLocalizations.of(context)!.instructionsInsertedAfterHistory,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _postHistoryController,
-            decoration: const InputDecoration(
-              hintText: 'Continue the roleplay as {char}...',
-              border: OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-            maxLines: 6,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessagesTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppLocalizations.of(context)!.firstMessageGreeting,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            AppLocalizations.of(context)!.firstMessageSentByCharacter,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _firstMessageController,
-            decoration: const InputDecoration(
-              hintText: '*walks into the room* Hello, {user}!',
-              border: OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-            maxLines: 8,
-          ),
-          const SizedBox(height: 24),
-          
-          // Alternate Greetings
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                AppLocalizations.of(context)!.alternateGreetingsCount(_alternateGreetingControllers.length),
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline),
-                onPressed: _addAlternateGreeting,
-                tooltip: AppLocalizations.of(context)!.addAlternateGreeting,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            AppLocalizations.of(context)!.alternateGreetingsCanSwipe,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ..._alternateGreetingControllers.asMap().entries.map((entry) {
-            final index = entry.key;
-            final controller = entry.value;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: controller,
-                      decoration: InputDecoration(
-                        labelText: AppLocalizations.of(context)!.greeting(index + 1),
-                        hintText: AppLocalizations.of(context)!.alternativeGreetingMessage,
-                        border: const OutlineInputBorder(),
-                        alignLabelWithHint: true,
-                      ),
-                      maxLines: 4,
-                      onChanged: (_) => _markChanged(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Column(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () => _removeAlternateGreeting(index),
-                        tooltip: AppLocalizations.of(context)!.removeGreeting,
-                      ),
-                      if (index > 0)
-                        IconButton(
-                          icon: const Icon(Icons.arrow_upward),
-                          onPressed: () => _moveGreeting(index, -1),
-                          tooltip: AppLocalizations.of(context)!.moveUp,
-                        ),
-                      if (index < _alternateGreetingControllers.length - 1)
-                        IconButton(
-                          icon: const Icon(Icons.arrow_downward),
-                          onPressed: () => _moveGreeting(index, 1),
-                          tooltip: AppLocalizations.of(context)!.moveDown,
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          }),
-          if (_alternateGreetingControllers.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).colorScheme.outline),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Text(
-                  AppLocalizations.of(context)!.noAlternateGreetings,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          const SizedBox(height: 24),
-          
-          Text(
-            AppLocalizations.of(context)!.exampleMessages,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Example dialogue to demonstrate how the character speaks.\nFormat: <START>\n{user}: Hello\n{char}: Hi there!',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _exampleMessagesController,
-            decoration: const InputDecoration(
-              hintText: '<START>\n{user}: How are you?\n{char}: I\'m doing well, thanks for asking!',
-              border: OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-            maxLines: 10,
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _addAlternateGreeting() {
-    setState(() {
-      _alternateGreetingControllers.add(TextEditingController());
-      _hasChanges = true;
-    });
-  }
-
-  void _removeAlternateGreeting(int index) {
-    setState(() {
-      _alternateGreetingControllers[index].dispose();
-      _alternateGreetingControllers.removeAt(index);
-      _hasChanges = true;
-    });
-  }
-
-  void _moveGreeting(int index, int direction) {
-    final newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= _alternateGreetingControllers.length) return;
-    
-    setState(() {
-      final controller = _alternateGreetingControllers.removeAt(index);
-      _alternateGreetingControllers.insert(newIndex, controller);
-      _hasChanges = true;
-    });
-  }
-
-  Widget _buildMetaTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Creator Notes
-          Text(
-            AppLocalizations.of(context)!.creatorNotes,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            AppLocalizations.of(context)!.creatorNotesNotSentToAi,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _creatorNotesController,
-            decoration: InputDecoration(
-              hintText: AppLocalizations.of(context)!.creatorNotesHint,
-              border: const OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-            maxLines: 4,
-          ),
-          const SizedBox(height: 24),
-          
-          // Tags
-          TextFormField(
-            controller: _tagsController,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.tags,
-              hintText: AppLocalizations.of(context)!.tagsHint,
-              helperText: AppLocalizations.of(context)!.tagsCommaSeparated,
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Creator
-          TextFormField(
-            controller: _creatorController,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.creator,
-              hintText: AppLocalizations.of(context)!.yourNameOrUsername,
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Version
-          TextFormField(
-            controller: _versionController,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.version,
-              hintText: AppLocalizations.of(context)!.versionNumber,
-              border: const OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 24),
-          
-          // Character Info Card
-          if (_character != null) ...[
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      AppLocalizations.of(context)!.characterInfo,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(AppLocalizations.of(context)!.characterId(_character!.id)),
-                    Text(AppLocalizations.of(context)!.created(_character!.createdAt.toLocal().toString())),
-                    Text(AppLocalizations.of(context)!.modified(_character!.modifiedAt.toLocal().toString())),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+            }
+          },
+          child: _saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : Text(l10n.save),
+        ),
+      ],
     );
   }
 }
+

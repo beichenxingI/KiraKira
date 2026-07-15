@@ -237,12 +237,12 @@ class ThemeSettingsScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Theme'),
-        content: Text('Are you sure you want to delete "${theme.name}"?'),
+        title: const Text('删除主题'),
+        content: Text('确定要删除"${theme.name}"吗？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () {
@@ -253,7 +253,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
               ref.read(customThemesProvider.notifier).deleteTheme(theme.id);
               Navigator.pop(context);
             },
-            child: const Text('Delete'),
+            child: const Text('删除'),
           ),
         ],
       ),
@@ -451,13 +451,13 @@ class _ThemeEditorDialogState extends State<_ThemeEditorDialog> {
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
-                labelText: 'Theme Name',
+                labelText: '主题名称',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
             SwitchListTile(
-              title: const Text('Dark Mode'),
+              title: const Text('深色模式'),
               value: _isDark,
               onChanged: (value) => setState(() => _isDark = value),
               contentPadding: EdgeInsets.zero,
@@ -494,7 +494,7 @@ class _ThemeEditorDialogState extends State<_ThemeEditorDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: const Text('取消'),
         ),
         FilledButton(
           onPressed: () {
@@ -564,14 +564,14 @@ class _ColorPickerTile extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Select $label'),
+        title: Text('选择 $label'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: controller,
               decoration: const InputDecoration(
-                labelText: 'Hex Color',
+                labelText: '十六进制色值',
                 hintText: '#RRGGBB',
                 border: OutlineInputBorder(),
               ),
@@ -604,14 +604,14 @@ class _ColorPickerTile extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           FilledButton(
             onPressed: () {
               onChanged(controller.text);
               Navigator.pop(context);
             },
-            child: const Text('Apply'),
+            child: const Text('应用'),
           ),
         ],
       ),

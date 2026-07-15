@@ -72,6 +72,9 @@ class _BackgroundRenderer extends StatelessWidget {
       case BackgroundType.image:
         backgroundWidget = _buildImageBackground();
         break;
+      case BackgroundType.video:
+        backgroundWidget = const SizedBox.shrink();
+        break;
     }
 
     // Apply opacity
@@ -259,6 +262,8 @@ class BackgroundPreview extends StatelessWidget {
           ),
         );
 
+      case BackgroundType.video:
+        return Container(color: Colors.grey[800]);
       case BackgroundType.image:
         if (background.imagePath != null) {
           return FutureBuilder<String>(

@@ -25,7 +25,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.help_outline),
             onPressed: () => _showHelpDialog(context, service),
-            tooltip: 'Help',
+            tooltip: '帮助',
           ),
         ],
       ),
@@ -34,8 +34,8 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
         children: [
           // Enable toggle
           SwitchListTile(
-            title: const Text('Enable RAG'),
-            subtitle: const Text('Retrieval-Augmented Generation'),
+            title: const Text('启用 RAG'),
+            subtitle: const Text('检索增强生成'),
             value: settings.enabled,
             onChanged: (value) {
               ref.read(vectorStorageSettingsProvider.notifier).setEnabled(value);
@@ -67,7 +67,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
           
           // Top K slider
           ListTile(
-            title: const Text('Top K Results'),
+            title: const Text('Top K 结果数'),
             subtitle: Text('Return top ${settings.topK} most similar documents'),
             trailing: SizedBox(
               width: 150,
@@ -88,7 +88,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
 
           // Similarity threshold slider
           ListTile(
-            title: const Text('Similarity Threshold'),
+            title: const Text('相似度阈值'),
             subtitle: Text('Minimum: ${(settings.similarityThreshold * 100).toStringAsFixed(0)}%'),
             trailing: SizedBox(
               width: 150,
@@ -115,7 +115,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
           DropdownButtonFormField<EmbeddingProvider>(
             value: settings.embeddingProvider,
             decoration: const InputDecoration(
-              labelText: 'Provider',
+              labelText: '提供者',
               border: OutlineInputBorder(),
             ),
             items: EmbeddingProvider.values.map((provider) {
@@ -136,7 +136,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
           TextFormField(
             initialValue: settings.embeddingModel ?? settings.embeddingProvider.defaultModel,
             decoration: const InputDecoration(
-              labelText: 'Model',
+              labelText: '模型',
               border: OutlineInputBorder(),
             ),
             enabled: settings.enabled,
@@ -151,8 +151,8 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
           _buildSectionHeader(context, 'Prompt Integration'),
           const SizedBox(height: 8),
           SwitchListTile(
-            title: const Text('Include in Prompt'),
-            subtitle: const Text('Automatically add context to AI prompts'),
+            title: const Text('包含在提示词中'),
+            subtitle: const Text('自动向 AI 提示词添加上下文'),
             value: settings.includeInPrompt,
             onChanged: settings.enabled
                 ? (value) {
@@ -164,8 +164,8 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
           TextFormField(
             initialValue: settings.promptTemplate,
             decoration: const InputDecoration(
-              labelText: 'Prompt Template',
-              hintText: 'Use {{context}} for retrieved content',
+              labelText: '提示词模板',
+              hintText: '使用 {{context}} 表示检索内容',
               border: OutlineInputBorder(),
             ),
             maxLines: 5,
@@ -202,7 +202,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const Text('关闭'),
           ),
         ],
       ),
@@ -217,7 +217,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create Collection'),
+        title: const Text('创建集合'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -225,7 +225,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
               controller: nameController,
               decoration: const InputDecoration(
                 labelText: 'Name',
-                hintText: 'Enter collection name',
+                hintText: '输入集合名称',
               ),
               autofocus: true,
             ),
@@ -241,7 +241,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () {
@@ -255,7 +255,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
                 Navigator.pop(context);
               }
             },
-            child: const Text('Create'),
+            child: const Text('创建'),
           ),
         ],
       ),
@@ -266,12 +266,12 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Collection'),
-        content: const Text('Are you sure you want to delete this collection? This cannot be undone.'),
+        title: const Text('删除集合'),
+        content: const Text('确定要删除此集合吗？此操作不可撤销。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () {
@@ -283,7 +283,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
               Navigator.pop(context);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('删除'),
           ),
         ],
       ),
@@ -295,7 +295,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
       final json = ref.read(vectorCollectionsProvider.notifier).exportCollection(id);
       Clipboard.setData(ClipboardData(text: json));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Collection exported to clipboard')),
+        const SnackBar(content: Text('集合已导出到剪贴板')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -309,19 +309,19 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Import Collection'),
+        title: const Text('导入集合'),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
             labelText: 'JSON',
-            hintText: 'Paste collection JSON here',
+            hintText: '在此粘贴集合 JSON',
           ),
           maxLines: 5,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () {
@@ -329,7 +329,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
                 ref.read(vectorCollectionsProvider.notifier).importCollection(controller.text);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Collection imported successfully')),
+                  const SnackBar(content: Text('集合导入成功')),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -337,7 +337,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
                 );
               }
             },
-            child: const Text('Import'),
+            child: const Text('导入'),
           ),
         ],
       ),
@@ -378,13 +378,13 @@ class _CollectionsSection extends StatelessWidget {
               child: DropdownButtonFormField<String>(
                 value: activeCollectionId,
                 decoration: const InputDecoration(
-                  labelText: 'Active Collection',
+                  labelText: '活跃集合',
                   border: OutlineInputBorder(),
                 ),
                 items: [
                   const DropdownMenuItem(
                     value: null,
-                    child: Text('None'),
+                    child: Text('无'),
                   ),
                   ...collections.map((c) => DropdownMenuItem(
                         value: c.id,
@@ -398,7 +398,7 @@ class _CollectionsSection extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.add),
               onPressed: enabled ? onCreateCollection : null,
-              tooltip: 'Create Collection',
+              tooltip: '创建集合',
             ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
@@ -415,7 +415,7 @@ class _CollectionsSection extends StatelessWidget {
                   value: 'import',
                   child: ListTile(
                     leading: Icon(Icons.file_download),
-                    title: Text('Import Collection'),
+                    title: Text('导入集合'),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -521,7 +521,7 @@ class _CollectionDetails extends ConsumerWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add Document'),
+                    label: const Text('添加文档'),
                     onPressed: () => _showAddDocumentDialog(context, ref),
                   ),
                 ),
@@ -529,7 +529,7 @@ class _CollectionDetails extends ConsumerWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.list, size: 18),
-                    label: const Text('View Documents'),
+                    label: const Text('查看文档'),
                     onPressed: () => _showDocumentsDialog(context, ref, collection),
                   ),
                 ),
@@ -546,19 +546,19 @@ class _CollectionDetails extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Document'),
+        title: const Text('添加文档'),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
-            labelText: 'Content',
-            hintText: 'Enter document content',
+            labelText: '内容',
+            hintText: '输入文档内容',
           ),
           maxLines: 5,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () {
@@ -569,11 +569,11 @@ class _CollectionDetails extends ConsumerWidget {
                 );
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Document added')),
+                  const SnackBar(content: Text('文档已添加')),
                 );
               }
             },
-            child: const Text('Add'),
+            child: const Text('添加'),
           ),
         ],
       ),
@@ -584,12 +584,12 @@ class _CollectionDetails extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Documents (${collection.documentCount})'),
+        title: Text('文档 (${collection.documentCount})'),
         content: SizedBox(
           width: double.maxFinite,
           height: 400,
           child: collection.documents.isEmpty
-              ? const Center(child: Text('No documents'))
+              ? const Center(child: Text('没有文档'))
               : ListView.builder(
                   itemCount: collection.documents.length,
                   itemBuilder: (context, index) {
@@ -626,7 +626,7 @@ class _CollectionDetails extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const Text('关闭'),
           ),
         ],
       ),

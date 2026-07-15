@@ -33,7 +33,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
                 value: 'clear_global',
                 child: ListTile(
                   leading: Icon(Icons.delete_sweep),
-                  title: Text('Clear Global Variables'),
+                  title: Text('清除全局变量'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -42,7 +42,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
                   value: 'clear_local',
                   child: ListTile(
                     leading: Icon(Icons.delete_sweep),
-                    title: Text('Clear Local Variables'),
+                    title: Text('清除本地变量'),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -55,11 +55,11 @@ class VariablesSettingsScreen extends ConsumerWidget {
         children: [
           // Info section
           _buildSection(
-            title: 'About Variables',
+            title: '关于变量',
             children: [
               const ListTile(
                 leading: Icon(Icons.info_outline, color: AppTheme.accentColor),
-                title: Text('Variable System'),
+                title: Text('变量系统'),
                 subtitle: Text(
                   'Variables store values that can be used in macros. '
                   'Global variables persist across all chats, while local variables are per-chat.',
@@ -67,7 +67,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
               ),
               const ListTile(
                 leading: Icon(Icons.code, color: AppTheme.textMuted),
-                title: Text('Macro Usage'),
+                title: Text('宏用法'),
                 subtitle: Text(
                   '{{getvar::name}} - Get local variable\n'
                   '{{setvar::name::value}} - Set local variable\n'
@@ -154,7 +154,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
 
           // Test section
           _buildSection(
-            title: 'Test',
+            title: '测试',
             children: [
               _VariableTestWidget(chatId: chatId),
             ],
@@ -212,14 +212,14 @@ class VariablesSettingsScreen extends ConsumerWidget {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Add Variable'),
+          title: const Text('添加变量'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Variable Name',
+                  labelText: '变量名',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -227,7 +227,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
               TextField(
                 controller: valueController,
                 decoration: const InputDecoration(
-                  labelText: 'Value',
+                  labelText: '值',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -254,7 +254,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: const Text('取消'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -269,7 +269,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
                   Navigator.pop(context);
                 }
               },
-              child: const Text('Add'),
+              child: const Text('添加'),
             ),
           ],
         ),
@@ -283,11 +283,11 @@ class VariablesSettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Edit "$name"'),
+        title: Text('编辑"$name"'),
         content: TextField(
           controller: valueController,
           decoration: const InputDecoration(
-            labelText: 'Value',
+            labelText: '值',
             border: OutlineInputBorder(),
           ),
           maxLines: 3,
@@ -295,7 +295,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -307,7 +307,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
               }
               Navigator.pop(context);
             },
-            child: const Text('Save'),
+            child: const Text('保存'),
           ),
         ],
       ),
@@ -318,12 +318,12 @@ class VariablesSettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Variable'),
-        content: Text('Delete "$name"?'),
+        title: const Text('删除变量'),
+        content: Text('删除"$name"？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -335,7 +335,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('删除'),
           ),
         ],
       ),
@@ -351,7 +351,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -363,7 +363,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Clear All'),
+            child: const Text('清除全部'),
           ),
         ],
       ),
@@ -448,12 +448,12 @@ class _VariableTile extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.remove, size: 18),
             onPressed: onDecrement,
-            tooltip: 'Decrement',
+            tooltip: '递减',
           ),
           IconButton(
             icon: const Icon(Icons.add, size: 18),
             onPressed: onIncrement,
-            tooltip: 'Increment',
+            tooltip: '递增',
           ),
           IconButton(
             icon: const Icon(Icons.edit, size: 18),
@@ -518,7 +518,7 @@ class _VariableTestWidgetState extends ConsumerState<_VariableTestWidget> {
           TextField(
             controller: _inputController,
             decoration: const InputDecoration(
-              labelText: 'Test Input',
+              labelText: '测试输入',
               hintText: '{{setvar::counter::0}} Counter: {{getvar::counter}}',
               border: OutlineInputBorder(),
             ),
@@ -528,7 +528,7 @@ class _VariableTestWidgetState extends ConsumerState<_VariableTestWidget> {
           ElevatedButton.icon(
             onPressed: _test,
             icon: const Icon(Icons.play_arrow),
-            label: const Text('Process Macros'),
+            label: const Text('处理宏'),
           ),
           if (_result != null) ...[
             const SizedBox(height: 16),
@@ -574,7 +574,7 @@ class _VariableTestWidgetState extends ConsumerState<_VariableTestWidget> {
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: _result!));
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Copied to clipboard')),
+                            const SnackBar(content: Text('已复制到剪贴板')),
                           );
                         },
                         icon: const Icon(Icons.copy, size: 16),

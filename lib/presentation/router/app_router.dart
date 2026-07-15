@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/core/logger/logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,10 +11,12 @@ import 'package:kirakira/presentation/screens/character_editor/character_editor_
 import 'package:kirakira/presentation/screens/settings/settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/prompt_manager_screen.dart';
 import 'package:kirakira/presentation/screens/settings/advanced_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/advanced_screen.dart';
 import 'package:kirakira/presentation/screens/settings/quick_reply_screen.dart';
 import 'package:kirakira/presentation/screens/settings/background_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/theme_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/statistics_screen.dart';
+import 'package:kirakira/presentation/screens/settings/advanced_screen.dart';
 import 'package:kirakira/presentation/screens/settings/ai_presets_screen.dart';
 import 'package:kirakira/presentation/screens/settings/sprite_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/tts_settings_screen.dart';
@@ -56,6 +58,7 @@ abstract class AppRoutes {
   static const backgroundSettings = '/background-settings';
   static const themeSettings = '/theme-settings';
   static const statistics = '/statistics';
+  static const advanced = '/advanced';
   static const chatStatistics = '/chat/:id/statistics';
   static const aiPresets = '/ai-presets';
   static const import_ = '/import';
@@ -141,13 +144,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: AppRoutes.worldInfo,
-            name: 'worldInfo',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: WorldInfoScreen(),
-            ),
-          ),
-          GoRoute(
             path: AppRoutes.aiConfig,
             name: 'aiConfig',
             pageBuilder: (context, state) => const NoTransitionPage(
@@ -162,6 +158,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
         ],
+      ),
+      GoRoute(
+        path: AppRoutes.worldInfo,
+        name: 'worldInfo',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final cid = state.uri.queryParameters['characterId'];
+          final isGlobal = state.uri.queryParameters['isGlobal'] == 'true';
+          return WorldInfoScreen(characterId: cid, isGlobal: isGlobal);
+        },
       ),
       // Full-screen routes (outside shell)
       // NOTE: More specific routes must come BEFORE wildcard routes
@@ -240,6 +246,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'themeSettings',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const ThemeSettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.advanced,
+        name: 'advanced',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AdvancedScreen(),
       ),
       GoRoute(
         path: AppRoutes.statistics,

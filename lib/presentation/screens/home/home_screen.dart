@@ -19,6 +19,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -31,6 +34,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
   @override
   void dispose() {
+    _searchController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -48,6 +52,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     super.didChangeDependencies();
     // Refresh chat list whenever dependencies change (e.g., when navigating back)
     ref.invalidate(allChatsProvider);
+  }
+
+  Widget _buildSearchBar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (value) => setState(() => _searchQuery = value),
+        decoration: InputDecoration(
+          hintText: '鎼滅储鑱婂ぉ璁板綍...',
+          prefixIcon: const Icon(Icons.search, size: 20),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
+                )
+              : null,
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+        ),
+      ),
+    );
   }
 
   @override
@@ -70,7 +104,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           ),
         ],
       ),
-      body: const _ChatListView(),
+      body: Column(
+        children: [
+          _buildSearchBar(context),
+          Expanded(
+            child: _ChatListView(searchQuery: _searchQuery),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push(AppRoutes.characters),
         icon: const Icon(Icons.add),
@@ -81,7 +122,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 }
 
 class _ChatListView extends ConsumerWidget {
-  const _ChatListView();
+  final String searchQuery;
+
+  const _ChatListView({this.searchQuery = ''});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

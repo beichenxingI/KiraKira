@@ -39,6 +39,7 @@ import 'package:kirakira/domain/services/image_generation_service.dart';
 import 'package:kirakira/presentation/screens/chat/chat_layout_mode.dart';
 import 'package:kirakira/presentation/widgets/chat/visual_novel_message_view.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:kirakira/presentation/widgets/chat/typing_indicator.dart';
@@ -272,6 +273,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     final config = ref.read(llmConfigProvider);
+    final prefs = await SharedPreferences.getInstance();
+    final responseLen = prefs.getInt('response_length_${widget.chatId}');
+    final finalConfig = responseLen != null ? config.copyWith(maxTokens: responseLen) : config;
 
     // Check if API is configured
     if (!_isApiConfigured(config)) {
@@ -293,7 +297,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     await ref.read(activeChatProvider.notifier).sendMessage(
           content,
-          config,
+          finalConfig,
           attachments: attachments,
         );
     _scrollToBottom();
@@ -568,7 +572,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
 
     return Scaffold(
-      appBar: ChatAppBar(onAuthorNotes:()=>showAuthorNoteDialog(context),onWorldInfo:()=>context.push('/world-info'),onExportChat:()=>_showExportDialog(),onResponseLength:()=>{},onClearChat:()=>{}),
+      appBar: ChatAppBar(onAuthorNotes:()=>showAuthorNoteDialog(context),onWorldInfo:()=>context.push('/world-info'),onExportChat:()=>_showExportDialog(),onResponseLength:()=>_showResponseLengthDialog(),onClearChat:()=>_showClearConfirmationDialog()),
       body: ChatBackgroundWidget(
         characterId: chatState.character?.id,
         child: Column(
@@ -744,6 +748,83 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
     }
   }
+
+
+  double _pendingResponseLength = 200;
+
+  void _showResponseLengthDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'response_length_${widget.chatId}';
+    final current = prefs.getInt(key) ?? 200;
+    _pendingResponseLength = current.toDouble();
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('回复字数'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('当前值：${_pendingResponseLength.round()} 字'),
+              const SizedBox(height: 8),
+              Slider(
+                value: _pendingResponseLength,
+                min: 50,
+                max: 5000,
+                divisions: 99,
+                label: _pendingResponseLength.round().toString(),
+                onChanged: (v) => setDialogState(() => _pendingResponseLength = v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                prefs.setInt(key, _pendingResponseLength.round());
+                Navigator.pop(ctx);
+              },
+              child: const Text('保存'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showClearConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('清空聊天'),
+        content: const Text('确认清空所有聊天记录？此操作不可撤销。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              final notifier = ref.read(activeChatProvider.notifier);
+              final chatState = ref.read(activeChatProvider);
+              for (final msg in chatState.messages) {
+                notifier.deleteMessage(msg.id);
+              }
+              notifier.clearChat();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('确认清空'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmptyState() {
     final l10n = AppLocalizations.of(context);
     final character = ref.read(activeChatProvider).character;

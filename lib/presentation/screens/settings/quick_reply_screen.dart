@@ -335,8 +335,8 @@ class _QuickReplyEditDialogState extends State<_QuickReplyEditDialog> {
             TextField(
               controller: _labelController,
               decoration: const InputDecoration(
-                labelText: 'Button Label',
-                hintText: 'e.g., Yes, Continue, Think...',
+                labelText: '按钮标签',
+                hintText: '例如：是的、继续、想想...',
                 border: OutlineInputBorder(),
               ),
               textCapitalization: TextCapitalization.words,
@@ -345,8 +345,8 @@ class _QuickReplyEditDialogState extends State<_QuickReplyEditDialog> {
             TextField(
               controller: _messageController,
               decoration: const InputDecoration(
-                labelText: 'Message',
-                hintText: 'Leave empty for continue action',
+                labelText: '消息',
+                hintText: '留空则执行继续操作',
                 helperText: 'Supports macros like {{user}}, {{char}}',
                 border: OutlineInputBorder(),
               ),
@@ -354,7 +354,7 @@ class _QuickReplyEditDialogState extends State<_QuickReplyEditDialog> {
             ),
             const SizedBox(height: 16),
             SwitchListTile(
-              title: const Text('Auto-send'),
+              title: const Text('自动发送'),
               subtitle: Text(_autoSend 
                   ? 'Message will be sent immediately'
                   : 'Message will fill the input field'),

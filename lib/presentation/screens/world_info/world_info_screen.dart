@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/world_info.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
-import 'package:kirakira/presentation/screens/world_info/world_info_entry_editor_screen.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:path_provider/path_provider.dart';
@@ -37,15 +36,24 @@ void _log(String message, {String? error, StackTrace? stackTrace}) {
 
 /// Screen for managing World Info / Lorebooks
 class WorldInfoScreen extends ConsumerWidget {
-  const WorldInfoScreen({super.key});
+  final String? characterId;
+  final bool isGlobal;
+
+  const WorldInfoScreen({super.key, this.characterId, this.isGlobal = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final worldInfosAsync = ref.watch(worldInfoNotifierProvider);
 
+    final displayInfos = worldInfosAsync.whenData((infos) {
+      if (characterId != null) return infos.where((w) => w.characterId == characterId).toList();
+      if (isGlobal) return infos.where((w) => w.isGlobal).toList();
+      return infos;
+    });
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.worldInfoLorebooks),
+        title: Text(isGlobal ? '全局世界书' : characterId != null ? '角色世界书' : '世界书'),
         actions: [
           IconButton(
             icon: const Icon(Icons.file_download),
@@ -59,7 +67,7 @@ class WorldInfoScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: worldInfosAsync.when(
+      body: displayInfos.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
           child: Column(
@@ -939,15 +947,13 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
   }
 
   void _showEntryDialog(BuildContext context, WidgetRef ref, WorldInfoEntry? entry) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => WorldInfoEntryEditorScreen(
-          worldInfoId: _worldInfo.id,
-          entry: entry,
-        ),
+    showDialog(
+      context: context,
+      builder: (ctx) => _EntryEditDialog(
+        worldInfoId: _worldInfo.id,
+        entry: entry,
       ),
-    );
+    ).then((_) => _refreshWorldInfo());
   }
 
   void _showDeleteEntryConfirmation(BuildContext context, WidgetRef ref, WorldInfoEntry entry) {
@@ -1378,3 +1384,375 @@ class _WorldInfoEntryDialogState extends State<_WorldInfoEntryDialog> {
     }
   }
 }
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?//  Entry edit dialog (showDialog version 鈥?Phase E)
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+class _EntryEditDialog extends ConsumerStatefulWidget {
+  final String worldInfoId;
+  final WorldInfoEntry? entry;
+
+  const _EntryEditDialog({required this.worldInfoId, this.entry});
+
+  @override
+  ConsumerState<_EntryEditDialog> createState() => _EntryEditDialogState();
+}
+
+class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
+  late TextEditingController _keysCtrl;
+  late TextEditingController _secondaryCtrl;
+  late TextEditingController _contentCtrl;
+  late TextEditingController _commentCtrl;
+  late TextEditingController _orderCtrl;
+
+  late bool _enabled;
+  late bool _constant;
+  late bool _selective;
+  late WorldInfoPosition _position;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.entry;
+    _keysCtrl = TextEditingController(text: e?.keys.join(', ') ?? '');
+    _secondaryCtrl = TextEditingController(text: e?.secondaryKeys.join(', ') ?? '');
+    _contentCtrl = TextEditingController(text: e?.content ?? '');
+    _commentCtrl = TextEditingController(text: e?.comment ?? '');
+    _orderCtrl = TextEditingController(text: (e?.insertionOrder ?? 0).toString());
+    _enabled = e?.enabled ?? true;
+    _constant = e?.constant ?? false;
+    _selective = e?.selective ?? false;
+    _position = e?.position ?? WorldInfoPosition.before;
+  }
+
+  @override
+  void dispose() {
+    _keysCtrl.dispose();
+    _secondaryCtrl.dispose();
+    _contentCtrl.dispose();
+    _commentCtrl.dispose();
+    _orderCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final keys = _keysCtrl.text
+        .split(',')
+        .map((k) => k.trim())
+        .where((k) => k.isNotEmpty)
+        .toList();
+    final content = _contentCtrl.text.trim();
+    final comment = _commentCtrl.text.trim();
+    final secondaryKeys = _secondaryCtrl.text
+        .split(',')
+        .map((k) => k.trim())
+        .where((k) => k.isNotEmpty)
+        .toList();
+    final order = int.tryParse(_orderCtrl.text.trim()) ?? 0;
+
+    if (keys.isEmpty) {
+      _showSnack('Please enter at least one trigger word');
+      return;
+    }
+    if (content.isEmpty) {
+      _showSnack('Please enter content');
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final notifier = ref.read(worldInfoNotifierProvider.notifier);
+
+      if (widget.entry == null) {
+        await notifier.addEntry(
+          worldInfoId: widget.worldInfoId,
+          keys: keys,
+          content: content,
+          comment: comment,
+          secondaryKeys: secondaryKeys,
+          position: _position,
+          constant: _constant,
+          selective: _selective,
+          insertionOrder: order,
+        );
+      } else {
+        await notifier.updateEntry(
+          widget.entry!.copyWith(
+            keys: keys,
+            content: content,
+            comment: comment,
+            secondaryKeys: secondaryKeys,
+            enabled: _enabled,
+            constant: _constant,
+            selective: _selective,
+            position: _position,
+            insertionOrder: order,
+          ),
+        );
+      }
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        _showSnack('Error: $e');
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isNew = widget.entry == null;
+
+    return Dialog(
+      backgroundColor: const Color(0xFF1E1E2E),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Title
+              Row(
+                children: [
+                  Icon(
+                    isNew ? Icons.add_circle_outline : Icons.edit_outlined,
+                    color: AppTheme.primaryColor,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      isNew ? l10n.createEntry : l10n.editEntry,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: AppTheme.textMuted, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Trigger Words
+              _label(l10n.keywords),
+              const SizedBox(height: 4),
+              TextField(
+                controller: _keysCtrl,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: _inputDec('e.g. sword, dragon, magic'),
+              ),
+              const SizedBox(height: 12),
+
+              // Secondary Keys
+              _label(l10n.secondaryKeysOptional),
+              const SizedBox(height: 4),
+              TextField(
+                controller: _secondaryCtrl,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: _inputDec('Optional secondary triggers'),
+              ),
+              const SizedBox(height: 12),
+
+              // Content
+              _label(l10n.content),
+              const SizedBox(height: 4),
+              TextField(
+                controller: _contentCtrl,
+                maxLines: 5,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: _inputDec('Entry content to inject'),
+              ),
+              const SizedBox(height: 12),
+
+              // Comment
+              _label(l10n.commentOptional),
+              const SizedBox(height: 4),
+              TextField(
+                controller: _commentCtrl,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: _inputDec('Optional note (not sent to AI)'),
+              ),
+              const SizedBox(height: 16),
+
+              // Order + Position row
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _label(l10n.insertionOrder),
+                        const SizedBox(height: 4),
+                        TextField(
+                          controller: _orderCtrl,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          decoration: _inputDec('0'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _label(l10n.insertionPosition),
+                        const SizedBox(height: 4),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2A2A3E),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF3A3A4E)),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<WorldInfoPosition>(
+                              value: _position,
+                              isExpanded: true,
+                              dropdownColor: const Color(0xFF2A2A3E),
+                              style: const TextStyle(color: Colors.white, fontSize: 14),
+                              items: WorldInfoPosition.values.map((p) {
+                                final label = p == WorldInfoPosition.before
+                                    ? l10n.beforeCharacterDefinition
+                                    : p == WorldInfoPosition.after
+                                        ? l10n.afterCharacterDefinition
+                                        : p.name;
+                                return DropdownMenuItem(value: p, child: Text(label));
+                              }).toList(),
+                              onChanged: (v) {
+                                if (v != null) setState(() => _position = v);
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Switches
+              Row(
+                children: [
+                  _switchRow(l10n.enabled, _enabled, (v) => setState(() => _enabled = v)),
+                  const SizedBox(width: 16),
+                  _switchRow(l10n.alwaysIncludeInPrompt, _constant, (v) => setState(() => _constant = v)),
+                  const SizedBox(width: 16),
+                  _switchRow(l10n.requiresSecondaryKey, _selective, (v) => setState(() => _selective = v)),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Action buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(l10n.cancel, style: const TextStyle(color: AppTheme.textMuted)),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _isSaving ? null : _save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 16, height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : Text(l10n.save),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: AppTheme.textSecondary,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+
+  InputDecoration _inputDec(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+      filled: true,
+      fillColor: const Color(0xFF2A2A3E),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF3A3A4E)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF3A3A4E)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppTheme.primaryColor),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    );
+  }
+
+  Widget _switchRow(String label, bool value, ValueChanged<bool> onChanged) {
+    return Expanded(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 32,
+            height: 24,
+            child: Switch(
+              value: value,
+              onChanged: onChanged,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

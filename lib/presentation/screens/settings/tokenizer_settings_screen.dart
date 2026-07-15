@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/tokenizer.dart';
 import 'package:kirakira/domain/services/tokenizer_service.dart';
@@ -51,7 +51,7 @@ class _TokenizerSettingsScreenState extends ConsumerState<TokenizerSettingsScree
           DropdownButtonFormField<TokenizerType>(
             value: settings.selectedTokenizer,
             decoration: const InputDecoration(
-              labelText: 'Tokenizer',
+              labelText: '分词器',
               border: OutlineInputBorder(),
             ),
             items: TokenizerType.values.map((type) {
@@ -76,24 +76,24 @@ class _TokenizerSettingsScreenState extends ConsumerState<TokenizerSettingsScree
           const SizedBox(height: 16),
 
           SwitchListTile(
-            title: const Text('Show Token Count'),
-            subtitle: const Text('Display token count in chat input'),
+            title: const Text('显示 Token 计数'),
+            subtitle: const Text('在聊天输入中显示 Token 计数'),
             value: settings.showTokenCount,
             onChanged: (value) {
               ref.read(tokenizerSettingsProvider.notifier).setShowTokenCount(value);
             },
           ),
           SwitchListTile(
-            title: const Text('Show Token Visualization'),
-            subtitle: const Text('Highlight individual tokens'),
+            title: const Text('显示 Token 可视化'),
+            subtitle: const Text('高亮显示每个 Token'),
             value: settings.showTokenVisualization,
             onChanged: (value) {
               ref.read(tokenizerSettingsProvider.notifier).setShowTokenVisualization(value);
             },
           ),
           SwitchListTile(
-            title: const Text('Cache Results'),
-            subtitle: const Text('Cache tokenization for performance'),
+            title: const Text('缓存结果'),
+            subtitle: const Text('缓存分词结果以提升性能'),
             value: settings.cacheResults,
             onChanged: (value) {
               ref.read(tokenizerSettingsProvider.notifier).setCacheResults(value);
@@ -110,8 +110,8 @@ class _TokenizerSettingsScreenState extends ConsumerState<TokenizerSettingsScree
           TextField(
             controller: _textController,
             decoration: const InputDecoration(
-              labelText: 'Enter text to tokenize',
-              hintText: 'Type or paste text here...',
+              labelText: '输入要分词的文本',
+              hintText: '在此输入或粘贴文本...',
               border: OutlineInputBorder(),
             ),
             maxLines: 5,
@@ -156,14 +156,14 @@ class _TokenizerSettingsScreenState extends ConsumerState<TokenizerSettingsScree
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Tokenizer Help'),
+        title: const Text('分词器帮助'),
         content: SingleChildScrollView(
           child: Text(service.getHelpText()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const Text('关闭'),
           ),
         ],
       ),

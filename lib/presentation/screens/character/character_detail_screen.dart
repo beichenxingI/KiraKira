@@ -221,6 +221,16 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
                 icon: const Icon(Icons.edit),
                 onPressed: () => context.push('/characters/${character.id}/edit'),
               ),
+              IconButton(
+                icon: const Icon(Icons.menu_book, size: 22),
+                tooltip: '世界书',
+                onPressed: () => context.push('/world-info?characterId=${character.id}'),
+              ),
+              IconButton(
+                icon: const Icon(Icons.menu_book, size: 22),
+                tooltip: '世界书',
+                onPressed: () => context.push('/world-info?characterId=${character.id}'),
+              ),
               PopupMenuButton<String>(
                 onSelected: (value) => _handleMenuAction(value, character),
                 itemBuilder: (context) => [

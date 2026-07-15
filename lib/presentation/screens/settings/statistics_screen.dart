@@ -20,7 +20,7 @@ class StatisticsScreen extends ConsumerWidget {
           if (chatId == null)
             IconButton(
               icon: const Icon(Icons.refresh),
-              tooltip: 'Reset statistics',
+              tooltip: '重置统计数据',
               onPressed: () => _showResetConfirmation(context, ref),
             ),
         ],
@@ -35,24 +35,24 @@ class StatisticsScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reset Statistics'),
+        title: const Text('重置统计数据'),
         content: const Text(
           'Are you sure you want to reset all statistics? This cannot be undone.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () {
               ref.read(appStatisticsProvider.notifier).reset();
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Statistics reset')),
+                const SnackBar(content: Text('统计数据已重置')),
               );
             },
-            child: const Text('Reset'),
+            child: const Text('重置'),
           ),
         ],
       ),
@@ -73,7 +73,7 @@ class _AppStatisticsView extends ConsumerWidget {
       children: [
         // Overview card
         _StatisticsCard(
-          title: 'Overview',
+          title: '总览',
           icon: Icons.dashboard,
           children: [
             _StatRow(
@@ -100,7 +100,7 @@ class _AppStatisticsView extends ConsumerWidget {
 
         // Messages card
         _StatisticsCard(
-          title: 'Messages',
+          title: '消息',
           icon: Icons.message,
           children: [
             _StatRow(
@@ -117,7 +117,7 @@ class _AppStatisticsView extends ConsumerWidget {
 
         // Tokens card
         _StatisticsCard(
-          title: 'Token Usage',
+          title: 'Token 用量',
           icon: Icons.token,
           children: [
             _StatRow(
@@ -134,7 +134,7 @@ class _AppStatisticsView extends ConsumerWidget {
 
         // Performance card
         _StatisticsCard(
-          title: 'Performance',
+          title: '性能',
           icon: Icons.speed,
           children: [
             _StatRow(
@@ -174,7 +174,7 @@ class _ChatStatisticsView extends ConsumerWidget {
       children: [
         // Messages card
         _StatisticsCard(
-          title: 'Messages',
+          title: '消息',
           icon: Icons.message,
           children: [
             _StatRow(
@@ -199,7 +199,7 @@ class _ChatStatisticsView extends ConsumerWidget {
 
         // Timeline card
         _StatisticsCard(
-          title: 'Timeline',
+          title: '时间线',
           icon: Icons.timeline,
           children: [
             _StatRow(
@@ -224,7 +224,7 @@ class _ChatStatisticsView extends ConsumerWidget {
 
         // Tokens card
         _StatisticsCard(
-          title: 'Token Usage',
+          title: 'Token 用量',
           icon: Icons.token,
           children: [
             _StatRow(
@@ -249,7 +249,7 @@ class _ChatStatisticsView extends ConsumerWidget {
 
         // Performance card
         _StatisticsCard(
-          title: 'Generation Performance',
+          title: '生成性能',
           icon: Icons.speed,
           children: [
             _StatRow(
