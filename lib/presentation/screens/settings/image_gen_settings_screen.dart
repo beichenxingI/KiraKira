@@ -51,6 +51,65 @@ class ImageGenSettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 16),
 
+          // 自动生图三档开关
+          _buildSection(
+            context: context,
+            title: '自动生图',
+            children: [
+              RadioListTile<AutoImageMode>(
+                title: const Text('关闭'),
+                subtitle: const Text('AI 回复不自动配图，仅可手动生成'),
+                value: AutoImageMode.off,
+                groupValue: settings.autoImageMode,
+                onChanged: settings.enabled
+                    ? (v) {
+                        if (v != null) {
+                          ref
+                              .read(imageGenSettingsProvider.notifier)
+                              .setAutoImageMode(v);
+                        }
+                      }
+                    : null,
+              ),
+              RadioListTile<AutoImageMode>(
+                title: const Text('仅写提示词'),
+                subtitle: const Text('让 AI 输出画面描述，但不自动出图'),
+                value: AutoImageMode.promptOnly,
+                groupValue: settings.autoImageMode,
+                onChanged: settings.enabled
+                    ? (v) {
+                        if (v != null) {
+                          ref
+                              .read(imageGenSettingsProvider.notifier)
+                              .setAutoImageMode(v);
+                        }
+                      }
+                    : null,
+              ),
+              RadioListTile<AutoImageMode>(
+                title: const Text('全自动生成'),
+                subtitle: const Text(
+                  'AI 描述画面后自动生成图片，存入会话相册。\n'
+                  '⚠ 当 AI 未输出画面标签时，会额外调用一次 AI 提炼画面描述，'
+                  '产生额外的额度消耗。',
+                ),
+                value: AutoImageMode.auto,
+                groupValue: settings.autoImageMode,
+                onChanged: settings.enabled
+                    ? (v) {
+                        if (v != null) {
+                          ref
+                              .read(imageGenSettingsProvider.notifier)
+                              .setAutoImageMode(v);
+                        }
+                      }
+                    : null,
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
           // Provider selection
           _buildSection(
             context: context,

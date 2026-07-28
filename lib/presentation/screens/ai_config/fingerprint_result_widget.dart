@@ -60,9 +60,65 @@ class FingerprintResultWidget extends StatelessWidget {
         Text('行为特征最接近：${r.closestFamily!.familyName} 家族 (${r.closestFamily!.confidence.name}置信度)',
             style: const TextStyle(color: Color(0xFFa78bfa), fontSize: 14)),
       ],
+      // 家族命中证据（为什么判成这个家族）
+      if (r.closestFamily != null && r.closestFamily!.evidence.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        const Text('判定依据：', style: TextStyle(color: Colors.white70, fontSize: 13)),
+        const SizedBox(height: 4),
+        ...r.closestFamily!.evidence.map((e) => Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 2),
+              child: Text('· $e', style: const TextStyle(color: Colors.white60, fontSize: 12)),
+            )),
+      ],
+      // 缩水判定
+      if (r.downgradeNote != null) ...[
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF3a2a1a),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(Icons.trending_down, color: Color(0xFFf59e0b), size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(r.downgradeNote!,
+                  style: const TextStyle(color: Color(0xFFfbbf24), fontSize: 12)),
+            ),
+          ]),
+        ),
+      ],
+      // 掺假检测结果（仅在做过一致性检测时显示）
+      if (r.consistencyScore != null) ...[
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: r.suspectedMixedPool ? const Color(0xFF3a1a1a) : const Color(0xFF1a2a1a),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(r.suspectedMixedPool ? Icons.warning_amber : Icons.verified,
+                color: r.suspectedMixedPool ? const Color(0xFFef4444) : const Color(0xFF22c55e),
+                size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                r.suspectedMixedPool
+                    ? '疑似多模型混池（掺假）：多次同问回答一致性仅 ${(r.consistencyScore! * 100).round()}%，背后可能不是同一个模型。'
+                    : '一致性检测通过：多次同问回答一致性 ${(r.consistencyScore! * 100).round()}%，未发现明显掺假迹象。',
+                style: TextStyle(
+                    color: r.suspectedMixedPool ? const Color(0xFFfca5a5) : const Color(0xFF86efac),
+                    fontSize: 12),
+              ),
+            ),
+          ]),
+        ),
+      ],
       const SizedBox(height: 12),
-      const Text('以上为行为统计推断，非加密验证，仅供参考。地球上目前不存在 100% 可靠的模型身份验证方法。',
-          style: TextStyle(color: Colors.white38, fontSize: 11)),
+      Text(r.disclaimer,
+          style: const TextStyle(color: Colors.white38, fontSize: 11)),
     ]);
   }
 

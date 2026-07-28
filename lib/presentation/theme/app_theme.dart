@@ -3,25 +3,26 @@ import 'package:flutter/material.dart';
 /// App theme configuration matching SillyTavern's dark aesthetic
 class AppTheme {
   // SillyTavern-inspired color palette
-  static const Color primaryColor = Color(0xFF9B59B6);
-  static const Color secondaryColor = Color(0xFF3498DB);
-  static const Color accentColor = Color(0xFF1ABC9C);
-  
-  // Dark theme colors
-  static const Color darkBackground = Color(0xFF1A1A2E);
-  static const Color darkSurface = Color(0xFF16213E);
-  static const Color darkCard = Color(0xFF202040);
-  static const Color darkDivider = Color(0xFF2D2D4A);
-  
-  // Text colors
-  static const Color textPrimary = Color(0xFFE4E4E7);
-  static const Color textSecondary = Color(0xFFA1A1AA);
-  static const Color textMuted = Color(0xFF71717A);
-  
-  // Chat bubble colors
-  static const Color userBubble = Color(0xFF3B82F6);
-  static const Color assistantBubble = Color(0xFF374151);
-  static const Color systemBubble = Color(0xFF4B5563);
+  // KiraKira 色彩语言 · 深空星海
+  static const Color primaryColor = Color(0xFF7C7BF0);   // 星蓝紫
+  static const Color secondaryColor = Color(0xFF6C8FF0); // 次级蓝
+  static const Color accentColor = Color(0xFF56D4C8);    // 青绿点睛
+
+  // Dark theme colors · 深空层次
+  static const Color darkBackground = Color(0xFF0D1128); // 深蓝紫底(非纯黑)
+  static const Color darkSurface = Color(0xFF161B3A);    // 表面(提亮一级)
+  static const Color darkCard = Color(0xFF1F264A);       // 卡片(再提亮,浮起)
+  static const Color darkDivider = Color(0xFF2A3057);    // 低调分隔
+
+  // Text colors · 护眼灰白(非纯白)
+  static const Color textPrimary = Color(0xFFE8EAF5);
+  static const Color textSecondary = Color(0xFF9095B8);
+  static const Color textMuted = Color(0xFF6A6F94);
+
+  // Chat bubble colors · 气泡
+  static const Color userBubble = Color(0xFF5A58D4);     // 用户(星蓝紫深)
+  static const Color assistantBubble = Color(0xFF1F264A);// 助手(融入卡片色)
+  static const Color systemBubble = Color(0xFF2A3057);   // 系统(分隔色)
   
   static ThemeData get darkTheme {
     return ThemeData(

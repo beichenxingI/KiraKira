@@ -8,7 +8,12 @@ import 'package:share_plus/share_plus.dart';
 import '../../../data/models/ai_preset.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import '../../providers/ai_preset_providers.dart';
+import '../../providers/prompt_manager_providers.dart';
 import '../../theme/app_theme.dart';
+import 'ai_preset_edit_screen.dart';
+import '../../../data/models/regex_script.dart';
+import '../../providers/regex_providers.dart';
+import 'package:uuid/uuid.dart';
 
 /// Screen for managing AI presets
 class AIPresetsScreen extends ConsumerWidget {
@@ -27,6 +32,26 @@ class AIPresetsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.aiPresets),
+        actions: [
+          if (activePresetId != null)
+            TextButton.icon(
+              icon: const Icon(Icons.cancel_outlined, size: 18),
+              label: const Text('取消使用'),
+              onPressed: () async {
+                await ref.read(activeAIPresetIdProvider.notifier).setActivePreset(null);
+                await ref.read(promptManagerProvider.notifier).resetToDefault();
+                // 取消使用预设时，同步禁用所有全局正则，避免残留生效。
+                await ref
+                    .read(globalRegexScriptsProvider.notifier)
+                    .setActiveScripts([]);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('已取消使用预设，提示词与正则已恢复默认')),
+                  );
+                }
+              },
+            ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -104,6 +129,12 @@ class AIPresetsScreen extends ConsumerWidget {
                   onTap: () => _applyPreset(context, ref, preset),
                   onExport: () => _exportPreset(context, preset),
                   onDelete: () => _deletePreset(context, ref, preset),
+                  onEdit: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AIPresetEditScreen(preset: preset),
+                    ),
+                  ),
                 )),
           ],
 
@@ -178,9 +209,54 @@ class AIPresetsScreen extends ConsumerWidget {
       final preset = await ref.read(aiCustomPresetsProvider.notifier).importPreset(json);
       await ref.read(aiPresetManagerProvider).applyPreset(preset);
 
+      // Import regex scripts if present
+      int importedRegexCount = 0;
+      final importedRegexIds = <String>[];
+      final ext = json['extensions'] as Map<String, dynamic>?;
+      debugPrint('🔧 [导入正则] extensions 字段: ${ext == null ? "null" : ext.keys.toList()}');
+      // 正则可能在顶层，也可能在 extensions 里
+      final regexScriptsRaw = (json['regex_scripts'] as List<dynamic>?) ??
+          (ext?['regex_scripts'] as List<dynamic>?) ??
+          (ext?['regex'] as List<dynamic>?);
+      debugPrint('🔧 [导入正则] regex_scripts 字段: ${regexScriptsRaw == null ? "null（没找到）" : " 找到 ${regexScriptsRaw.length} 条"}');
+      if (regexScriptsRaw != null && regexScriptsRaw.isNotEmpty) {
+        final regexNotifier = ref.read(globalRegexScriptsProvider.notifier);
+        for (final raw in regexScriptsRaw) {
+          if (raw is Map<String, dynamic>) {
+            try {
+              final newId = const Uuid().v4();
+              final script = RegexScript.fromSillyTavernJson(
+                raw,
+                newId: newId,
+              );
+              await regexNotifier.addScript(script);
+              importedRegexIds.add(newId);
+              importedRegexCount++;
+              debugPrint('🔧 [导入正则] 成功: ${script.scriptName}');
+            } catch (e) {
+              debugPrint('🔧 [导入正则] 失败: $e');
+            }
+          } else {
+            debugPrint('🔧 [导入正则] 跳过非Map条目: ${raw.runtimeType}');
+          }
+        }
+      }
+      debugPrint('🔧 [导入正则] 共导入 $importedRegexCount 条');
+
+      // 把导入的正则ID记进预设，删预设时按此清理
+      if (importedRegexIds.isNotEmpty) {
+        final updatedPreset = preset.copyWith(
+          boundRegexScriptIds: importedRegexIds,
+        );
+        await ref.read(aiCustomPresetsProvider.notifier).updatePreset(updatedPreset);
+      }
+
       if (context.mounted) {
+        final msg = importedRegexCount > 0
+            ? '已导入预设「${preset.name}」，同时导入了 $importedRegexCount 条正则脚本'
+            : l10n.importedAndApplied(preset.name);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.importedAndApplied(preset.name))),
+          SnackBar(content: Text(msg)),
         );
       }
     } catch (e) {
@@ -373,16 +449,35 @@ class AIPresetsScreen extends ConsumerWidget {
     if (confirm != true) return;
 
     final activeId = ref.read(activeAIPresetIdProvider);
-    if (activeId == preset.id) {
-      await ref.read(activeAIPresetIdProvider.notifier).setActivePreset(null);
+    final isActive = activeId == preset.id;
+
+    // 方案B：删除此预设导入的正则脚本
+    final boundRegexIds = preset.boundRegexScriptIds;
+    int removedRegexCount = 0;
+    if (boundRegexIds.isNotEmpty) {
+      final regexNotifier = ref.read(globalRegexScriptsProvider.notifier);
+      for (final regexId in boundRegexIds) {
+        await regexNotifier.removeScript(regexId);
+        removedRegexCount++;
+      }
     }
+
     await ref.read(aiCustomPresetsProvider.notifier).deletePreset(preset.id);
 
+    if (isActive) {
+      await ref.read(activeAIPresetIdProvider.notifier).setActivePreset(null);
+      await ref.read(promptManagerProvider.notifier).resetToDefault();
+    }
+
     if (context.mounted) {
+      final msg = removedRegexCount > 0
+          ? '已删除预设「${preset.name}」，同时移除了 $removedRegexCount 条正则脚本'
+          : l10n.deletedPreset(preset.name);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.deletedPreset(preset.name))),
+        SnackBar(content: Text(msg)),
       );
     }
+
   }
 }
 
@@ -392,6 +487,7 @@ class _PresetCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onExport;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
 
   const _PresetCard({
     required this.preset,
@@ -399,6 +495,7 @@ class _PresetCard extends StatelessWidget {
     required this.onTap,
     this.onExport,
     this.onDelete,
+    this.onEdit,
   });
 
   @override
@@ -524,12 +621,21 @@ class _PresetCard extends StatelessWidget {
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
                   onSelected: (value) {
+                    if (value == 'edit') onEdit?.call();
                     if (value == 'export') onExport?.call();
                     if (value == 'delete') onDelete?.call();
                   },
-                  itemBuilder: (context) {
+            itemBuilder: (context) {
                     final l10n = AppLocalizations.of(context);
                     return [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: ListTile(
+                          leading: const Icon(Icons.edit),
+                          title: const Text('编辑绑定'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
                       PopupMenuItem(
                         value: 'export',
                         child: ListTile(

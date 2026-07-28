@@ -80,6 +80,11 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
     _saveSettings();
   }
 
+  void setAutoImageMode(AutoImageMode mode) {
+    state = state.copyWith(autoImageMode: mode);
+    _saveSettings();
+  }
+
   void setDefaultWidth(int width) {
     state = state.copyWith(defaultWidth: width.clamp(256, 2048));
     _saveSettings();
@@ -371,6 +376,7 @@ class FetchedModelsNotifier extends StateNotifier<FetchedModelsState> {
       final models = await _service.fetchModels();
       debugPrint('  Fetched models: $models');
       
+      if (!mounted) return; // 页面已销毁，避免 after dispose 崩溃
       if (models != null && models.isNotEmpty) {
         state = FetchedModelsState(models: models);
       } else {
@@ -380,6 +386,7 @@ class FetchedModelsNotifier extends StateNotifier<FetchedModelsState> {
       }
     } catch (e) {
       debugPrint('  Error fetching models: $e');
+      if (!mounted) return; // 同上
       state = FetchedModelsState(
         models: _settings.provider.defaultModels,
         error: e.toString(),

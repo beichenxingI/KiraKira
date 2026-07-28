@@ -1,4 +1,5 @@
 # This is a generated file; do not edit or check into version control.
+audio_session=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\audio_session-0.2.4\\
 file_picker=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\file_picker-8.3.7\\
 file_selector_linux=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\file_selector_linux-0.9.3+2\\
 file_selector_macos=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\file_selector_macos-0.9.4+3\\
@@ -26,11 +27,15 @@ image_picker_ios=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\
 image_picker_linux=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\image_picker_linux-0.2.2\\
 image_picker_macos=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\image_picker_macos-0.2.2\\
 image_picker_windows=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\image_picker_windows-0.2.2\\
+just_audio=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\just_audio-0.10.6\\
+just_audio_web=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\just_audio_web-0.4.16\\
+onnxruntime=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\onnxruntime-1.4.1\\
 path_provider=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\path_provider-2.1.5\\
 path_provider_android=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\path_provider_android-2.2.17\\
 path_provider_foundation=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\path_provider_foundation-2.4.1\\
 path_provider_linux=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\path_provider_linux-2.2.1\\
 path_provider_windows=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\path_provider_windows-2.3.0\\
+photo_manager=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\photo_manager-3.3.0\\
 share_plus=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\share_plus-12.0.2\\
 shared_preferences=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\shared_preferences-2.5.3\\
 shared_preferences_android=C:\\Users\\wangyi\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\shared_preferences_android-2.4.11\\

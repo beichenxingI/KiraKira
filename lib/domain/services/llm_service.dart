@@ -31,6 +31,14 @@ class LLMResponse {
 }
 
 /// Stream chunk with content and optional reasoning
+class ConnectionMeasurement {
+  final int ttftMs;
+  final double charsPerSec;
+  const ConnectionMeasurement({
+    required this.ttftMs,
+    required this.charsPerSec,
+  });
+}
 class LLMStreamChunk {
   final String? content;
   final String? reasoning;
@@ -449,7 +457,26 @@ class LLMService {
         return _streamKoboldWithReasoning(messages, config);
     }
   }
-
+  Future<ConnectionMeasurement> measureConnection(LLMConfig config) async {
+    final messages = [
+      {'role': 'user', 'content': 'Hi'}
+    ];
+    final stopwatch = Stopwatch()..start();
+    int? ttftMs;
+    int charCount = 0;
+    await for (final chunk in generateStreamWithReasoning(messages, config)) {
+      final content = chunk.content ?? chunk.reasoning ?? '';
+      if (content.isEmpty) continue;
+      ttftMs ??= stopwatch.elapsedMilliseconds;
+      charCount += content.length;
+    }
+    final totalMs = stopwatch.elapsedMilliseconds;
+    stopwatch.stop();
+    if (ttftMs == null) throw Exception('未收到任何响应内容');
+    final genMs = totalMs - ttftMs;
+    final charsPerSec = genMs > 0 ? charCount * 1000 / genMs : 0.0;
+    return ConnectionMeasurement(ttftMs: ttftMs, charsPerSec: charsPerSec);
+  }
   /// Test connection to the API
   /// Returns a success message or throws an exception with error details
   Future<String> testConnection(LLMConfig config) async {

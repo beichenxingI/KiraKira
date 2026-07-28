@@ -6,6 +6,9 @@ import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/widgets/chat/html_webview_widget.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kirakira/presentation/providers/quote_color_providers.dart';
+import 'quote_highlight.dart';
 
 /// Widget that renders message content with support for Markdown
 ///
@@ -15,7 +18,7 @@ import 'package:kirakira/l10n/generated/app_localizations.dart';
 /// - Markdown: bold, italic, strikethrough, code blocks, lists, links, etc.
 /// - Complex HTML: rendered via WebView for full CSS support
 /// - Text selection with context menu (copy, select all)
-class MessageContentWidget extends StatefulWidget {
+class MessageContentWidget extends ConsumerStatefulWidget {
   final String content;
   final Color textColor;
   final bool selectable;
@@ -28,6 +31,8 @@ class MessageContentWidget extends StatefulWidget {
   final bool isStreaming;
   /// Optional message ID for tracking content changes and forcing re-renders
   final String? messageId;
+  final bool allowWebView;
+  final int initDelay;
 
   const MessageContentWidget({
     super.key,
@@ -40,13 +45,15 @@ class MessageContentWidget extends StatefulWidget {
     this.onLongPress,
     this.isStreaming = false,
     this.messageId,
+    this.allowWebView = true,
+    this.initDelay = 0,
   });
 
   @override
-  State<MessageContentWidget> createState() => _MessageContentWidgetState();
+  ConsumerState<MessageContentWidget> createState() => _MessageContentWidgetState();
 }
 
-class _MessageContentWidgetState extends State<MessageContentWidget> {
+class _MessageContentWidgetState extends ConsumerState<MessageContentWidget> {
   String? _selectedText;
   /// Content key for forcing WebView re-render after streaming ends
   int _contentVersion = 0;
@@ -189,7 +196,7 @@ class _MessageContentWidgetState extends State<MessageContentWidget> {
     // If content has complex HTML (flexbox, grid, shadows, etc.) AND streaming is complete,
     // use WebView for full CSS support. During streaming, always use Markdown to avoid
     // rendering issues with constantly updating content.
-    if (hasHtml && !widget.isStreaming && isComplexHtml(widget.content)) {
+    if (hasHtml && !widget.isStreaming && widget.allowWebView && isComplexHtml(widget.content)) {
       // Generate a content key that changes when streaming ends, forcing a re-render
       final contentKey = '${widget.messageId ?? widget.content.hashCode}_v$_contentVersion';
       contentWidget = HtmlWebViewWidget(
@@ -198,6 +205,7 @@ class _MessageContentWidgetState extends State<MessageContentWidget> {
         fontSize: widget.fontSize,
         onLongPress: widget.onLongPress,
         contentKey: contentKey,
+        initDelay: widget.initDelay,
       );
     }
     // For all other content (including simple HTML), convert to Markdown and render
@@ -208,7 +216,7 @@ class _MessageContentWidgetState extends State<MessageContentWidget> {
     }
 
     // Wrap with gesture detector for context menu (except for WebView which handles its own)
-    if (hasHtml && !widget.isStreaming && isComplexHtml(widget.content)) {
+    if (hasHtml && !widget.isStreaming && widget.allowWebView && isComplexHtml(widget.content)) {
       return contentWidget;
     }
     
@@ -382,6 +390,10 @@ class _MessageContentWidgetState extends State<MessageContentWidget> {
 
   Widget _buildMarkdownContent(BuildContext context, String content) {
     final effectiveFontSize = widget.fontSize ?? 14.0;
+    // 流式输出期间跳过引号染色，省掉每帧重解析的开销
+    final highlight = widget.isStreaming
+        ? const QuoteHighlight([], {})
+        : QuoteHighlight.build(ref.watch(quoteColorStateProvider));
     
     return SelectionArea(
       onSelectionChanged: (selection) {
@@ -392,6 +404,8 @@ class _MessageContentWidgetState extends State<MessageContentWidget> {
         selectable: false, // Must be false when wrapped in SelectionArea to avoid conflict
         shrinkWrap: true,
         softLineBreak: true, // Enable soft line breaks for proper text wrapping
+        inlineSyntaxes: highlight.syntaxes,
+        builders: highlight.builders,
         imageBuilder: (uri, title, alt) {
           // Custom image builder using CachedNetworkImage
           return Padding(

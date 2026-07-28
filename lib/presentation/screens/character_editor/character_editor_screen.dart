@@ -8,6 +8,9 @@ import 'package:kirakira/presentation/screens/world_info/world_info_screen.dart'
 import 'package:kirakira/data/repositories/character_repository.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/widgets/regex/regex_widgets.dart';
+import 'package:kirakira/presentation/providers/regex_providers.dart';
+import 'package:kirakira/data/models/regex_script.dart';
 
 /// Character editor screen
 class CharacterEditorScreen extends ConsumerStatefulWidget {
@@ -124,7 +127,10 @@ class _CharacterEditorScreenState extends ConsumerState<CharacterEditorScreen> w
         ]) : null,
       ),
       body: isEdit && _tabController != null
-          ? TabBarView(controller: _tabController, children: [_buildBasicInfoTab(l10n), _WorldBookTab(characterId: _editingCharacterId!)])
+          ? TabBarView(controller: _tabController, children: [
+              _buildBasicInfoTab(l10n),
+              _WorldBookTab(characterId: _editingCharacterId!),
+            ])
           : _buildBasicInfoTab(l10n),
     );
   }
@@ -139,6 +145,11 @@ class _CharacterEditorScreenState extends ConsumerState<CharacterEditorScreen> w
       _field(l10n.systemPrompt, _systemPromptCtrl, maxLines: 4, hint: l10n.systemPrompt), const SizedBox(height: 12),
       _field(l10n.creatorNotes, _creatorNotesCtrl, maxLines: 2, hint: l10n.creatorNotes), const SizedBox(height: 12),
       _field(l10n.tags, _tagsCtrl, hint: l10n.tagsHint), const SizedBox(height: 24),
+      if (_editingCharacterId != null) ...[
+        const Divider(height: 32),
+        _buildRegexSection(l10n),
+        const SizedBox(height: 24),
+      ],
       ElevatedButton.icon(onPressed: _isSaving ? null : _save, icon: const Icon(Icons.save), label: Text(l10n.save)),
     ]));
   }
@@ -149,6 +160,58 @@ class _CharacterEditorScreenState extends ConsumerState<CharacterEditorScreen> w
       const SizedBox(height: 4),
       TextField(controller: ctrl, maxLines: maxLines, decoration: InputDecoration(hintText: hint, border: const OutlineInputBorder(), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10))),
     ]);
+  }
+  Widget _buildRegexSection(AppLocalizations l10n) {
+    final scripts = ref.watch(characterRegexScriptsProvider(_editingCharacterId!));
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Text('角色正则 (${scripts.length})',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppTheme.textSecondary)),
+        const Spacer(),
+        IconButton(icon: const Icon(Icons.add_circle_outline), tooltip: '添加正则',
+            onPressed: () => _showRegexEditor(null)),
+      ]),
+      const SizedBox(height: 4),
+      if (scripts.isEmpty)
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          alignment: Alignment.center,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.find_replace, size: 40, color: AppTheme.textMuted),
+            const SizedBox(height: 8),
+            const Text('尚未添加角色正则', style: TextStyle(color: AppTheme.textSecondary)),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(onPressed: () => _showRegexEditor(null),
+                icon: const Icon(Icons.add), label: const Text('添加正则')),
+          ]),
+        )
+      else
+        ...scripts.map((script) => RegexScriptTile(
+              key: ValueKey(script.id),
+              script: script,
+              onTap: () => _showRegexEditor(script),
+              onToggle: () => ref.read(characterRegexScriptsProvider(_editingCharacterId!).notifier).toggleScript(script.id),
+              onDelete: () => ref.read(characterRegexScriptsProvider(_editingCharacterId!).notifier).removeScript(script.id),
+            )),
+    ]);
+  }
+
+  void _showRegexEditor(RegexScript? script) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => RegexScriptEditor(
+        script: script,
+        onSave: (newScript) {
+          if (script == null) {
+            ref.read(characterRegexScriptsProvider(_editingCharacterId!).notifier).addScript(newScript);
+          } else {
+            ref.read(characterRegexScriptsProvider(_editingCharacterId!).notifier).updateScript(newScript);
+          }
+          Navigator.pop(ctx);
+        },
+      ),
+    );
   }
 }
 
@@ -274,7 +337,6 @@ class _WorldBookDialog extends StatefulWidget {
   @override
   State<_WorldBookDialog> createState() => _WorldBookDialogState();
 }
-
 class _WorldBookDialogState extends State<_WorldBookDialog> {
   late TextEditingController _nameCtrl;
   late TextEditingController _descCtrl;
@@ -308,7 +370,7 @@ class _WorldBookDialogState extends State<_WorldBookDialog> {
           onPressed: _saving ? null : () async {
             final name = _nameCtrl.text.trim();
             if (name.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.nameRequired)));
+             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.nameRequired)));
               return;
             }
             setState(() => _saving = true);
@@ -328,4 +390,3 @@ class _WorldBookDialogState extends State<_WorldBookDialog> {
     );
   }
 }
-

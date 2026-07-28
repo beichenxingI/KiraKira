@@ -142,6 +142,21 @@ enum ImageGenMode {
 }
 
 /// Image Generation Settings
+/// 自动生图模式：关闭 / 仅写提示词 / 全自动生成
+enum AutoImageMode {
+  off('off', '关闭'),
+  promptOnly('promptOnly', '仅写提示词'),
+  auto('auto', '全自动生成');
+
+  const AutoImageMode(this.id, this.displayName);
+  final String id;
+  final String displayName;
+
+  static AutoImageMode fromId(String? id) =>
+      AutoImageMode.values.firstWhere((e) => e.id == id,
+          orElse: () => AutoImageMode.off);
+}
+
 class ImageGenSettings {
   final bool enabled;
   final ImageGenProvider provider;
@@ -171,6 +186,9 @@ class ImageGenSettings {
   final String openaiStyle; // vivid or natural
   final String openaiQuality; // standard or hd
 
+  // 自动生图
+  final AutoImageMode autoImageMode;
+
   const ImageGenSettings({
     this.enabled = false,
     this.provider = ImageGenProvider.openai,
@@ -193,6 +211,8 @@ class ImageGenSettings {
     // OpenAI
     this.openaiStyle = 'vivid',
     this.openaiQuality = 'standard',
+    // 自动生图
+    this.autoImageMode = AutoImageMode.off,
   });
   
   // Convenience getters for current provider's config
@@ -223,6 +243,7 @@ class ImageGenSettings {
     bool? novelaiVarietyBoost,
     String? openaiStyle,
     String? openaiQuality,
+    AutoImageMode? autoImageMode,
   }) {
     return ImageGenSettings(
       enabled: enabled ?? this.enabled,
@@ -244,6 +265,7 @@ class ImageGenSettings {
       novelaiVarietyBoost: novelaiVarietyBoost ?? this.novelaiVarietyBoost,
       openaiStyle: openaiStyle ?? this.openaiStyle,
       openaiQuality: openaiQuality ?? this.openaiQuality,
+      autoImageMode: autoImageMode ?? this.autoImageMode,
     );
   }
   
@@ -296,6 +318,7 @@ class ImageGenSettings {
     'novelaiVarietyBoost': novelaiVarietyBoost,
     'openaiStyle': openaiStyle,
     'openaiQuality': openaiQuality,
+    'autoImageMode': autoImageMode.id,
   };
 
   factory ImageGenSettings.fromJson(Map<String, dynamic> json) {
@@ -348,6 +371,7 @@ class ImageGenSettings {
       novelaiVarietyBoost: json['novelaiVarietyBoost'] as bool? ?? false,
       openaiStyle: json['openaiStyle'] as String? ?? 'vivid',
       openaiQuality: json['openaiQuality'] as String? ?? 'standard',
+      autoImageMode: AutoImageMode.fromId(json['autoImageMode'] as String?),
     );
   }
 }
@@ -833,7 +857,7 @@ class ImageGenerationService {
       'prompt': prompt,
       'n': 1,
       'size': size,
-      'response_format': 'b64_json',
+      if (isDalle2 || isDalle3 || isGptImg) 'response_format': 'b64_json',
       if (isDalle3) ...{
         'style': _settings.openaiStyle,
         'quality': _settings.openaiQuality,

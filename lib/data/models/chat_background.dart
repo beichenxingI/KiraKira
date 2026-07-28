@@ -81,6 +81,20 @@ class ChatBackground {
     );
   }
 
+  /// Create a video background from local path
+  factory ChatBackground.videoPath(
+    String path, {
+    double opacity = 1.0,
+    double bubbleOpacity = 0.8,
+  }) {
+    return ChatBackground(
+      type: BackgroundType.video,
+      imagePath: path, // 复用 imagePath 字段存视频路径
+      opacity: opacity,
+      bubbleOpacity: bubbleOpacity,
+    );
+  }
+
   /// Create an image background from URL
   factory ChatBackground.imageUrl(
     String url, {

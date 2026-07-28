@@ -3,6 +3,92 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/world_info.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:kirakira/core/services/initialization_service.dart';
+import 'package:flutter/foundation.dart';
+
+/// isolate 参数打包（compute 只能传一个参数）
+class _MatchParams {
+  final List<WorldInfoEntry> entries;
+  final String contextText;
+  final int maxRecursionDepth;
+  _MatchParams(this.entries, this.contextText, this.maxRecursionDepth);
+}
+
+/// 纯匹配计算——不碰数据库/ref，可在 isolate 里跑
+List<WorldInfoEntry> _matchEntriesPure(_MatchParams p) {
+  final entries = p.entries;
+  final allMatched = <WorldInfoEntry>[];
+  final processedIds = <String>{};
+  var currentContext = p.contextText;
+  var recursionDepth = 0;
+
+  while (recursionDepth <= p.maxRecursionDepth) {
+    final lowerContext = currentContext.toLowerCase();
+    final newMatches = <WorldInfoEntry>[];
+
+    for (final entry in entries) {
+      if (!entry.enabled) continue;
+      if (entry.keys.isEmpty) continue;
+      if (processedIds.contains(entry.id)) continue;
+      if (entry.preventRecursion && recursionDepth > 0) continue;
+
+      final searchText = entry.caseSensitive ? currentContext : lowerContext;
+
+      bool keyMatched = false;
+      for (final key in entry.keys) {
+        if (key.trim().isEmpty) continue;
+        final searchKey = entry.caseSensitive ? key : key.toLowerCase();
+        if (entry.matchWholeWords) {
+          keyMatched =
+              RegExp(r'\b' + RegExp.escape(searchKey) + r'\b').hasMatch(searchText);
+        } else {
+          keyMatched = searchText.contains(searchKey);
+        }
+        if (keyMatched) break;
+      }
+      if (!keyMatched) continue;
+
+      if (entry.selective && entry.secondaryKeys.isNotEmpty) {
+        bool secondaryMatched = false;
+        for (final key in entry.secondaryKeys) {
+          final searchKey = entry.caseSensitive ? key : key.toLowerCase();
+          if (searchText.contains(searchKey)) {
+            secondaryMatched = true;
+            break;
+          }
+        }
+        if (!secondaryMatched) continue;
+      }
+
+      if (entry.probability < 100) {
+        final random = DateTime.now().millisecondsSinceEpoch % 100;
+        if (random >= entry.probability) continue;
+      }
+
+      newMatches.add(entry);
+    }
+
+    if (newMatches.isEmpty) break;
+
+    for (final entry in newMatches) {
+      processedIds.add(entry.id);
+      allMatched.add(entry);
+      currentContext = '$currentContext\n${entry.content}';
+    }
+    recursionDepth++;
+  }
+
+  // 常量项
+  for (final entry in entries) {
+    final isConstant = entry.constant || entry.keys.isEmpty;
+    if (isConstant && entry.enabled && !processedIds.contains(entry.id)) {
+      allMatched.add(entry);
+      processedIds.add(entry.id);
+    }
+  }
+
+  allMatched.sort((a, b) => a.insertionOrder.compareTo(b.insertionOrder));
+  return allMatched;
+}
 
 /// Provider for WorldInfo repository (properly initialized)
 final worldInfoRepositoryProvider = Provider<WorldInfoRepository>((ref) {
@@ -41,7 +127,10 @@ class WorldInfoNotifier extends StateNotifier<AsyncValue<List<WorldInfo>>> {
   }
 
   Future<void> _loadWorldInfos() async {
-    state = const AsyncValue.loading();
+    // 仅首次加载显示 loading；刷新时保留旧数据，避免界面闪回转圈
+    if (state is! AsyncData) {
+      state = const AsyncValue.loading();
+    }
     try {
       final worldInfos = await _repository.getAllWorldInfos();
       state = AsyncValue.data(worldInfos);
@@ -137,97 +226,18 @@ class WorldInfoMatcher {
     int maxRecursionDepth = 3,
     int tokenBudget = 2000, // Maximum tokens for world info
   }) async {
-    print('=== WorldInfoMatcher.findMatchingEntries ===');
-    print('World info IDs to search: $worldInfoIds');
-    print('Context length: ${contextText.length}');
-    
-    final allMatched = <WorldInfoEntry>[];
-    final processedIds = <String>{};
-    var currentContext = contextText;
-    var recursionDepth = 0;
-
-    while (recursionDepth <= maxRecursionDepth) {
-      print('Recursion depth: $recursionDepth');
-      final newMatches = await _repository.findMatchingEntries(
-        currentContext,
-        worldInfoIds,
-      );
-      print('Repository found ${newMatches.length} matches at depth $recursionDepth');
-
-      // Filter out already processed entries
-      final unprocessedMatches = newMatches
-          .where((e) => !processedIds.contains(e.id))
-          .where((e) => !e.preventRecursion || recursionDepth == 0)
-          .toList();
-      
-      print('Unprocessed matches: ${unprocessedMatches.length}');
-
-      if (unprocessedMatches.isEmpty) break;
-
-      for (final entry in unprocessedMatches) {
-        if (!processedIds.contains(entry.id)) {
-          processedIds.add(entry.id);
-          allMatched.add(entry);
-          print('  Added entry: ${entry.comment.isNotEmpty ? entry.comment : entry.keys.join(", ")}');
-          
-          // Add entry content to context for recursive matching
-          currentContext = '$currentContext\n${entry.content}';
-        }
-      }
-
-      recursionDepth++;
-    }
-
-    // Add constant entries that are always included
-    // An entry is constant if:
-    // 1. entry.constant == true (explicitly marked as constant)
-    // 2. entry.keys is empty (no keys means always included)
-    debugPrint('\n╔══════════════════════════════════════════════════════════════');
-    debugPrint('║ 📋 CHECKING CONSTANT ENTRIES');
-    debugPrint('╠══════════════════════════════════════════════════════════════');
-    
+    // 数据库读取留在主线程（异步 IO，不卡）
+    final allEntries = <WorldInfoEntry>[];
     for (final worldInfoId in worldInfoIds) {
-      final entries = await _repository.getEntriesForWorldInfo(worldInfoId);
-      debugPrint('║ World Info ID: $worldInfoId');
-      debugPrint('║ Total entries: ${entries.length}');
-      debugPrint('╠──────────────────────────────────────────────────────────────');
-      
-      for (final entry in entries) {
-        final isConstant = entry.constant || entry.keys.isEmpty;
-        final entryName = entry.comment.isNotEmpty ? entry.comment : (entry.keys.isEmpty ? "(no keys)" : entry.keys.join(", "));
-        
-        debugPrint('║   Entry: $entryName');
-        debugPrint('║     • enabled: ${entry.enabled}');
-        debugPrint('║     • constant: ${entry.constant}');
-        debugPrint('║     • keys: ${entry.keys.isEmpty ? "(empty)" : entry.keys.join(", ")}');
-        debugPrint('║     • isConstant (constant OR keys.isEmpty): $isConstant');
-        
-        if (isConstant && entry.enabled && !processedIds.contains(entry.id)) {
-          allMatched.add(entry);
-          processedIds.add(entry.id);
-          debugPrint('║     ✅ ADDED as constant entry');
-        } else if (!entry.enabled) {
-          debugPrint('║     ❌ SKIPPED: entry is disabled');
-        } else if (processedIds.contains(entry.id)) {
-          debugPrint('║     ⏭️ SKIPPED: already processed');
-        } else if (!isConstant) {
-          debugPrint('║     ℹ️ Not a constant entry, will be matched by keywords');
-        }
-      }
-      debugPrint('║');
+      allEntries.addAll(await _repository.getEntriesForWorldInfo(worldInfoId));
     }
 
-    // Sort by insertion order
-    allMatched.sort((a, b) => a.insertionOrder.compareTo(b.insertionOrder));
-
-    debugPrint('╠══════════════════════════════════════════════════════════════');
-    debugPrint('║ 📊 FINAL RESULT: ${allMatched.length} matched entries');
-    debugPrint('╚══════════════════════════════════════════════════════════════\n');
-    
-    return allMatched;
+    // 纯计算丢进后台 isolate，主线程全程不卡
+    return compute(
+      _matchEntriesPure,
+      _MatchParams(allEntries, contextText, maxRecursionDepth),
+    );
   }
-
-  /// Group entries by their insertion position
   Map<WorldInfoPosition, List<WorldInfoEntry>> groupByPosition(List<WorldInfoEntry> entries) {
     final grouped = <WorldInfoPosition, List<WorldInfoEntry>>{};
     

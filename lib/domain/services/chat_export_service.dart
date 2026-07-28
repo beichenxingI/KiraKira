@@ -297,11 +297,15 @@ class ChatExportService {
       return null;
     }
 
+    final trimmed = content.trimLeft();
+    // JSON 数组开头 → 第三方平台格式
+    if (trimmed.startsWith('[')) {
+      return importFromThirdPartyArray(content);
+    }
     if (fileName.endsWith('.jsonl')) {
       return importFromJsonl(content);
-    } else {
-      return importFromJson(content);
     }
+    return importFromJson(content);
   }
 
   /// Auto-detect format and import
@@ -314,6 +318,89 @@ class ChatExportService {
 
     // Try JSON
     return importFromJson(content);
+  }
+  /// 导入第三方平台的聊天记录（JSON 数组格式）
+  /// 格式：[{id, role, content, timestamp, image(base64可选), embedding(丢弃)}]
+  Future<ChatImportResult?> importFromThirdPartyArray(String content) async {
+    try {
+      final data = jsonDecode(content) as List<dynamic>;
+      final messages = <ImportedMessage>[];
+
+      // 图片落地目录
+      final dir = await getApplicationDocumentsDirectory();
+      final imgDir = Directory('${dir.path}/imported_images');
+      if (!await imgDir.exists()) await imgDir.create(recursive: true);
+
+      for (final item in data) {
+        if (item is! Map<String, dynamic>) continue;
+
+        // role 映射
+        final roleStr = item['role'] as String? ?? 'assistant';
+        final role = roleStr == 'user'
+            ? MessageRole.user
+            : (roleStr == 'system' ? MessageRole.system : MessageRole.assistant);
+
+        // timestamp
+        final ts = item['timestamp'];
+        final timestamp = ts is int
+            ? DateTime.fromMillisecondsSinceEpoch(ts)
+            : DateTime.now();
+
+        // Base64 图片落地（embedding 直接忽略，不解析）
+        final attachments = <ChatAttachment>[];
+        final imageData = item['image'] as String?;
+        if (imageData != null && imageData.isNotEmpty) {
+          try {
+            // 去掉可能的 data:image/xxx;base64, 前缀
+            var b64 = imageData;
+            var mime = 'image/png';
+            if (b64.startsWith('data:')) {
+              final comma = b64.indexOf(',');
+              if (comma != -1) {
+                final header = b64.substring(5, comma); // image/png;base64
+                mime = header.split(';').first;
+                b64 = b64.substring(comma + 1);
+              }
+            }
+            final bytes = base64Decode(b64);
+            final ext = mime.contains('jpeg') || mime.contains('jpg')
+                ? 'jpg'
+                : (mime.contains('webp') ? 'webp' : 'png');
+            final imgId = '${DateTime.now().microsecondsSinceEpoch}_${messages.length}';
+            final imgFile = File('${imgDir.path}/$imgId.$ext');
+            await imgFile.writeAsBytes(bytes);
+            attachments.add(ChatAttachment(
+              id: imgId,
+              path: imgFile.path,
+              mimeType: mime,
+              sizeBytes: bytes.length,
+            ));
+          } catch (_) {
+            // 图片解码失败就跳过图片，保留文字
+          }
+        }
+
+        messages.add(ImportedMessage(
+          role: role,
+          content: item['content'] as String? ?? '',
+          timestamp: timestamp,
+          attachments: attachments,
+        ));
+      }
+
+      if (messages.isEmpty) return null;
+
+      return ChatImportResult(
+        userName: 'User',
+        characterName: 'Imported',
+        createDate: messages.first.timestamp,
+        messages: messages,
+      );
+    } catch (e, stack) {
+      print('importFromThirdPartyArray error: $e');
+      print('Stack: $stack');
+      return null;
+    }
   }
 }
 
@@ -349,6 +436,7 @@ class ImportedMessage {
   final List<String>? reasoningSwipes;
   final String? characterId;
   final String? characterName;
+  final List<ChatAttachment> attachments;
 
   ImportedMessage({
     required this.role,
@@ -360,6 +448,7 @@ class ImportedMessage {
     this.reasoningSwipes,
     this.characterId,
     this.characterName,
+    this.attachments = const [],
   });
 
   /// Convert to ChatMessage
@@ -376,6 +465,7 @@ class ImportedMessage {
       reasoningSwipes: reasoningSwipes,
       characterId: characterId,
       characterName: characterName,
+      attachments: attachments,
     );
   }
 }

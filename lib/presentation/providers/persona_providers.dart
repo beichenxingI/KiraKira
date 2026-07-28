@@ -24,6 +24,32 @@ final activePersonaProvider = FutureProvider<Persona?>((ref) async {
   // Return default persona if no active persona is set
   return repo.getDefaultPersona();
 });
+/// 按角色解析生效人设：手动选 > 角色绑定 > 默认。
+/// characterId 为空时退回"手动选 > 默认"。
+final personaForCharacterProvider =
+    FutureProvider.family<Persona?, String?>((ref, characterId) async {
+  final repo = ref.watch(personaRepositoryProvider);
+
+  // 第1级：用户在当前会话手动选中的人设，优先级最高
+  final activeId = ref.watch(activePersonaIdProvider);
+  if (activeId != null) {
+    final manual = await repo.getPersona(activeId);
+    if (manual != null) return manual;
+  }
+
+  // 第2级：当前角色绑定的人设
+  if (characterId != null) {
+    final all = await repo.getAllPersonas();
+    for (final p in all) {
+      if (p.isConnectedToCharacter(characterId)) {
+        return p;
+      }
+    }
+  }
+
+  // 第3级：默认人设
+  return repo.getDefaultPersona();
+});
 
 /// Persona management notifier
 class PersonaNotifier extends StateNotifier<AsyncValue<List<Persona>>> {

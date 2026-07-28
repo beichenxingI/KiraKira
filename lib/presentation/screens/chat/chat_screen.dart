@@ -19,14 +19,12 @@ import 'package:kirakira/presentation/providers/bookmark_providers.dart';
 import 'package:kirakira/presentation/providers/background_providers.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
 import 'package:kirakira/presentation/providers/persona_providers.dart';
-import 'package:kirakira/presentation/providers/quick_reply_providers.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/widgets/chat/author_note_dialog.dart';
 import 'package:kirakira/presentation/widgets/chat/bookmark_dialog.dart';
 import 'package:kirakira/presentation/widgets/chat/chat_background_widget.dart';
 import 'package:kirakira/presentation/widgets/chat/message_content_widget.dart';
-import 'package:kirakira/presentation/widgets/chat/quick_reply_bar.dart';
 import 'package:kirakira/presentation/widgets/chat/markdown_input_field.dart';
 import 'package:kirakira/presentation/widgets/chat/reasoning_widget.dart';
 import 'package:kirakira/presentation/widgets/chat/slash_command_suggestions.dart';
@@ -46,12 +44,14 @@ import 'package:kirakira/presentation/widgets/chat/typing_indicator.dart';
 import 'package:kirakira/presentation/widgets/chat/input_menu_button.dart';
 import 'package:kirakira/presentation/widgets/chat/model_selector_dialog.dart';
 import 'package:kirakira/presentation/widgets/chat/message_bubble.dart';
-
-
 import 'package:kirakira/presentation/screens/chat/widgets/chat_app_bar.dart';
 import 'package:kirakira/presentation/widgets/kira_menu.dart';
 import 'package:kirakira/presentation/models/kira_menu_item.dart';
 import 'package:kirakira/presentation/screens/world_info/world_info_screen.dart';
+import '../../widgets/common/glass_container.dart';
+import 'dart:ui';
+import '../../widgets/common/glass_container.dart';
+import 'package:kirakira/presentation/widgets/common/glass_container.dart';
 
 
 
@@ -173,11 +173,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text('�?${l10n.claude} (Anthropic)'),
-            Text('�?${l10n.openRouter}'),
-            Text('�?${l10n.gemini} (Google)'),
-            Text('�?${l10n.ollama} (${l10n.local})'),
-            Text('�?${l10n.koboldCpp} (${l10n.local})'),
+            Text('• ${l10n.claude} (Anthropic)'),
+            Text('• ${l10n.openRouter}'),
+            Text('• ${l10n.gemini} (Google)'),
+            Text('• ${l10n.ollama} (${l10n.local})'),
+            Text('• ${l10n.koboldCpp} (${l10n.local})'),
           ],
         ),
         actions: [
@@ -572,7 +572,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
 
     return Scaffold(
-      appBar: ChatAppBar(onAuthorNotes:()=>showAuthorNoteDialog(context),onWorldInfo:()=>context.push('/world-info'),onExportChat:()=>_showExportDialog(),onResponseLength:()=>_showResponseLengthDialog(),onClearChat:()=>_showClearConfirmationDialog()),
+      appBar: ChatAppBar(onAuthorNotes:()=>showAuthorNoteDialog(context),onWorldInfo:()=>context.push(chatState.character?.id!=null?'/world-info?characterId=${chatState.character!.id}':'/world-info'),onExportChat:()=>_showExportDialog(),onResponseLength:()=>_showResponseLengthDialog(),onClearChat:()=>_showClearConfirmationDialog()),
+      floatingActionButton: FloatingActionButton(
+        mini: true,
+        onPressed: () => context.push('/webview-stage/${widget.chatId}'),
+        child: const Icon(Icons.speed),
+      ),
       body: ChatBackgroundWidget(
         characterId: chatState.character?.id,
         child: Column(
@@ -721,11 +726,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       KiraMenuItem(id: 'search', label: '搜索聊天', icon: Icons.search),
       KiraMenuItem(id: 'image_gen', label: '生图设置', icon: Icons.image),
+      KiraMenuItem(id: 'webview_stage', label: 'WebView验证', icon: Icons.speed),
     ];
   }
 
   Future<void> _handleMenuSelection(String id) async {
     switch (id) {
+      case 'webview_stage':
+        context.push('/webview-stage/${widget.chatId}');
+        break;
       case 'author_note':
         await showAuthorNoteDialog(context);
         break;
@@ -736,9 +745,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         context.push('/image-gen-settings');
         break;
       case 'world':
-        KiraLogger().info('MENU', '菜单点击：世界书 - 准备导航到 /world-info');
-        context.push('/world-info');
-        KiraLogger().info('MENU', '菜单点击：世界书 - push 已执行');
+        final characterId = ref.read(activeChatProvider).character?.id;
+        KiraLogger().info('MENU', '菜单点击：世界书 - 准备导航，characterId=$characterId');
+        context.push(
+          characterId != null
+              ? '/world-info?characterId=$characterId'
+              : '/world-info',
+        );
         break;
       default:
         if (mounted) {
@@ -972,6 +985,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ref.watch(effectiveBackgroundProvider(chatState.character?.id));
     final background = backgroundAsync.valueOrNull ?? ChatBackground.none;
     final hasBackground = background.type != BackgroundType.none;
+    final layoutMode =
+        ref.watch(appSettingsProvider.select((s) => s.chatLayoutMode));
 
     return ListView.builder(
       controller: _scrollController,
@@ -986,9 +1001,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         final message = chatState.messages[actualIndex];
         final isLast = actualIndex == chatState.messages.length - 1;
 
-        final layoutMode =
-            ref.watch(appSettingsProvider.select((s) => s.chatLayoutMode));
-
         return MessageBubble(
           key: ValueKey(message.id),
           message: message,
@@ -998,6 +1010,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           character: chatState.character,
           isGenerating: isLast && chatState.isGenerating,
           isLast: isLast,
+          allowWebView: index < 5,
+          simplified: index >= 30,
           hasBackground: hasBackground,
           bubbleOpacity: background.bubbleOpacity,
           layoutMode: layoutMode,
@@ -1183,50 +1197,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
     );
   }
-
-
-  void _handleQuickReply(String message, bool autoSend) {
-    final config = ref.read(llmConfigProvider);
-
-    // Check if API is configured
-    if (!_isApiConfigured(config)) {
-      _showApiConfigurationDialog();
-      return;
-    }
-
-    if (message.isEmpty) {
-      // Empty message means "continue" - just generate without user message
-      _focusNode.unfocus(); // Hide keyboard
-      ref.read(activeChatProvider.notifier).continueGeneration(config);
-      _scrollToBottom();
-    } else if (autoSend) {
-      // Auto-send: send the message immediately
-      _focusNode.unfocus(); // Hide keyboard
-      ref.read(activeChatProvider.notifier).sendMessage(message, config);
-      _scrollToBottom();
-    } else {
-      // Fill input field
-      _messageController.text = message;
-      _focusNode.requestFocus();
-    }
-  }
-
   Widget _buildInputArea(ActiveChatState chatState) {
-    final quickReplyConfig = ref.watch(quickReplyConfigProvider);
-    final enabledReplies = ref.watch(enabledQuickRepliesProvider);
-    final showQuickReplies = quickReplyConfig.showQuickReplies &&
-        enabledReplies.isNotEmpty &&
-        !chatState.isGenerating;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.darkCard,
-        border: Border(
-          top: BorderSide(color: AppTheme.darkDivider),
-        ),
-      ),
-      child: SafeArea(
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.red,
+            border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+          ),
+          child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1234,7 +1218,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (_pendingAttachments.isNotEmpty) _buildAttachmentsPreview(),
             // Menu panel (when expanded)
             if (_showInputMenu)
-              _buildInputMenuPanel(showQuickReplies, chatState),
+              _buildInputMenuPanel(chatState),
             // Input row with menu button
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -1269,7 +1253,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     decoration: InputDecoration(
                       hintText: AppLocalizations.of(context).typeMessage,
                       filled: true,
-                      fillColor: AppTheme.darkBackground,
+                      fillColor: Colors.black.withValues(alpha: 0.55),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide.none,
@@ -1302,110 +1286,70 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ],
             ),
           ],
+          ),
         ),
       ),
+    ),
     );
   }
 
   /// Build the expandable menu panel above the input field
-  Widget _buildInputMenuPanel(
-      bool showQuickReplies, ActiveChatState chatState) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+  Widget _buildInputMenuPanel(ActiveChatState chatState) {
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.darkBackground,
+      child: GlassContainer(
+        opacity: 0.6,
+        blur: 18,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.darkDivider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Row 1: Core tools
-          Row(
-            children: [
-              // Image attachment
-              InputMenuButton(
-                icon: Icons.image,
-                label: AppLocalizations.of(context).attachImage,
-                onTap: () {
-                  _showAttachmentOptions();
-                  setState(() => _showInputMenu = false);
-                },
-              ),
-              const SizedBox(width: 8),
-              // Markdown formatting
-              InputMenuButton(
-                icon: Icons.text_format,
-                label: AppLocalizations.of(context).formatting,
-                onTap: () => _showFormattingMenu(),
-              ),
-              const SizedBox(width: 8),
-              // Context usage indicator
-              Expanded(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.darkCard,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.analytics_outlined,
-                          size: 18, color: AppTheme.textMuted),
-                      const SizedBox(width: 8),
-                      const Expanded(child: ContextUsageIndicator()),
-                    ],
-                  ),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Row 1: Core tools
+            Row(
+              children: [
+                // Image attachment
+                InputMenuButton(
+                  icon: Icons.image,
+                  label: AppLocalizations.of(context).attachImage,
+                  onTap: () {
+                    _showAttachmentOptions();
+                    setState(() => _showInputMenu = false);
+                  },
                 ),
-              ),
-            ],
-          ),
-          // Row 2: Quick replies (if enabled)
-          if (showQuickReplies) ...[
-            const SizedBox(height: 12),
-            _buildQuickRepliesInMenu(),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Build quick replies inside the menu panel
-  Widget _buildQuickRepliesInMenu() {
-    final enabledReplies = ref.watch(enabledQuickRepliesProvider);
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: enabledReplies
-          .map((reply) => InkWell(
-                onTap: () {
-                  _handleQuickReply(reply.message, reply.autoSend);
-                  setState(() => _showInputMenu = false);
-                },
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.darkCard,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.darkDivider),
-                  ),
-                  child: Text(
-                    reply.label,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.textSecondary,
+                const SizedBox(width: 8),
+                // Markdown formatting
+                InputMenuButton(
+                  icon: Icons.text_format,
+                  label: AppLocalizations.of(context).formatting,
+                  onTap: () => _showFormattingMenu(),
+                ),
+                const SizedBox(width: 8),
+                // Context usage indicator
+                Expanded(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.analytics_outlined,
+                            size: 18, color: AppTheme.textMuted),
+                        const SizedBox(width: 8),
+                        const Expanded(child: ContextUsageIndicator()),
+                      ],
                     ),
                   ),
                 ),
-              ))
-          .toList(),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -1,5 +1,5 @@
-﻿// ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -30,8 +30,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noChatsYet => 'No chats yet';
 
   @override
-  String get startNewConversation =>
-      'Start a new conversation with a character';
+  String get startNewConversation => 'Start a new conversation with a character';
 
   @override
   String get browseCharacters => 'Browse Characters';
@@ -50,9 +49,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get save => 'Save';
-
-  @override
-  String get saveAs => 'Save As';
 
   @override
   String get edit => 'Edit';
@@ -82,7 +78,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get error => 'Error';
 
   @override
-  String errorLoadingChats(String error) {
+  String errorLoadingChats(Object error) {
     return 'Error loading chats: $error';
   }
 
@@ -90,8 +86,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteChat => 'Delete Chat';
 
   @override
-  String get deleteChatConfirmation =>
-      'Are you sure you want to delete this chat? This action cannot be undone.';
+  String get deleteChatConfirmation => 'Are you sure you want to delete this chat? This action cannot be undone.';
 
   @override
   String get chatDeleted => 'Chat deleted';
@@ -100,7 +95,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get yesterday => 'Yesterday';
 
   @override
-  String daysAgo(int count) {
+  String daysAgo(Object count) {
     return '$count days ago';
   }
 
@@ -150,16 +145,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loadingModels => 'Loading models...';
 
   @override
-  String get noModelsAvailable =>
-      'No models available. Check your API configuration.';
+  String get noModelsAvailable => 'No models available. Check your API configuration.';
 
   @override
-  String modelChangedTo(String model) {
+  String modelChangedTo(Object model) {
     return 'Model changed to $model';
   }
 
   @override
-  String failedToLoadModels(String error) {
+  String failedToLoadModels(Object error) {
     return 'Failed to load models: $error';
   }
 
@@ -176,8 +170,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apiNotConfigured => 'API Not Configured';
 
   @override
-  String get apiNotConfiguredMessage =>
-      'To chat with characters, you need to configure an LLM provider first.';
+  String get apiNotConfiguredMessage => 'To chat with characters, you need to configure an LLM provider first.';
 
   @override
   String get supportedProviders => 'Supported providers:';
@@ -192,8 +185,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get configure => 'Configure';
 
   @override
-  String get configureApiProvider =>
-      'Configure an LLM provider to start chatting';
+  String get configureApiProvider => 'Configure an LLM provider to start chatting';
 
   @override
   String get startConversation => 'Start a conversation';
@@ -202,15 +194,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteMessage => 'Delete Message';
 
   @override
-  String get deleteMessageConfirmation =>
-      'Are you sure you want to delete this message?';
+  String get deleteMessageConfirmation => 'Are you sure you want to delete this message?';
 
   @override
   String get deleteMessages => 'Delete Messages';
 
   @override
-  String get deleteMessagesConfirmation =>
-      'Are you sure you want to delete this message and all messages after it?';
+  String get deleteMessagesConfirmation => 'Are you sure you want to delete this message and all messages after it?';
 
   @override
   String get deleteAll => 'Delete All';
@@ -225,8 +215,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get continueFromHere => 'Continue from here';
 
   @override
-  String get deleteMessagesAfterAndRegenerate =>
-      'Delete messages after and regenerate response';
+  String get deleteMessagesAfterAndRegenerate => 'Delete messages after and regenerate response';
 
   @override
   String get deleteMessagesAfterThis => 'Delete messages after this one';
@@ -256,27 +245,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get takePhoto => 'Take Photo';
 
   @override
-  String failedToPickImage(String error) {
+  String failedToPickImage(Object error) {
     return 'Failed to pick image: $error';
   }
 
   @override
-  String failedToTakePhoto(String error) {
+  String failedToTakePhoto(Object error) {
     return 'Failed to take photo: $error';
   }
 
   @override
-  String failedToAddAttachment(String error) {
+  String failedToAddAttachment(Object error) {
     return 'Failed to add attachment: $error';
   }
 
   @override
-  String exportChatWith(String character) {
+  String exportChatWith(Object character) {
     return 'Export chat with $character';
   }
 
   @override
-  String messagesCount(int count) {
+  String messagesCount(Object count) {
     return '$count messages';
   }
 
@@ -293,7 +282,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noChatToExport => 'No chat to export';
 
   @override
-  String exportFailed(String error) {
+  String exportFailed(Object error) {
     return 'Export failed: $error';
   }
 
@@ -307,11 +296,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get jsonlSillyTavernFormat => 'JSONL (SillyTavern format)';
 
   @override
-  String get jsonKiraKiraFormat => 'JSON (KiraKira format)';
+  String get jsonNativeTavernFormat => 'JSON (NativeTavern format)';
 
   @override
-  String get importNote =>
-      'Note: Imported messages will be added to the current chat.';
+  String get importNote => 'Note: Imported messages will be added to the current chat.';
 
   @override
   String get chooseFile => 'Choose File';
@@ -338,25 +326,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hasAuthorsNote => 'Has Author\'s Note';
 
   @override
-  String get importMessagesToCurrentChat =>
-      'Import these messages to the current chat?';
+  String get importMessagesToCurrentChat => 'Import these messages to the current chat?';
 
   @override
   String get noActiveChat => 'No active chat';
 
   @override
-  String importedMessages(int count) {
+  String importedMessages(Object count) {
     return 'Imported $count messages';
   }
 
   @override
-  String importFailed(String error) {
+  String importFailed(Object error) {
     return 'Import failed: $error';
   }
 
   @override
-  String get clearMessagesConfirmation =>
-      'Are you sure you want to clear all messages? This cannot be undone.';
+  String get clearMessagesConfirmation => 'Are you sure you want to clear all messages? This cannot be undone.';
 
   @override
   String get clear => 'Clear';
@@ -398,7 +384,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deletePersona => 'Delete Persona';
 
   @override
-  String deletePersonaConfirmation(String name) {
+  String deletePersonaConfirmation(Object name) {
     return 'Are you sure you want to delete \"$name\"?';
   }
 
@@ -406,8 +392,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noPersonasYet => 'No personas yet';
 
   @override
-  String get createPersonaDescription =>
-      'Create a persona to represent yourself in chats';
+  String get createPersonaDescription => 'Create a persona to represent yourself in chats';
 
   @override
   String get name => 'Name';
@@ -422,8 +407,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get describePersona => 'Describe this persona (optional)';
 
   @override
-  String get personaDescriptionHelp =>
-      'The description will be included in the system prompt to help the AI understand who you are.';
+  String get personaDescriptionHelp => 'The description will be included in the system prompt to help the AI understand who you are.';
 
   @override
   String get pleaseEnterName => 'Please enter a name';
@@ -441,7 +425,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get removeAvatar => 'Remove Avatar';
 
   @override
-  String failedToSaveAvatar(String error) {
+  String failedToSaveAvatar(Object error) {
     return 'Failed to save avatar: $error';
   }
 
@@ -470,16 +454,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get maxTokens => 'Max Tokens';
 
   @override
-  String get contextLength => 'Context Length';
-
-  @override
-  String get contextWindowSize => 'Context Window Size';
-
-  @override
-  String get contextLengthDescription =>
-      'Maximum number of tokens the model can process as input context.';
-
-  @override
   String get topP => 'Top P';
 
   @override
@@ -504,7 +478,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get connectionSuccessful => 'Connection successful!';
 
   @override
-  String connectionFailed(String error) {
+  String connectionFailed(Object error) {
     return 'Connection failed: $error';
   }
 
@@ -674,12 +648,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backupRestored => 'Backup restored successfully';
 
   @override
-  String backupFailed(String error) {
+  String backupFailed(Object error) {
     return 'Backup failed: $error';
   }
 
   @override
-  String restoreFailed(String error) {
+  String restoreFailed(Object error) {
     return 'Restore failed: $error';
   }
 
@@ -783,7 +757,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteCharacter => 'Delete Character';
 
   @override
-  String deleteCharacterConfirmation(String name) {
+  String deleteCharacterConfirmation(Object name) {
     return 'Are you sure you want to delete \"$name\"? This will also delete all chats with this character.';
   }
 
@@ -872,8 +846,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noBookmarksYet => 'No bookmarks yet';
 
   @override
-  String get createBookmarkDescription =>
-      'Create bookmarks to save important points in your conversation';
+  String get createBookmarkDescription => 'Create bookmarks to save important points in your conversation';
 
   @override
   String get jumpToBookmark => 'Jump to Bookmark';
@@ -921,601 +894,167 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commandHelp => 'Type / to see available commands';
 
   @override
-  String get characterNotFound => 'Character Not Found';
+  String get debugLog => 'Debug Log';
 
   @override
-  String get characterNotFoundMessage => 'Character not found';
+  String get debugLogDescription => 'Show floating debug button to view logs';
 
   @override
-  String get exportAsPng => 'Export as PNG';
+  String get autoScroll => 'Auto Scroll';
 
   @override
-  String get exportAsCharx => 'Export as CharX';
+  String get clearLogs => 'Clear Logs';
 
   @override
-  String get duplicate => 'Duplicate';
+  String get searchLogs => 'Search logs...';
 
   @override
-  String deleteCharacterConfirmationSimple(String name) {
-    return 'Are you sure you want to delete \"$name\"? This action cannot be undone.';
-  }
+  String get noLogsYet => 'No logs yet';
 
   @override
-  String characterDuplicated(String name) {
-    return '$name duplicated';
-  }
+  String get contextManagement => 'Context Management';
 
   @override
-  String failedToDelete(String error) {
-    return 'Failed to delete: $error';
-  }
+  String get autoSummarize => 'Auto-Summarize';
 
   @override
-  String failedToDuplicate(String error) {
-    return 'Failed to duplicate: $error';
-  }
+  String get autoSummarizeDescription => 'Automatically summarize and compress chat history when context usage is high';
 
   @override
-  String get pngExportComingSoon => 'PNG export coming soon';
+  String get autoSummarizeThreshold => 'Auto-Summarize Threshold';
 
   @override
-  String get charxExportComingSoon => 'CharX export coming soon';
+  String get autoSummarizeThresholdDescription => 'Trigger summarization when context reaches this percentage of maximum';
 
   @override
-  String get failedToCreateChat => 'Failed to create chat';
+  String get allCharactersAvailable => 'All Characters';
 
   @override
-  String get creating => 'Creating...';
+  String get availableToAllCharactersNotGlobal => 'Available to all characters (contextual matching)';
 
   @override
-  String byCreator(String creator) {
-    return 'by $creator';
-  }
+  String get specificCharacter => 'Specific Character';
 
   @override
-  String versionLabel(String version) {
-    return 'v$version';
-  }
+  String get linkToSpecificCharacter => 'Link to a specific character only';
 
   @override
-  String get showLess => 'Show less';
-
-  @override
-  String get showMore => 'Show more';
-
-  @override
-  String greetingNumber(int number) {
-    return 'Greeting $number';
-  }
-
-  @override
-  String alternateGreetingsCount(int count) {
-    return 'Alternate Greetings ($count)';
-  }
-
-  @override
-  String get embeddedLorebook => 'Embedded Lorebook';
-
-  @override
-  String entriesEnabled(int enabled, int total) {
-    return '$enabled of $total entries enabled';
-  }
-
-  @override
-  String andMoreEntries(int count) {
-    return '... and $count more entries';
-  }
-
-  @override
-  String get exampleMessages => 'Example Messages';
-
-  @override
-  String get postHistoryInstructions => 'Post-History Instructions';
-
-  @override
-  String get selectImages => 'Select Images';
-
-  @override
-  String get presetsAndTemplates => 'Presets & Templates';
-
-  @override
-  String get activePreset => 'Active Preset';
-
-  @override
-  String get change => 'Change';
-
-  @override
-  String get noPresetSelected => 'No preset selected';
-
-  @override
-  String get instructTemplate => 'Instruct Template';
-
-  @override
-  String get selectInstructTemplate => 'Select Instruct Template';
-
-  @override
-  String get instructTemplateDescription =>
-      'Instruct templates format prompts for different LLM models. Use \"None\" for API providers like OpenAI or Claude that handle formatting automatically.';
-
-  @override
-  String get orderAndTogglePromptSections => 'Order and toggle prompt sections';
-
-  @override
-  String get llmConnection => 'LLM Connection';
-
-  @override
-  String get generationSettings => 'Generation Settings';
-
-  @override
-  String get advancedSamplerSettings => 'Advanced Sampler Settings';
-
-  @override
-  String get fullControlOverSampling => 'Full control over sampling parameters';
-
-  @override
-  String get selectLlmProvider => 'Select LLM Provider';
-
-  @override
-  String get notSet => 'Not set';
-
-  @override
-  String get enterApiKey => 'Enter your API key';
-
-  @override
-  String get apiEndpointUrl => 'API endpoint URL';
-
-  @override
-  String get modelName => 'Model name';
-
-  @override
-  String get fetchAvailableModels => 'Fetch Available Models';
-
-  @override
-  String get fetchModelsDescription =>
-      'Fetch models from the API or enter a model name manually';
-
-  @override
-  String get enterModelName => 'Enter Model Name';
-
-  @override
-  String get fetchingModels => 'Fetching models...';
-
-  @override
-  String get failedToFetchModels => 'Failed to fetch models';
-
-  @override
-  String get tapToTestConnection => 'Tap to test API connection';
-
-  @override
-  String get testing => 'Testing...';
-
-  @override
-  String get connected => 'Connected';
-
-  @override
-  String get connectionFailedSimple => 'Connection failed';
-
-  @override
-  String get maximumTokensToGenerate => 'Maximum tokens to generate';
-
-  @override
-  String get streaming => 'Streaming';
-
-  @override
-  String get showResponseAsItGenerates => 'Show response as it generates';
-
-  @override
-  String selectModelCount(int count) {
-    return 'Select Model ($count)';
-  }
-
-  @override
-  String get refreshModels => 'Refresh models';
-
-  @override
-  String get enterManually => 'Enter manually';
-
-  @override
-  String get noModelsFound => 'No models found';
-
-  @override
-  String get tryDifferentSearchTerm => 'Try a different search term';
-
-  @override
-  String modelsOfTotal(int filtered, int total) {
-    return '$filtered of $total models';
-  }
-
-  @override
-  String get importPreset => 'Import Preset';
-
-  @override
-  String get noGroupChatsYet => 'No group chats yet';
-
-  @override
-  String get createGroupDescription =>
-      'Create a group to chat with multiple characters';
-
-  @override
-  String get newGroup => 'New Group';
-
-  @override
-  String membersAndMode(int count, String mode) {
-    return '$count members • $mode mode';
-  }
-
-  @override
-  String get groupChatWillBeImplemented =>
-      'Group chat will be implemented with chat integration';
-
-  @override
-  String deleteGroupConfirmation(String name) {
-    return 'Are you sure you want to delete \"$name\"? This will also delete all associated chats.';
-  }
-
-  @override
-  String groupDeleted(String name) {
-    return '$name deleted';
-  }
-
-  @override
-  String get groupNameRequired => 'Group Name *';
-
-  @override
-  String get enterGroupName => 'Enter group name';
-
-  @override
-  String get optionalDescription => 'Optional description';
-
-  @override
-  String get selectCharacters => 'Select Characters';
+  String get selectCharacter => 'Select character';
 
   @override
   String get noCharactersAvailable => 'No characters available';
 
   @override
-  String charactersSelected(int count) {
-    return '$count character(s) selected';
+  String get pleaseSelectCharacter => 'Please select a character';
+
+  @override
+  String get contextUsage => 'Context Usage';
+
+  @override
+  String get totalTokens => 'Total Tokens';
+
+  @override
+  String get maxContext => 'Max Context';
+
+  @override
+  String get remaining => 'Remaining';
+
+  @override
+  String get breakdown => 'Breakdown';
+
+  @override
+  String get cloudBackup => 'Cloud Backup';
+
+  @override
+  String get cloudBackupInfo => 'Cloud Backup';
+
+  @override
+  String get cloudBackupDescription => 'Sync your data across devices';
+
+  @override
+  String get cloudBackupSubtitle => 'Backup to iCloud or Google Drive and restore on any device';
+
+  @override
+  String get enableICloudBackup => 'Enable iCloud Backup';
+
+  @override
+  String get enableICloudBackupDescription => 'Automatically sync backups to iCloud';
+
+  @override
+  String get iCloudNotAvailable => 'iCloud Not Available';
+
+  @override
+  String get iCloudNotAvailableDescription => 'Please sign in to iCloud in Settings';
+
+  @override
+  String get backupToICloud => 'Backup to iCloud';
+
+  @override
+  String lastSync(Object time) {
+    return 'Last sync: $time';
   }
 
   @override
-  String get create => 'Create';
+  String get neverSynced => 'Never synced';
 
   @override
-  String get selectAtLeast2Characters => 'Select at least 2 characters';
+  String get iCloudBackups => 'iCloud Backups';
 
   @override
-  String get groupCreatedSuccessfully => 'Group created successfully';
+  String get noCloudBackups => 'No cloud backups';
 
   @override
-  String failedToCreateGroup(String error) {
-    return 'Failed to create group: $error';
-  }
+  String get googleDriveExport => 'Export to Google Drive';
 
   @override
-  String get selectCharacterCard => 'Select a character card';
+  String get googleDriveExportDescription => 'Save backup file to Google Drive or other location';
 
   @override
-  String get supportsPngCharxJson => 'Supports PNG, CharX, and JSON formats';
+  String get googleDriveImport => 'Import from Google Drive';
 
   @override
-  String get browseFiles => 'Browse Files';
-
-  @override
-  String failedToPickFile(String error) {
-    return 'Failed to pick file: $error';
-  }
-
-  @override
-  String failedToLoadCharacter(String error) {
-    return 'Failed to load character: $error';
-  }
-
-  @override
-  String unsupportedFileFormat(String format) {
-    return 'Unsupported file format: $format';
-  }
-
-  @override
-  String get pngCharacterCard => 'PNG Character Card';
-
-  @override
-  String get characterDataEmbeddedInImage =>
-      'Character data embedded in image metadata';
-
-  @override
-  String get charxArchive => 'CharX Archive';
-
-  @override
-  String get zipArchiveWithCharacterData =>
-      'ZIP archive with character data and assets';
-
-  @override
-  String get plainCharacterCardJson => 'Plain character card JSON file';
-
-  @override
-  String importedWithLorebook(String name) {
-    return 'Imported \"$name\" with embedded lorebook!';
-  }
-
-  @override
-  String importedSuccessfully(String name) {
-    return 'Imported \"$name\" successfully!';
-  }
-
-  @override
-  String failedToImport(String error) {
-    return 'Failed to import: $error';
-  }
-
-  @override
-  String embeddedLorebookEntries(int count) {
-    return 'Embedded Lorebook ($count entries)';
-  }
-
-  @override
-  String get saveCurrentAsPreset => 'Save Current as Preset';
-
-  @override
-  String get exportCurrentSettings => 'Export Current Settings';
-
-  @override
-  String get builtInPresets => 'Built-in Presets';
-
-  @override
-  String get customPresets => 'Custom Presets';
-
-  @override
-  String get aiPresetsDescription =>
-      'AI Presets combine generation settings, prompt ordering, and instruct templates. Select a preset to apply all settings at once.';
-
-  @override
-  String appliedPreset(String name) {
-    return 'Applied \"$name\" preset';
-  }
-
-  @override
-  String failedToApplyPreset(String error) {
-    return 'Failed to apply preset: $error';
-  }
-
-  @override
-  String get invalidPresetFormat =>
-      'Invalid preset format. Expected preset with generation settings.';
-
-  @override
-  String importedAndApplied(String name) {
-    return 'Imported and applied \"$name\"';
-  }
-
-  @override
-  String get saveAsPreset => 'Save as Preset';
-
-  @override
-  String get descriptionOptional => 'Description (optional)';
-
-  @override
-  String get pleaseEnterAName => 'Please enter a name';
-
-  @override
-  String savedPreset(String name) {
-    return 'Saved \"$name\"';
-  }
-
-  @override
-  String saveFailed(String error) {
-    return 'Save failed: $error';
-  }
-
-  @override
-  String deletePresetConfirmation(String name) {
-    return 'Are you sure you want to delete \"$name\"?';
-  }
-
-  @override
-  String deletedPreset(String name) {
-    return 'Deleted \"$name\"';
-  }
+  String get googleDriveImportDescription => 'Restore from a backup file in Google Drive or other location';
 
   @override
   String get export => 'Export';
 
   @override
-  String get resetToDefaults => 'Reset to Defaults';
+  String get import_action => 'Import';
 
   @override
-  String get basicSampling => 'Basic Sampling';
+  String get importBackup => 'Import Backup';
 
   @override
-  String get temperatureDescription =>
-      'Controls randomness. Higher = more creative, lower = more focused.';
+  String get backupExported => 'Backup exported successfully';
 
   @override
-  String get topPNucleusSampling => 'Top P (Nucleus Sampling)';
+  String get restoreSettings => 'Restore Settings';
 
   @override
-  String get topPDescription =>
-      'Cumulative probability threshold for token selection.';
+  String get defaultRestoreMode => 'Default Restore Mode';
 
   @override
-  String get topKDescription =>
-      'Number of top tokens to consider. 0 = disabled.';
+  String get selectRestoreMode => 'Select how to restore data:';
 
   @override
-  String get advancedSampling => 'Advanced Sampling';
+  String get restoreWarning => 'Restoring data may overwrite existing data depending on the selected mode. Make sure to backup your current data first.';
 
   @override
-  String get minP => 'Min P';
+  String get restore => 'Restore';
 
   @override
-  String get minPDescription =>
-      'Minimum probability threshold relative to top token.';
-
-  @override
-  String get typicalP => 'Typical P';
-
-  @override
-  String get typicalPDescription => 'Locally typical sampling. 1.0 = disabled.';
-
-  @override
-  String get topA => 'Top A';
-
-  @override
-  String get topADescription => 'Top-A sampling threshold. 0 = disabled.';
-
-  @override
-  String get tailFreeSamplingTfs => 'Tail Free Sampling (TFS)';
-
-  @override
-  String get tfsDescription => 'Removes low-probability tail. 1.0 = disabled.';
-
-  @override
-  String get repetitionControl => 'Repetition Control';
-
-  @override
-  String get repetitionPenaltyDescription =>
-      'Penalizes repeated tokens. 1.0 = no penalty.';
-
-  @override
-  String get repetitionPenaltyRange => 'Repetition Penalty Range';
-
-  @override
-  String get repetitionPenaltyRangeDescription =>
-      'How many tokens to consider. 0 = all.';
-
-  @override
-  String get frequencyPenaltyDescription =>
-      'Penalizes tokens based on frequency in text.';
-
-  @override
-  String get presencePenaltyDescription =>
-      'Penalizes tokens that appear at all in text.';
-
-  @override
-  String get mirostatLocalModels => 'Mirostat (Local Models)';
-
-  @override
-  String get mirostatMode => 'Mirostat Mode';
-
-  @override
-  String get adaptiveSamplingForLocalModels =>
-      'Adaptive sampling for local models';
-
-  @override
-  String get off => 'Off';
-
-  @override
-  String get mirostatTau => 'Mirostat Tau';
-
-  @override
-  String get mirostatTauDescription => 'Target entropy/perplexity.';
-
-  @override
-  String get mirostatEta => 'Mirostat Eta';
-
-  @override
-  String get mirostatEtaDescription => 'Learning rate for Mirostat.';
-
-  @override
-  String get generationControl => 'Generation Control';
-
-  @override
-  String get maxTokensDescription => 'Maximum tokens to generate.';
-
-  @override
-  String get seed => 'Seed';
-
-  @override
-  String get seedDescription => 'Random seed for reproducibility. -1 = random.';
-
-  @override
-  String get stopSequences => 'Stop Sequences';
-
-  @override
-  String get noStopSequencesConfigured => 'No stop sequences configured';
-
-  @override
-  String get stopSequencesDescription =>
-      'Enter one sequence per line. Generation stops when any of these are produced.';
-
-  @override
-  String get resetConfirmation =>
-      'This will reset all sampler settings to their default values. Continue?';
-
-  @override
-  String get reset => 'Reset';
-
-  @override
-  String get settingsResetToDefaults => 'Settings reset to defaults';
-
-  @override
-  String get characterBackground => 'Character Background';
-
-  @override
-  String get chatBackground => 'Chat Background';
-
-  @override
-  String get clearBackground => 'Clear background';
-
-  @override
-  String get gradientPresets => 'Gradient Presets';
-
-  @override
-  String get solidColors => 'Solid Colors';
-
-  @override
-  String get customImage => 'Custom Image';
-
-  @override
-  String get adjustments => 'Adjustments';
-
-  @override
-  String get noBackgroundSelected => 'No background selected';
-
-  @override
-  String get chooseImage => 'Choose Image';
-
-  @override
-  String get fromUrl => 'From URL';
-
-  @override
-  String localImage(String filename) {
-    return 'Local image: $filename';
+  String restoreComplete(Object added, Object skipped, Object updated) {
+    return 'Restore complete: $added added, $updated updated, $skipped skipped';
   }
 
   @override
-  String urlLabel(String url) {
-    return 'URL: $url';
-  }
+  String get selectFileAndImport => 'Select File & Import';
 
   @override
-  String get noImage => 'No image';
+  String get aboutRestoreModes => 'About Restore Modes';
 
   @override
-  String get opacity => 'Opacity';
-
-  @override
-  String get blurEffect => 'Blur Effect';
-
-  @override
-  String get applyBlurToBackground => 'Apply blur to the background';
-
-  @override
-  String get blurAmount => 'Blur Amount';
-
-  @override
-  String failedToLoadImage(String error) {
-    return 'Failed to load image: $error';
-  }
-
-  @override
-  String get imageUrl => 'Image URL';
-
-  @override
-  String get enterImageUrl => 'Enter image URL';
-
-  @override
-  String get apply => 'Apply';
+  String get aboutRestoreModesDescription => 'Replace: Overwrites all local data with backup data.\\nMerge: Keeps both, newer data wins for conflicts.\\nAdd New Only: Only adds new items, keeps all existing data.';
 
   @override
   String get backupAndRestore => 'Backup & Restore';
@@ -1560,7 +1099,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get maxChatBackups => 'Max Chat Backups';
 
   @override
-  String keepUpToChatBackups(int count) {
+  String keepUpToChatBackups(Object count) {
     return 'Keep up to $count chat backups';
   }
 
@@ -1568,7 +1107,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get maxFullBackups => 'Max Full Backups';
 
   @override
-  String keepUpToFullBackups(int count) {
+  String keepUpToFullBackups(Object count) {
     return 'Keep up to $count full backups';
   }
 
@@ -1582,7 +1121,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cleanup => 'Cleanup';
 
   @override
-  String deletedOldBackups(int count) {
+  String deletedOldBackups(Object count) {
     return 'Deleted $count old backups';
   }
 
@@ -1593,7 +1132,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noChatBackups => 'No chat backups';
 
   @override
-  String viewAllBackups(int count) {
+  String viewAllBackups(Object count) {
     return 'View all $count backups';
   }
 
@@ -1610,14 +1149,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutBackups => 'About Backups';
 
   @override
-  String get aboutBackupsDescription =>
-      'Chat backups save individual conversations. Full backups include all characters, chats, settings, and world info.';
+  String get aboutBackupsDescription => 'Chat backups save individual conversations. Full backups include all characters, chats, settings, and world info.';
 
   @override
   String get backupLocation => 'Backup Location';
 
   @override
-  String errorReadingBackup(String error) {
+  String errorReadingBackup(Object error) {
     return 'Error reading backup: $error';
   }
 
@@ -1625,7 +1163,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteBackup => 'Delete Backup';
 
   @override
-  String deleteBackupConfirmation(String name) {
+  String deleteBackupConfirmation(Object name) {
     return 'Delete \"$name\"?\n\nThis cannot be undone.';
   }
 
@@ -1636,21 +1174,631 @@ class AppLocalizationsEn extends AppLocalizations {
   String get justNow => 'Just now';
 
   @override
-  String minutesAgo(int count) {
+  String minutesAgo(Object count) {
     return '$count minutes ago';
   }
 
   @override
-  String hoursAgo(int count) {
+  String hoursAgo(Object count) {
     return '$count hours ago';
   }
+
+  @override
+  String get processing => 'Processing...';
+
+  @override
+  String get signInToGoogleDrive => 'Sign in to Google Drive';
+
+  @override
+  String get signInToGoogleDriveDescription => 'Sign in with your Google account to backup and restore data';
+
+  @override
+  String get signIn => 'Sign In';
+
+  @override
+  String get signOut => 'Sign Out';
+
+  @override
+  String get signedInSuccessfully => 'Signed in successfully';
+
+  @override
+  String get backupToGoogleDrive => 'Backup to Google Drive';
+
+  @override
+  String get googleDriveBackups => 'Google Drive Backups';
+
+  @override
+  String get saveAs => 'Save As';
+
+  @override
+  String get contextLength => 'Context Length';
+
+  @override
+  String get contextWindowSize => 'Context Window Size';
+
+  @override
+  String get contextLengthDescription => 'Maximum number of tokens the model can process as input context.';
+
+  @override
+  String get characterNotFound => 'Character Not Found';
+
+  @override
+  String get characterNotFoundMessage => 'Character not found';
+
+  @override
+  String get exportAsPng => 'Export as PNG';
+
+  @override
+  String get exportAsCharx => 'Export as CharX';
+
+  @override
+  String get exportAsJson => 'Export as JSON';
+
+  @override
+  String get duplicate => 'Duplicate';
+
+  @override
+  String deleteCharacterConfirmationSimple(Object name) {
+    return 'Are you sure you want to delete \"$name\"? This action cannot be undone.';
+  }
+
+  @override
+  String characterDuplicated(Object name) {
+    return '$name duplicated';
+  }
+
+  @override
+  String failedToDelete(Object error) {
+    return 'Failed to delete: $error';
+  }
+
+  @override
+  String failedToDuplicate(Object error) {
+    return 'Failed to duplicate: $error';
+  }
+
+  @override
+  String get pngExportComingSoon => 'PNG export coming soon';
+
+  @override
+  String get charxExportComingSoon => 'CharX export coming soon';
+
+  @override
+  String get failedToCreateChat => 'Failed to create chat';
+
+  @override
+  String get creating => 'Creating...';
+
+  @override
+  String byCreator(Object creator) {
+    return 'by $creator';
+  }
+
+  @override
+  String versionLabel(Object version) {
+    return 'v$version';
+  }
+
+  @override
+  String get showLess => 'Show less';
+
+  @override
+  String get showMore => 'Show more';
+
+  @override
+  String greetingNumber(Object number) {
+    return 'Greeting $number';
+  }
+
+  @override
+  String alternateGreetingsCount(Object count) {
+    return 'Alternate Greetings ($count)';
+  }
+
+  @override
+  String get embeddedLorebook => 'Embedded Lorebook';
+
+  @override
+  String entriesEnabled(Object enabled, Object total) {
+    return '$enabled of $total entries enabled';
+  }
+
+  @override
+  String andMoreEntries(Object count) {
+    return '... and $count more entries';
+  }
+
+  @override
+  String get exampleMessages => 'Example Messages';
+
+  @override
+  String get postHistoryInstructions => 'Post-History Instructions';
+
+  @override
+  String get selectImages => 'Select Images';
+
+  @override
+  String get presetsAndTemplates => 'Presets & Templates';
+
+  @override
+  String get activePreset => 'Active Preset';
+
+  @override
+  String get change => 'Change';
+
+  @override
+  String get noPresetSelected => 'No preset selected';
+
+  @override
+  String get instructTemplate => 'Instruct Template';
+
+  @override
+  String get selectInstructTemplate => 'Select Instruct Template';
+
+  @override
+  String get instructTemplateDescription => 'Instruct templates format prompts for different LLM models. Use \"None\" for API providers like OpenAI or Claude that handle formatting automatically.';
+
+  @override
+  String get orderAndTogglePromptSections => 'Order and toggle prompt sections';
+
+  @override
+  String get llmConnection => 'LLM Connection';
+
+  @override
+  String get generationSettings => 'Generation Settings';
+
+  @override
+  String get advancedSamplerSettings => 'Advanced Sampler Settings';
+
+  @override
+  String get fullControlOverSampling => 'Full control over sampling parameters';
+
+  @override
+  String get selectLlmProvider => 'Select LLM Provider';
+
+  @override
+  String get notSet => 'Not set';
+
+  @override
+  String get enterApiKey => 'Enter your API key';
+
+  @override
+  String get apiEndpointUrl => 'API endpoint URL';
+
+  @override
+  String get modelName => 'Model name';
+
+  @override
+  String get fetchAvailableModels => 'Fetch Available Models';
+
+  @override
+  String get fetchModelsDescription => 'Fetch models from the API or enter a model name manually';
+
+  @override
+  String get enterModelName => 'Enter Model Name';
+
+  @override
+  String get fetchingModels => 'Fetching models...';
+
+  @override
+  String get failedToFetchModels => 'Failed to fetch models';
+
+  @override
+  String get tapToTestConnection => 'Tap to test API connection';
+
+  @override
+  String get testing => 'Testing...';
+
+  @override
+  String get connected => 'Connected';
+
+  @override
+  String get connectionFailedSimple => 'Connection failed';
+
+  @override
+  String get maximumTokensToGenerate => 'Maximum tokens to generate';
+
+  @override
+  String get streaming => 'Streaming';
+
+  @override
+  String get showResponseAsItGenerates => 'Show response as it generates';
+
+  @override
+  String selectModelCount(Object count) {
+    return 'Select Model ($count)';
+  }
+
+  @override
+  String get refreshModels => 'Refresh models';
+
+  @override
+  String get enterManually => 'Enter manually';
+
+  @override
+  String get noModelsFound => 'No models found';
+
+  @override
+  String get tryDifferentSearchTerm => 'Try a different search term';
+
+  @override
+  String modelsOfTotal(Object filtered, Object total) {
+    return '$filtered of $total models';
+  }
+
+  @override
+  String get importPreset => 'Import Preset';
+
+  @override
+  String get noGroupChatsYet => 'No group chats yet';
+
+  @override
+  String get createGroupDescription => 'Create a group to chat with multiple characters';
+
+  @override
+  String get newGroup => 'New Group';
+
+  @override
+  String membersAndMode(Object count, Object mode) {
+    return '$count members • $mode mode';
+  }
+
+  @override
+  String get groupChatWillBeImplemented => 'Group chat will be implemented with chat integration';
+
+  @override
+  String deleteGroupConfirmation(Object name) {
+    return 'Are you sure you want to delete \"$name\"? This will also delete all associated chats.';
+  }
+
+  @override
+  String groupDeleted(Object name) {
+    return '$name deleted';
+  }
+
+  @override
+  String get groupNameRequired => 'Group Name *';
+
+  @override
+  String get enterGroupName => 'Enter group name';
+
+  @override
+  String get optionalDescription => 'Optional description';
+
+  @override
+  String get selectCharacters => 'Select Characters';
+
+  @override
+  String charactersSelected(Object count) {
+    return '$count character(s) selected';
+  }
+
+  @override
+  String get create => 'Create';
+
+  @override
+  String get selectAtLeast2Characters => 'Select at least 2 characters';
+
+  @override
+  String get groupCreatedSuccessfully => 'Group created successfully';
+
+  @override
+  String failedToCreateGroup(Object error) {
+    return 'Failed to create group: $error';
+  }
+
+  @override
+  String get selectCharacterCard => 'Select a character card';
+
+  @override
+  String get supportsPngCharxJson => 'Supports PNG, CharX, and JSON formats';
+
+  @override
+  String get browseFiles => 'Browse Files';
+
+  @override
+  String failedToPickFile(Object error) {
+    return 'Failed to pick file: $error';
+  }
+
+  @override
+  String failedToLoadCharacter(Object error) {
+    return 'Failed to load character: $error';
+  }
+
+  @override
+  String unsupportedFileFormat(Object format) {
+    return 'Unsupported file format: $format';
+  }
+
+  @override
+  String get pngCharacterCard => 'PNG Character Card';
+
+  @override
+  String get characterDataEmbeddedInImage => 'Character data embedded in image metadata';
+
+  @override
+  String get charxArchive => 'CharX Archive';
+
+  @override
+  String get zipArchiveWithCharacterData => 'ZIP archive with character data and assets';
+
+  @override
+  String get plainCharacterCardJson => 'Plain character card JSON file';
+
+  @override
+  String importedWithLorebook(Object name) {
+    return 'Imported \"$name\" with embedded lorebook!';
+  }
+
+  @override
+  String importedSuccessfully(Object name) {
+    return 'Imported \"$name\" successfully!';
+  }
+
+  @override
+  String failedToImport(Object error) {
+    return 'Failed to import: $error';
+  }
+
+  @override
+  String embeddedLorebookEntries(Object count) {
+    return 'Embedded Lorebook ($count entries)';
+  }
+
+  @override
+  String get saveCurrentAsPreset => 'Save Current as Preset';
+
+  @override
+  String get exportCurrentSettings => 'Export Current Settings';
+
+  @override
+  String get builtInPresets => 'Built-in Presets';
+
+  @override
+  String get customPresets => 'Custom Presets';
+
+  @override
+  String get aiPresetsDescription => 'AI Presets combine generation settings, prompt ordering, and instruct templates. Select a preset to apply all settings at once.';
+
+  @override
+  String appliedPreset(Object name) {
+    return 'Applied \"$name\" preset';
+  }
+
+  @override
+  String failedToApplyPreset(Object error) {
+    return 'Failed to apply preset: $error';
+  }
+
+  @override
+  String get invalidPresetFormat => 'Invalid preset format. Expected preset with generation settings.';
+
+  @override
+  String importedAndApplied(Object name) {
+    return 'Imported and applied \"$name\"';
+  }
+
+  @override
+  String get saveAsPreset => 'Save as Preset';
+
+  @override
+  String get descriptionOptional => 'Description (optional)';
+
+  @override
+  String get pleaseEnterAName => 'Please enter a name';
+
+  @override
+  String savedPreset(Object name) {
+    return 'Saved \"$name\"';
+  }
+
+  @override
+  String saveFailed(Object error) {
+    return 'Save failed: $error';
+  }
+
+  @override
+  String deletePresetConfirmation(Object name) {
+    return 'Are you sure you want to delete \"$name\"?';
+  }
+
+  @override
+  String deletedPreset(Object name) {
+    return 'Deleted \"$name\"';
+  }
+
+  @override
+  String get resetToDefaults => 'Reset to Defaults';
+
+  @override
+  String get basicSampling => 'Basic Sampling';
+
+  @override
+  String get temperatureDescription => 'Controls randomness. Higher = more creative, lower = more focused.';
+
+  @override
+  String get topPNucleusSampling => 'Top P (Nucleus Sampling)';
+
+  @override
+  String get topPDescription => 'Cumulative probability threshold for token selection.';
+
+  @override
+  String get topKDescription => 'Number of top tokens to consider. 0 = disabled.';
+
+  @override
+  String get advancedSampling => 'Advanced Sampling';
+
+  @override
+  String get minP => 'Min P';
+
+  @override
+  String get minPDescription => 'Minimum probability threshold relative to top token.';
+
+  @override
+  String get typicalP => 'Typical P';
+
+  @override
+  String get typicalPDescription => 'Locally typical sampling. 1.0 = disabled.';
+
+  @override
+  String get topA => 'Top A';
+
+  @override
+  String get topADescription => 'Top-A sampling threshold. 0 = disabled.';
+
+  @override
+  String get tailFreeSamplingTfs => 'Tail Free Sampling (TFS)';
+
+  @override
+  String get tfsDescription => 'Removes low-probability tail. 1.0 = disabled.';
+
+  @override
+  String get repetitionControl => 'Repetition Control';
+
+  @override
+  String get repetitionPenaltyDescription => 'Penalizes repeated tokens. 1.0 = no penalty.';
+
+  @override
+  String get repetitionPenaltyRange => 'Repetition Penalty Range';
+
+  @override
+  String get repetitionPenaltyRangeDescription => 'How many tokens to consider. 0 = all.';
+
+  @override
+  String get frequencyPenaltyDescription => 'Penalizes tokens based on frequency in text.';
+
+  @override
+  String get presencePenaltyDescription => 'Penalizes tokens that appear at all in text.';
+
+  @override
+  String get mirostatLocalModels => 'Mirostat (Local Models)';
+
+  @override
+  String get mirostatMode => 'Mirostat Mode';
+
+  @override
+  String get adaptiveSamplingForLocalModels => 'Adaptive sampling for local models';
+
+  @override
+  String get off => 'Off';
+
+  @override
+  String get mirostatTau => 'Mirostat Tau';
+
+  @override
+  String get mirostatTauDescription => 'Target entropy/perplexity.';
+
+  @override
+  String get mirostatEta => 'Mirostat Eta';
+
+  @override
+  String get mirostatEtaDescription => 'Learning rate for Mirostat.';
+
+  @override
+  String get generationControl => 'Generation Control';
+
+  @override
+  String get maxTokensDescription => 'Maximum tokens to generate.';
+
+  @override
+  String get seed => 'Seed';
+
+  @override
+  String get seedDescription => 'Random seed for reproducibility. -1 = random.';
+
+  @override
+  String get stopSequences => 'Stop Sequences';
+
+  @override
+  String get noStopSequencesConfigured => 'No stop sequences configured';
+
+  @override
+  String get stopSequencesDescription => 'Enter one sequence per line. Generation stops when any of these are produced.';
+
+  @override
+  String get resetConfirmation => 'This will reset all sampler settings to their default values. Continue?';
+
+  @override
+  String get reset => 'Reset';
+
+  @override
+  String get settingsResetToDefaults => 'Settings reset to defaults';
+
+  @override
+  String get characterBackground => 'Character Background';
+
+  @override
+  String get chatBackground => 'Chat Background';
+
+  @override
+  String get clearBackground => 'Clear background';
+
+  @override
+  String get gradientPresets => 'Gradient Presets';
+
+  @override
+  String get solidColors => 'Solid Colors';
+
+  @override
+  String get customImage => 'Custom Image';
+
+  @override
+  String get adjustments => 'Adjustments';
+
+  @override
+  String get noBackgroundSelected => 'No background selected';
+
+  @override
+  String get chooseImage => 'Choose Image';
+
+  @override
+  String get fromUrl => 'From URL';
+
+  @override
+  String localImage(Object filename) {
+    return 'Local image: $filename';
+  }
+
+  @override
+  String urlLabel(Object url) {
+    return 'URL: $url';
+  }
+
+  @override
+  String get noImage => 'No image';
+
+  @override
+  String get opacity => 'Opacity';
+
+  @override
+  String get blurEffect => 'Blur Effect';
+
+  @override
+  String get applyBlurToBackground => 'Apply blur to the background';
+
+  @override
+  String get blurAmount => 'Blur Amount';
+
+  @override
+  String failedToLoadImage(Object error) {
+    return 'Failed to load image: $error';
+  }
+
+  @override
+  String get imageUrl => 'Image URL';
+
+  @override
+  String get enterImageUrl => 'Enter image URL';
+
+  @override
+  String get apply => 'Apply';
 
   @override
   String get enableCfgScale => 'Enable CFG Scale';
 
   @override
-  String get cfgScaleDescription =>
-      'Classifier-Free Guidance for text generation';
+  String get cfgScaleDescription => 'Classifier-Free Guidance for text generation';
 
   @override
   String get globalSettings => 'Global Settings';
@@ -1677,8 +1825,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get useCharacterSpecificSettings => 'Use Character-Specific Settings';
 
   @override
-  String get overrideGlobalForCharacter =>
-      'Override global settings for this character';
+  String get overrideGlobalForCharacter => 'Override global settings for this character';
 
   @override
   String get characterNegativePrompt => 'Character Negative Prompt';
@@ -1690,8 +1837,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSettings => 'Chat Settings';
 
   @override
-  String get chatSettingsDescription =>
-      'These settings override global and character settings for this chat only.';
+  String get chatSettingsDescription => 'These settings override global and character settings for this chat only.';
 
   @override
   String get chatNegativePrompt => 'Chat Negative Prompt';
@@ -1721,21 +1867,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutCfgScale => 'About CFG Scale';
 
   @override
-  String get aboutCfgScaleDescription =>
-      'CFG (Classifier-Free Guidance) Scale controls how strongly the model follows the negative prompt to avoid certain content or styles.\n\n• Scale 1.0 = No effect (default)\n• Scale 1.5-3.0 = Subtle guidance\n• Scale 3.0-7.0 = Moderate guidance\n• Scale 7.0+ = Strong guidance (may affect coherence)';
+  String get aboutCfgScaleDescription => 'CFG (Classifier-Free Guidance) Scale controls how strongly the model follows the negative prompt to avoid certain content or styles.\n\n• Scale 1.0 = No effect (default)\n• Scale 1.5-3.0 = Subtle guidance\n• Scale 3.0-7.0 = Moderate guidance\n• Scale 7.0+ = Strong guidance (may affect coherence)';
 
   @override
   String get cfgScaleHelp => 'CFG Scale Help';
 
   @override
-  String get cfgScaleHelpContent =>
-      'Classifier-Free Guidance (CFG) Scale is a technique that allows you to guide the AI model\'s output by specifying what you want to avoid.\n\n**How it works:**\nThe model generates two outputs - one with your prompt and one with the negative prompt. The final output is adjusted to move away from the negative prompt direction.\n\n**Settings Priority:**\n1. Chat-specific settings (highest)\n2. Character-specific settings\n3. Global settings (lowest)\n\n**Tips:**\n• Start with low values (1.5-2.0) and increase gradually\n• Use specific negative prompts for better results\n• High values may cause repetition or incoherence\n• Not all AI backends support CFG Scale';
+  String get cfgScaleHelpContent => 'Classifier-Free Guidance (CFG) Scale is a technique that allows you to guide the AI model\'s output by specifying what you want to avoid.\n\n**How it works:**\nThe model generates two outputs - one with your prompt and one with the negative prompt. The final output is adjusted to move away from the negative prompt direction.\n\n**Settings Priority:**\n1. Chat-specific settings (highest)\n2. Character-specific settings\n3. Global settings (lowest)\n\n**Tips:**\n• Start with low values (1.5-2.0) and increase gradually\n• Use specific negative prompts for better results\n• High values may cause repetition or incoherence\n• Not all AI backends support CFG Scale';
 
   @override
   String get help => 'Help';
-
-  @override
-  String get processing => 'Processing...';
 
   @override
   String get sampleMessage1 => 'Hello! How are you?';
@@ -1786,29 +1927,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutImageGeneration => 'About Image Generation';
 
   @override
-  String get aboutImageGenerationDescription =>
-      'Generate images using AI models. Use the /imagine command in chat or generate character portraits from the character editor.';
+  String get aboutImageGenerationDescription => 'Generate images using AI models. Use the /imagine command in chat or generate character portraits from the character editor.';
 
   @override
   String get imagineCommand => '/imagine Command';
 
   @override
-  String get imagineCommandUsage =>
-      'Usage: /imagine <prompt> [--width N] [--height N] [--steps N] [--cfg N] [--seed N]';
+  String get imagineCommandUsage => 'Usage: /imagine <prompt> [--width N] [--height N] [--steps N] [--cfg N] [--seed N]';
 
   @override
   String get stableDiffusion => 'Stable Diffusion';
 
   @override
-  String get stableDiffusionDescription =>
-      'Connect to a local or remote Stable Diffusion WebUI instance. Requires the API to be enabled.';
+  String get stableDiffusionDescription => 'Connect to a local or remote Stable Diffusion WebUI instance. Requires the API to be enabled.';
 
   @override
   String get dalle => 'DALL-E';
 
   @override
-  String get dalleDescription =>
-      'OpenAI\'s DALL-E image generation. Requires an API key from OpenAI.';
+  String get dalleDescription => 'OpenAI\'s DALL-E image generation. Requires an API key from OpenAI.';
 
   @override
   String get prompt => 'Prompt';
@@ -1832,8 +1969,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enableLogitBias => 'Enable Logit Bias';
 
   @override
-  String get adjustTokenProbabilities =>
-      'Adjust token probabilities in AI responses';
+  String get adjustTokenProbabilities => 'Adjust token probabilities in AI responses';
 
   @override
   String get presets => 'Presets';
@@ -1880,7 +2016,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get presetCopiedToClipboard => 'Preset copied to clipboard';
 
   @override
-  String exportPresetFailed(String error) {
+  String exportPresetFailed(Object error) {
     return 'Export failed: $error';
   }
 
@@ -1891,7 +2027,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get presetImportedSuccessfully => 'Preset imported successfully';
 
   @override
-  String importPresetFailed(String error) {
+  String importPresetFailed(Object error) {
     return 'Import failed: $error';
   }
 
@@ -1899,8 +2035,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rename => 'Rename';
 
   @override
-  String get deletePresetQuestion =>
-      'Are you sure you want to delete this preset?';
+  String get deletePresetQuestion => 'Are you sure you want to delete this preset?';
 
   @override
   String get moreOptions => 'More options';
@@ -1918,16 +2053,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resetToDefault => 'Reset to Default';
 
   @override
-  String get dragToReorder =>
-      'Drag to reorder sections. Toggle switches to enable/disable.';
+  String get dragToReorder => 'Drag to reorder sections. Toggle switches to enable/disable.';
 
   @override
-  String deleted(String name) {
+  String deleted(Object name) {
     return 'Deleted \"$name\"';
   }
 
   @override
-  String imported(String name) {
+  String imported(Object name) {
     return 'Imported \"$name\"';
   }
 
@@ -1944,18 +2078,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pleaseEnterNameMessage => 'Please enter a name';
 
   @override
-  String saved(String name) {
+  String saved(Object name) {
     return 'Saved \"$name\"';
   }
 
   @override
-  String saveFailedMessage(String error) {
+  String saveFailedMessage(Object error) {
     return 'Save failed: $error';
   }
 
   @override
-  String get resetToDefaultQuestion =>
-      'This will reset all prompt sections to their default order and enable all sections. Continue?';
+  String get resetToDefaultQuestion => 'This will reset all prompt sections to their default order and enable all sections. Continue?';
 
   @override
   String get resetToDefaultConfig => 'Reset to default configuration';
@@ -1964,7 +2097,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get promptManagerHelp => 'Prompt Manager Help';
 
   @override
-  String applied(String name) {
+  String applied(Object name) {
     return 'Applied \"$name\" preset';
   }
 
@@ -1978,12 +2111,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get positionAboveInput => 'Position Above Input';
 
   @override
-  String get quickRepliesAboveInput =>
-      'Quick replies appear above the input field';
+  String get quickRepliesAboveInput => 'Quick replies appear above the input field';
 
   @override
-  String get quickRepliesBelowInput =>
-      'Quick replies appear below the input field';
+  String get quickRepliesBelowInput => 'Quick replies appear below the input field';
 
   @override
   String get add => 'Add';
@@ -1995,13 +2126,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addYourFirstQuickReply => 'Add your first quick reply';
 
   @override
-  String deleteQuickReplyQuestion(String label) {
+  String deleteQuickReplyQuestion(Object label) {
     return 'Are you sure you want to delete \"$label\"?';
   }
 
   @override
-  String get resetToDefaultQuestion2 =>
-      'This will replace all your quick replies with the default set. Continue?';
+  String get resetToDefaultQuestion2 => 'This will replace all your quick replies with the default set. Continue?';
 
   @override
   String get continueOrEmpty => '(Continue/Empty message)';
@@ -2057,8 +2187,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enableRegexScripts => 'Enable Regex Scripts';
 
   @override
-  String get applyFindReplacePatterns =>
-      'Apply find/replace patterns to messages';
+  String get applyFindReplacePatterns => 'Apply find/replace patterns to messages';
 
   @override
   String get applyTo => 'Apply To';
@@ -2088,7 +2217,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get applyToWorldInfoEntries => 'Apply to world info entries';
 
   @override
-  String scriptsCount(int count) {
+  String scriptsCount(Object count) {
     return 'Scripts ($count)';
   }
 
@@ -2096,28 +2225,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noRegexScripts => 'No regex scripts';
 
   @override
-  String get tapToAddOrUseMenu =>
-      'Tap + to add a script or use the menu to add presets';
+  String get tapToAddOrUseMenu => 'Tap + to add a script or use the menu to add presets';
 
   @override
   String get aboutRegexScripts => 'About Regex Scripts';
 
   @override
-  String get aboutRegexScriptsDescription =>
-      'Regex scripts allow you to find and replace text patterns in messages. Use capture groups (\\\$1, \\\$2) in replacements.';
+  String get aboutRegexScriptsDescription => 'Regex scripts allow you to find and replace text patterns in messages. Use capture groups (\\\$1, \\\$2) in replacements.';
 
   @override
   String get patternFormat => 'Pattern Format';
 
   @override
-  String get patternFormatDescription =>
-      'Use /pattern/flags format (e.g., /hello/gi) or plain patterns. Flags: i=case-insensitive, m=multiline, s=dotall';
+  String get patternFormatDescription => 'Use /pattern/flags format (e.g., /hello/gi) or plain patterns. Flags: i=case-insensitive, m=multiline, s=dotall';
 
   @override
   String get presetScriptsAdded => 'Preset scripts added';
 
   @override
-  String deleteScriptQuestion(String name) {
+  String deleteScriptQuestion(Object name) {
     return 'Delete \"$name\"?';
   }
 
@@ -2125,8 +2251,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clearAllScripts => 'Clear All Scripts';
 
   @override
-  String get clearAllScriptsQuestion =>
-      'This will delete all regex scripts. This cannot be undone.';
+  String get clearAllScriptsQuestion => 'This will delete all regex scripts. This cannot be undone.';
 
   @override
   String get importScripts => 'Import Scripts';
@@ -2135,7 +2260,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pasteJsonArray => 'Paste JSON array of scripts';
 
   @override
-  String importedCount(int count) {
+  String importedCount(Object count) {
     return 'Imported $count scripts';
   }
 
@@ -2217,7 +2342,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get testButton => 'Test';
 
   @override
-  String matchesCount(int count) {
+  String matchesCount(Object count) {
     return '$count match(es)';
   }
 
@@ -2234,8 +2359,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enableSprites => 'Enable Sprites';
 
   @override
-  String get showCharacterExpressions =>
-      'Show character expression images in chat';
+  String get showCharacterExpressions => 'Show character expression images in chat';
 
   @override
   String get display => 'Display';
@@ -2280,8 +2404,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showDuringStreaming => 'Show During Streaming';
 
   @override
-  String get displaySpritesWhileGenerating =>
-      'Display sprites while AI is generating';
+  String get displaySpritesWhileGenerating => 'Display sprites while AI is generating';
 
   @override
   String get emotionDetection => 'Emotion Detection';
@@ -2290,14 +2413,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get howItWorks => 'How it works';
 
   @override
-  String get spriteEmotionDetectionDescription =>
-      'Sprites are automatically selected based on emotion keywords detected in messages. Action text like *smiles* or *laughs* is prioritized.';
+  String get spriteEmotionDetectionDescription => 'Sprites are automatically selected based on emotion keywords detected in messages. Action text like *smiles* or *laughs* is prioritized.';
 
   @override
   String get supportedEmotions => 'Supported Emotions';
 
   @override
-  String characterSprites(String name) {
+  String characterSprites(Object name) {
     return '$name Sprites';
   }
 
@@ -2311,12 +2433,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addSprite => 'Add Sprite';
 
   @override
-  String spritesCount(int count) {
+  String spritesCount(Object count) {
     return '$count sprites';
   }
 
   @override
-  String defaultEmotion(String emotion) {
+  String defaultEmotion(Object emotion) {
     return 'Default: $emotion';
   }
 
@@ -2330,7 +2452,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectEmotion => 'Select Emotion';
 
   @override
-  String addedSpriteEmotion(String emotion) {
+  String addedSpriteEmotion(Object emotion) {
     return 'Added $emotion sprite';
   }
 
@@ -2344,31 +2466,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteSprite => 'Delete Sprite';
 
   @override
-  String deleteSpriteConfirmation(String emotion) {
+  String deleteSpriteConfirmation(Object emotion) {
     return 'Delete the $emotion sprite?';
   }
 
   @override
-  String get deleteAllSpritesConfirmation =>
-      'Are you sure you want to delete all sprites for this character? This cannot be undone.';
+  String get deleteAllSpritesConfirmation => 'Are you sure you want to delete all sprites for this character? This cannot be undone.';
 
   @override
   String get importSprites => 'Import Sprites';
 
   @override
-  String get importSpritesDescription =>
-      'Import sprites from a folder. Files should be named with emotion keywords:';
+  String get importSpritesDescription => 'Import sprites from a folder. Files should be named with emotion keywords:';
 
   @override
-  String get supportedFormatsSprites =>
-      'Supported formats: PNG, JPG, GIF, WebP';
+  String get supportedFormatsSprites => 'Supported formats: PNG, JPG, GIF, WebP';
 
   @override
   String get selectFolder => 'Select Folder';
 
   @override
-  String get folderImportRequiresPackage =>
-      'Folder import requires file_picker package';
+  String get folderImportRequiresPackage => 'Folder import requires file_picker package';
 
   @override
   String get appStatistics => 'App Statistics';
@@ -2380,8 +2498,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resetStatistics => 'Reset statistics';
 
   @override
-  String get resetStatisticsConfirmation =>
-      'Are you sure you want to reset all statistics? This cannot be undone.';
+  String get resetStatisticsConfirmation => 'Are you sure you want to reset all statistics? This cannot be undone.';
 
   @override
   String get statisticsReset => 'Statistics reset';
@@ -2468,8 +2585,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autoSendStt => 'Auto-send';
 
   @override
-  String get automaticallySendAfterSpeaking =>
-      'Automatically send message after speaking';
+  String get automaticallySendAfterSpeaking => 'Automatically send message after speaking';
 
   @override
   String get continuousListening => 'Continuous Listening';
@@ -2511,29 +2627,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutStt => 'About STT';
 
   @override
-  String get aboutSttDescription =>
-      'Speech-to-Text allows you to dictate messages using your voice. Tap the microphone button in the chat input to start speaking.';
+  String get aboutSttDescription => 'Speech-to-Text allows you to dictate messages using your voice. Tap the microphone button in the chat input to start speaking.';
 
   @override
   String get systemStt => 'System STT';
 
   @override
-  String get systemSttDescription =>
-      'Using your device\'s built-in speech recognition. Accuracy depends on your system settings.';
+  String get systemSttDescription => 'Using your device\'s built-in speech recognition. Accuracy depends on your system settings.';
 
   @override
   String get whisper => 'Whisper';
 
   @override
-  String get whisperDescription =>
-      'OpenAI\'s Whisper model for high-accuracy transcription. Requires an API key.';
+  String get whisperDescription => 'OpenAI\'s Whisper model for high-accuracy transcription. Requires an API key.';
 
   @override
   String get voiceInput => 'Voice input';
 
   @override
-  String get speechRecognitionNotAvailable =>
-      'Speech recognition may not be available on this device.';
+  String get speechRecognitionNotAvailable => 'Speech recognition may not be available on this device.';
 
   @override
   String get themes => 'Themes';
@@ -2569,7 +2681,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteTheme => 'Delete Theme';
 
   @override
-  String deleteThemeConfirmation(String name) {
+  String deleteThemeConfirmation(Object name) {
     return 'Are you sure you want to delete \"$name\"?';
   }
 
@@ -2586,7 +2698,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get card => 'Card';
 
   @override
-  String selectThemeColor(String label) {
+  String selectThemeColor(Object label) {
     return 'Select $label';
   }
 
@@ -2618,8 +2730,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cacheResults => 'Cache Results';
 
   @override
-  String get cacheTokenizationForPerformance =>
-      'Cache tokenization for performance';
+  String get cacheTokenizationForPerformance => 'Cache tokenization for performance';
 
   @override
   String get tokenVisualization => 'Token Visualization';
@@ -2634,20 +2745,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quickEstimate => 'Quick Estimate';
 
   @override
-  String approximateTokens(int count) {
+  String approximateTokens(Object count) {
     return '~$count tokens';
   }
 
   @override
-  String chars(int count) {
+  String chars(Object count) {
     return '$count chars';
   }
 
   @override
   String get statisticsLabel => 'Statistics';
-
-  @override
-  String get totalTokens => 'Total Tokens';
 
   @override
   String get unique => 'Unique';
@@ -2671,12 +2779,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tokenBreakdown => 'Token Breakdown';
 
   @override
-  String tokensCount(int count) {
+  String tokensCount(Object count) {
     return '$count tokens';
   }
 
   @override
-  String tokenIdLength(String id, int length) {
+  String tokenIdLength(Object id, Object length) {
     return 'Token ID: $id\nLength: $length chars';
   }
 
@@ -2687,8 +2795,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enableTranslation => 'Enable Translation';
 
   @override
-  String get translateMessagesAutomatically =>
-      'Translate messages automatically';
+  String get translateMessagesAutomatically => 'Translate messages automatically';
 
   @override
   String get translationProvider => 'Translation Provider';
@@ -2754,7 +2861,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get globalVariables => 'Global Variables';
 
   @override
-  String globalVariablesCount(int count) {
+  String globalVariablesCount(Object count) {
     return '$count global variables';
   }
 
@@ -2762,7 +2869,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localVariables => 'Local Variables';
 
   @override
-  String localVariablesCount(int count) {
+  String localVariablesCount(Object count) {
     return '$count local variables';
   }
 
@@ -2788,8 +2895,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enableRag => 'Enable RAG';
 
   @override
-  String get useVectorStorageForContext =>
-      'Use vector storage for context retrieval';
+  String get useVectorStorageForContext => 'Use vector storage for context retrieval';
 
   @override
   String get collections => 'Collections';
@@ -2840,19 +2946,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nameIsRequired => 'Name is required';
 
   @override
-  String get characterDescription =>
-      'Character description, background, appearance...';
+  String get characterDescription => 'Character description, background, appearance...';
 
   @override
   String get characterPersonalityTraits => 'Character personality traits...';
 
   @override
-  String get currentCircumstancesContext =>
-      'The current circumstances and context...';
+  String get currentCircumstancesContext => 'The current circumstances and context...';
 
   @override
-  String get customInstructionsSystemMessage =>
-      'Custom instructions sent as part of the system message.';
+  String get customInstructionsSystemMessage => 'Custom instructions sent as part of the system message.';
 
   @override
   String systemPromptHint(Object char) {
@@ -2860,8 +2963,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get instructionsInsertedAfterHistory =>
-      'Instructions inserted after the chat history (also known as \"jailbreak\").';
+  String get instructionsInsertedAfterHistory => 'Instructions inserted after the chat history (also known as \"jailbreak\").';
 
   @override
   String postHistoryInstructionsHint(Object char) {
@@ -2872,8 +2974,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get firstMessageGreeting => 'First Message (Greeting)';
 
   @override
-  String get firstMessageSentByCharacter =>
-      'The first message sent by the character when starting a new chat.';
+  String get firstMessageSentByCharacter => 'The first message sent by the character when starting a new chat.';
 
   @override
   String firstMessageHint(Object user) {
@@ -2881,11 +2982,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get alternateGreetingsCanSwipe =>
-      'Alternative first messages that can be swiped through.';
+  String get alternateGreetingsCanSwipe => 'Alternative first messages that can be swiped through.';
 
   @override
-  String greeting(int index) {
+  String greeting(Object index) {
     return 'Greeting $index';
   }
 
@@ -2902,8 +3002,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moveDown => 'Move down';
 
   @override
-  String get noAlternateGreetings =>
-      'No alternate greetings. Tap + to add one.';
+  String get noAlternateGreetings => 'No alternate greetings. Tap + to add one.';
 
   @override
   String exampleDialogueDemonstrate(Object char, Object user) {
@@ -2916,8 +3015,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get creatorNotesNotSentToAi =>
-      'Notes from the character creator (not sent to the AI).';
+  String get creatorNotesNotSentToAi => 'Notes from the character creator (not sent to the AI).';
 
   @override
   String get creatorNotesHint => 'Recommended settings, backstory notes...';
@@ -2941,17 +3039,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get characterInfo => 'Character Info';
 
   @override
-  String characterId(String id) {
+  String characterId(Object id) {
     return 'ID: $id';
   }
 
   @override
-  String created(String date) {
+  String created(Object date) {
     return 'Created: $date';
   }
 
   @override
-  String modified(String date) {
+  String modified(Object date) {
     return 'Modified: $date';
   }
 
@@ -2959,7 +3057,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get characterSavedSuccessfully => 'Character saved successfully';
 
   @override
-  String failedToSaveCharacter(String error) {
+  String failedToSaveCharacter(Object error) {
     return 'Failed to save character: $error';
   }
 
@@ -3003,11 +3101,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get natural => 'Natural';
 
   @override
-  String get aiDecidesBasedOnContext =>
-      'AI decides based on context and trigger words';
+  String get aiDecidesBasedOnContext => 'AI decides based on context and trigger words';
 
   @override
-  String membersCount(int count) {
+  String membersCount(Object count) {
     return 'Members ($count)';
   }
 
@@ -3015,12 +3112,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noMembersYet => 'No members yet. Add characters to this group.';
 
   @override
-  String talkativenessPercent(int percent) {
+  String talkativenessPercent(Object percent) {
     return 'Talkativeness: $percent%';
   }
 
   @override
-  String triggers(String words) {
+  String triggers(Object words) {
     return 'Triggers: $words';
   }
 
@@ -3034,13 +3131,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memberSettings => 'Member Settings';
 
   @override
-  String talkativenessLabel(int percent) {
+  String talkativenessLabel(Object percent) {
     return 'Talkativeness: $percent%';
   }
 
   @override
-  String get higherValuesMoreLikely =>
-      'Higher values make the character more likely to respond.';
+  String get higherValuesMoreLikely => 'Higher values make the character more likely to respond.';
 
   @override
   String get triggerWords => 'Trigger Words';
@@ -3049,8 +3145,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get triggerWordsHint => 'word1, word2, word3';
 
   @override
-  String get characterWillRespondWhenTriggered =>
-      'Character will respond when these words appear in messages.';
+  String get characterWillRespondWhenTriggered => 'Character will respond when these words appear in messages.';
 
   @override
   String get addMemberToGroup => 'Add Member';
@@ -3062,7 +3157,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groupSaved => 'Group saved';
 
   @override
-  String deleteGroupAndChats(String name) {
+  String deleteGroupAndChats(Object name) {
     return 'Are you sure you want to delete \"$name\"?';
   }
 
@@ -3076,12 +3171,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createTagsToOrganize => 'Create tags to organize your characters';
 
   @override
-  String characterCount(int count, String plural) {
+  String characterCount(Object count, Object plural) {
     return '$count character$plural';
   }
 
   @override
-  String deleteTagConfirmation(String name) {
+  String deleteTagConfirmation(Object name) {
     return 'Are you sure you want to delete the tag \"$name\"?\\n\\nThis will remove the tag from all characters.';
   }
 
@@ -3107,16 +3202,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noLorebooksYet => 'No Lorebooks yet';
 
   @override
-  String get lorebooksInjectContext =>
-      'Lorebooks inject context into your chats when keywords are detected.';
+  String get lorebooksInjectContext => 'Lorebooks inject context into your chats when keywords are detected.';
 
   @override
-  String entriesCount(int count) {
+  String entriesCount(Object count) {
     return '$count entries';
   }
 
   @override
-  String deleteLorebookConfirmation(String name) {
+  String deleteLorebookConfirmation(Object name) {
     return 'Are you sure you want to delete \"$name\" and all its entries?';
   }
 
@@ -3139,11 +3233,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noEntriesYet => 'No entries yet';
 
   @override
-  String get addEntriesWithKeywords =>
-      'Add entries with keywords to inject context into chats';
+  String get addEntriesWithKeywords => 'Add entries with keywords to inject context into chats';
 
   @override
-  String deleteEntryConfirmation(String keys) {
+  String deleteEntryConfirmation(Object keys) {
     return 'Are you sure you want to delete this entry?\\n\\nKeys: $keys';
   }
 
@@ -3160,8 +3253,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get keywordsHint => 'dragon, wyrm, serpent';
 
   @override
-  String get entryActivatesWhenKeywordFound =>
-      'Entry activates when any keyword is found in chat';
+  String get entryActivatesWhenKeywordFound => 'Entry activates when any keyword is found in chat';
 
   @override
   String get secondaryKeysOptional => 'Secondary Keys (optional)';
@@ -3170,8 +3262,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get secondaryKeysHint => 'fire, flame';
 
   @override
-  String get bothPrimaryAndSecondaryMustMatch =>
-      'If set, both primary AND secondary must match (selective mode)';
+  String get bothPrimaryAndSecondaryMustMatch => 'If set, both primary AND secondary must match (selective mode)';
 
   @override
   String get commentOptional => 'Comment (optional)';
@@ -3183,12 +3274,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contentLabel => 'Content';
 
   @override
-  String get contextToInjectWhenMatches =>
-      'The context to inject when keywords match...';
+  String get contextToInjectWhenMatches => 'The context to inject when keywords match...';
 
   @override
-  String get pleaseEnterAtLeastOneKeyword =>
-      'Please enter at least one keyword';
+  String get pleaseEnterAtLeastOneKeyword => 'Please enter at least one keyword';
 
   @override
   String get pleaseEnterContent => 'Please enter content';
@@ -3209,27 +3298,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apiKeyHint => 'sk-...';
 
   @override
-  String temperatureValue(String value) {
+  String temperatureValue(Object value) {
     return '$value';
   }
 
   @override
-  String maxTokensValue(String value) {
+  String maxTokensValue(Object value) {
     return '$value';
   }
 
   @override
-  String topPValue(String value) {
+  String topPValue(Object value) {
     return '$value';
   }
 
   @override
-  String frequencyPenaltyValue(String value) {
+  String frequencyPenaltyValue(Object value) {
     return '$value';
   }
 
   @override
-  String presencePenaltyValue(String value) {
+  String presencePenaltyValue(Object value) {
     return '$value';
   }
 
@@ -3246,8 +3335,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get includeSystemInstructions => 'Include system instructions';
 
   @override
-  String get configurationSavedSuccessfully =>
-      'Configuration saved successfully';
+  String get configurationSavedSuccessfully => 'Configuration saved successfully';
 
   @override
   String get errorSavingConfiguration => 'Error saving configuration';
@@ -3277,7 +3365,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createTags => 'Create Tags';
 
   @override
-  String charactersCount(int count) {
+  String charactersCount(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -3294,7 +3382,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get done => 'Done';
 
   @override
-  String applyFiltersSelected(int count) {
+  String applyFiltersSelected(Object count) {
     return 'Apply ($count selected)';
   }
 
@@ -3308,8 +3396,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiConfig => 'AI Config';
 
   @override
-  String get authorsNoteDescription =>
-      'Add context or instructions that will be injected into the conversation at a specific depth.';
+  String get authorsNoteDescription => 'Add context or instructions that will be injected into the conversation at a specific depth.';
 
   @override
   String get enableAuthorsNote => 'Enable Author\'s Note';
@@ -3321,15 +3408,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get injectionDepth => 'Injection Depth';
 
   @override
-  String get messagesFromEndWhereInserted =>
-      'Messages from the end where note is inserted';
+  String get messagesFromEndWhereInserted => 'Messages from the end where note is inserted';
 
   @override
   String get noteContent => 'Note Content';
 
   @override
-  String get authorsNoteHint =>
-      'Enter your author\'s note here...\\n\\nExamples:\\n• [Style: Write in a poetic, descriptive manner]\\n• [Focus on emotional depth and character development]\\n• [The character is feeling melancholic today]';
+  String get authorsNoteHint => 'Enter your author\'s note here...\\n\\nExamples:\\n• [Style: Write in a poetic, descriptive manner]\\n• [Focus on emotional depth and character development]\\n• [The character is feeling melancholic today]';
 
   @override
   String get enterNameForCheckpoint => 'Enter a name for this checkpoint';
@@ -3338,36 +3423,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addDescription => 'Add a description';
 
   @override
-  String createCheckpointAtMessage(int index) {
+  String createCheckpointAtMessage(Object index) {
     return 'This will create a checkpoint at message $index.';
   }
 
   @override
-  String get longPressMessageToBookmark =>
-      'Long-press a message to create a bookmark';
-
-  @override
-  String get contextManagement => 'Context Management';
-
-  @override
-  String get autoSummarize => 'Auto-Summarize';
-
-  @override
-  String get autoSummarizeDescription =>
-      'Automatically summarize and compress chat history when context usage is high';
-
-  @override
-  String get autoSummarizeThreshold => 'Auto-Summarize Threshold';
-
-  @override
-  String get autoSummarizeThresholdDescription =>
-      'Trigger summarization when context reaches this percentage of maximum';
+  String get longPressMessageToBookmark => 'Long-press a message to create a bookmark';
 
   @override
   String get branchFromBookmark => 'Branch from Bookmark';
 
   @override
-  String branchFromBookmarkWarning(String name) {
+  String branchFromBookmarkWarning(Object name) {
     return 'This will delete all messages after \"$name\" and continue from that point. You can create a new bookmark before doing this to save the current state.';
   }
 
@@ -3375,17 +3442,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get branch => 'Branch';
 
   @override
-  String branchedFrom(String name) {
+  String branchedFrom(Object name) {
     return 'Branched from \"$name\"';
   }
 
   @override
-  String deleteBookmarkConfirmation(String name) {
+  String deleteBookmarkConfirmation(Object name) {
     return 'Are you sure you want to delete \"$name\"?';
   }
 
   @override
-  String messageIndexAndDate(int index, String date) {
+  String messageIndexAndDate(Object date, Object index) {
     return 'Message $index • $date';
   }
 
@@ -3393,7 +3460,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get branchFromHere => 'Branch from here';
 
   @override
-  String previewBookmark(String name) {
+  String previewBookmark(Object name) {
     return 'Preview: $name';
   }
 
@@ -3410,7 +3477,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reasoningCopiedToClipboard => 'Reasoning copied to clipboard';
 
   @override
-  String charsCount(int count) {
+  String charsCount(Object count) {
     return '$count chars';
   }
 
@@ -3421,7 +3488,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commands => 'Commands';
 
   @override
-  String aliasesLabel(String aliases) {
+  String aliasesLabel(Object aliases) {
     return 'Aliases: $aliases';
   }
 
@@ -3468,186 +3535,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lowerOrderInsertsFirst => 'Lower order values are inserted first';
 
   @override
-  String get alwaysIncludeInPrompt =>
-      'Always include in prompt (ignore keywords)';
+  String get alwaysIncludeInPrompt => 'Always include in prompt (ignore keywords)';
 
   @override
-  String get requiresSecondaryKey =>
-      'Requires both primary AND secondary key to match';
-
-  @override
-  String get debugLog => 'Debug Log';
-
-  @override
-  String get debugLogDescription => 'Show floating debug button to view logs';
-
-  @override
-  String get autoScroll => 'Auto Scroll';
-
-  @override
-  String get clearLogs => 'Clear Logs';
-
-  @override
-  String get searchLogs => 'Search logs...';
-
-  @override
-  String get noLogsYet => 'No logs yet';
-
-  @override
-  String get allCharactersAvailable => 'All Characters';
-
-  @override
-  String get availableToAllCharactersNotGlobal =>
-      'Available to all characters (contextual matching)';
-
-  @override
-  String get specificCharacter => 'Specific Character';
-
-  @override
-  String get linkToSpecificCharacter => 'Link to a specific character only';
-
-  @override
-  String get selectCharacter => 'Select character';
-
-  @override
-  String get pleaseSelectCharacter => 'Please select a character';
-
-  @override
-  String get contextUsage => 'Context Usage';
-
-  @override
-  String get maxContext => 'Max Context';
-
-  @override
-  String get remaining => 'Remaining';
-
-  @override
-  String get breakdown => 'Breakdown';
-
-  @override
-  String get cloudBackup => 'Cloud Backup';
-
-  @override
-  String get cloudBackupInfo => 'Cloud Backup';
-
-  @override
-  String get cloudBackupDescription => 'Sync your data across devices';
-
-  @override
-  String get cloudBackupSubtitle =>
-      'Backup to iCloud or Google Drive and restore on any device';
-
-  @override
-  String get enableICloudBackup => 'Enable iCloud Backup';
-
-  @override
-  String get enableICloudBackupDescription =>
-      'Automatically sync backups to iCloud';
-
-  @override
-  String get iCloudNotAvailable => 'iCloud Not Available';
-
-  @override
-  String get iCloudNotAvailableDescription =>
-      'Please sign in to iCloud in Settings';
-
-  @override
-  String get backupToICloud => 'Backup to iCloud';
-
-  @override
-  String lastSync(String time) {
-    return 'Last sync: $time';
-  }
-
-  @override
-  String get neverSynced => 'Never synced';
-
-  @override
-  String get iCloudBackups => 'iCloud Backups';
-
-  @override
-  String get noCloudBackups => 'No cloud backups';
-
-  @override
-  String get googleDriveExport => 'Export to Google Drive';
-
-  @override
-  String get googleDriveExportDescription =>
-      'Save backup file to Google Drive or other location';
-
-  @override
-  String get googleDriveImport => 'Import from Google Drive';
-
-  @override
-  String get googleDriveImportDescription =>
-      'Restore from a backup file in Google Drive or other location';
-
-  @override
-  String get import_action => 'Import';
-
-  @override
-  String get importBackup => 'Import Backup';
-
-  @override
-  String get backupExported => 'Backup exported successfully';
-
-  @override
-  String get restoreSettings => 'Restore Settings';
-
-  @override
-  String get defaultRestoreMode => 'Default Restore Mode';
-
-  @override
-  String get selectRestoreMode => 'Select how to restore data:';
-
-  @override
-  String get restoreWarning =>
-      'Restoring data may overwrite existing data depending on the selected mode. Make sure to backup your current data first.';
-
-  @override
-  String get restore => 'Restore';
-
-  @override
-  String restoreComplete(int added, int updated, int skipped) {
-    return 'Restore complete: $added added, $updated updated, $skipped skipped';
-  }
-
-  @override
-  String get selectFileAndImport => 'Select File & Import';
-
-  @override
-  String get aboutRestoreModes => 'About Restore Modes';
-
-  @override
-  String get aboutRestoreModesDescription =>
-      'Replace: Overwrites all local data with backup data.\\nMerge: Keeps both, newer data wins for conflicts.\\nAdd New Only: Only adds new items, keeps all existing data.';
-
-  @override
-  String get signInToGoogleDrive => 'Sign in to Google Drive';
-
-  @override
-  String get signInToGoogleDriveDescription =>
-      'Sign in with your Google account to backup and restore data';
-
-  @override
-  String get signIn => 'Sign In';
-
-  @override
-  String get signOut => 'Sign Out';
-
-  @override
-  String get signedInSuccessfully => 'Signed in successfully';
-
-  @override
-  String get backupToGoogleDrive => 'Backup to Google Drive';
-
-  @override
-  String get googleDriveBackups => 'Google Drive Backups';
+  String get requiresSecondaryKey => 'Requires both primary AND secondary key to match';
 
   @override
   String get bubbleOpacity => 'Message Opacity';
 
   @override
-  String get bubbleOpacityHelp =>
-      'Controls the transparency of message bubbles when a background is active.';
+  String get bubbleOpacityHelp => 'Controls the transparency of message bubbles when a background is active.';
 }

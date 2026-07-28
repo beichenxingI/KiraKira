@@ -1,0 +1,166 @@
+﻿appTitle ||| NativeTavern
+json ||| JSON
+topP ||| Top P
+topK ||| Top K
+openai ||| OpenAI
+claude ||| Claude
+openRouter ||| OpenRouter
+gemini ||| Gemini
+ollama ||| Ollama
+koboldCpp ||| KoboldCpp
+duplicate ||| Duplicate
+creating ||| Creating...
+byCreator ||| by {creator}
+versionLabel ||| v{version}
+embeddedLorebook ||| Embedded Lorebook
+postHistoryInstructions ||| Post-History Instructions
+change ||| Change
+instructTemplate ||| Instruct Template
+llmConnection ||| LLM Connection
+fullControlOverSampling ||| Full control over sampling parameters
+notSet ||| Not set
+enterApiKey ||| Enter your API key
+apiEndpointUrl ||| API endpoint URL
+connected ||| Connected
+newGroup ||| New Group
+supportsPngCharxJson ||| Supports PNG, CharX, and JSON formats
+charxArchive ||| CharX Archive
+basicSampling ||| Basic Sampling
+temperatureDescription ||| Controls randomness. Higher = more creative, lower = more focused.
+typicalP ||| Typical P
+tailFreeSamplingTfs ||| Tail Free Sampling (TFS)
+repetitionControl ||| Repetition Control
+repetitionPenaltyRange ||| Repetition Penalty Range
+off ||| Off
+mirostatTau ||| Mirostat Tau
+mirostatTauDescription ||| Target entropy/perplexity.
+mirostatEta ||| Mirostat Eta
+seed ||| Seed
+seedDescription ||| Random seed for reproducibility. -1 = random.
+solidColors ||| Solid Colors
+adjustments ||| Adjustments
+fromUrl ||| From URL
+urlLabel ||| URL: {url}
+blurEffect ||| Blur Effect
+blurAmount ||| Blur Amount
+guidanceScale ||| Guidance Scale
+aboutCfgScale ||| About CFG Scale
+sampleMessage1 ||| Hello! How are you?
+sampleMessage2 ||| I'm doing great!
+apiEndpoint ||| API Endpoint
+steps ||| Steps
+sampler ||| Sampler
+imagineCommand ||| /imagine Command
+stableDiffusion ||| Stable Diffusion
+dalle ||| DALL-E
+generating ||| Generating...
+none ||| None
+biasEntries ||| Bias Entries
+noBiasEntries ||| No bias entries
+textTokenHint ||| word, {verbatim}, or [1234]
+bias ||| Bias
+moreOptions ||| More options
+noQuickReplies ||| No quick replies
+buttonLabelHint ||| e.g., Yes, Continue, Think...
+leaveEmptyForContinue ||| Leave empty for continue action
+slashCommandsLabel ||| Slash Commands
+patternFormat ||| Pattern Format
+patternFormatDescription ||| Use /pattern/flags format (e.g., /hello/gi) or plain patterns. Flags: i=case-insensitive, m=multiline, s=dotall
+pasteJsonArray ||| Paste JSON array of scripts
+newScript ||| New Script
+findPattern ||| Find Pattern
+patternOrPlainPattern ||| /pattern/flags or plain pattern
+replaceWith ||| Replace With
+useCaptureGroups ||| Use \$1, \$2 for capture groups
+options ||| Options
+markdownOnly ||| Markdown Only
+patternLabel ||| Pattern
+patternHint ||| /pattern/flags
+replacementLabel ||| Replacement
+replacementHint ||| $1, $2, '{match}'
+display ||| Display
+howItWorks ||| How it works
+supportedFormatsSprites ||| Supported formats: PNG, JPG, GIF, WebP
+firstUsed ||| First Used
+unknown ||| Unknown
+timeline ||| Timeline
+sttProvider ||| STT Provider
+final_ ||| Final
+aboutStt ||| About STT
+whisper ||| Whisper
+tellMeAStory ||| Tell me a story!
+background ||| Background
+surface ||| Surface
+card ||| Card
+hexColor ||| Hex Color
+quickEstimate ||| Quick Estimate
+unique ||| Unique
+avgLength ||| Avg Length
+longest ||| Longest
+translateAiResponses ||| Translate AI Responses
+readAiResponsesAloud ||| Read AI responses aloud
+ttsProvider ||| TTS Provider
+pitch ||| Pitch
+volume ||| Volume
+embeddingProvider ||| Embedding Provider
+chunkOverlap ||| Chunk Overlap
+basic ||| Basic
+meta ||| Meta
+systemPromptHint ||| You are {char}. You will...
+postHistoryInstructionsHint ||| Continue the roleplay as {char}...
+firstMessageHint ||| *walks into the room* Hello, {user}!
+greeting ||| Greeting {index}
+moveUp ||| Move up
+moveDown ||| Move down
+exampleMessagesHint ||| <START>\n{user}: How are you?\n{char}: I'm doing well, thanks for asking!
+tagsHint ||| fantasy, female, adventure
+creator ||| Creator
+modified ||| Modified: {date}
+sequential ||| Sequential
+random ||| Random
+allAtOnce ||| All at Once
+natural ||| Natural
+talkativenessPercent ||| Talkativeness: {percent}%
+triggers ||| Triggers: {words}
+mute ||| Mute
+unmute ||| Unmute
+talkativenessLabel ||| Talkativeness: {percent}%
+triggerWords ||| Trigger Words
+triggerWordsHint ||| word1, word2, word3
+noTagsYet ||| No tags yet
+iconEmoji ||| Icon (emoji)
+noLorebooksYet ||| No Lorebooks yet
+noEntriesYet ||| No entries yet
+constant ||| Constant
+secondaryKeysHint ||| fire, flame
+noteForThisEntry ||| Note for this entry
+pleaseEnterAtLeastOneKeyword ||| Please enter at least one keyword
+anthropic ||| Anthropic
+cohere ||| Cohere
+apiEndpointHint ||| https://api.example.com/v1
+temperatureValue ||| {value}
+maxTokensValue ||| {value}
+topPValue ||| {value}
+frequencyPenaltyValue ||| {value}
+presencePenaltyValue ||| {value}
+streamResponse ||| Stream Response
+sortBy ||| Sort by
+filterByTags ||| Filter by tags
+favorites ||| Favorites
+manage ||| Manage
+done ||| Done
+injectionDepth ||| Injection Depth
+branchFromBookmark ||| Branch from Bookmark
+branch ||| Branch
+branchFromHere ||| Branch from here
+you ||| You
+assistant ||| Assistant
+reasoningCopiedToClipboard ||| Reasoning copied to clipboard
+commands ||| Commands
+aliasesLabel ||| Aliases: {aliases}
+beforeAuthorNote ||| Before Author's Note
+afterAuthorNote ||| After Author's Note
+atDepth ||| At Depth
+insertionOrder ||| Insertion Order
+lowerOrderInsertsFirst ||| Lower order values are inserted first
+requiresSecondaryKey ||| Requires both primary AND secondary key to match

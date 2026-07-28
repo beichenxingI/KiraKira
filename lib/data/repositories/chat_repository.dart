@@ -162,6 +162,10 @@ class ChatRepository {
     return message;
   }
 
+  /// 清空指定对话的所有消息（导入覆盖时使用）
+  Future<void> clearMessages(String chatId) async {
+    await (_db.delete(_db.messages)..where((t) => t.chatId.equals(chatId))).go();
+  }
   /// Delete a message
   Future<void> deleteMessage(String id) async {
     await (_db.delete(_db.messages)..where((t) => t.id.equals(id))).go();

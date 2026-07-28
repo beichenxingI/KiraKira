@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -8,6 +8,7 @@ import 'settings_providers.dart';
 import 'prompt_manager_providers.dart';
 import 'instruct_providers.dart';
 import '../../domain/services/llm_service.dart';
+import 'regex_providers.dart';
 
 const _customPresetsKey = 'ai_custom_presets';
 const _activePresetIdKey = 'ai_active_preset_id';
@@ -61,8 +62,22 @@ class AICustomPresetsNotifier extends StateNotifier<List<AIPreset>> {
 
   /// Delete a preset
   Future<void> deletePreset(String id) async {
+    // Find the preset before deleting to get bound IDs
+    final preset = state.where((p) => p.id == id).firstOrNull;
     state = state.where((p) => p.id != id).toList();
     await _save();
+
+    // Clean up bound prompt preset
+    if (preset?.boundPromptPresetId != null) {
+      await _prefs.remove('prompt_manager_active_preset_id');
+    }
+
+    // Clean up bound regex scripts — handled by regex_providers separately
+    // Just clear active state if this preset was active
+    final activeId = _prefs.getString('ai_active_preset_id');
+    if (activeId == id) {
+      await _prefs.remove('ai_active_preset_id');
+    }
   }
 
   /// Import a preset from JSON (supports both SillyTavern and KiraKira formats)
@@ -146,14 +161,9 @@ class AIPresetManager {
     final instructTemplateId = _ref.read(activeInstructTemplateIdProvider);
     final allProviderConfigs = await llmNotifier.getAllProviderConfigs();
 
-    final updatedPreset = AIPreset(
-      id: activeId,
-      name: activePreset.name,
-      description: activePreset.description,
-      isBuiltIn: false, // Once saved to custom storage, it's no longer built-in
-      createdAt: activePreset.createdAt,
-      updatedAt: DateTime.now(),
-      generationSettings: GenerationPreset(
+    final updatedPreset = activePreset.copyWith(
+      isBuiltIn: false,
+      updatedAt: DateTime.now(),generationSettings: GenerationPreset(
         temperature: llmConfig.temperature,
         topP: llmConfig.topP,
         topK: llmConfig.topK,
@@ -171,8 +181,7 @@ class AIPresetManager {
         maxTokens: llmConfig.maxTokens,
         stopSequences: llmConfig.stopSequences,
         seed: llmConfig.seed,
-        streamEnabled: llmConfig.streamEnabled,
-      ),
+        streamEnabled: llmConfig.streamEnabled,),
       promptManagerConfig: promptConfig,
       instructTemplateId: instructTemplateId,
       provider: llmConfig.provider.name,
@@ -240,9 +249,21 @@ class AIPresetManager {
       }
     }
 
-    // Apply prompt manager config (reset to default if not present)
+    // Apply prompt manager config
+    // Priority: boundPromptPresetId > inline promptManagerConfig > default
     final promptNotifier = _ref.read(promptManagerProvider.notifier);
-    if (preset.promptManagerConfig != null) {
+    if (preset.boundPromptPresetId != null) {
+      // Switch to the bound prompt preset
+      await _ref.read(activePresetIdProvider.notifier)
+          .setActivePreset(preset.boundPromptPresetId);
+      final allPromptPresets = _ref.read(allPresetsProvider);
+      final boundPromptPreset = allPromptPresets
+          .where((p) => p.id == preset.boundPromptPresetId)
+          .firstOrNull;
+      if (boundPromptPreset != null) {
+        await promptNotifier.applyPreset(boundPromptPreset);
+      }
+    } else if (preset.promptManagerConfig != null) {
       await promptNotifier.applyPreset(PromptManagerPreset(
         id: preset.id,
         name: preset.name,
@@ -251,8 +272,14 @@ class AIPresetManager {
         updatedAt: preset.updatedAt,
       ));
     } else {
-      // Reset to default prompt manager config when preset doesn't have one
       await promptNotifier.resetToDefault();
+    }
+
+    // Apply bound regex scripts —— 无论是否为空都调用：
+    // 空列表会禁用所有全局正则，从而清除上一个预设残留的正则。
+    {
+      final regexNotifier = _ref.read(globalRegexScriptsProvider.notifier);
+      await regexNotifier.setActiveScripts(preset.boundRegexScriptIds);
     }
 
     // Apply instruct template if present

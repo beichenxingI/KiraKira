@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -79,8 +79,7 @@ import 'app_localizations_zh.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale)
-      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -88,8 +87,7 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate =
-      _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -101,8 +99,7 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
     delegate,
     GlobalMaterialLocalizations.delegate,
     GlobalCupertinoLocalizations.delegate,
@@ -133,6567 +130,6572 @@ abstract class AppLocalizations {
     Locale('zh', 'TW')
   ];
 
-  /// The application title
+  /// No description provided for @appTitle.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'KiraKira'**
   String get appTitle;
 
-  /// Home navigation label
+  /// No description provided for @home.
   ///
-  /// In en, this message translates to:
-  /// **'Home'**
+  /// In zh, this message translates to:
+  /// **'首页'**
   String get home;
 
-  /// Characters navigation label
+  /// No description provided for @characters.
   ///
-  /// In en, this message translates to:
-  /// **'Characters'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get characters;
 
-  /// Settings navigation label
+  /// No description provided for @settings.
   ///
-  /// In en, this message translates to:
-  /// **'Settings'**
+  /// In zh, this message translates to:
+  /// **'设置'**
   String get settings;
 
-  /// Chats navigation label
+  /// No description provided for @chats.
   ///
-  /// In en, this message translates to:
-  /// **'Chats'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get chats;
 
-  /// New chat button label
+  /// No description provided for @newChat.
   ///
-  /// In en, this message translates to:
-  /// **'New Chat'**
+  /// In zh, this message translates to:
+  /// **'新建聊天'**
   String get newChat;
 
-  /// Empty state message when no chats exist
+  /// No description provided for @noChatsYet.
   ///
-  /// In en, this message translates to:
-  /// **'No chats yet'**
+  /// In zh, this message translates to:
+  /// **'暂无聊天'**
   String get noChatsYet;
 
-  /// Empty state subtitle
+  /// No description provided for @startNewConversation.
   ///
-  /// In en, this message translates to:
-  /// **'Start a new conversation with a character'**
+  /// In zh, this message translates to:
+  /// **'开始与角色对话'**
   String get startNewConversation;
 
-  /// Button to browse characters
+  /// No description provided for @browseCharacters.
   ///
-  /// In en, this message translates to:
-  /// **'Browse Characters'**
+  /// In zh, this message translates to:
+  /// **'浏览角色'**
   String get browseCharacters;
 
-  /// Group chats tooltip
+  /// No description provided for @groupChats.
   ///
-  /// In en, this message translates to:
-  /// **'Group Chats'**
+  /// In zh, this message translates to:
+  /// **'群聊'**
   String get groupChats;
 
-  /// Import button tooltip
+  /// No description provided for @import.
   ///
-  /// In en, this message translates to:
-  /// **'Import'**
+  /// In zh, this message translates to:
+  /// **'导入'**
   String get import;
 
-  /// Delete action
+  /// No description provided for @delete.
   ///
-  /// In en, this message translates to:
-  /// **'Delete'**
+  /// In zh, this message translates to:
+  /// **'删除'**
   String get delete;
 
-  /// Cancel action
+  /// No description provided for @cancel.
   ///
-  /// In en, this message translates to:
-  /// **'Cancel'**
+  /// In zh, this message translates to:
+  /// **'取消'**
   String get cancel;
 
-  /// Save action
+  /// No description provided for @save.
   ///
-  /// In en, this message translates to:
-  /// **'Save'**
+  /// In zh, this message translates to:
+  /// **'保存'**
   String get save;
 
-  /// Save as action
+  /// No description provided for @edit.
   ///
-  /// In en, this message translates to:
-  /// **'Save As'**
-  String get saveAs;
-
-  /// Edit action
-  ///
-  /// In en, this message translates to:
-  /// **'Edit'**
+  /// In zh, this message translates to:
+  /// **'编辑'**
   String get edit;
 
-  /// Copy action
+  /// No description provided for @copy.
   ///
-  /// In en, this message translates to:
-  /// **'Copy'**
+  /// In zh, this message translates to:
+  /// **'复制'**
   String get copy;
 
-  /// Retry action
+  /// No description provided for @retry.
   ///
-  /// In en, this message translates to:
-  /// **'Retry'**
+  /// In zh, this message translates to:
+  /// **'重试'**
   String get retry;
 
-  /// Close action
+  /// No description provided for @close.
   ///
-  /// In en, this message translates to:
-  /// **'Close'**
+  /// In zh, this message translates to:
+  /// **'关闭'**
   String get close;
 
-  /// OK action
+  /// No description provided for @ok.
   ///
-  /// In en, this message translates to:
-  /// **'OK'**
+  /// In zh, this message translates to:
+  /// **'确定'**
   String get ok;
 
-  /// Yes action
+  /// No description provided for @yes.
   ///
-  /// In en, this message translates to:
-  /// **'Yes'**
+  /// In zh, this message translates to:
+  /// **'是'**
   String get yes;
 
-  /// No action
+  /// No description provided for @no.
   ///
-  /// In en, this message translates to:
-  /// **'No'**
+  /// In zh, this message translates to:
+  /// **'否'**
   String get no;
 
-  /// Loading indicator text
+  /// No description provided for @loading.
   ///
-  /// In en, this message translates to:
-  /// **'Loading...'**
+  /// In zh, this message translates to:
+  /// **'加载中...'**
   String get loading;
 
-  /// Error label
+  /// No description provided for @error.
   ///
-  /// In en, this message translates to:
-  /// **'Error'**
+  /// In zh, this message translates to:
+  /// **'错误'**
   String get error;
 
-  /// Error message when loading chats fails
+  /// No description provided for @errorLoadingChats.
   ///
-  /// In en, this message translates to:
-  /// **'Error loading chats: {error}'**
-  String errorLoadingChats(String error);
+  /// In zh, this message translates to:
+  /// **'加载聊天失败：{error}'**
+  String errorLoadingChats(Object error);
 
-  /// Delete chat dialog title
+  /// No description provided for @deleteChat.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Chat'**
+  /// In zh, this message translates to:
+  /// **'删除聊天'**
   String get deleteChat;
 
-  /// Delete chat confirmation message
+  /// No description provided for @deleteChatConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete this chat? This action cannot be undone.'**
+  /// In zh, this message translates to:
+  /// **'确定要删除此聊天吗？此操作无法撤销。'**
   String get deleteChatConfirmation;
 
-  /// Chat deleted snackbar message
+  /// No description provided for @chatDeleted.
   ///
-  /// In en, this message translates to:
-  /// **'Chat deleted'**
+  /// In zh, this message translates to:
+  /// **'聊天已删除'**
   String get chatDeleted;
 
-  /// Yesterday time label
+  /// No description provided for @yesterday.
   ///
-  /// In en, this message translates to:
-  /// **'Yesterday'**
+  /// In zh, this message translates to:
+  /// **'昨天'**
   String get yesterday;
 
-  /// Days ago time label
+  /// No description provided for @daysAgo.
   ///
-  /// In en, this message translates to:
-  /// **'{count} days ago'**
-  String daysAgo(int count);
+  /// In zh, this message translates to:
+  /// **'{count}天前'**
+  String daysAgo(Object count);
 
-  /// No messages placeholder
+  /// No description provided for @noMessages.
   ///
-  /// In en, this message translates to:
-  /// **'No messages'**
+  /// In zh, this message translates to:
+  /// **'暂无消息'**
   String get noMessages;
 
-  /// No messages yet placeholder
+  /// No description provided for @noMessagesYet.
   ///
-  /// In en, this message translates to:
-  /// **'No messages yet'**
+  /// In zh, this message translates to:
+  /// **'暂无消息'**
   String get noMessagesYet;
 
-  /// Chat label
+  /// No description provided for @chat.
   ///
-  /// In en, this message translates to:
-  /// **'Chat'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get chat;
 
-  /// Message input placeholder
+  /// No description provided for @typeMessage.
   ///
-  /// In en, this message translates to:
-  /// **'Type a message...'**
+  /// In zh, this message translates to:
+  /// **'输入消息...'**
   String get typeMessage;
 
-  /// Send button label
+  /// No description provided for @send.
   ///
-  /// In en, this message translates to:
-  /// **'Send'**
+  /// In zh, this message translates to:
+  /// **'发送'**
   String get send;
 
-  /// Regenerate response button
+  /// No description provided for @regenerate.
   ///
-  /// In en, this message translates to:
-  /// **'Regenerate'**
+  /// In zh, this message translates to:
+  /// **'重新生成'**
   String get regenerate;
 
-  /// Continue generation button
+  /// No description provided for @continueGeneration.
   ///
-  /// In en, this message translates to:
-  /// **'Continue'**
+  /// In zh, this message translates to:
+  /// **'继续'**
   String get continueGeneration;
 
-  /// View character menu item
+  /// No description provided for @viewCharacter.
   ///
-  /// In en, this message translates to:
-  /// **'View Character'**
+  /// In zh, this message translates to:
+  /// **'查看角色'**
   String get viewCharacter;
 
-  /// Author's note label
+  /// No description provided for @authorsNote.
   ///
-  /// In en, this message translates to:
-  /// **'Author\'s Note'**
+  /// In zh, this message translates to:
+  /// **'作者注释'**
   String get authorsNote;
 
-  /// Bookmarks label
+  /// No description provided for @bookmarks.
   ///
-  /// In en, this message translates to:
-  /// **'Bookmarks'**
+  /// In zh, this message translates to:
+  /// **'书签'**
   String get bookmarks;
 
-  /// Export chat menu item
+  /// No description provided for @exportChat.
   ///
-  /// In en, this message translates to:
-  /// **'Export Chat'**
+  /// In zh, this message translates to:
+  /// **'导出聊天'**
   String get exportChat;
 
-  /// Import chat menu item
+  /// No description provided for @importChat.
   ///
-  /// In en, this message translates to:
-  /// **'Import Chat'**
+  /// In zh, this message translates to:
+  /// **'导入聊天'**
   String get importChat;
 
-  /// Clear messages menu item
+  /// No description provided for @clearMessages.
   ///
-  /// In en, this message translates to:
-  /// **'Clear Messages'**
+  /// In zh, this message translates to:
+  /// **'清空消息'**
   String get clearMessages;
 
-  /// Select model dialog title
+  /// No description provided for @selectModel.
   ///
-  /// In en, this message translates to:
-  /// **'Select Model'**
+  /// In zh, this message translates to:
+  /// **'选择模型'**
   String get selectModel;
 
-  /// Loading models indicator
+  /// No description provided for @loadingModels.
   ///
-  /// In en, this message translates to:
-  /// **'Loading models...'**
+  /// In zh, this message translates to:
+  /// **'加载模型中...'**
   String get loadingModels;
 
-  /// No models available message
+  /// No description provided for @noModelsAvailable.
   ///
-  /// In en, this message translates to:
-  /// **'No models available. Check your API configuration.'**
+  /// In zh, this message translates to:
+  /// **'没有可用的模型。请检查API配置。'**
   String get noModelsAvailable;
 
-  /// Model changed snackbar message
+  /// No description provided for @modelChangedTo.
   ///
-  /// In en, this message translates to:
-  /// **'Model changed to {model}'**
-  String modelChangedTo(String model);
+  /// In zh, this message translates to:
+  /// **'模型已切换为 {model}'**
+  String modelChangedTo(Object model);
 
-  /// Failed to load models error message
+  /// No description provided for @failedToLoadModels.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to load models: {error}'**
-  String failedToLoadModels(String error);
+  /// In zh, this message translates to:
+  /// **'加载模型失败：{error}'**
+  String failedToLoadModels(Object error);
 
-  /// Search models placeholder
+  /// No description provided for @searchModels.
   ///
-  /// In en, this message translates to:
-  /// **'Search models...'**
+  /// In zh, this message translates to:
+  /// **'搜索模型...'**
   String get searchModels;
 
-  /// No models match search message
+  /// No description provided for @noModelsMatchSearch.
   ///
-  /// In en, this message translates to:
-  /// **'No models match your search'**
+  /// In zh, this message translates to:
+  /// **'没有匹配的模型'**
   String get noModelsMatchSearch;
 
-  /// Provider label
+  /// No description provided for @provider.
   ///
-  /// In en, this message translates to:
-  /// **'Provider'**
+  /// In zh, this message translates to:
+  /// **'提供商'**
   String get provider;
 
-  /// API not configured title
+  /// No description provided for @apiNotConfigured.
   ///
-  /// In en, this message translates to:
-  /// **'API Not Configured'**
+  /// In zh, this message translates to:
+  /// **'API未配置'**
   String get apiNotConfigured;
 
-  /// API not configured message
+  /// No description provided for @apiNotConfiguredMessage.
   ///
-  /// In en, this message translates to:
-  /// **'To chat with characters, you need to configure an LLM provider first.'**
+  /// In zh, this message translates to:
+  /// **'要与角色聊天，您需要先配置LLM提供商。'**
   String get apiNotConfiguredMessage;
 
-  /// Supported providers label
+  /// No description provided for @supportedProviders.
   ///
-  /// In en, this message translates to:
-  /// **'Supported providers:'**
+  /// In zh, this message translates to:
+  /// **'支持的提供商：'**
   String get supportedProviders;
 
-  /// Configure now button
+  /// No description provided for @configureNow.
   ///
-  /// In en, this message translates to:
-  /// **'Configure Now'**
+  /// In zh, this message translates to:
+  /// **'立即配置'**
   String get configureNow;
 
-  /// Later button
+  /// No description provided for @later.
   ///
-  /// In en, this message translates to:
-  /// **'Later'**
+  /// In zh, this message translates to:
+  /// **'稍后'**
   String get later;
 
-  /// Configure button
+  /// No description provided for @configure.
   ///
-  /// In en, this message translates to:
-  /// **'Configure'**
+  /// In zh, this message translates to:
+  /// **'配置'**
   String get configure;
 
-  /// Configure API provider message
+  /// No description provided for @configureApiProvider.
   ///
-  /// In en, this message translates to:
-  /// **'Configure an LLM provider to start chatting'**
+  /// In zh, this message translates to:
+  /// **'配置LLM提供商以开始聊天'**
   String get configureApiProvider;
 
-  /// Start conversation message
+  /// No description provided for @startConversation.
   ///
-  /// In en, this message translates to:
-  /// **'Start a conversation'**
+  /// In zh, this message translates to:
+  /// **'开始对话'**
   String get startConversation;
 
-  /// Delete message dialog title
+  /// No description provided for @deleteMessage.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Message'**
+  /// In zh, this message translates to:
+  /// **'删除消息'**
   String get deleteMessage;
 
-  /// Delete message confirmation
+  /// No description provided for @deleteMessageConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete this message?'**
+  /// In zh, this message translates to:
+  /// **'确定要删除此消息吗？'**
   String get deleteMessageConfirmation;
 
-  /// Delete messages dialog title
+  /// No description provided for @deleteMessages.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Messages'**
+  /// In zh, this message translates to:
+  /// **'删除消息'**
   String get deleteMessages;
 
-  /// Delete messages confirmation
+  /// No description provided for @deleteMessagesConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete this message and all messages after it?'**
+  /// In zh, this message translates to:
+  /// **'确定要删除此消息及之后的所有消息吗？'**
   String get deleteMessagesConfirmation;
 
-  /// Delete all button
+  /// No description provided for @deleteAll.
   ///
-  /// In en, this message translates to:
-  /// **'Delete All'**
+  /// In zh, this message translates to:
+  /// **'全部删除'**
   String get deleteAll;
 
-  /// Copied to clipboard snackbar
+  /// No description provided for @copiedToClipboard.
   ///
-  /// In en, this message translates to:
-  /// **'Copied to clipboard'**
+  /// In zh, this message translates to:
+  /// **'已复制到剪贴板'**
   String get copiedToClipboard;
 
-  /// Regenerate tooltip
+  /// No description provided for @generateNewResponse.
   ///
-  /// In en, this message translates to:
-  /// **'Generate a new response alternative'**
+  /// In zh, this message translates to:
+  /// **'生成新的回复'**
   String get generateNewResponse;
 
-  /// Continue from here menu item
+  /// No description provided for @continueFromHere.
   ///
-  /// In en, this message translates to:
-  /// **'Continue from here'**
+  /// In zh, this message translates to:
+  /// **'从此处继续'**
   String get continueFromHere;
 
-  /// Continue from here description for user messages
+  /// No description provided for @deleteMessagesAfterAndRegenerate.
   ///
-  /// In en, this message translates to:
-  /// **'Delete messages after and regenerate response'**
+  /// In zh, this message translates to:
+  /// **'删除之后的消息并重新生成回复'**
   String get deleteMessagesAfterAndRegenerate;
 
-  /// Continue from here description for assistant messages
+  /// No description provided for @deleteMessagesAfterThis.
   ///
-  /// In en, this message translates to:
-  /// **'Delete messages after this one'**
+  /// In zh, this message translates to:
+  /// **'删除此消息之后的所有消息'**
   String get deleteMessagesAfterThis;
 
-  /// Create bookmark menu item
+  /// No description provided for @createBookmark.
   ///
-  /// In en, this message translates to:
-  /// **'Create Bookmark'**
+  /// In zh, this message translates to:
+  /// **'创建书签'**
   String get createBookmark;
 
-  /// Create bookmark description
+  /// No description provided for @saveAsCheckpoint.
   ///
-  /// In en, this message translates to:
-  /// **'Save this point as a checkpoint'**
+  /// In zh, this message translates to:
+  /// **'将此处保存为检查点'**
   String get saveAsCheckpoint;
 
-  /// Delete this message menu item
+  /// No description provided for @deleteThisMessage.
   ///
-  /// In en, this message translates to:
-  /// **'Delete this message'**
+  /// In zh, this message translates to:
+  /// **'删除此消息'**
   String get deleteThisMessage;
 
-  /// Delete this and all after menu item
+  /// No description provided for @deleteThisAndAllAfter.
   ///
-  /// In en, this message translates to:
-  /// **'Delete this and all after'**
+  /// In zh, this message translates to:
+  /// **'删除此消息及之后的所有消息'**
   String get deleteThisAndAllAfter;
 
-  /// Attach image tooltip
+  /// No description provided for @attachImage.
   ///
-  /// In en, this message translates to:
-  /// **'Attach image'**
+  /// In zh, this message translates to:
+  /// **'附加图片'**
   String get attachImage;
 
-  /// Formatting button label in chat input menu
+  /// No description provided for @formatting.
   ///
-  /// In en, this message translates to:
-  /// **'Formatting'**
+  /// In zh, this message translates to:
+  /// **'格式化'**
   String get formatting;
 
-  /// Choose from gallery option
+  /// No description provided for @chooseFromGallery.
   ///
-  /// In en, this message translates to:
-  /// **'Choose from Gallery'**
+  /// In zh, this message translates to:
+  /// **'从相册选择'**
   String get chooseFromGallery;
 
-  /// Take photo option
+  /// No description provided for @takePhoto.
   ///
-  /// In en, this message translates to:
-  /// **'Take Photo'**
+  /// In zh, this message translates to:
+  /// **'拍照'**
   String get takePhoto;
 
-  /// Failed to pick image error
+  /// No description provided for @failedToPickImage.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to pick image: {error}'**
-  String failedToPickImage(String error);
+  /// In zh, this message translates to:
+  /// **'选择图片失败：{error}'**
+  String failedToPickImage(Object error);
 
-  /// Failed to take photo error
+  /// No description provided for @failedToTakePhoto.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to take photo: {error}'**
-  String failedToTakePhoto(String error);
+  /// In zh, this message translates to:
+  /// **'拍照失败：{error}'**
+  String failedToTakePhoto(Object error);
 
-  /// Failed to add attachment error
+  /// No description provided for @failedToAddAttachment.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to add attachment: {error}'**
-  String failedToAddAttachment(String error);
+  /// In zh, this message translates to:
+  /// **'添加附件失败：{error}'**
+  String failedToAddAttachment(Object error);
 
-  /// Export chat dialog subtitle
+  /// No description provided for @exportChatWith.
   ///
-  /// In en, this message translates to:
-  /// **'Export chat with {character}'**
-  String exportChatWith(String character);
+  /// In zh, this message translates to:
+  /// **'导出与 {character} 的聊天'**
+  String exportChatWith(Object character);
 
-  /// Messages count
+  /// No description provided for @messagesCount.
   ///
-  /// In en, this message translates to:
-  /// **'{count} messages'**
-  String messagesCount(int count);
+  /// In zh, this message translates to:
+  /// **'{count} 条消息'**
+  String messagesCount(Object count);
 
-  /// Choose export format label
+  /// No description provided for @chooseExportFormat.
   ///
-  /// In en, this message translates to:
-  /// **'Choose export format:'**
+  /// In zh, this message translates to:
+  /// **'选择导出格式：'**
   String get chooseExportFormat;
 
-  /// JSON format
+  /// No description provided for @json.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'JSON'**
   String get json;
 
-  /// JSONL SillyTavern format
+  /// No description provided for @jsonlStFormat.
   ///
-  /// In en, this message translates to:
-  /// **'JSONL (ST Format)'**
+  /// In zh, this message translates to:
+  /// **'JSONL (ST格式)'**
   String get jsonlStFormat;
 
-  /// No chat to export message
+  /// No description provided for @noChatToExport.
   ///
-  /// In en, this message translates to:
-  /// **'No chat to export'**
+  /// In zh, this message translates to:
+  /// **'没有可导出的聊天'**
   String get noChatToExport;
 
-  /// Export failed error
+  /// No description provided for @exportFailed.
   ///
-  /// In en, this message translates to:
-  /// **'Export failed: {error}'**
-  String exportFailed(String error);
+  /// In zh, this message translates to:
+  /// **'导出失败：{error}'**
+  String exportFailed(Object error);
 
-  /// Import chat description
+  /// No description provided for @importChatHistory.
   ///
-  /// In en, this message translates to:
-  /// **'Import chat history from a file.'**
+  /// In zh, this message translates to:
+  /// **'从文件导入聊天记录。'**
   String get importChatHistory;
 
-  /// Supported formats label
+  /// No description provided for @supportedFormats.
   ///
-  /// In en, this message translates to:
-  /// **'Supported formats:'**
+  /// In zh, this message translates to:
+  /// **'支持的格式：'**
   String get supportedFormats;
 
-  /// JSONL SillyTavern format description
+  /// No description provided for @jsonlSillyTavernFormat.
   ///
-  /// In en, this message translates to:
-  /// **'JSONL (SillyTavern format)'**
+  /// In zh, this message translates to:
+  /// **'JSONL (SillyTavern格式)'**
   String get jsonlSillyTavernFormat;
 
-  /// JSON KiraKira format description
+  /// No description provided for @jsonNativeTavernFormat.
   ///
-  /// In en, this message translates to:
-  /// **'JSON (KiraKira format)'**
-  String get jsonKiraKiraFormat;
+  /// In zh, this message translates to:
+  /// **'JSON (NativeTavern格式)'**
+  String get jsonNativeTavernFormat;
 
-  /// Import note
+  /// No description provided for @importNote.
   ///
-  /// In en, this message translates to:
-  /// **'Note: Imported messages will be added to the current chat.'**
+  /// In zh, this message translates to:
+  /// **'注意：导入的消息将添加到当前聊天中。'**
   String get importNote;
 
-  /// Choose file button
+  /// No description provided for @chooseFile.
   ///
-  /// In en, this message translates to:
-  /// **'Choose File'**
+  /// In zh, this message translates to:
+  /// **'选择文件'**
   String get chooseFile;
 
-  /// No file selected message
+  /// No description provided for @noFileSelected.
   ///
-  /// In en, this message translates to:
-  /// **'No file selected or invalid format'**
+  /// In zh, this message translates to:
+  /// **'未选择文件或格式无效'**
   String get noFileSelected;
 
-  /// Import confirmation dialog title
+  /// No description provided for @importConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Import Confirmation'**
+  /// In zh, this message translates to:
+  /// **'导入确认'**
   String get importConfirmation;
 
-  /// Character label
+  /// No description provided for @character.
   ///
-  /// In en, this message translates to:
-  /// **'Character'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get character;
 
-  /// User label
+  /// No description provided for @user.
   ///
-  /// In en, this message translates to:
-  /// **'User'**
+  /// In zh, this message translates to:
+  /// **'用户'**
   String get user;
 
-  /// Messages label
+  /// No description provided for @messages.
   ///
-  /// In en, this message translates to:
-  /// **'Messages'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get messages;
 
-  /// Date label
+  /// No description provided for @date.
   ///
-  /// In en, this message translates to:
-  /// **'Date'**
+  /// In zh, this message translates to:
+  /// **'日期'**
   String get date;
 
-  /// Has author's note label
+  /// No description provided for @hasAuthorsNote.
   ///
-  /// In en, this message translates to:
-  /// **'Has Author\'s Note'**
+  /// In zh, this message translates to:
+  /// **'包含作者注释'**
   String get hasAuthorsNote;
 
-  /// Import confirmation question
+  /// No description provided for @importMessagesToCurrentChat.
   ///
-  /// In en, this message translates to:
-  /// **'Import these messages to the current chat?'**
+  /// In zh, this message translates to:
+  /// **'将这些消息导入到当前聊天？'**
   String get importMessagesToCurrentChat;
 
-  /// No active chat message
+  /// No description provided for @noActiveChat.
   ///
-  /// In en, this message translates to:
-  /// **'No active chat'**
+  /// In zh, this message translates to:
+  /// **'没有活动的聊天'**
   String get noActiveChat;
 
-  /// Imported messages snackbar
+  /// No description provided for @importedMessages.
   ///
-  /// In en, this message translates to:
-  /// **'Imported {count} messages'**
-  String importedMessages(int count);
+  /// In zh, this message translates to:
+  /// **'已导入 {count} 条消息'**
+  String importedMessages(Object count);
 
-  /// Import failed error
+  /// No description provided for @importFailed.
   ///
-  /// In en, this message translates to:
-  /// **'Import failed: {error}'**
-  String importFailed(String error);
+  /// In zh, this message translates to:
+  /// **'导入失败：{error}'**
+  String importFailed(Object error);
 
-  /// Clear messages confirmation
+  /// No description provided for @clearMessagesConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to clear all messages? This cannot be undone.'**
+  /// In zh, this message translates to:
+  /// **'确定要清空所有消息吗？此操作无法撤销。'**
   String get clearMessagesConfirmation;
 
-  /// Clear button
+  /// No description provided for @clear.
   ///
-  /// In en, this message translates to:
-  /// **'Clear'**
+  /// In zh, this message translates to:
+  /// **'清空'**
   String get clear;
 
-  /// Thinking/reasoning label
+  /// No description provided for @thinking.
   ///
-  /// In en, this message translates to:
-  /// **'Thinking'**
+  /// In zh, this message translates to:
+  /// **'思考中'**
   String get thinking;
 
-  /// No swipes available message
+  /// No description provided for @noSwipesAvailable.
   ///
-  /// In en, this message translates to:
-  /// **'No swipes available'**
+  /// In zh, this message translates to:
+  /// **'没有可用的滑动'**
   String get noSwipesAvailable;
 
-  /// System label
+  /// No description provided for @system.
   ///
-  /// In en, this message translates to:
-  /// **'System'**
+  /// In zh, this message translates to:
+  /// **'系统'**
   String get system;
 
-  /// Background feature coming soon message
+  /// No description provided for @backgroundFeatureComingSoon.
   ///
-  /// In en, this message translates to:
-  /// **'Background feature coming soon'**
+  /// In zh, this message translates to:
+  /// **'背景功能即将推出'**
   String get backgroundFeatureComingSoon;
 
-  /// Author's note updated snackbar
+  /// No description provided for @authorsNoteUpdated.
   ///
-  /// In en, this message translates to:
-  /// **'Author\'s note updated'**
+  /// In zh, this message translates to:
+  /// **'作者注释已更新'**
   String get authorsNoteUpdated;
 
-  /// Command error dialog title
+  /// No description provided for @commandError.
   ///
-  /// In en, this message translates to:
-  /// **'Command Error'**
+  /// In zh, this message translates to:
+  /// **'命令错误'**
   String get commandError;
 
-  /// Enabled label
+  /// No description provided for @enabled.
   ///
-  /// In en, this message translates to:
-  /// **'Enabled'**
+  /// In zh, this message translates to:
+  /// **'已启用'**
   String get enabled;
 
-  /// Disabled label
+  /// No description provided for @disabled.
   ///
-  /// In en, this message translates to:
-  /// **'Disabled'**
+  /// In zh, this message translates to:
+  /// **'已禁用'**
   String get disabled;
 
-  /// Personas screen title
+  /// No description provided for @personas.
   ///
-  /// In en, this message translates to:
-  /// **'Personas'**
+  /// In zh, this message translates to:
+  /// **'人设'**
   String get personas;
 
-  /// Create persona button
+  /// No description provided for @createPersona.
   ///
-  /// In en, this message translates to:
-  /// **'Create Persona'**
+  /// In zh, this message translates to:
+  /// **'创建人设'**
   String get createPersona;
 
-  /// Edit persona dialog title
+  /// No description provided for @editPersona.
   ///
-  /// In en, this message translates to:
-  /// **'Edit Persona'**
+  /// In zh, this message translates to:
+  /// **'编辑人设'**
   String get editPersona;
 
-  /// Delete persona dialog title
+  /// No description provided for @deletePersona.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Persona'**
+  /// In zh, this message translates to:
+  /// **'删除人设'**
   String get deletePersona;
 
-  /// Delete persona confirmation
+  /// No description provided for @deletePersonaConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete \"{name}\"?'**
-  String deletePersonaConfirmation(String name);
+  /// In zh, this message translates to:
+  /// **'确定要删除\"{name}\"吗？'**
+  String deletePersonaConfirmation(Object name);
 
-  /// No personas empty state
+  /// No description provided for @noPersonasYet.
   ///
-  /// In en, this message translates to:
-  /// **'No personas yet'**
+  /// In zh, this message translates to:
+  /// **'暂无人设'**
   String get noPersonasYet;
 
-  /// Create persona description
+  /// No description provided for @createPersonaDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Create a persona to represent yourself in chats'**
+  /// In zh, this message translates to:
+  /// **'创建人设以在聊天中代表自己'**
   String get createPersonaDescription;
 
-  /// Name label
+  /// No description provided for @name.
   ///
-  /// In en, this message translates to:
-  /// **'Name'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get name;
 
-  /// Enter persona name hint
+  /// No description provided for @enterPersonaName.
   ///
-  /// In en, this message translates to:
-  /// **'Enter persona name'**
+  /// In zh, this message translates to:
+  /// **'输入人设名称'**
   String get enterPersonaName;
 
-  /// Description label
+  /// No description provided for @description.
   ///
-  /// In en, this message translates to:
-  /// **'Description'**
+  /// In zh, this message translates to:
+  /// **'描述'**
   String get description;
 
-  /// Describe persona hint
+  /// No description provided for @describePersona.
   ///
-  /// In en, this message translates to:
-  /// **'Describe this persona (optional)'**
+  /// In zh, this message translates to:
+  /// **'描述此人设（可选）'**
   String get describePersona;
 
-  /// Persona description help text
+  /// No description provided for @personaDescriptionHelp.
   ///
-  /// In en, this message translates to:
-  /// **'The description will be included in the system prompt to help the AI understand who you are.'**
+  /// In zh, this message translates to:
+  /// **'描述将包含在系统提示中，帮助AI了解您是谁。'**
   String get personaDescriptionHelp;
 
-  /// Please enter name validation
+  /// No description provided for @pleaseEnterName.
   ///
-  /// In en, this message translates to:
-  /// **'Please enter a name'**
+  /// In zh, this message translates to:
+  /// **'请输入名称'**
   String get pleaseEnterName;
 
-  /// Default label
+  /// No description provided for @default_.
   ///
-  /// In en, this message translates to:
-  /// **'Default'**
+  /// In zh, this message translates to:
+  /// **'默认'**
   String get default_;
 
-  /// Active label
+  /// No description provided for @active.
   ///
-  /// In en, this message translates to:
-  /// **'Active'**
+  /// In zh, this message translates to:
+  /// **'活动'**
   String get active;
 
-  /// Set as default menu item
+  /// No description provided for @setAsDefault.
   ///
-  /// In en, this message translates to:
-  /// **'Set as Default'**
+  /// In zh, this message translates to:
+  /// **'设为默认'**
   String get setAsDefault;
 
-  /// Remove avatar option
+  /// No description provided for @removeAvatar.
   ///
-  /// In en, this message translates to:
-  /// **'Remove Avatar'**
+  /// In zh, this message translates to:
+  /// **'移除头像'**
   String get removeAvatar;
 
-  /// Failed to save avatar error
+  /// No description provided for @failedToSaveAvatar.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to save avatar: {error}'**
-  String failedToSaveAvatar(String error);
+  /// In zh, this message translates to:
+  /// **'保存头像失败：{error}'**
+  String failedToSaveAvatar(Object error);
 
-  /// Select avatar image dialog title
+  /// No description provided for @selectAvatarImage.
   ///
-  /// In en, this message translates to:
-  /// **'Select Avatar Image'**
+  /// In zh, this message translates to:
+  /// **'选择头像图片'**
   String get selectAvatarImage;
 
-  /// AI configuration screen title
+  /// No description provided for @aiConfiguration.
   ///
-  /// In en, this message translates to:
-  /// **'AI Configuration'**
+  /// In zh, this message translates to:
+  /// **'AI配置'**
   String get aiConfiguration;
 
-  /// LLM provider label
+  /// No description provided for @llmProvider.
   ///
-  /// In en, this message translates to:
-  /// **'LLM Provider'**
+  /// In zh, this message translates to:
+  /// **'LLM提供商'**
   String get llmProvider;
 
-  /// API URL label
+  /// No description provided for @apiUrl.
   ///
-  /// In en, this message translates to:
-  /// **'API URL'**
+  /// In zh, this message translates to:
+  /// **'API地址'**
   String get apiUrl;
 
-  /// API key label
+  /// No description provided for @apiKey.
   ///
-  /// In en, this message translates to:
-  /// **'API Key'**
+  /// In zh, this message translates to:
+  /// **'API密钥'**
   String get apiKey;
 
-  /// Model label
+  /// No description provided for @model.
   ///
-  /// In en, this message translates to:
-  /// **'Model'**
+  /// In zh, this message translates to:
+  /// **'模型'**
   String get model;
 
-  /// Temperature label
+  /// No description provided for @temperature.
   ///
-  /// In en, this message translates to:
-  /// **'Temperature'**
+  /// In zh, this message translates to:
+  /// **'温度'**
   String get temperature;
 
-  /// Max tokens label
+  /// No description provided for @maxTokens.
   ///
-  /// In en, this message translates to:
-  /// **'Max Tokens'**
+  /// In zh, this message translates to:
+  /// **'最大令牌数'**
   String get maxTokens;
 
-  /// Context length label
+  /// No description provided for @topP.
   ///
-  /// In en, this message translates to:
-  /// **'Context Length'**
-  String get contextLength;
-
-  /// Context window size label
-  ///
-  /// In en, this message translates to:
-  /// **'Context Window Size'**
-  String get contextWindowSize;
-
-  /// Context length description
-  ///
-  /// In en, this message translates to:
-  /// **'Maximum number of tokens the model can process as input context.'**
-  String get contextLengthDescription;
-
-  /// Top P label
-  ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Top P'**
   String get topP;
 
-  /// Top K label
+  /// No description provided for @topK.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Top K'**
   String get topK;
 
-  /// Frequency penalty label
+  /// No description provided for @frequencyPenalty.
   ///
-  /// In en, this message translates to:
-  /// **'Frequency Penalty'**
+  /// In zh, this message translates to:
+  /// **'频率惩罚'**
   String get frequencyPenalty;
 
-  /// Presence penalty label
+  /// No description provided for @presencePenalty.
   ///
-  /// In en, this message translates to:
-  /// **'Presence Penalty'**
+  /// In zh, this message translates to:
+  /// **'存在惩罚'**
   String get presencePenalty;
 
-  /// Repetition penalty label
+  /// No description provided for @repetitionPenalty.
   ///
-  /// In en, this message translates to:
-  /// **'Repetition Penalty'**
+  /// In zh, this message translates to:
+  /// **'重复惩罚'**
   String get repetitionPenalty;
 
-  /// Streaming enabled label
+  /// No description provided for @streamingEnabled.
   ///
-  /// In en, this message translates to:
-  /// **'Streaming Enabled'**
+  /// In zh, this message translates to:
+  /// **'启用流式传输'**
   String get streamingEnabled;
 
-  /// Test connection button
+  /// No description provided for @testConnection.
   ///
-  /// In en, this message translates to:
-  /// **'Test Connection'**
+  /// In zh, this message translates to:
+  /// **'测试连接'**
   String get testConnection;
 
-  /// Connection successful message
+  /// No description provided for @connectionSuccessful.
   ///
-  /// In en, this message translates to:
-  /// **'Connection successful!'**
+  /// In zh, this message translates to:
+  /// **'连接成功！'**
   String get connectionSuccessful;
 
-  /// Connection failed message
+  /// No description provided for @connectionFailed.
   ///
-  /// In en, this message translates to:
-  /// **'Connection failed: {error}'**
-  String connectionFailed(String error);
+  /// In zh, this message translates to:
+  /// **'连接失败：{error}'**
+  String connectionFailed(Object error);
 
-  /// OpenAI provider name
+  /// No description provided for @openai.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'OpenAI'**
   String get openai;
 
-  /// Claude provider name
+  /// No description provided for @claude.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Claude'**
   String get claude;
 
-  /// OpenRouter provider name
+  /// No description provided for @openRouter.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'OpenRouter'**
   String get openRouter;
 
-  /// Gemini provider name
+  /// No description provided for @gemini.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Gemini'**
   String get gemini;
 
-  /// Ollama provider name
+  /// No description provided for @ollama.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Ollama'**
   String get ollama;
 
-  /// KoboldCpp provider name
+  /// No description provided for @koboldCpp.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'KoboldCpp'**
   String get koboldCpp;
 
-  /// Local provider indicator
+  /// No description provided for @local.
   ///
-  /// In en, this message translates to:
-  /// **'Local'**
+  /// In zh, this message translates to:
+  /// **'本地'**
   String get local;
 
-  /// AI presets screen title
+  /// No description provided for @aiPresets.
   ///
-  /// In en, this message translates to:
-  /// **'AI Presets'**
+  /// In zh, this message translates to:
+  /// **'AI预设'**
   String get aiPresets;
 
-  /// Create preset button
+  /// No description provided for @createPreset.
   ///
-  /// In en, this message translates to:
-  /// **'Create Preset'**
+  /// In zh, this message translates to:
+  /// **'创建预设'**
   String get createPreset;
 
-  /// Edit preset dialog title
+  /// No description provided for @editPreset.
   ///
-  /// In en, this message translates to:
-  /// **'Edit Preset'**
+  /// In zh, this message translates to:
+  /// **'编辑预设'**
   String get editPreset;
 
-  /// Delete preset dialog title
+  /// No description provided for @deletePreset.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Preset'**
+  /// In zh, this message translates to:
+  /// **'删除预设'**
   String get deletePreset;
 
-  /// Preset name label
+  /// No description provided for @presetName.
   ///
-  /// In en, this message translates to:
-  /// **'Preset Name'**
+  /// In zh, this message translates to:
+  /// **'预设名称'**
   String get presetName;
 
-  /// Prompt manager screen title
+  /// No description provided for @promptManager.
   ///
-  /// In en, this message translates to:
-  /// **'Prompt Manager'**
+  /// In zh, this message translates to:
+  /// **'提示词管理'**
   String get promptManager;
 
-  /// System prompt label
+  /// No description provided for @systemPrompt.
   ///
-  /// In en, this message translates to:
-  /// **'System Prompt'**
+  /// In zh, this message translates to:
+  /// **'系统提示'**
   String get systemPrompt;
 
-  /// Jailbreak prompt label
+  /// No description provided for @jailbreak.
   ///
-  /// In en, this message translates to:
-  /// **'Jailbreak'**
+  /// In zh, this message translates to:
+  /// **'越狱提示'**
   String get jailbreak;
 
-  /// World info screen title
+  /// No description provided for @worldInfo.
   ///
-  /// In en, this message translates to:
-  /// **'World Info'**
+  /// In zh, this message translates to:
+  /// **'世界信息'**
   String get worldInfo;
 
-  /// Create entry button
+  /// No description provided for @createEntry.
   ///
-  /// In en, this message translates to:
-  /// **'Create Entry'**
+  /// In zh, this message translates to:
+  /// **'创建条目'**
   String get createEntry;
 
-  /// Edit entry dialog title
+  /// No description provided for @editEntry.
   ///
-  /// In en, this message translates to:
-  /// **'Edit Entry'**
+  /// In zh, this message translates to:
+  /// **'编辑条目'**
   String get editEntry;
 
-  /// Delete entry dialog title
+  /// No description provided for @deleteEntry.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Entry'**
+  /// In zh, this message translates to:
+  /// **'删除条目'**
   String get deleteEntry;
 
-  /// Keywords label
+  /// No description provided for @keywords.
   ///
-  /// In en, this message translates to:
-  /// **'Keywords'**
+  /// In zh, this message translates to:
+  /// **'关键词'**
   String get keywords;
 
-  /// Content label
+  /// No description provided for @content.
   ///
-  /// In en, this message translates to:
-  /// **'Content'**
+  /// In zh, this message translates to:
+  /// **'内容'**
   String get content;
 
-  /// Priority label
+  /// No description provided for @priority.
   ///
-  /// In en, this message translates to:
-  /// **'Priority'**
+  /// In zh, this message translates to:
+  /// **'优先级'**
   String get priority;
 
-  /// Groups screen title
+  /// No description provided for @groups.
   ///
-  /// In en, this message translates to:
-  /// **'Groups'**
+  /// In zh, this message translates to:
+  /// **'群组'**
   String get groups;
 
-  /// Create group button
+  /// No description provided for @createGroup.
   ///
-  /// In en, this message translates to:
-  /// **'Create Group'**
+  /// In zh, this message translates to:
+  /// **'创建群组'**
   String get createGroup;
 
-  /// Edit group dialog title
+  /// No description provided for @editGroup.
   ///
-  /// In en, this message translates to:
-  /// **'Edit Group'**
+  /// In zh, this message translates to:
+  /// **'编辑群组'**
   String get editGroup;
 
-  /// Delete group dialog title
+  /// No description provided for @deleteGroup.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Group'**
+  /// In zh, this message translates to:
+  /// **'删除群组'**
   String get deleteGroup;
 
-  /// Group name label
+  /// No description provided for @groupName.
   ///
-  /// In en, this message translates to:
-  /// **'Group Name'**
+  /// In zh, this message translates to:
+  /// **'群组名称'**
   String get groupName;
 
-  /// Members label
+  /// No description provided for @members.
   ///
-  /// In en, this message translates to:
-  /// **'Members'**
+  /// In zh, this message translates to:
+  /// **'成员'**
   String get members;
 
-  /// Add member button
+  /// No description provided for @addMember.
   ///
-  /// In en, this message translates to:
-  /// **'Add Member'**
+  /// In zh, this message translates to:
+  /// **'添加成员'**
   String get addMember;
 
-  /// Remove member button
+  /// No description provided for @removeMember.
   ///
-  /// In en, this message translates to:
-  /// **'Remove Member'**
+  /// In zh, this message translates to:
+  /// **'移除成员'**
   String get removeMember;
 
-  /// Tags screen title
+  /// No description provided for @tags.
   ///
-  /// In en, this message translates to:
-  /// **'Tags'**
+  /// In zh, this message translates to:
+  /// **'标签'**
   String get tags;
 
-  /// Create tag button
+  /// No description provided for @createTag.
   ///
-  /// In en, this message translates to:
-  /// **'Create Tag'**
+  /// In zh, this message translates to:
+  /// **'创建标签'**
   String get createTag;
 
-  /// Edit tag dialog title
+  /// No description provided for @editTag.
   ///
-  /// In en, this message translates to:
-  /// **'Edit Tag'**
+  /// In zh, this message translates to:
+  /// **'编辑标签'**
   String get editTag;
 
-  /// Delete tag dialog title
+  /// No description provided for @deleteTag.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Tag'**
+  /// In zh, this message translates to:
+  /// **'删除标签'**
   String get deleteTag;
 
-  /// Tag name label
+  /// No description provided for @tagName.
   ///
-  /// In en, this message translates to:
-  /// **'Tag Name'**
+  /// In zh, this message translates to:
+  /// **'标签名称'**
   String get tagName;
 
-  /// Color label
+  /// No description provided for @color.
   ///
-  /// In en, this message translates to:
-  /// **'Color'**
+  /// In zh, this message translates to:
+  /// **'颜色'**
   String get color;
 
-  /// Quick replies screen title
+  /// No description provided for @quickReplies.
   ///
-  /// In en, this message translates to:
-  /// **'Quick Replies'**
+  /// In zh, this message translates to:
+  /// **'快捷回复'**
   String get quickReplies;
 
-  /// Create quick reply button
+  /// No description provided for @createQuickReply.
   ///
-  /// In en, this message translates to:
-  /// **'Create Quick Reply'**
+  /// In zh, this message translates to:
+  /// **'创建快捷回复'**
   String get createQuickReply;
 
-  /// Edit quick reply dialog title
+  /// No description provided for @editQuickReply.
   ///
-  /// In en, this message translates to:
-  /// **'Edit Quick Reply'**
+  /// In zh, this message translates to:
+  /// **'编辑快捷回复'**
   String get editQuickReply;
 
-  /// Delete quick reply dialog title
+  /// No description provided for @deleteQuickReply.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Quick Reply'**
+  /// In zh, this message translates to:
+  /// **'删除快捷回复'**
   String get deleteQuickReply;
 
-  /// Label field
+  /// No description provided for @label.
   ///
-  /// In en, this message translates to:
-  /// **'Label'**
+  /// In zh, this message translates to:
+  /// **'标签'**
   String get label;
 
-  /// Message field
+  /// No description provided for @message.
   ///
-  /// In en, this message translates to:
-  /// **'Message'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get message;
 
-  /// Auto send toggle
+  /// No description provided for @autoSend.
   ///
-  /// In en, this message translates to:
-  /// **'Auto Send'**
+  /// In zh, this message translates to:
+  /// **'自动发送'**
   String get autoSend;
 
-  /// Regex screen title
+  /// No description provided for @regex.
   ///
-  /// In en, this message translates to:
-  /// **'Regex'**
+  /// In zh, this message translates to:
+  /// **'正则表达式'**
   String get regex;
 
-  /// Create regex button
+  /// No description provided for @createRegex.
   ///
-  /// In en, this message translates to:
-  /// **'Create Regex'**
+  /// In zh, this message translates to:
+  /// **'创建正则'**
   String get createRegex;
 
-  /// Edit regex dialog title
+  /// No description provided for @editRegex.
   ///
-  /// In en, this message translates to:
-  /// **'Edit Regex'**
+  /// In zh, this message translates to:
+  /// **'编辑正则'**
   String get editRegex;
 
-  /// Delete regex dialog title
+  /// No description provided for @deleteRegex.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Regex'**
+  /// In zh, this message translates to:
+  /// **'删除正则'**
   String get deleteRegex;
 
-  /// Pattern label
+  /// No description provided for @pattern.
   ///
-  /// In en, this message translates to:
-  /// **'Pattern'**
+  /// In zh, this message translates to:
+  /// **'模式'**
   String get pattern;
 
-  /// Replacement label
+  /// No description provided for @replacement.
   ///
-  /// In en, this message translates to:
-  /// **'Replacement'**
+  /// In zh, this message translates to:
+  /// **'替换'**
   String get replacement;
 
-  /// Backup screen title
+  /// No description provided for @backup.
   ///
-  /// In en, this message translates to:
-  /// **'Backup'**
+  /// In zh, this message translates to:
+  /// **'备份'**
   String get backup;
 
-  /// Backup subtitle in settings
+  /// No description provided for @backupSubtitle.
   ///
-  /// In en, this message translates to:
-  /// **'Local and cloud backup & restore'**
+  /// In zh, this message translates to:
+  /// **'本地和云端备份与恢复'**
   String get backupSubtitle;
 
-  /// Create backup button
+  /// No description provided for @createBackup.
   ///
-  /// In en, this message translates to:
-  /// **'Create Backup'**
+  /// In zh, this message translates to:
+  /// **'创建备份'**
   String get createBackup;
 
-  /// Restore backup button
+  /// No description provided for @restoreBackup.
   ///
-  /// In en, this message translates to:
-  /// **'Restore Backup'**
+  /// In zh, this message translates to:
+  /// **'恢复备份'**
   String get restoreBackup;
 
-  /// Backup created message
+  /// No description provided for @backupCreated.
   ///
-  /// In en, this message translates to:
-  /// **'Backup created successfully'**
+  /// In zh, this message translates to:
+  /// **'备份创建成功'**
   String get backupCreated;
 
-  /// Backup restored message
+  /// No description provided for @backupRestored.
   ///
-  /// In en, this message translates to:
-  /// **'Backup restored successfully'**
+  /// In zh, this message translates to:
+  /// **'备份恢复成功'**
   String get backupRestored;
 
-  /// Backup failed message
+  /// No description provided for @backupFailed.
   ///
-  /// In en, this message translates to:
-  /// **'Backup failed: {error}'**
-  String backupFailed(String error);
+  /// In zh, this message translates to:
+  /// **'备份失败：{error}'**
+  String backupFailed(Object error);
 
-  /// Restore failed message
+  /// No description provided for @restoreFailed.
   ///
-  /// In en, this message translates to:
-  /// **'Restore failed: {error}'**
-  String restoreFailed(String error);
+  /// In zh, this message translates to:
+  /// **'恢复失败：{error}'**
+  String restoreFailed(Object error);
 
-  /// Theme screen title
+  /// No description provided for @theme.
   ///
-  /// In en, this message translates to:
-  /// **'Theme'**
+  /// In zh, this message translates to:
+  /// **'主题'**
   String get theme;
 
-  /// Dark mode toggle
+  /// No description provided for @darkMode.
   ///
-  /// In en, this message translates to:
-  /// **'Dark Mode'**
+  /// In zh, this message translates to:
+  /// **'深色模式'**
   String get darkMode;
 
-  /// Light mode toggle
+  /// No description provided for @lightMode.
   ///
-  /// In en, this message translates to:
-  /// **'Light Mode'**
+  /// In zh, this message translates to:
+  /// **'浅色模式'**
   String get lightMode;
 
-  /// System theme option
+  /// No description provided for @systemTheme.
   ///
-  /// In en, this message translates to:
-  /// **'System Theme'**
+  /// In zh, this message translates to:
+  /// **'跟随系统'**
   String get systemTheme;
 
-  /// Primary color label
+  /// No description provided for @primaryColor.
   ///
-  /// In en, this message translates to:
-  /// **'Primary Color'**
+  /// In zh, this message translates to:
+  /// **'主色调'**
   String get primaryColor;
 
-  /// Accent color label
+  /// No description provided for @accentColor.
   ///
-  /// In en, this message translates to:
-  /// **'Accent Color'**
+  /// In zh, this message translates to:
+  /// **'强调色'**
   String get accentColor;
 
-  /// Advanced settings label
+  /// No description provided for @advanced.
   ///
-  /// In en, this message translates to:
-  /// **'Advanced'**
+  /// In zh, this message translates to:
+  /// **'高级'**
   String get advanced;
 
-  /// Advanced settings screen title
+  /// No description provided for @advancedSettings.
   ///
-  /// In en, this message translates to:
-  /// **'Advanced Settings'**
+  /// In zh, this message translates to:
+  /// **'高级设置'**
   String get advancedSettings;
 
-  /// Statistics screen title
+  /// No description provided for @statistics.
   ///
-  /// In en, this message translates to:
-  /// **'Statistics'**
+  /// In zh, this message translates to:
+  /// **'统计'**
   String get statistics;
 
-  /// Total chats statistic
+  /// No description provided for @totalChats.
   ///
-  /// In en, this message translates to:
-  /// **'Total Chats'**
+  /// In zh, this message translates to:
+  /// **'总聊天数'**
   String get totalChats;
 
-  /// Total messages statistic
+  /// No description provided for @totalMessages.
   ///
-  /// In en, this message translates to:
-  /// **'Total Messages'**
+  /// In zh, this message translates to:
+  /// **'总消息数'**
   String get totalMessages;
 
-  /// Total characters statistic
+  /// No description provided for @totalCharacters.
   ///
-  /// In en, this message translates to:
-  /// **'Total Characters'**
+  /// In zh, this message translates to:
+  /// **'总角色数'**
   String get totalCharacters;
 
-  /// Tokenizer screen title
+  /// No description provided for @tokenizer.
   ///
-  /// In en, this message translates to:
-  /// **'Tokenizer'**
+  /// In zh, this message translates to:
+  /// **'分词器'**
   String get tokenizer;
 
-  /// TTS screen title
+  /// No description provided for @tts.
   ///
-  /// In en, this message translates to:
-  /// **'Text-to-Speech'**
+  /// In zh, this message translates to:
+  /// **'文字转语音'**
   String get tts;
 
-  /// STT screen title
+  /// No description provided for @stt.
   ///
-  /// In en, this message translates to:
-  /// **'Speech-to-Text'**
+  /// In zh, this message translates to:
+  /// **'语音转文字'**
   String get stt;
 
-  /// Translation screen title
+  /// No description provided for @translation.
   ///
-  /// In en, this message translates to:
-  /// **'Translation'**
+  /// In zh, this message translates to:
+  /// **'翻译'**
   String get translation;
 
-  /// Image generation screen title
+  /// No description provided for @imageGeneration.
   ///
-  /// In en, this message translates to:
-  /// **'Image Generation'**
+  /// In zh, this message translates to:
+  /// **'图像生成'**
   String get imageGeneration;
 
-  /// Vector storage screen title
+  /// No description provided for @vectorStorage.
   ///
-  /// In en, this message translates to:
-  /// **'Vector Storage'**
+  /// In zh, this message translates to:
+  /// **'向量存储'**
   String get vectorStorage;
 
-  /// Sprites screen title
+  /// No description provided for @sprites.
   ///
-  /// In en, this message translates to:
-  /// **'Sprites'**
+  /// In zh, this message translates to:
+  /// **'精灵图'**
   String get sprites;
 
-  /// Backgrounds screen title
+  /// No description provided for @backgrounds.
   ///
-  /// In en, this message translates to:
-  /// **'Backgrounds'**
+  /// In zh, this message translates to:
+  /// **'背景'**
   String get backgrounds;
 
-  /// CFG scale screen title
+  /// No description provided for @cfgScale.
   ///
-  /// In en, this message translates to:
-  /// **'CFG Scale'**
+  /// In zh, this message translates to:
+  /// **'CFG比例'**
   String get cfgScale;
 
-  /// Logit bias screen title
+  /// No description provided for @logitBias.
   ///
-  /// In en, this message translates to:
-  /// **'Logit Bias'**
+  /// In zh, this message translates to:
+  /// **'Logit偏置'**
   String get logitBias;
 
-  /// Variables screen title
+  /// No description provided for @variables.
   ///
-  /// In en, this message translates to:
-  /// **'Variables'**
+  /// In zh, this message translates to:
+  /// **'变量'**
   String get variables;
 
-  /// List view toggle
+  /// No description provided for @listView.
   ///
-  /// In en, this message translates to:
-  /// **'List view'**
+  /// In zh, this message translates to:
+  /// **'列表视图'**
   String get listView;
 
-  /// Grid view toggle
+  /// No description provided for @gridView.
   ///
-  /// In en, this message translates to:
-  /// **'Grid view'**
+  /// In zh, this message translates to:
+  /// **'网格视图'**
   String get gridView;
 
-  /// Search label
+  /// No description provided for @search.
   ///
-  /// In en, this message translates to:
-  /// **'Search'**
+  /// In zh, this message translates to:
+  /// **'搜索'**
   String get search;
 
-  /// Search characters placeholder
+  /// No description provided for @searchCharacters.
   ///
-  /// In en, this message translates to:
-  /// **'Search characters...'**
+  /// In zh, this message translates to:
+  /// **'搜索角色...'**
   String get searchCharacters;
 
-  /// No characters found message
+  /// No description provided for @noCharactersFound.
   ///
-  /// In en, this message translates to:
-  /// **'No characters found'**
+  /// In zh, this message translates to:
+  /// **'未找到角色'**
   String get noCharactersFound;
 
-  /// No characters empty state
+  /// No description provided for @noCharactersYet.
   ///
-  /// In en, this message translates to:
-  /// **'No characters yet'**
+  /// In zh, this message translates to:
+  /// **'暂无角色'**
   String get noCharactersYet;
 
-  /// Import character screen title
+  /// No description provided for @importCharacter.
   ///
-  /// In en, this message translates to:
-  /// **'Import Character'**
+  /// In zh, this message translates to:
+  /// **'导入角色以开始'**
   String get importCharacter;
 
-  /// Create character button
+  /// No description provided for @createCharacter.
   ///
-  /// In en, this message translates to:
-  /// **'Create Character'**
+  /// In zh, this message translates to:
+  /// **'创建角色'**
   String get createCharacter;
 
-  /// Edit character button
+  /// No description provided for @editCharacter.
   ///
-  /// In en, this message translates to:
-  /// **'Edit Character'**
+  /// In zh, this message translates to:
+  /// **'编辑角色'**
   String get editCharacter;
 
-  /// Delete character button
+  /// No description provided for @deleteCharacter.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Character'**
+  /// In zh, this message translates to:
+  /// **'删除角色'**
   String get deleteCharacter;
 
-  /// Delete character confirmation
+  /// No description provided for @deleteCharacterConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete \"{name}\"? This will also delete all chats with this character.'**
-  String deleteCharacterConfirmation(String name);
+  /// In zh, this message translates to:
+  /// **'确定要删除\"{name}\"吗？这也将删除与此角色的所有聊天。'**
+  String deleteCharacterConfirmation(Object name);
 
-  /// Character deleted snackbar
+  /// No description provided for @characterDeleted.
   ///
-  /// In en, this message translates to:
-  /// **'Character deleted'**
+  /// In zh, this message translates to:
+  /// **'角色已删除'**
   String get characterDeleted;
 
-  /// Start chat button
+  /// No description provided for @startChat.
   ///
-  /// In en, this message translates to:
-  /// **'Start Chat'**
+  /// In zh, this message translates to:
+  /// **'开始聊天'**
   String get startChat;
 
-  /// Personality label
+  /// No description provided for @personality.
   ///
-  /// In en, this message translates to:
-  /// **'Personality'**
+  /// In zh, this message translates to:
+  /// **'性格'**
   String get personality;
 
-  /// Scenario label
+  /// No description provided for @scenario.
   ///
-  /// In en, this message translates to:
-  /// **'Scenario'**
+  /// In zh, this message translates to:
+  /// **'场景'**
   String get scenario;
 
-  /// First message label
+  /// No description provided for @firstMessage.
   ///
-  /// In en, this message translates to:
-  /// **'First Message'**
+  /// In zh, this message translates to:
+  /// **'开场白'**
   String get firstMessage;
 
-  /// Example dialogue label
+  /// No description provided for @exampleDialogue.
   ///
-  /// In en, this message translates to:
-  /// **'Example Dialogue'**
+  /// In zh, this message translates to:
+  /// **'示例对话'**
   String get exampleDialogue;
 
-  /// Creator notes label
+  /// No description provided for @creatorNotes.
   ///
-  /// In en, this message translates to:
-  /// **'Creator Notes'**
+  /// In zh, this message translates to:
+  /// **'创作者注释'**
   String get creatorNotes;
 
-  /// Alternate greetings label
+  /// No description provided for @alternateGreetings.
   ///
-  /// In en, this message translates to:
-  /// **'Alternate Greetings'**
+  /// In zh, this message translates to:
+  /// **'备选问候语'**
   String get alternateGreetings;
 
-  /// Character book label
+  /// No description provided for @characterBook.
   ///
-  /// In en, this message translates to:
-  /// **'Character Book'**
+  /// In zh, this message translates to:
+  /// **'角色书'**
   String get characterBook;
 
-  /// Language setting label
+  /// No description provided for @language.
   ///
-  /// In en, this message translates to:
-  /// **'Language'**
+  /// In zh, this message translates to:
+  /// **'语言'**
   String get language;
 
-  /// Select language dialog title
+  /// No description provided for @selectLanguage.
   ///
-  /// In en, this message translates to:
-  /// **'Select Language'**
+  /// In zh, this message translates to:
+  /// **'选择语言'**
   String get selectLanguage;
 
-  /// Language changed snackbar
+  /// No description provided for @languageChanged.
   ///
-  /// In en, this message translates to:
-  /// **'Language changed'**
+  /// In zh, this message translates to:
+  /// **'语言已更改'**
   String get languageChanged;
 
-  /// About screen title
+  /// No description provided for @about.
   ///
-  /// In en, this message translates to:
-  /// **'About'**
+  /// In zh, this message translates to:
+  /// **'关于'**
   String get about;
 
-  /// Version label
+  /// No description provided for @version.
   ///
-  /// In en, this message translates to:
-  /// **'Version'**
+  /// In zh, this message translates to:
+  /// **'版本'**
   String get version;
 
-  /// Licenses button
+  /// No description provided for @licenses.
   ///
-  /// In en, this message translates to:
-  /// **'Licenses'**
+  /// In zh, this message translates to:
+  /// **'许可证'**
   String get licenses;
 
-  /// Privacy policy button
+  /// No description provided for @privacyPolicy.
   ///
-  /// In en, this message translates to:
-  /// **'Privacy Policy'**
+  /// In zh, this message translates to:
+  /// **'隐私政策'**
   String get privacyPolicy;
 
-  /// Terms of service button
+  /// No description provided for @termsOfService.
   ///
-  /// In en, this message translates to:
-  /// **'Terms of Service'**
+  /// In zh, this message translates to:
+  /// **'服务条款'**
   String get termsOfService;
 
-  /// Feedback button
+  /// No description provided for @feedback.
   ///
-  /// In en, this message translates to:
-  /// **'Feedback'**
+  /// In zh, this message translates to:
+  /// **'反馈'**
   String get feedback;
 
-  /// Rate app button
+  /// No description provided for @rateApp.
   ///
-  /// In en, this message translates to:
-  /// **'Rate App'**
+  /// In zh, this message translates to:
+  /// **'评价应用'**
   String get rateApp;
 
-  /// Share app button
+  /// No description provided for @shareApp.
   ///
-  /// In en, this message translates to:
-  /// **'Share App'**
+  /// In zh, this message translates to:
+  /// **'分享应用'**
   String get shareApp;
 
-  /// Check for updates button
+  /// No description provided for @checkForUpdates.
   ///
-  /// In en, this message translates to:
-  /// **'Check for Updates'**
+  /// In zh, this message translates to:
+  /// **'检查更新'**
   String get checkForUpdates;
 
-  /// No updates available message
+  /// No description provided for @noUpdatesAvailable.
   ///
-  /// In en, this message translates to:
-  /// **'No updates available'**
+  /// In zh, this message translates to:
+  /// **'没有可用更新'**
   String get noUpdatesAvailable;
 
-  /// Update available message
+  /// No description provided for @updateAvailable.
   ///
-  /// In en, this message translates to:
-  /// **'Update available'**
+  /// In zh, this message translates to:
+  /// **'有可用更新'**
   String get updateAvailable;
 
-  /// Download update button
+  /// No description provided for @downloadUpdate.
   ///
-  /// In en, this message translates to:
-  /// **'Download Update'**
+  /// In zh, this message translates to:
+  /// **'下载更新'**
   String get downloadUpdate;
 
-  /// Bookmark created snackbar
+  /// No description provided for @bookmarkCreated.
   ///
-  /// In en, this message translates to:
-  /// **'Bookmark created'**
+  /// In zh, this message translates to:
+  /// **'书签已创建'**
   String get bookmarkCreated;
 
-  /// Bookmark name label
+  /// No description provided for @bookmarkName.
   ///
-  /// In en, this message translates to:
-  /// **'Bookmark Name'**
+  /// In zh, this message translates to:
+  /// **'书签名称'**
   String get bookmarkName;
 
-  /// Enter bookmark name hint
+  /// No description provided for @enterBookmarkName.
   ///
-  /// In en, this message translates to:
-  /// **'Enter bookmark name'**
+  /// In zh, this message translates to:
+  /// **'输入书签名称'**
   String get enterBookmarkName;
 
-  /// No bookmarks empty state
+  /// No description provided for @noBookmarksYet.
   ///
-  /// In en, this message translates to:
-  /// **'No bookmarks yet'**
+  /// In zh, this message translates to:
+  /// **'暂无书签'**
   String get noBookmarksYet;
 
-  /// Create bookmark description
+  /// No description provided for @createBookmarkDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Create bookmarks to save important points in your conversation'**
+  /// In zh, this message translates to:
+  /// **'创建书签以保存对话中的重要节点'**
   String get createBookmarkDescription;
 
-  /// Jump to bookmark button
+  /// No description provided for @jumpToBookmark.
   ///
-  /// In en, this message translates to:
-  /// **'Jump to Bookmark'**
+  /// In zh, this message translates to:
+  /// **'跳转到书签'**
   String get jumpToBookmark;
 
-  /// Delete bookmark button
+  /// No description provided for @deleteBookmark.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Bookmark'**
+  /// In zh, this message translates to:
+  /// **'删除书签'**
   String get deleteBookmark;
 
-  /// Bookmark deleted snackbar
+  /// No description provided for @bookmarkDeleted.
   ///
-  /// In en, this message translates to:
-  /// **'Bookmark deleted'**
+  /// In zh, this message translates to:
+  /// **'书签已删除'**
   String get bookmarkDeleted;
 
-  /// Save as JSONL option
+  /// No description provided for @saveAsJsonl.
   ///
-  /// In en, this message translates to:
-  /// **'Save as JSONL'**
+  /// In zh, this message translates to:
+  /// **'保存为JSONL'**
   String get saveAsJsonl;
 
-  /// Save as JSON option
+  /// No description provided for @saveAsJson.
   ///
-  /// In en, this message translates to:
-  /// **'Save as JSON'**
+  /// In zh, this message translates to:
+  /// **'保存为JSON'**
   String get saveAsJson;
 
-  /// Keyboard shortcuts tooltip title
+  /// No description provided for @keyboardShortcuts.
   ///
-  /// In en, this message translates to:
-  /// **'Keyboard shortcuts:'**
+  /// In zh, this message translates to:
+  /// **'键盘快捷键：'**
   String get keyboardShortcuts;
 
-  /// Bold formatting
+  /// No description provided for @bold.
   ///
-  /// In en, this message translates to:
-  /// **'Bold'**
+  /// In zh, this message translates to:
+  /// **'粗体'**
   String get bold;
 
-  /// Italic formatting
+  /// No description provided for @italic.
   ///
-  /// In en, this message translates to:
-  /// **'Italic'**
+  /// In zh, this message translates to:
+  /// **'斜体'**
   String get italic;
 
-  /// Underline formatting
+  /// No description provided for @underline.
   ///
-  /// In en, this message translates to:
-  /// **'Underline'**
+  /// In zh, this message translates to:
+  /// **'下划线'**
   String get underline;
 
-  /// Strikethrough formatting
+  /// No description provided for @strikethrough.
   ///
-  /// In en, this message translates to:
-  /// **'Strikethrough'**
+  /// In zh, this message translates to:
+  /// **'删除线'**
   String get strikethrough;
 
-  /// Inline code formatting
+  /// No description provided for @inlineCode.
   ///
-  /// In en, this message translates to:
-  /// **'Inline code'**
+  /// In zh, this message translates to:
+  /// **'行内代码'**
   String get inlineCode;
 
-  /// Link formatting
+  /// No description provided for @link.
   ///
-  /// In en, this message translates to:
-  /// **'Link'**
+  /// In zh, this message translates to:
+  /// **'链接'**
   String get link;
 
-  /// Slash commands help title
+  /// No description provided for @slashCommands.
   ///
-  /// In en, this message translates to:
-  /// **'Slash Commands'**
+  /// In zh, this message translates to:
+  /// **'斜杠命令'**
   String get slashCommands;
 
-  /// Available commands label
+  /// No description provided for @availableCommands.
   ///
-  /// In en, this message translates to:
-  /// **'Available commands:'**
+  /// In zh, this message translates to:
+  /// **'可用命令：'**
   String get availableCommands;
 
-  /// Command help hint
+  /// No description provided for @commandHelp.
   ///
-  /// In en, this message translates to:
-  /// **'Type / to see available commands'**
+  /// In zh, this message translates to:
+  /// **'输入 / 查看可用命令'**
   String get commandHelp;
 
-  /// Character not found title
+  /// No description provided for @debugLog.
   ///
-  /// In en, this message translates to:
-  /// **'Character Not Found'**
-  String get characterNotFound;
+  /// In zh, this message translates to:
+  /// **'调试日志'**
+  String get debugLog;
 
-  /// Character not found message
+  /// No description provided for @debugLogDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Character not found'**
-  String get characterNotFoundMessage;
+  /// In zh, this message translates to:
+  /// **'显示悬浮调试按钮以查看日志'**
+  String get debugLogDescription;
 
-  /// Export as PNG menu item
+  /// No description provided for @autoScroll.
   ///
-  /// In en, this message translates to:
-  /// **'Export as PNG'**
-  String get exportAsPng;
+  /// In zh, this message translates to:
+  /// **'自动滚动'**
+  String get autoScroll;
 
-  /// Export as CharX menu item
+  /// No description provided for @clearLogs.
   ///
-  /// In en, this message translates to:
-  /// **'Export as CharX'**
-  String get exportAsCharx;
+  /// In zh, this message translates to:
+  /// **'清除日志'**
+  String get clearLogs;
 
-  /// Duplicate menu item
+  /// No description provided for @searchLogs.
   ///
-  /// In en, this message translates to:
-  /// **'Duplicate'**
-  String get duplicate;
+  /// In zh, this message translates to:
+  /// **'搜索日志...'**
+  String get searchLogs;
 
-  /// Delete character confirmation simple
+  /// No description provided for @noLogsYet.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete \"{name}\"? This action cannot be undone.'**
-  String deleteCharacterConfirmationSimple(String name);
+  /// In zh, this message translates to:
+  /// **'暂无日志'**
+  String get noLogsYet;
 
-  /// Character duplicated message
+  /// No description provided for @contextManagement.
   ///
-  /// In en, this message translates to:
-  /// **'{name} duplicated'**
-  String characterDuplicated(String name);
+  /// In zh, this message translates to:
+  /// **'上下文管理'**
+  String get contextManagement;
 
-  /// Failed to delete error
+  /// No description provided for @autoSummarize.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to delete: {error}'**
-  String failedToDelete(String error);
+  /// In zh, this message translates to:
+  /// **'自动总结'**
+  String get autoSummarize;
 
-  /// Failed to duplicate error
+  /// No description provided for @autoSummarizeDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to duplicate: {error}'**
-  String failedToDuplicate(String error);
+  /// In zh, this message translates to:
+  /// **'当上下文使用率较高时自动总结并压缩聊天历史'**
+  String get autoSummarizeDescription;
 
-  /// PNG export coming soon message
+  /// No description provided for @autoSummarizeThreshold.
   ///
-  /// In en, this message translates to:
-  /// **'PNG export coming soon'**
-  String get pngExportComingSoon;
+  /// In zh, this message translates to:
+  /// **'自动总结阈值'**
+  String get autoSummarizeThreshold;
 
-  /// CharX export coming soon message
+  /// No description provided for @autoSummarizeThresholdDescription.
   ///
-  /// In en, this message translates to:
-  /// **'CharX export coming soon'**
-  String get charxExportComingSoon;
+  /// In zh, this message translates to:
+  /// **'当上下文达到最大值的此百分比时触发总结'**
+  String get autoSummarizeThresholdDescription;
 
-  /// Failed to create chat message
+  /// No description provided for @allCharactersAvailable.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to create chat'**
-  String get failedToCreateChat;
+  /// In zh, this message translates to:
+  /// **'所有角色'**
+  String get allCharactersAvailable;
 
-  /// Creating indicator
+  /// No description provided for @availableToAllCharactersNotGlobal.
   ///
-  /// In en, this message translates to:
-  /// **'Creating...'**
-  String get creating;
+  /// In zh, this message translates to:
+  /// **'所有角色可用（上下文匹配）'**
+  String get availableToAllCharactersNotGlobal;
 
-  /// By creator label
+  /// No description provided for @specificCharacter.
   ///
-  /// In en, this message translates to:
-  /// **'by {creator}'**
-  String byCreator(String creator);
+  /// In zh, this message translates to:
+  /// **'特定角色'**
+  String get specificCharacter;
 
-  /// Version label with number
+  /// No description provided for @linkToSpecificCharacter.
   ///
-  /// In en, this message translates to:
-  /// **'v{version}'**
-  String versionLabel(String version);
+  /// In zh, this message translates to:
+  /// **'仅关联到特定角色'**
+  String get linkToSpecificCharacter;
 
-  /// Show less button
+  /// No description provided for @selectCharacter.
   ///
-  /// In en, this message translates to:
-  /// **'Show less'**
-  String get showLess;
+  /// In zh, this message translates to:
+  /// **'选择角色'**
+  String get selectCharacter;
 
-  /// Show more button
+  /// No description provided for @noCharactersAvailable.
   ///
-  /// In en, this message translates to:
-  /// **'Show more'**
-  String get showMore;
-
-  /// Greeting number label
-  ///
-  /// In en, this message translates to:
-  /// **'Greeting {number}'**
-  String greetingNumber(int number);
-
-  /// Alternate greetings with count
-  ///
-  /// In en, this message translates to:
-  /// **'Alternate Greetings ({count})'**
-  String alternateGreetingsCount(int count);
-
-  /// Embedded lorebook label
-  ///
-  /// In en, this message translates to:
-  /// **'Embedded Lorebook'**
-  String get embeddedLorebook;
-
-  /// Entries enabled count
-  ///
-  /// In en, this message translates to:
-  /// **'{enabled} of {total} entries enabled'**
-  String entriesEnabled(int enabled, int total);
-
-  /// And more entries label
-  ///
-  /// In en, this message translates to:
-  /// **'... and {count} more entries'**
-  String andMoreEntries(int count);
-
-  /// Example messages label
-  ///
-  /// In en, this message translates to:
-  /// **'Example Messages'**
-  String get exampleMessages;
-
-  /// Post-history instructions label
-  ///
-  /// In en, this message translates to:
-  /// **'Post-History Instructions'**
-  String get postHistoryInstructions;
-
-  /// Select images dialog title
-  ///
-  /// In en, this message translates to:
-  /// **'Select Images'**
-  String get selectImages;
-
-  /// Presets and templates section header
-  ///
-  /// In en, this message translates to:
-  /// **'Presets & Templates'**
-  String get presetsAndTemplates;
-
-  /// Active preset label
-  ///
-  /// In en, this message translates to:
-  /// **'Active Preset'**
-  String get activePreset;
-
-  /// Change button
-  ///
-  /// In en, this message translates to:
-  /// **'Change'**
-  String get change;
-
-  /// No preset selected message
-  ///
-  /// In en, this message translates to:
-  /// **'No preset selected'**
-  String get noPresetSelected;
-
-  /// Instruct template label
-  ///
-  /// In en, this message translates to:
-  /// **'Instruct Template'**
-  String get instructTemplate;
-
-  /// Select instruct template dialog title
-  ///
-  /// In en, this message translates to:
-  /// **'Select Instruct Template'**
-  String get selectInstructTemplate;
-
-  /// Instruct template description
-  ///
-  /// In en, this message translates to:
-  /// **'Instruct templates format prompts for different LLM models. Use \"None\" for API providers like OpenAI or Claude that handle formatting automatically.'**
-  String get instructTemplateDescription;
-
-  /// Prompt manager subtitle
-  ///
-  /// In en, this message translates to:
-  /// **'Order and toggle prompt sections'**
-  String get orderAndTogglePromptSections;
-
-  /// LLM connection section header
-  ///
-  /// In en, this message translates to:
-  /// **'LLM Connection'**
-  String get llmConnection;
-
-  /// Generation settings section header
-  ///
-  /// In en, this message translates to:
-  /// **'Generation Settings'**
-  String get generationSettings;
-
-  /// Advanced sampler settings label
-  ///
-  /// In en, this message translates to:
-  /// **'Advanced Sampler Settings'**
-  String get advancedSamplerSettings;
-
-  /// Advanced sampler settings subtitle
-  ///
-  /// In en, this message translates to:
-  /// **'Full control over sampling parameters'**
-  String get fullControlOverSampling;
-
-  /// Select LLM provider dialog title
-  ///
-  /// In en, this message translates to:
-  /// **'Select LLM Provider'**
-  String get selectLlmProvider;
-
-  /// Not set placeholder
-  ///
-  /// In en, this message translates to:
-  /// **'Not set'**
-  String get notSet;
-
-  /// Enter API key hint
-  ///
-  /// In en, this message translates to:
-  /// **'Enter your API key'**
-  String get enterApiKey;
-
-  /// API endpoint URL label
-  ///
-  /// In en, this message translates to:
-  /// **'API endpoint URL'**
-  String get apiEndpointUrl;
-
-  /// Model name label
-  ///
-  /// In en, this message translates to:
-  /// **'Model name'**
-  String get modelName;
-
-  /// Fetch available models button
-  ///
-  /// In en, this message translates to:
-  /// **'Fetch Available Models'**
-  String get fetchAvailableModels;
-
-  /// Fetch models description
-  ///
-  /// In en, this message translates to:
-  /// **'Fetch models from the API or enter a model name manually'**
-  String get fetchModelsDescription;
-
-  /// Enter model name dialog title
-  ///
-  /// In en, this message translates to:
-  /// **'Enter Model Name'**
-  String get enterModelName;
-
-  /// Fetching models indicator
-  ///
-  /// In en, this message translates to:
-  /// **'Fetching models...'**
-  String get fetchingModels;
-
-  /// Failed to fetch models message
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to fetch models'**
-  String get failedToFetchModels;
-
-  /// Tap to test connection hint
-  ///
-  /// In en, this message translates to:
-  /// **'Tap to test API connection'**
-  String get tapToTestConnection;
-
-  /// Testing indicator
-  ///
-  /// In en, this message translates to:
-  /// **'Testing...'**
-  String get testing;
-
-  /// Connected status
-  ///
-  /// In en, this message translates to:
-  /// **'Connected'**
-  String get connected;
-
-  /// Connection failed status
-  ///
-  /// In en, this message translates to:
-  /// **'Connection failed'**
-  String get connectionFailedSimple;
-
-  /// Maximum tokens to generate hint
-  ///
-  /// In en, this message translates to:
-  /// **'Maximum tokens to generate'**
-  String get maximumTokensToGenerate;
-
-  /// Streaming label
-  ///
-  /// In en, this message translates to:
-  /// **'Streaming'**
-  String get streaming;
-
-  /// Streaming description
-  ///
-  /// In en, this message translates to:
-  /// **'Show response as it generates'**
-  String get showResponseAsItGenerates;
-
-  /// Select model with count
-  ///
-  /// In en, this message translates to:
-  /// **'Select Model ({count})'**
-  String selectModelCount(int count);
-
-  /// Refresh models tooltip
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh models'**
-  String get refreshModels;
-
-  /// Enter manually tooltip
-  ///
-  /// In en, this message translates to:
-  /// **'Enter manually'**
-  String get enterManually;
-
-  /// No models found message
-  ///
-  /// In en, this message translates to:
-  /// **'No models found'**
-  String get noModelsFound;
-
-  /// Try different search term hint
-  ///
-  /// In en, this message translates to:
-  /// **'Try a different search term'**
-  String get tryDifferentSearchTerm;
-
-  /// Filtered models count
-  ///
-  /// In en, this message translates to:
-  /// **'{filtered} of {total} models'**
-  String modelsOfTotal(int filtered, int total);
-
-  /// Import preset tooltip
-  ///
-  /// In en, this message translates to:
-  /// **'Import Preset'**
-  String get importPreset;
-
-  /// No group chats empty state
-  ///
-  /// In en, this message translates to:
-  /// **'No group chats yet'**
-  String get noGroupChatsYet;
-
-  /// Create group description
-  ///
-  /// In en, this message translates to:
-  /// **'Create a group to chat with multiple characters'**
-  String get createGroupDescription;
-
-  /// New group button
-  ///
-  /// In en, this message translates to:
-  /// **'New Group'**
-  String get newGroup;
-
-  /// Members and mode label
-  ///
-  /// In en, this message translates to:
-  /// **'{count} members • {mode} mode'**
-  String membersAndMode(int count, String mode);
-
-  /// Group chat coming soon message
-  ///
-  /// In en, this message translates to:
-  /// **'Group chat will be implemented with chat integration'**
-  String get groupChatWillBeImplemented;
-
-  /// Delete group confirmation
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete \"{name}\"? This will also delete all associated chats.'**
-  String deleteGroupConfirmation(String name);
-
-  /// Group deleted message
-  ///
-  /// In en, this message translates to:
-  /// **'{name} deleted'**
-  String groupDeleted(String name);
-
-  /// Group name required label
-  ///
-  /// In en, this message translates to:
-  /// **'Group Name *'**
-  String get groupNameRequired;
-
-  /// Enter group name hint
-  ///
-  /// In en, this message translates to:
-  /// **'Enter group name'**
-  String get enterGroupName;
-
-  /// Optional description hint
-  ///
-  /// In en, this message translates to:
-  /// **'Optional description'**
-  String get optionalDescription;
-
-  /// Select characters label
-  ///
-  /// In en, this message translates to:
-  /// **'Select Characters'**
-  String get selectCharacters;
-
-  /// No characters available message
-  ///
-  /// In en, this message translates to:
-  /// **'No characters available'**
+  /// In zh, this message translates to:
+  /// **'暂无可用角色'**
   String get noCharactersAvailable;
 
-  /// Characters selected count
+  /// No description provided for @pleaseSelectCharacter.
   ///
-  /// In en, this message translates to:
-  /// **'{count} character(s) selected'**
-  String charactersSelected(int count);
+  /// In zh, this message translates to:
+  /// **'请选择一个角色'**
+  String get pleaseSelectCharacter;
 
-  /// Create button
+  /// No description provided for @contextUsage.
   ///
-  /// In en, this message translates to:
-  /// **'Create'**
-  String get create;
+  /// In zh, this message translates to:
+  /// **'上下文使用'**
+  String get contextUsage;
 
-  /// Select at least 2 characters validation
+  /// No description provided for @totalTokens.
   ///
-  /// In en, this message translates to:
-  /// **'Select at least 2 characters'**
-  String get selectAtLeast2Characters;
+  /// In zh, this message translates to:
+  /// **'总令牌数'**
+  String get totalTokens;
 
-  /// Group created success message
+  /// No description provided for @maxContext.
   ///
-  /// In en, this message translates to:
-  /// **'Group created successfully'**
-  String get groupCreatedSuccessfully;
+  /// In zh, this message translates to:
+  /// **'最大上下文'**
+  String get maxContext;
 
-  /// Failed to create group error
+  /// No description provided for @remaining.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to create group: {error}'**
-  String failedToCreateGroup(String error);
+  /// In zh, this message translates to:
+  /// **'剩余'**
+  String get remaining;
 
-  /// Select character card message
+  /// No description provided for @breakdown.
   ///
-  /// In en, this message translates to:
-  /// **'Select a character card'**
-  String get selectCharacterCard;
+  /// In zh, this message translates to:
+  /// **'详细分解'**
+  String get breakdown;
 
-  /// Supported formats description
+  /// No description provided for @cloudBackup.
   ///
-  /// In en, this message translates to:
-  /// **'Supports PNG, CharX, and JSON formats'**
-  String get supportsPngCharxJson;
+  /// In zh, this message translates to:
+  /// **'云备份'**
+  String get cloudBackup;
 
-  /// Browse files button
+  /// No description provided for @cloudBackupInfo.
   ///
-  /// In en, this message translates to:
-  /// **'Browse Files'**
-  String get browseFiles;
+  /// In zh, this message translates to:
+  /// **'云备份'**
+  String get cloudBackupInfo;
 
-  /// Failed to pick file error
+  /// No description provided for @cloudBackupDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to pick file: {error}'**
-  String failedToPickFile(String error);
+  /// In zh, this message translates to:
+  /// **'跨设备同步数据'**
+  String get cloudBackupDescription;
 
-  /// Failed to load character error
+  /// No description provided for @cloudBackupSubtitle.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to load character: {error}'**
-  String failedToLoadCharacter(String error);
+  /// In zh, this message translates to:
+  /// **'备份到 iCloud 或 Google Drive，在任何设备上恢复'**
+  String get cloudBackupSubtitle;
 
-  /// Unsupported file format error
+  /// No description provided for @enableICloudBackup.
   ///
-  /// In en, this message translates to:
-  /// **'Unsupported file format: {format}'**
-  String unsupportedFileFormat(String format);
+  /// In zh, this message translates to:
+  /// **'启用 iCloud 备份'**
+  String get enableICloudBackup;
 
-  /// PNG character card format
+  /// No description provided for @enableICloudBackupDescription.
   ///
-  /// In en, this message translates to:
-  /// **'PNG Character Card'**
-  String get pngCharacterCard;
+  /// In zh, this message translates to:
+  /// **'自动同步备份到 iCloud'**
+  String get enableICloudBackupDescription;
 
-  /// PNG format description
+  /// No description provided for @iCloudNotAvailable.
   ///
-  /// In en, this message translates to:
-  /// **'Character data embedded in image metadata'**
-  String get characterDataEmbeddedInImage;
+  /// In zh, this message translates to:
+  /// **'iCloud 不可用'**
+  String get iCloudNotAvailable;
 
-  /// CharX archive format
+  /// No description provided for @iCloudNotAvailableDescription.
   ///
-  /// In en, this message translates to:
-  /// **'CharX Archive'**
-  String get charxArchive;
+  /// In zh, this message translates to:
+  /// **'请在设置中登录 iCloud'**
+  String get iCloudNotAvailableDescription;
 
-  /// CharX format description
+  /// No description provided for @backupToICloud.
   ///
-  /// In en, this message translates to:
-  /// **'ZIP archive with character data and assets'**
-  String get zipArchiveWithCharacterData;
+  /// In zh, this message translates to:
+  /// **'备份到 iCloud'**
+  String get backupToICloud;
 
-  /// JSON format description
+  /// No description provided for @lastSync.
   ///
-  /// In en, this message translates to:
-  /// **'Plain character card JSON file'**
-  String get plainCharacterCardJson;
+  /// In zh, this message translates to:
+  /// **'上次同步：{time}'**
+  String lastSync(Object time);
 
-  /// Imported with lorebook message
+  /// No description provided for @neverSynced.
   ///
-  /// In en, this message translates to:
-  /// **'Imported \"{name}\" with embedded lorebook!'**
-  String importedWithLorebook(String name);
+  /// In zh, this message translates to:
+  /// **'从未同步'**
+  String get neverSynced;
 
-  /// Imported successfully message
+  /// No description provided for @iCloudBackups.
   ///
-  /// In en, this message translates to:
-  /// **'Imported \"{name}\" successfully!'**
-  String importedSuccessfully(String name);
+  /// In zh, this message translates to:
+  /// **'iCloud 备份'**
+  String get iCloudBackups;
 
-  /// Failed to import error
+  /// No description provided for @noCloudBackups.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to import: {error}'**
-  String failedToImport(String error);
+  /// In zh, this message translates to:
+  /// **'暂无云备份'**
+  String get noCloudBackups;
 
-  /// Embedded lorebook with entry count
+  /// No description provided for @googleDriveExport.
   ///
-  /// In en, this message translates to:
-  /// **'Embedded Lorebook ({count} entries)'**
-  String embeddedLorebookEntries(int count);
+  /// In zh, this message translates to:
+  /// **'导出到 Google Drive'**
+  String get googleDriveExport;
 
-  /// Save current as preset menu item
+  /// No description provided for @googleDriveExportDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Save Current as Preset'**
-  String get saveCurrentAsPreset;
+  /// In zh, this message translates to:
+  /// **'保存备份文件到 Google Drive 或其他位置'**
+  String get googleDriveExportDescription;
 
-  /// Export current settings menu item
+  /// No description provided for @googleDriveImport.
   ///
-  /// In en, this message translates to:
-  /// **'Export Current Settings'**
-  String get exportCurrentSettings;
+  /// In zh, this message translates to:
+  /// **'从 Google Drive 导入'**
+  String get googleDriveImport;
 
-  /// Built-in presets section header
+  /// No description provided for @googleDriveImportDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Built-in Presets'**
-  String get builtInPresets;
+  /// In zh, this message translates to:
+  /// **'从 Google Drive 或其他位置恢复备份文件'**
+  String get googleDriveImportDescription;
 
-  /// Custom presets section header
+  /// No description provided for @export.
   ///
-  /// In en, this message translates to:
-  /// **'Custom Presets'**
-  String get customPresets;
-
-  /// AI presets info description
-  ///
-  /// In en, this message translates to:
-  /// **'AI Presets combine generation settings, prompt ordering, and instruct templates. Select a preset to apply all settings at once.'**
-  String get aiPresetsDescription;
-
-  /// Applied preset message
-  ///
-  /// In en, this message translates to:
-  /// **'Applied \"{name}\" preset'**
-  String appliedPreset(String name);
-
-  /// Failed to apply preset error
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to apply preset: {error}'**
-  String failedToApplyPreset(String error);
-
-  /// Invalid preset format error
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid preset format. Expected preset with generation settings.'**
-  String get invalidPresetFormat;
-
-  /// Imported and applied preset message
-  ///
-  /// In en, this message translates to:
-  /// **'Imported and applied \"{name}\"'**
-  String importedAndApplied(String name);
-
-  /// Save as preset dialog title
-  ///
-  /// In en, this message translates to:
-  /// **'Save as Preset'**
-  String get saveAsPreset;
-
-  /// Description optional label
-  ///
-  /// In en, this message translates to:
-  /// **'Description (optional)'**
-  String get descriptionOptional;
-
-  /// Please enter a name validation
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter a name'**
-  String get pleaseEnterAName;
-
-  /// Saved preset message
-  ///
-  /// In en, this message translates to:
-  /// **'Saved \"{name}\"'**
-  String savedPreset(String name);
-
-  /// Save failed error
-  ///
-  /// In en, this message translates to:
-  /// **'Save failed: {error}'**
-  String saveFailed(String error);
-
-  /// Delete preset confirmation
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete \"{name}\"?'**
-  String deletePresetConfirmation(String name);
-
-  /// Deleted preset message
-  ///
-  /// In en, this message translates to:
-  /// **'Deleted \"{name}\"'**
-  String deletedPreset(String name);
-
-  /// Export button
-  ///
-  /// In en, this message translates to:
-  /// **'Export'**
+  /// In zh, this message translates to:
+  /// **'导出'**
   String get export;
 
-  /// Reset to defaults button
+  /// No description provided for @import_action.
   ///
-  /// In en, this message translates to:
-  /// **'Reset to Defaults'**
+  /// In zh, this message translates to:
+  /// **'导入'**
+  String get import_action;
+
+  /// No description provided for @importBackup.
+  ///
+  /// In zh, this message translates to:
+  /// **'导入备份'**
+  String get importBackup;
+
+  /// No description provided for @backupExported.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份导出成功'**
+  String get backupExported;
+
+  /// No description provided for @restoreSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复设置'**
+  String get restoreSettings;
+
+  /// No description provided for @defaultRestoreMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'默认恢复模式'**
+  String get defaultRestoreMode;
+
+  /// No description provided for @selectRestoreMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择数据恢复方式：'**
+  String get selectRestoreMode;
+
+  /// No description provided for @restoreWarning.
+  ///
+  /// In zh, this message translates to:
+  /// **'根据所选模式，恢复数据可能会覆盖现有数据。请确保先备份当前数据。'**
+  String get restoreWarning;
+
+  /// No description provided for @restore.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复'**
+  String get restore;
+
+  /// No description provided for @restoreComplete.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复完成：新增 {added} 项，更新 {updated} 项，跳过 {skipped} 项'**
+  String restoreComplete(Object added, Object skipped, Object updated);
+
+  /// No description provided for @selectFileAndImport.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择文件并导入'**
+  String get selectFileAndImport;
+
+  /// No description provided for @aboutRestoreModes.
+  ///
+  /// In zh, this message translates to:
+  /// **'关于恢复模式'**
+  String get aboutRestoreModes;
+
+  /// No description provided for @aboutRestoreModesDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'替换：用备份数据覆盖所有本地数据。\\n合并：保留两者，冲突时新数据优先。\\n仅添加新项：仅从备份添加新项，保留所有现有数据。'**
+  String get aboutRestoreModesDescription;
+
+  /// No description provided for @backupAndRestore.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份与恢复'**
+  String get backupAndRestore;
+
+  /// No description provided for @refresh.
+  ///
+  /// In zh, this message translates to:
+  /// **'刷新'**
+  String get refresh;
+
+  /// No description provided for @storage.
+  ///
+  /// In zh, this message translates to:
+  /// **'存储'**
+  String get storage;
+
+  /// No description provided for @totalBackupSize.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份总大小'**
+  String get totalBackupSize;
+
+  /// No description provided for @calculating.
+  ///
+  /// In zh, this message translates to:
+  /// **'计算中...'**
+  String get calculating;
+
+  /// No description provided for @lastAutoBackup.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次自动备份'**
+  String get lastAutoBackup;
+
+  /// No description provided for @autoBackup.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动备份'**
+  String get autoBackup;
+
+  /// No description provided for @enableAutoBackup.
+  ///
+  /// In zh, this message translates to:
+  /// **'启用自动备份'**
+  String get enableAutoBackup;
+
+  /// No description provided for @automaticallyBackupChats.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动备份聊天记录'**
+  String get automaticallyBackupChats;
+
+  /// No description provided for @backupInterval.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份间隔'**
+  String get backupInterval;
+
+  /// No description provided for @backupOnExit.
+  ///
+  /// In zh, this message translates to:
+  /// **'退出时备份'**
+  String get backupOnExit;
+
+  /// No description provided for @createBackupWhenClosingApp.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭应用时创建备份'**
+  String get createBackupWhenClosingApp;
+
+  /// No description provided for @retention.
+  ///
+  /// In zh, this message translates to:
+  /// **'保留策略'**
+  String get retention;
+
+  /// No description provided for @maxChatBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'最大聊天备份数'**
+  String get maxChatBackups;
+
+  /// No description provided for @keepUpToChatBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'最多保留 {count} 个聊天备份'**
+  String keepUpToChatBackups(Object count);
+
+  /// No description provided for @maxFullBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'最大完整备份数'**
+  String get maxFullBackups;
+
+  /// No description provided for @keepUpToFullBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'最多保留 {count} 个完整备份'**
+  String keepUpToFullBackups(Object count);
+
+  /// No description provided for @cleanupOldBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'清理旧备份'**
+  String get cleanupOldBackups;
+
+  /// No description provided for @deleteBackupsExceedingLimits.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除超过限制的备份'**
+  String get deleteBackupsExceedingLimits;
+
+  /// No description provided for @cleanup.
+  ///
+  /// In zh, this message translates to:
+  /// **'清理'**
+  String get cleanup;
+
+  /// No description provided for @deletedOldBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'已删除 {count} 个旧备份'**
+  String deletedOldBackups(Object count);
+
+  /// No description provided for @chatBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'聊天备份'**
+  String get chatBackups;
+
+  /// No description provided for @noChatBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无聊天备份'**
+  String get noChatBackups;
+
+  /// No description provided for @viewAllBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看全部 {count} 个备份'**
+  String viewAllBackups(Object count);
+
+  /// No description provided for @fullBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'完整备份'**
+  String get fullBackups;
+
+  /// No description provided for @noFullBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无完整备份'**
+  String get noFullBackups;
+
+  /// No description provided for @information.
+  ///
+  /// In zh, this message translates to:
+  /// **'信息'**
+  String get information;
+
+  /// No description provided for @aboutBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'关于备份'**
+  String get aboutBackups;
+
+  /// No description provided for @aboutBackupsDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'聊天备份保存单个对话。完整备份包含所有角色、聊天、设置和世界信息。'**
+  String get aboutBackupsDescription;
+
+  /// No description provided for @backupLocation.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份位置'**
+  String get backupLocation;
+
+  /// No description provided for @errorReadingBackup.
+  ///
+  /// In zh, this message translates to:
+  /// **'读取备份错误：{error}'**
+  String errorReadingBackup(Object error);
+
+  /// No description provided for @deleteBackup.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除备份'**
+  String get deleteBackup;
+
+  /// No description provided for @deleteBackupConfirmation.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除 \"{name}\"？\\n\\n此操作无法撤销。'**
+  String deleteBackupConfirmation(Object name);
+
+  /// No description provided for @view.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看'**
+  String get view;
+
+  /// No description provided for @justNow.
+  ///
+  /// In zh, this message translates to:
+  /// **'刚刚'**
+  String get justNow;
+
+  /// No description provided for @minutesAgo.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 分钟前'**
+  String minutesAgo(Object count);
+
+  /// No description provided for @hoursAgo.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 小时前'**
+  String hoursAgo(Object count);
+
+  /// No description provided for @processing.
+  ///
+  /// In zh, this message translates to:
+  /// **'处理中...'**
+  String get processing;
+
+  /// No description provided for @signInToGoogleDrive.
+  ///
+  /// In zh, this message translates to:
+  /// **'登录 Google Drive'**
+  String get signInToGoogleDrive;
+
+  /// No description provided for @signInToGoogleDriveDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'使用 Google 账户登录以备份和恢复数据'**
+  String get signInToGoogleDriveDescription;
+
+  /// No description provided for @signIn.
+  ///
+  /// In zh, this message translates to:
+  /// **'登录'**
+  String get signIn;
+
+  /// No description provided for @signOut.
+  ///
+  /// In zh, this message translates to:
+  /// **'退出登录'**
+  String get signOut;
+
+  /// No description provided for @signedInSuccessfully.
+  ///
+  /// In zh, this message translates to:
+  /// **'登录成功'**
+  String get signedInSuccessfully;
+
+  /// No description provided for @backupToGoogleDrive.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份到 Google Drive'**
+  String get backupToGoogleDrive;
+
+  /// No description provided for @googleDriveBackups.
+  ///
+  /// In zh, this message translates to:
+  /// **'Google Drive 备份'**
+  String get googleDriveBackups;
+
+  /// No description provided for @saveAs.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存'**
+  String get saveAs;
+
+  /// No description provided for @contextLength.
+  ///
+  /// In zh, this message translates to:
+  /// **'文本'**
+  String get contextLength;
+
+  /// No description provided for @contextWindowSize.
+  ///
+  /// In zh, this message translates to:
+  /// **'文本'**
+  String get contextWindowSize;
+
+  /// No description provided for @contextLengthDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get contextLengthDescription;
+
+  /// No description provided for @characterNotFound.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String get characterNotFound;
+
+  /// No description provided for @characterNotFoundMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String get characterNotFoundMessage;
+
+  /// No description provided for @exportAsPng.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出为PNG图片卡'**
+  String get exportAsPng;
+
+  /// No description provided for @exportAsCharx.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出为CharX'**
+  String get exportAsCharx;
+
+  /// No description provided for @exportAsJson.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出为JSON'**
+  String get exportAsJson;
+
+  /// No description provided for @duplicate.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制角色'**
+  String get duplicate;
+
+  /// No description provided for @deleteCharacterConfirmationSimple.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String deleteCharacterConfirmationSimple(Object name);
+
+  /// No description provided for @characterDuplicated.
+  ///
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String characterDuplicated(Object name);
+
+  /// No description provided for @failedToDelete.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String failedToDelete(Object error);
+
+  /// No description provided for @failedToDuplicate.
+  ///
+  /// In zh, this message translates to:
+  /// **'错误'**
+  String failedToDuplicate(Object error);
+
+  /// No description provided for @pngExportComingSoon.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出'**
+  String get pngExportComingSoon;
+
+  /// No description provided for @charxExportComingSoon.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出'**
+  String get charxExportComingSoon;
+
+  /// No description provided for @failedToCreateChat.
+  ///
+  /// In zh, this message translates to:
+  /// **'聊天'**
+  String get failedToCreateChat;
+
+  /// No description provided for @creating.
+  ///
+  /// In zh, this message translates to:
+  /// **'创建中...'**
+  String get creating;
+
+  /// No description provided for @byCreator.
+  ///
+  /// In zh, this message translates to:
+  /// **'由 {creator} 创建'**
+  String byCreator(Object creator);
+
+  /// No description provided for @versionLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'v{version}'**
+  String versionLabel(Object version);
+
+  /// No description provided for @showLess.
+  ///
+  /// In zh, this message translates to:
+  /// **'显示'**
+  String get showLess;
+
+  /// No description provided for @showMore.
+  ///
+  /// In zh, this message translates to:
+  /// **'显示'**
+  String get showMore;
+
+  /// No description provided for @greetingNumber.
+  ///
+  /// In zh, this message translates to:
+  /// **'数字'**
+  String greetingNumber(Object number);
+
+  /// No description provided for @alternateGreetingsCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'计数'**
+  String alternateGreetingsCount(Object count);
+
+  /// No description provided for @embeddedLorebook.
+  ///
+  /// In zh, this message translates to:
+  /// **'内嵌世界书'**
+  String get embeddedLorebook;
+
+  /// No description provided for @entriesEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'启用'**
+  String entriesEnabled(Object enabled, Object total);
+
+  /// No description provided for @andMoreEntries.
+  ///
+  /// In zh, this message translates to:
+  /// **'计数'**
+  String andMoreEntries(Object count);
+
+  /// No description provided for @exampleMessages.
+  ///
+  /// In zh, this message translates to:
+  /// **'消息'**
+  String get exampleMessages;
+
+  /// No description provided for @postHistoryInstructions.
+  ///
+  /// In zh, this message translates to:
+  /// **'历史后指令'**
+  String get postHistoryInstructions;
+
+  /// No description provided for @selectImages.
+  ///
+  /// In zh, this message translates to:
+  /// **'图像'**
+  String get selectImages;
+
+  /// No description provided for @presetsAndTemplates.
+  ///
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String get presetsAndTemplates;
+
+  /// No description provided for @activePreset.
+  ///
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String get activePreset;
+
+  /// No description provided for @change.
+  ///
+  /// In zh, this message translates to:
+  /// **'更改'**
+  String get change;
+
+  /// No description provided for @noPresetSelected.
+  ///
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String get noPresetSelected;
+
+  /// No description provided for @instructTemplate.
+  ///
+  /// In zh, this message translates to:
+  /// **'指令模板'**
+  String get instructTemplate;
+
+  /// No description provided for @selectInstructTemplate.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择'**
+  String get selectInstructTemplate;
+
+  /// No description provided for @instructTemplateDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get instructTemplateDescription;
+
+  /// No description provided for @orderAndTogglePromptSections.
+  ///
+  /// In zh, this message translates to:
+  /// **'提示'**
+  String get orderAndTogglePromptSections;
+
+  /// No description provided for @llmConnection.
+  ///
+  /// In zh, this message translates to:
+  /// **'LLM 连接'**
+  String get llmConnection;
+
+  /// No description provided for @generationSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'设置'**
+  String get generationSettings;
+
+  /// No description provided for @advancedSamplerSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'设置'**
+  String get advancedSamplerSettings;
+
+  /// No description provided for @fullControlOverSampling.
+  ///
+  /// In zh, this message translates to:
+  /// **'完全控制采样参数'**
+  String get fullControlOverSampling;
+
+  /// No description provided for @selectLlmProvider.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择'**
+  String get selectLlmProvider;
+
+  /// No description provided for @notSet.
+  ///
+  /// In zh, this message translates to:
+  /// **'未设置'**
+  String get notSet;
+
+  /// No description provided for @enterApiKey.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入你的 API 密钥'**
+  String get enterApiKey;
+
+  /// No description provided for @apiEndpointUrl.
+  ///
+  /// In zh, this message translates to:
+  /// **'API 端点地址'**
+  String get apiEndpointUrl;
+
+  /// No description provided for @modelName.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get modelName;
+
+  /// No description provided for @fetchAvailableModels.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get fetchAvailableModels;
+
+  /// No description provided for @fetchModelsDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get fetchModelsDescription;
+
+  /// No description provided for @enterModelName.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get enterModelName;
+
+  /// No description provided for @fetchingModels.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get fetchingModels;
+
+  /// No description provided for @failedToFetchModels.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get failedToFetchModels;
+
+  /// No description provided for @tapToTestConnection.
+  ///
+  /// In zh, this message translates to:
+  /// **'测试'**
+  String get tapToTestConnection;
+
+  /// No description provided for @testing.
+  ///
+  /// In zh, this message translates to:
+  /// **'测试'**
+  String get testing;
+
+  /// No description provided for @connected.
+  ///
+  /// In zh, this message translates to:
+  /// **'已连接'**
+  String get connected;
+
+  /// No description provided for @connectionFailedSimple.
+  ///
+  /// In zh, this message translates to:
+  /// **'失败'**
+  String get connectionFailedSimple;
+
+  /// No description provided for @maximumTokensToGenerate.
+  ///
+  /// In zh, this message translates to:
+  /// **'令牌'**
+  String get maximumTokensToGenerate;
+
+  /// No description provided for @streaming.
+  ///
+  /// In zh, this message translates to:
+  /// **'流式输出'**
+  String get streaming;
+
+  /// No description provided for @showResponseAsItGenerates.
+  ///
+  /// In zh, this message translates to:
+  /// **'显示'**
+  String get showResponseAsItGenerates;
+
+  /// No description provided for @selectModelCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String selectModelCount(Object count);
+
+  /// No description provided for @refreshModels.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get refreshModels;
+
+  /// No description provided for @enterManually.
+  ///
+  /// In zh, this message translates to:
+  /// **'手动'**
+  String get enterManually;
+
+  /// No description provided for @noModelsFound.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get noModelsFound;
+
+  /// No description provided for @tryDifferentSearchTerm.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索'**
+  String get tryDifferentSearchTerm;
+
+  /// No description provided for @modelsOfTotal.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String modelsOfTotal(Object filtered, Object total);
+
+  /// No description provided for @importPreset.
+  ///
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String get importPreset;
+
+  /// No description provided for @noGroupChatsYet.
+  ///
+  /// In zh, this message translates to:
+  /// **'聊天'**
+  String get noGroupChatsYet;
+
+  /// No description provided for @createGroupDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String get createGroupDescription;
+
+  /// No description provided for @newGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建群组'**
+  String get newGroup;
+
+  /// No description provided for @membersAndMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'模式'**
+  String membersAndMode(Object count, Object mode);
+
+  /// No description provided for @groupChatWillBeImplemented.
+  ///
+  /// In zh, this message translates to:
+  /// **'聊天'**
+  String get groupChatWillBeImplemented;
+
+  /// No description provided for @deleteGroupConfirmation.
+  ///
+  /// In zh, this message translates to:
+  /// **'聊天'**
+  String deleteGroupConfirmation(Object name);
+
+  /// No description provided for @groupDeleted.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String groupDeleted(Object name);
+
+  /// No description provided for @groupNameRequired.
+  ///
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String get groupNameRequired;
+
+  /// No description provided for @enterGroupName.
+  ///
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String get enterGroupName;
+
+  /// No description provided for @optionalDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'描述'**
+  String get optionalDescription;
+
+  /// No description provided for @selectCharacters.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String get selectCharacters;
+
+  /// No description provided for @charactersSelected.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String charactersSelected(Object count);
+
+  /// No description provided for @create.
+  ///
+  /// In zh, this message translates to:
+  /// **'创建'**
+  String get create;
+
+  /// No description provided for @selectAtLeast2Characters.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String get selectAtLeast2Characters;
+
+  /// No description provided for @groupCreatedSuccessfully.
+  ///
+  /// In zh, this message translates to:
+  /// **'成功'**
+  String get groupCreatedSuccessfully;
+
+  /// No description provided for @failedToCreateGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'错误'**
+  String failedToCreateGroup(Object error);
+
+  /// No description provided for @selectCharacterCard.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String get selectCharacterCard;
+
+  /// No description provided for @supportsPngCharxJson.
+  ///
+  /// In zh, this message translates to:
+  /// **'支持 PNG、CharX 和 JSON 格式'**
+  String get supportsPngCharxJson;
+
+  /// No description provided for @browseFiles.
+  ///
+  /// In zh, this message translates to:
+  /// **'文件'**
+  String get browseFiles;
+
+  /// No description provided for @failedToPickFile.
+  ///
+  /// In zh, this message translates to:
+  /// **'错误'**
+  String failedToPickFile(Object error);
+
+  /// No description provided for @failedToLoadCharacter.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String failedToLoadCharacter(Object error);
+
+  /// No description provided for @unsupportedFileFormat.
+  ///
+  /// In zh, this message translates to:
+  /// **'文件'**
+  String unsupportedFileFormat(Object format);
+
+  /// No description provided for @pngCharacterCard.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String get pngCharacterCard;
+
+  /// No description provided for @characterDataEmbeddedInImage.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String get characterDataEmbeddedInImage;
+
+  /// No description provided for @charxArchive.
+  ///
+  /// In zh, this message translates to:
+  /// **'CharX 压缩包'**
+  String get charxArchive;
+
+  /// No description provided for @zipArchiveWithCharacterData.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String get zipArchiveWithCharacterData;
+
+  /// No description provided for @plainCharacterCardJson.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String get plainCharacterCardJson;
+
+  /// No description provided for @importedWithLorebook.
+  ///
+  /// In zh, this message translates to:
+  /// **'导入'**
+  String importedWithLorebook(Object name);
+
+  /// No description provided for @importedSuccessfully.
+  ///
+  /// In zh, this message translates to:
+  /// **'导入'**
+  String importedSuccessfully(Object name);
+
+  /// No description provided for @failedToImport.
+  ///
+  /// In zh, this message translates to:
+  /// **'导入'**
+  String failedToImport(Object error);
+
+  /// No description provided for @embeddedLorebookEntries.
+  ///
+  /// In zh, this message translates to:
+  /// **'计数'**
+  String embeddedLorebookEntries(Object count);
+
+  /// No description provided for @saveCurrentAsPreset.
+  ///
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String get saveCurrentAsPreset;
+
+  /// No description provided for @exportCurrentSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'设置'**
+  String get exportCurrentSettings;
+
+  /// No description provided for @builtInPresets.
+  ///
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String get builtInPresets;
+
+  /// No description provided for @customPresets.
+  ///
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String get customPresets;
+
+  /// No description provided for @aiPresetsDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String get aiPresetsDescription;
+
+  /// No description provided for @appliedPreset.
+  ///
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String appliedPreset(Object name);
+
+  /// No description provided for @failedToApplyPreset.
+  ///
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String failedToApplyPreset(Object error);
+
+  /// No description provided for @invalidPresetFormat.
+  ///
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String get invalidPresetFormat;
+
+  /// No description provided for @importedAndApplied.
+  ///
+  /// In zh, this message translates to:
+  /// **'导入'**
+  String importedAndApplied(Object name);
+
+  /// No description provided for @saveAsPreset.
+  ///
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String get saveAsPreset;
+
+  /// No description provided for @descriptionOptional.
+  ///
+  /// In zh, this message translates to:
+  /// **'描述'**
+  String get descriptionOptional;
+
+  /// No description provided for @pleaseEnterAName.
+  ///
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String get pleaseEnterAName;
+
+  /// No description provided for @savedPreset.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存'**
+  String savedPreset(Object name);
+
+  /// No description provided for @saveFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存'**
+  String saveFailed(Object error);
+
+  /// No description provided for @deletePresetConfirmation.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String deletePresetConfirmation(Object name);
+
+  /// No description provided for @deletedPreset.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String deletedPreset(Object name);
+
+  /// No description provided for @resetToDefaults.
+  ///
+  /// In zh, this message translates to:
+  /// **'重置'**
   String get resetToDefaults;
 
-  /// Basic sampling section header
+  /// No description provided for @basicSampling.
   ///
-  /// In en, this message translates to:
-  /// **'Basic Sampling'**
+  /// In zh, this message translates to:
+  /// **'基础采样'**
   String get basicSampling;
 
-  /// Temperature description
+  /// No description provided for @temperatureDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Controls randomness. Higher = more creative, lower = more focused.'**
+  /// In zh, this message translates to:
+  /// **'控制随机性。越高越有创意，越低越专注。'**
   String get temperatureDescription;
 
-  /// Top P label with description
+  /// No description provided for @topPNucleusSampling.
   ///
-  /// In en, this message translates to:
-  /// **'Top P (Nucleus Sampling)'**
+  /// In zh, this message translates to:
+  /// **'Top P (核采样)'**
   String get topPNucleusSampling;
 
-  /// Top P description
+  /// No description provided for @topPDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Cumulative probability threshold for token selection.'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get topPDescription;
 
-  /// Top K description
+  /// No description provided for @topKDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Number of top tokens to consider. 0 = disabled.'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get topKDescription;
 
-  /// Advanced sampling section header
+  /// No description provided for @advancedSampling.
   ///
-  /// In en, this message translates to:
-  /// **'Advanced Sampling'**
+  /// In zh, this message translates to:
+  /// **'高级'**
   String get advancedSampling;
 
-  /// Min P label
+  /// No description provided for @minP.
   ///
-  /// In en, this message translates to:
-  /// **'Min P'**
+  /// In zh, this message translates to:
+  /// **'最小'**
   String get minP;
 
-  /// Min P description
+  /// No description provided for @minPDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Minimum probability threshold relative to top token.'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get minPDescription;
 
-  /// Typical P label
+  /// No description provided for @typicalP.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Typical P'**
   String get typicalP;
 
-  /// Typical P description
+  /// No description provided for @typicalPDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Locally typical sampling. 1.0 = disabled.'**
+  /// In zh, this message translates to:
+  /// **'禁用'**
   String get typicalPDescription;
 
-  /// Top A label
+  /// No description provided for @topA.
   ///
-  /// In en, this message translates to:
-  /// **'Top A'**
+  /// In zh, this message translates to:
+  /// **'顶部'**
   String get topA;
 
-  /// Top A description
+  /// No description provided for @topADescription.
   ///
-  /// In en, this message translates to:
-  /// **'Top-A sampling threshold. 0 = disabled.'**
+  /// In zh, this message translates to:
+  /// **'禁用'**
   String get topADescription;
 
-  /// Tail Free Sampling label
+  /// No description provided for @tailFreeSamplingTfs.
   ///
-  /// In en, this message translates to:
-  /// **'Tail Free Sampling (TFS)'**
+  /// In zh, this message translates to:
+  /// **'无尾采样 (TFS)'**
   String get tailFreeSamplingTfs;
 
-  /// TFS description
+  /// No description provided for @tfsDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Removes low-probability tail. 1.0 = disabled.'**
+  /// In zh, this message translates to:
+  /// **'禁用'**
   String get tfsDescription;
 
-  /// Repetition control section header
+  /// No description provided for @repetitionControl.
   ///
-  /// In en, this message translates to:
-  /// **'Repetition Control'**
+  /// In zh, this message translates to:
+  /// **'重复控制'**
   String get repetitionControl;
 
-  /// Repetition penalty description
+  /// No description provided for @repetitionPenaltyDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Penalizes repeated tokens. 1.0 = no penalty.'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get repetitionPenaltyDescription;
 
-  /// Repetition penalty range label
+  /// No description provided for @repetitionPenaltyRange.
   ///
-  /// In en, this message translates to:
-  /// **'Repetition Penalty Range'**
+  /// In zh, this message translates to:
+  /// **'重复惩罚范围'**
   String get repetitionPenaltyRange;
 
-  /// Repetition penalty range description
+  /// No description provided for @repetitionPenaltyRangeDescription.
   ///
-  /// In en, this message translates to:
-  /// **'How many tokens to consider. 0 = all.'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get repetitionPenaltyRangeDescription;
 
-  /// Frequency penalty description
+  /// No description provided for @frequencyPenaltyDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Penalizes tokens based on frequency in text.'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get frequencyPenaltyDescription;
 
-  /// Presence penalty description
+  /// No description provided for @presencePenaltyDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Penalizes tokens that appear at all in text.'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get presencePenaltyDescription;
 
-  /// Mirostat section header
+  /// No description provided for @mirostatLocalModels.
   ///
-  /// In en, this message translates to:
-  /// **'Mirostat (Local Models)'**
+  /// In zh, this message translates to:
+  /// **'模型'**
   String get mirostatLocalModels;
 
-  /// Mirostat mode label
+  /// No description provided for @mirostatMode.
   ///
-  /// In en, this message translates to:
-  /// **'Mirostat Mode'**
+  /// In zh, this message translates to:
+  /// **'模式'**
   String get mirostatMode;
 
-  /// Mirostat mode description
+  /// No description provided for @adaptiveSamplingForLocalModels.
   ///
-  /// In en, this message translates to:
-  /// **'Adaptive sampling for local models'**
+  /// In zh, this message translates to:
+  /// **'模型'**
   String get adaptiveSamplingForLocalModels;
 
-  /// Off label
+  /// No description provided for @off.
   ///
-  /// In en, this message translates to:
-  /// **'Off'**
+  /// In zh, this message translates to:
+  /// **'关闭'**
   String get off;
 
-  /// Mirostat Tau label
+  /// No description provided for @mirostatTau.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Mirostat Tau'**
   String get mirostatTau;
 
-  /// Mirostat Tau description
+  /// No description provided for @mirostatTauDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Target entropy/perplexity.'**
+  /// In zh, this message translates to:
+  /// **'目标熵/困惑度。'**
   String get mirostatTauDescription;
 
-  /// Mirostat Eta label
+  /// No description provided for @mirostatEta.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Mirostat Eta'**
   String get mirostatEta;
 
-  /// Mirostat Eta description
+  /// No description provided for @mirostatEtaDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Learning rate for Mirostat.'**
+  /// In zh, this message translates to:
+  /// **'比率'**
   String get mirostatEtaDescription;
 
-  /// Generation control section header
+  /// No description provided for @generationControl.
   ///
-  /// In en, this message translates to:
-  /// **'Generation Control'**
+  /// In zh, this message translates to:
+  /// **'生成'**
   String get generationControl;
 
-  /// Max tokens description
+  /// No description provided for @maxTokensDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Maximum tokens to generate.'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get maxTokensDescription;
 
-  /// Seed label
+  /// No description provided for @seed.
   ///
-  /// In en, this message translates to:
-  /// **'Seed'**
+  /// In zh, this message translates to:
+  /// **'种子'**
   String get seed;
 
-  /// Seed description
+  /// No description provided for @seedDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Random seed for reproducibility. -1 = random.'**
+  /// In zh, this message translates to:
+  /// **'用于可复现的随机种子。-1 = 随机。'**
   String get seedDescription;
 
-  /// Stop sequences label
+  /// No description provided for @stopSequences.
   ///
-  /// In en, this message translates to:
-  /// **'Stop Sequences'**
+  /// In zh, this message translates to:
+  /// **'顶部'**
   String get stopSequences;
 
-  /// No stop sequences configured message
+  /// No description provided for @noStopSequencesConfigured.
   ///
-  /// In en, this message translates to:
-  /// **'No stop sequences configured'**
+  /// In zh, this message translates to:
+  /// **'配置'**
   String get noStopSequencesConfigured;
 
-  /// Stop sequences description
+  /// No description provided for @stopSequencesDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Enter one sequence per line. Generation stops when any of these are produced.'**
+  /// In zh, this message translates to:
+  /// **'生成'**
   String get stopSequencesDescription;
 
-  /// Reset confirmation message
+  /// No description provided for @resetConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'This will reset all sampler settings to their default values. Continue?'**
+  /// In zh, this message translates to:
+  /// **'设置'**
   String get resetConfirmation;
 
-  /// Reset button
+  /// No description provided for @reset.
   ///
-  /// In en, this message translates to:
-  /// **'Reset'**
+  /// In zh, this message translates to:
+  /// **'重置'**
   String get reset;
 
-  /// Settings reset to defaults message
+  /// No description provided for @settingsResetToDefaults.
   ///
-  /// In en, this message translates to:
-  /// **'Settings reset to defaults'**
+  /// In zh, this message translates to:
+  /// **'设置'**
   String get settingsResetToDefaults;
 
-  /// Character background screen title
+  /// No description provided for @characterBackground.
   ///
-  /// In en, this message translates to:
-  /// **'Character Background'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get characterBackground;
 
-  /// Chat background screen title
+  /// No description provided for @chatBackground.
   ///
-  /// In en, this message translates to:
-  /// **'Chat Background'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get chatBackground;
 
-  /// Clear background tooltip
+  /// No description provided for @clearBackground.
   ///
-  /// In en, this message translates to:
-  /// **'Clear background'**
+  /// In zh, this message translates to:
+  /// **'清除'**
   String get clearBackground;
 
-  /// Gradient presets section header
+  /// No description provided for @gradientPresets.
   ///
-  /// In en, this message translates to:
-  /// **'Gradient Presets'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get gradientPresets;
 
-  /// Solid colors section header
+  /// No description provided for @solidColors.
   ///
-  /// In en, this message translates to:
-  /// **'Solid Colors'**
+  /// In zh, this message translates to:
+  /// **'纯色'**
   String get solidColors;
 
-  /// Custom image section header
+  /// No description provided for @customImage.
   ///
-  /// In en, this message translates to:
-  /// **'Custom Image'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get customImage;
 
-  /// Adjustments section header
+  /// No description provided for @adjustments.
   ///
-  /// In en, this message translates to:
-  /// **'Adjustments'**
+  /// In zh, this message translates to:
+  /// **'调整'**
   String get adjustments;
 
-  /// No background selected message
+  /// No description provided for @noBackgroundSelected.
   ///
-  /// In en, this message translates to:
-  /// **'No background selected'**
+  /// In zh, this message translates to:
+  /// **'选择'**
   String get noBackgroundSelected;
 
-  /// Choose image button
+  /// No description provided for @chooseImage.
   ///
-  /// In en, this message translates to:
-  /// **'Choose Image'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get chooseImage;
 
-  /// From URL button
+  /// No description provided for @fromUrl.
   ///
-  /// In en, this message translates to:
-  /// **'From URL'**
+  /// In zh, this message translates to:
+  /// **'来自 URL'**
   String get fromUrl;
 
-  /// Local image label
+  /// No description provided for @localImage.
   ///
-  /// In en, this message translates to:
-  /// **'Local image: {filename}'**
-  String localImage(String filename);
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String localImage(Object filename);
 
-  /// URL label
+  /// No description provided for @urlLabel.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'URL: {url}'**
-  String urlLabel(String url);
+  String urlLabel(Object url);
 
-  /// No image message
+  /// No description provided for @noImage.
   ///
-  /// In en, this message translates to:
-  /// **'No image'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get noImage;
 
-  /// Opacity label
+  /// No description provided for @opacity.
   ///
-  /// In en, this message translates to:
-  /// **'Opacity'**
+  /// In zh, this message translates to:
+  /// **'透明度'**
   String get opacity;
 
-  /// Blur effect label
+  /// No description provided for @blurEffect.
   ///
-  /// In en, this message translates to:
-  /// **'Blur Effect'**
+  /// In zh, this message translates to:
+  /// **'模糊效果'**
   String get blurEffect;
 
-  /// Blur effect description
+  /// No description provided for @applyBlurToBackground.
   ///
-  /// In en, this message translates to:
-  /// **'Apply blur to the background'**
+  /// In zh, this message translates to:
+  /// **'应用'**
   String get applyBlurToBackground;
 
-  /// Blur amount label
+  /// No description provided for @blurAmount.
   ///
-  /// In en, this message translates to:
-  /// **'Blur Amount'**
+  /// In zh, this message translates to:
+  /// **'模糊程度'**
   String get blurAmount;
 
-  /// Failed to load image error
+  /// No description provided for @failedToLoadImage.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to load image: {error}'**
-  String failedToLoadImage(String error);
+  /// In zh, this message translates to:
+  /// **'加载'**
+  String failedToLoadImage(Object error);
 
-  /// Image URL dialog title
+  /// No description provided for @imageUrl.
   ///
-  /// In en, this message translates to:
-  /// **'Image URL'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get imageUrl;
 
-  /// Enter image URL hint
+  /// No description provided for @enterImageUrl.
   ///
-  /// In en, this message translates to:
-  /// **'Enter image URL'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get enterImageUrl;
 
-  /// Apply button
+  /// No description provided for @apply.
   ///
-  /// In en, this message translates to:
-  /// **'Apply'**
+  /// In zh, this message translates to:
+  /// **'应用'**
   String get apply;
 
-  /// Backup and restore screen title
+  /// No description provided for @enableCfgScale.
   ///
-  /// In en, this message translates to:
-  /// **'Backup & Restore'**
-  String get backupAndRestore;
-
-  /// Refresh button
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh'**
-  String get refresh;
-
-  /// Storage section header
-  ///
-  /// In en, this message translates to:
-  /// **'Storage'**
-  String get storage;
-
-  /// Total backup size label
-  ///
-  /// In en, this message translates to:
-  /// **'Total Backup Size'**
-  String get totalBackupSize;
-
-  /// Calculating indicator
-  ///
-  /// In en, this message translates to:
-  /// **'Calculating...'**
-  String get calculating;
-
-  /// Last auto-backup label
-  ///
-  /// In en, this message translates to:
-  /// **'Last Auto-Backup'**
-  String get lastAutoBackup;
-
-  /// Auto-backup section header
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-Backup'**
-  String get autoBackup;
-
-  /// Enable auto-backup toggle
-  ///
-  /// In en, this message translates to:
-  /// **'Enable Auto-Backup'**
-  String get enableAutoBackup;
-
-  /// Auto-backup description
-  ///
-  /// In en, this message translates to:
-  /// **'Automatically backup chats'**
-  String get automaticallyBackupChats;
-
-  /// Backup interval label
-  ///
-  /// In en, this message translates to:
-  /// **'Backup Interval'**
-  String get backupInterval;
-
-  /// Backup on exit toggle
-  ///
-  /// In en, this message translates to:
-  /// **'Backup on Exit'**
-  String get backupOnExit;
-
-  /// Backup on exit description
-  ///
-  /// In en, this message translates to:
-  /// **'Create backup when closing app'**
-  String get createBackupWhenClosingApp;
-
-  /// Retention section header
-  ///
-  /// In en, this message translates to:
-  /// **'Retention'**
-  String get retention;
-
-  /// Max chat backups label
-  ///
-  /// In en, this message translates to:
-  /// **'Max Chat Backups'**
-  String get maxChatBackups;
-
-  /// Keep up to chat backups description
-  ///
-  /// In en, this message translates to:
-  /// **'Keep up to {count} chat backups'**
-  String keepUpToChatBackups(int count);
-
-  /// Max full backups label
-  ///
-  /// In en, this message translates to:
-  /// **'Max Full Backups'**
-  String get maxFullBackups;
-
-  /// Keep up to full backups description
-  ///
-  /// In en, this message translates to:
-  /// **'Keep up to {count} full backups'**
-  String keepUpToFullBackups(int count);
-
-  /// Cleanup old backups button
-  ///
-  /// In en, this message translates to:
-  /// **'Cleanup Old Backups'**
-  String get cleanupOldBackups;
-
-  /// Cleanup description
-  ///
-  /// In en, this message translates to:
-  /// **'Delete backups exceeding limits'**
-  String get deleteBackupsExceedingLimits;
-
-  /// Cleanup button
-  ///
-  /// In en, this message translates to:
-  /// **'Cleanup'**
-  String get cleanup;
-
-  /// Deleted old backups message
-  ///
-  /// In en, this message translates to:
-  /// **'Deleted {count} old backups'**
-  String deletedOldBackups(int count);
-
-  /// Chat backups section header
-  ///
-  /// In en, this message translates to:
-  /// **'Chat Backups'**
-  String get chatBackups;
-
-  /// No chat backups message
-  ///
-  /// In en, this message translates to:
-  /// **'No chat backups'**
-  String get noChatBackups;
-
-  /// View all backups button
-  ///
-  /// In en, this message translates to:
-  /// **'View all {count} backups'**
-  String viewAllBackups(int count);
-
-  /// Full backups section header
-  ///
-  /// In en, this message translates to:
-  /// **'Full Backups'**
-  String get fullBackups;
-
-  /// No full backups message
-  ///
-  /// In en, this message translates to:
-  /// **'No full backups'**
-  String get noFullBackups;
-
-  /// Information section header
-  ///
-  /// In en, this message translates to:
-  /// **'Information'**
-  String get information;
-
-  /// About backups label
-  ///
-  /// In en, this message translates to:
-  /// **'About Backups'**
-  String get aboutBackups;
-
-  /// About backups description
-  ///
-  /// In en, this message translates to:
-  /// **'Chat backups save individual conversations. Full backups include all characters, chats, settings, and world info.'**
-  String get aboutBackupsDescription;
-
-  /// Backup location label
-  ///
-  /// In en, this message translates to:
-  /// **'Backup Location'**
-  String get backupLocation;
-
-  /// Error reading backup message
-  ///
-  /// In en, this message translates to:
-  /// **'Error reading backup: {error}'**
-  String errorReadingBackup(String error);
-
-  /// Delete backup dialog title
-  ///
-  /// In en, this message translates to:
-  /// **'Delete Backup'**
-  String get deleteBackup;
-
-  /// Delete backup confirmation
-  ///
-  /// In en, this message translates to:
-  /// **'Delete \"{name}\"?\n\nThis cannot be undone.'**
-  String deleteBackupConfirmation(String name);
-
-  /// View button
-  ///
-  /// In en, this message translates to:
-  /// **'View'**
-  String get view;
-
-  /// Just now time label
-  ///
-  /// In en, this message translates to:
-  /// **'Just now'**
-  String get justNow;
-
-  /// Minutes ago time label
-  ///
-  /// In en, this message translates to:
-  /// **'{count} minutes ago'**
-  String minutesAgo(int count);
-
-  /// Hours ago time label
-  ///
-  /// In en, this message translates to:
-  /// **'{count} hours ago'**
-  String hoursAgo(int count);
-
-  /// Enable CFG scale toggle
-  ///
-  /// In en, this message translates to:
-  /// **'Enable CFG Scale'**
+  /// In zh, this message translates to:
+  /// **'启用'**
   String get enableCfgScale;
 
-  /// CFG scale description
+  /// No description provided for @cfgScaleDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Classifier-Free Guidance for text generation'**
+  /// In zh, this message translates to:
+  /// **'文本'**
   String get cfgScaleDescription;
 
-  /// Global settings section header
+  /// No description provided for @globalSettings.
   ///
-  /// In en, this message translates to:
-  /// **'Global Settings'**
+  /// In zh, this message translates to:
+  /// **'设置'**
   String get globalSettings;
 
-  /// Guidance scale label
+  /// No description provided for @guidanceScale.
   ///
-  /// In en, this message translates to:
-  /// **'Guidance Scale'**
+  /// In zh, this message translates to:
+  /// **'引导系数'**
   String get guidanceScale;
 
-  /// Negative prompt label
+  /// No description provided for @negativePrompt.
   ///
-  /// In en, this message translates to:
-  /// **'Negative Prompt'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get negativePrompt;
 
-  /// Negative prompt hint
+  /// No description provided for @textToSteerAwayFrom.
   ///
-  /// In en, this message translates to:
-  /// **'Text to steer the model away from'**
+  /// In zh, this message translates to:
+  /// **'模型'**
   String get textToSteerAwayFrom;
 
-  /// Positive prompt optional label
+  /// No description provided for @positivePromptOptional.
   ///
-  /// In en, this message translates to:
-  /// **'Positive Prompt (Optional)'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get positivePromptOptional;
 
-  /// Positive prompt hint
+  /// No description provided for @textToEnhanceInOutput.
   ///
-  /// In en, this message translates to:
-  /// **'Text to enhance in the output'**
+  /// In zh, this message translates to:
+  /// **'文本'**
   String get textToEnhanceInOutput;
 
-  /// Character settings section header
+  /// No description provided for @characterSettings.
   ///
-  /// In en, this message translates to:
-  /// **'Character Settings'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get characterSettings;
 
-  /// Use character-specific settings toggle
+  /// No description provided for @useCharacterSpecificSettings.
   ///
-  /// In en, this message translates to:
-  /// **'Use Character-Specific Settings'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get useCharacterSpecificSettings;
 
-  /// Override global for character description
+  /// No description provided for @overrideGlobalForCharacter.
   ///
-  /// In en, this message translates to:
-  /// **'Override global settings for this character'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get overrideGlobalForCharacter;
 
-  /// Character negative prompt label
+  /// No description provided for @characterNegativePrompt.
   ///
-  /// In en, this message translates to:
-  /// **'Character Negative Prompt'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get characterNegativePrompt;
 
-  /// Override global negative prompt hint
+  /// No description provided for @overrideGlobalNegativePrompt.
   ///
-  /// In en, this message translates to:
-  /// **'Override global negative prompt'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get overrideGlobalNegativePrompt;
 
-  /// Chat settings section header
+  /// No description provided for @chatSettings.
   ///
-  /// In en, this message translates to:
-  /// **'Chat Settings'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get chatSettings;
 
-  /// Chat settings description
+  /// No description provided for @chatSettingsDescription.
   ///
-  /// In en, this message translates to:
-  /// **'These settings override global and character settings for this chat only.'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get chatSettingsDescription;
 
-  /// Chat negative prompt label
+  /// No description provided for @chatNegativePrompt.
   ///
-  /// In en, this message translates to:
-  /// **'Chat Negative Prompt'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get chatNegativePrompt;
 
-  /// Override for this chat hint
+  /// No description provided for @overrideForThisChat.
   ///
-  /// In en, this message translates to:
-  /// **'Override for this chat'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get overrideForThisChat;
 
-  /// Chat positive prompt label
+  /// No description provided for @chatPositivePrompt.
   ///
-  /// In en, this message translates to:
-  /// **'Chat Positive Prompt'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get chatPositivePrompt;
 
-  /// Enhancement for this chat hint
+  /// No description provided for @enhancementForThisChat.
   ///
-  /// In en, this message translates to:
-  /// **'Enhancement for this chat'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get enhancementForThisChat;
 
-  /// Prompt combine mode label
+  /// No description provided for @promptCombineMode.
   ///
-  /// In en, this message translates to:
-  /// **'Prompt Combine Mode'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get promptCombineMode;
 
-  /// Replace combine mode
+  /// No description provided for @replaceChatPromptOnly.
   ///
-  /// In en, this message translates to:
-  /// **'Replace (use chat prompt only)'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get replaceChatPromptOnly;
 
-  /// Prepend combine mode
+  /// No description provided for @prependChatPlusGlobal.
   ///
-  /// In en, this message translates to:
-  /// **'Prepend (chat + global)'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get prependChatPlusGlobal;
 
-  /// Append combine mode
+  /// No description provided for @appendGlobalPlusChat.
   ///
-  /// In en, this message translates to:
-  /// **'Append (global + chat)'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get appendGlobalPlusChat;
 
-  /// About CFG scale label
+  /// No description provided for @aboutCfgScale.
   ///
-  /// In en, this message translates to:
-  /// **'About CFG Scale'**
+  /// In zh, this message translates to:
+  /// **'关于 CFG Scale'**
   String get aboutCfgScale;
 
-  /// About CFG scale description
+  /// No description provided for @aboutCfgScaleDescription.
   ///
-  /// In en, this message translates to:
-  /// **'CFG (Classifier-Free Guidance) Scale controls how strongly the model follows the negative prompt to avoid certain content or styles.\n\n• Scale 1.0 = No effect (default)\n• Scale 1.5-3.0 = Subtle guidance\n• Scale 3.0-7.0 = Moderate guidance\n• Scale 7.0+ = Strong guidance (may affect coherence)'**
+  /// In zh, this message translates to:
+  /// **'模型'**
   String get aboutCfgScaleDescription;
 
-  /// CFG scale help dialog title
+  /// No description provided for @cfgScaleHelp.
   ///
-  /// In en, this message translates to:
-  /// **'CFG Scale Help'**
+  /// In zh, this message translates to:
+  /// **'帮助'**
   String get cfgScaleHelp;
 
-  /// CFG scale help content
+  /// No description provided for @cfgScaleHelpContent.
   ///
-  /// In en, this message translates to:
-  /// **'Classifier-Free Guidance (CFG) Scale is a technique that allows you to guide the AI model\'s output by specifying what you want to avoid.\n\n**How it works:**\nThe model generates two outputs - one with your prompt and one with the negative prompt. The final output is adjusted to move away from the negative prompt direction.\n\n**Settings Priority:**\n1. Chat-specific settings (highest)\n2. Character-specific settings\n3. Global settings (lowest)\n\n**Tips:**\n• Start with low values (1.5-2.0) and increase gradually\n• Use specific negative prompts for better results\n• High values may cause repetition or incoherence\n• Not all AI backends support CFG Scale'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get cfgScaleHelpContent;
 
-  /// Help button
+  /// No description provided for @help.
   ///
-  /// In en, this message translates to:
-  /// **'Help'**
+  /// In zh, this message translates to:
+  /// **'帮助'**
   String get help;
 
-  /// Processing indicator
+  /// No description provided for @sampleMessage1.
   ///
-  /// In en, this message translates to:
-  /// **'Processing...'**
-  String get processing;
-
-  /// Sample chat message for background preview
-  ///
-  /// In en, this message translates to:
-  /// **'Hello! How are you?'**
+  /// In zh, this message translates to:
+  /// **'你好！最近怎么样？'**
   String get sampleMessage1;
 
-  /// Sample chat message for background preview
+  /// No description provided for @sampleMessage2.
   ///
-  /// In en, this message translates to:
-  /// **'I\'m doing great!'**
+  /// In zh, this message translates to:
+  /// **'我很好！'**
   String get sampleMessage2;
 
-  /// General section header
+  /// No description provided for @general.
   ///
-  /// In en, this message translates to:
-  /// **'General'**
+  /// In zh, this message translates to:
+  /// **'通用'**
   String get general;
 
-  /// Enable image generation toggle
+  /// No description provided for @enableImageGeneration.
   ///
-  /// In en, this message translates to:
-  /// **'Enable Image Generation'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get enableImageGeneration;
 
-  /// Image generation description
+  /// No description provided for @generateImagesUsingAi.
   ///
-  /// In en, this message translates to:
-  /// **'Generate images using AI'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get generateImagesUsingAi;
 
-  /// Image generation provider label
+  /// No description provided for @imageGenerationProvider.
   ///
-  /// In en, this message translates to:
-  /// **'Image Generation Provider'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get imageGenerationProvider;
 
-  /// API endpoint label
+  /// No description provided for @apiEndpoint.
   ///
-  /// In en, this message translates to:
-  /// **'API Endpoint'**
+  /// In zh, this message translates to:
+  /// **'API 端点'**
   String get apiEndpoint;
 
-  /// Not configured message
+  /// No description provided for @notConfigured.
   ///
-  /// In en, this message translates to:
-  /// **'Not configured'**
+  /// In zh, this message translates to:
+  /// **'配置'**
   String get notConfigured;
 
-  /// Default parameters section header
+  /// No description provided for @defaultParameters.
   ///
-  /// In en, this message translates to:
-  /// **'Default Parameters'**
+  /// In zh, this message translates to:
+  /// **'默认'**
   String get defaultParameters;
 
-  /// Image size label
+  /// No description provided for @imageSize.
   ///
-  /// In en, this message translates to:
-  /// **'Image Size'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get imageSize;
 
-  /// Steps label for image generation
+  /// No description provided for @steps.
   ///
-  /// In en, this message translates to:
-  /// **'Steps'**
+  /// In zh, this message translates to:
+  /// **'步数'**
   String get steps;
 
-  /// Sampler label
+  /// No description provided for @sampler.
   ///
-  /// In en, this message translates to:
-  /// **'Sampler'**
+  /// In zh, this message translates to:
+  /// **'采样器'**
   String get sampler;
 
-  /// Default negative prompt label
+  /// No description provided for @defaultNegativePrompt.
   ///
-  /// In en, this message translates to:
-  /// **'Default Negative Prompt'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get defaultNegativePrompt;
 
-  /// Negative prompt hint for image generation
+  /// No description provided for @enterTermsToAvoid.
   ///
-  /// In en, this message translates to:
-  /// **'Enter terms to avoid in generated images'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get enterTermsToAvoid;
 
-  /// Test section header
+  /// No description provided for @test.
   ///
-  /// In en, this message translates to:
-  /// **'Test'**
+  /// In zh, this message translates to:
+  /// **'测试'**
   String get test;
 
-  /// About image generation label
+  /// No description provided for @aboutImageGeneration.
   ///
-  /// In en, this message translates to:
-  /// **'About Image Generation'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get aboutImageGeneration;
 
-  /// About image generation description
+  /// No description provided for @aboutImageGenerationDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Generate images using AI models. Use the /imagine command in chat or generate character portraits from the character editor.'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get aboutImageGenerationDescription;
 
-  /// Imagine command label
+  /// No description provided for @imagineCommand.
   ///
-  /// In en, this message translates to:
-  /// **'/imagine Command'**
+  /// In zh, this message translates to:
+  /// **'/imagine 命令'**
   String get imagineCommand;
 
-  /// Imagine command usage
+  /// No description provided for @imagineCommandUsage.
   ///
-  /// In en, this message translates to:
-  /// **'Usage: /imagine <prompt> [--width N] [--height N] [--steps N] [--cfg N] [--seed N]'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get imagineCommandUsage;
 
-  /// Stable Diffusion label
+  /// No description provided for @stableDiffusion.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Stable Diffusion'**
   String get stableDiffusion;
 
-  /// Stable Diffusion description
+  /// No description provided for @stableDiffusionDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Connect to a local or remote Stable Diffusion WebUI instance. Requires the API to be enabled.'**
+  /// In zh, this message translates to:
+  /// **'启用'**
   String get stableDiffusionDescription;
 
-  /// DALL-E label
+  /// No description provided for @dalle.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'DALL-E'**
   String get dalle;
 
-  /// DALL-E description
+  /// No description provided for @dalleDescription.
   ///
-  /// In en, this message translates to:
-  /// **'OpenAI\'s DALL-E image generation. Requires an API key from OpenAI.'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get dalleDescription;
 
-  /// Prompt label
+  /// No description provided for @prompt.
   ///
-  /// In en, this message translates to:
-  /// **'Prompt'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get prompt;
 
-  /// Prompt hint for image generation
+  /// No description provided for @enterPromptToGenerate.
   ///
-  /// In en, this message translates to:
-  /// **'Enter a prompt to generate an image'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get enterPromptToGenerate;
 
-  /// Generate button
+  /// No description provided for @generate.
   ///
-  /// In en, this message translates to:
-  /// **'Generate'**
+  /// In zh, this message translates to:
+  /// **'比率'**
   String get generate;
 
-  /// Generating indicator
+  /// No description provided for @generating.
   ///
-  /// In en, this message translates to:
-  /// **'Generating...'**
+  /// In zh, this message translates to:
+  /// **'生成中...'**
   String get generating;
 
-  /// Generation complete message
+  /// No description provided for @generationComplete.
   ///
-  /// In en, this message translates to:
-  /// **'Generation Complete'**
+  /// In zh, this message translates to:
+  /// **'完成'**
   String get generationComplete;
 
-  /// Image placeholder text
+  /// No description provided for @imageWouldBeDisplayed.
   ///
-  /// In en, this message translates to:
-  /// **'Image would be displayed here'**
+  /// In zh, this message translates to:
+  /// **'图像'**
   String get imageWouldBeDisplayed;
 
-  /// Enable logit bias toggle
+  /// No description provided for @enableLogitBias.
   ///
-  /// In en, this message translates to:
-  /// **'Enable Logit Bias'**
+  /// In zh, this message translates to:
+  /// **'启用'**
   String get enableLogitBias;
 
-  /// Logit bias description
+  /// No description provided for @adjustTokenProbabilities.
   ///
-  /// In en, this message translates to:
-  /// **'Adjust token probabilities in AI responses'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get adjustTokenProbabilities;
 
-  /// Presets section header
+  /// No description provided for @presets.
   ///
-  /// In en, this message translates to:
-  /// **'Presets'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get presets;
 
-  /// Active preset label
+  /// No description provided for @activePresetLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Active Preset'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get activePresetLabel;
 
-  /// None option
+  /// No description provided for @none.
   ///
-  /// In en, this message translates to:
-  /// **'None'**
+  /// In zh, this message translates to:
+  /// **'无'**
   String get none;
 
-  /// New preset tooltip
+  /// No description provided for @newPreset.
   ///
-  /// In en, this message translates to:
-  /// **'New Preset'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get newPreset;
 
-  /// Import preset menu item
+  /// No description provided for @importPresetLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Import Preset'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get importPresetLabel;
 
-  /// Bias entries section header
+  /// No description provided for @biasEntries.
   ///
-  /// In en, this message translates to:
-  /// **'Bias Entries'**
+  /// In zh, this message translates to:
+  /// **'偏置条目'**
   String get biasEntries;
 
-  /// No bias entries message
+  /// No description provided for @noBiasEntries.
   ///
-  /// In en, this message translates to:
-  /// **'No bias entries'**
+  /// In zh, this message translates to:
+  /// **'暂无偏置条目'**
   String get noBiasEntries;
 
-  /// Add entries description
+  /// No description provided for @addEntriesToAdjust.
   ///
-  /// In en, this message translates to:
-  /// **'Add entries to adjust token probabilities'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get addEntriesToAdjust;
 
-  /// Add entry button
+  /// No description provided for @addEntry.
   ///
-  /// In en, this message translates to:
-  /// **'Add Entry'**
+  /// In zh, this message translates to:
+  /// **'添加'**
   String get addEntry;
 
-  /// Text or token label
+  /// No description provided for @textOrToken.
   ///
-  /// In en, this message translates to:
-  /// **'Text / Token'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get textOrToken;
 
-  /// Text token hint for logit bias
+  /// No description provided for @textTokenHint.
   ///
-  /// In en, this message translates to:
-  /// **'word, {verbatim}, or [1234]'**
+  /// In zh, this message translates to:
+  /// **'单词、{verbatim} 或 [1234]'**
   String textTokenHint(Object verbatim);
 
-  /// Bias label
+  /// No description provided for @bias.
   ///
-  /// In en, this message translates to:
-  /// **'Bias'**
+  /// In zh, this message translates to:
+  /// **'偏置'**
   String get bias;
 
-  /// Logit bias help dialog title
+  /// No description provided for @logitBiasHelp.
   ///
-  /// In en, this message translates to:
-  /// **'Logit Bias Help'**
+  /// In zh, this message translates to:
+  /// **'帮助'**
   String get logitBiasHelp;
 
-  /// Preset copied message
+  /// No description provided for @presetCopiedToClipboard.
   ///
-  /// In en, this message translates to:
-  /// **'Preset copied to clipboard'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get presetCopiedToClipboard;
 
-  /// Export preset failed error
+  /// No description provided for @exportPresetFailed.
   ///
-  /// In en, this message translates to:
-  /// **'Export failed: {error}'**
-  String exportPresetFailed(String error);
+  /// In zh, this message translates to:
+  /// **'导出'**
+  String exportPresetFailed(Object error);
 
-  /// Paste preset JSON hint
+  /// No description provided for @pastePresetJson.
   ///
-  /// In en, this message translates to:
-  /// **'Paste preset JSON here'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get pastePresetJson;
 
-  /// Preset imported message
+  /// No description provided for @presetImportedSuccessfully.
   ///
-  /// In en, this message translates to:
-  /// **'Preset imported successfully'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get presetImportedSuccessfully;
 
-  /// Import preset failed error
+  /// No description provided for @importPresetFailed.
   ///
-  /// In en, this message translates to:
-  /// **'Import failed: {error}'**
-  String importPresetFailed(String error);
+  /// In zh, this message translates to:
+  /// **'导入'**
+  String importPresetFailed(Object error);
 
-  /// Rename button
+  /// No description provided for @rename.
   ///
-  /// In en, this message translates to:
-  /// **'Rename'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get rename;
 
-  /// Delete preset confirmation
+  /// No description provided for @deletePresetQuestion.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete this preset?'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get deletePresetQuestion;
 
-  /// More options tooltip
+  /// No description provided for @moreOptions.
   ///
-  /// In en, this message translates to:
-  /// **'More options'**
+  /// In zh, this message translates to:
+  /// **'更多选项'**
   String get moreOptions;
 
-  /// Load preset label
+  /// No description provided for @loadPreset.
   ///
-  /// In en, this message translates to:
-  /// **'Load Preset'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get loadPreset;
 
-  /// Save as preset label
+  /// No description provided for @saveAsPresetLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Save as Preset'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get saveAsPresetLabel;
 
-  /// Export preset label
+  /// No description provided for @exportPreset.
   ///
-  /// In en, this message translates to:
-  /// **'Export Preset'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get exportPreset;
 
-  /// Reset to default label
+  /// No description provided for @resetToDefault.
   ///
-  /// In en, this message translates to:
-  /// **'Reset to Default'**
+  /// In zh, this message translates to:
+  /// **'重置'**
   String get resetToDefault;
 
-  /// Prompt manager help text
+  /// No description provided for @dragToReorder.
   ///
-  /// In en, this message translates to:
-  /// **'Drag to reorder sections. Toggle switches to enable/disable.'**
+  /// In zh, this message translates to:
+  /// **'向量检索'**
   String get dragToReorder;
 
-  /// Deleted message
+  /// No description provided for @deleted.
   ///
-  /// In en, this message translates to:
-  /// **'Deleted \"{name}\"'**
-  String deleted(String name);
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String deleted(Object name);
 
-  /// Imported message
+  /// No description provided for @imported.
   ///
-  /// In en, this message translates to:
-  /// **'Imported \"{name}\"'**
-  String imported(String name);
+  /// In zh, this message translates to:
+  /// **'导入'**
+  String imported(Object name);
 
-  /// Invalid preset format error
+  /// No description provided for @invalidPresetFormatMessage.
   ///
-  /// In en, this message translates to:
-  /// **'Invalid preset format'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get invalidPresetFormatMessage;
 
-  /// Export preset dialog title
+  /// No description provided for @exportPresetTitle.
   ///
-  /// In en, this message translates to:
-  /// **'Export Preset'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get exportPresetTitle;
 
-  /// Preset name label
+  /// No description provided for @presetNameLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Preset Name'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get presetNameLabel;
 
-  /// Please enter name message
+  /// No description provided for @pleaseEnterNameMessage.
   ///
-  /// In en, this message translates to:
-  /// **'Please enter a name'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get pleaseEnterNameMessage;
 
-  /// Saved message
+  /// No description provided for @saved.
   ///
-  /// In en, this message translates to:
-  /// **'Saved \"{name}\"'**
-  String saved(String name);
+  /// In zh, this message translates to:
+  /// **'保存'**
+  String saved(Object name);
 
-  /// Save failed error
+  /// No description provided for @saveFailedMessage.
   ///
-  /// In en, this message translates to:
-  /// **'Save failed: {error}'**
-  String saveFailedMessage(String error);
+  /// In zh, this message translates to:
+  /// **'保存'**
+  String saveFailedMessage(Object error);
 
-  /// Reset to default confirmation
+  /// No description provided for @resetToDefaultQuestion.
   ///
-  /// In en, this message translates to:
-  /// **'This will reset all prompt sections to their default order and enable all sections. Continue?'**
+  /// In zh, this message translates to:
+  /// **'重置'**
   String get resetToDefaultQuestion;
 
-  /// Reset to default config message
+  /// No description provided for @resetToDefaultConfig.
   ///
-  /// In en, this message translates to:
-  /// **'Reset to default configuration'**
+  /// In zh, this message translates to:
+  /// **'重置'**
   String get resetToDefaultConfig;
 
-  /// Prompt manager help title
+  /// No description provided for @promptManagerHelp.
   ///
-  /// In en, this message translates to:
-  /// **'Prompt Manager Help'**
+  /// In zh, this message translates to:
+  /// **'帮助'**
   String get promptManagerHelp;
 
-  /// Applied preset message
+  /// No description provided for @applied.
   ///
-  /// In en, this message translates to:
-  /// **'Applied \"{name}\" preset'**
-  String applied(String name);
+  /// In zh, this message translates to:
+  /// **'预设'**
+  String applied(Object name);
 
-  /// Show quick replies toggle
+  /// No description provided for @showQuickReplies.
   ///
-  /// In en, this message translates to:
-  /// **'Show Quick Replies'**
+  /// In zh, this message translates to:
+  /// **'显示'**
   String get showQuickReplies;
 
-  /// Show quick replies description
+  /// No description provided for @displayQuickReplyButtons.
   ///
-  /// In en, this message translates to:
-  /// **'Display quick reply buttons in chat'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get displayQuickReplyButtons;
 
-  /// Position above input toggle
+  /// No description provided for @positionAboveInput.
   ///
-  /// In en, this message translates to:
-  /// **'Position Above Input'**
+  /// In zh, this message translates to:
+  /// **'位置'**
   String get positionAboveInput;
 
-  /// Above input description
+  /// No description provided for @quickRepliesAboveInput.
   ///
-  /// In en, this message translates to:
-  /// **'Quick replies appear above the input field'**
+  /// In zh, this message translates to:
+  /// **'字段'**
   String get quickRepliesAboveInput;
 
-  /// Below input description
+  /// No description provided for @quickRepliesBelowInput.
   ///
-  /// In en, this message translates to:
-  /// **'Quick replies appear below the input field'**
+  /// In zh, this message translates to:
+  /// **'字段'**
   String get quickRepliesBelowInput;
 
-  /// Add button
+  /// No description provided for @add.
   ///
-  /// In en, this message translates to:
-  /// **'Add'**
+  /// In zh, this message translates to:
+  /// **'添加'**
   String get add;
 
-  /// No quick replies message
+  /// No description provided for @noQuickReplies.
   ///
-  /// In en, this message translates to:
-  /// **'No quick replies'**
+  /// In zh, this message translates to:
+  /// **'暂无快捷回复'**
   String get noQuickReplies;
 
-  /// Add first quick reply button
+  /// No description provided for @addYourFirstQuickReply.
   ///
-  /// In en, this message translates to:
-  /// **'Add your first quick reply'**
+  /// In zh, this message translates to:
+  /// **'添加'**
   String get addYourFirstQuickReply;
 
-  /// Delete quick reply confirmation
+  /// No description provided for @deleteQuickReplyQuestion.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete \"{label}\"?'**
-  String deleteQuickReplyQuestion(String label);
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String deleteQuickReplyQuestion(Object label);
 
-  /// Reset quick replies confirmation
+  /// No description provided for @resetToDefaultQuestion2.
   ///
-  /// In en, this message translates to:
-  /// **'This will replace all your quick replies with the default set. Continue?'**
+  /// In zh, this message translates to:
+  /// **'默认'**
   String get resetToDefaultQuestion2;
 
-  /// Continue or empty message placeholder
+  /// No description provided for @continueOrEmpty.
   ///
-  /// In en, this message translates to:
-  /// **'(Continue/Empty message)'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get continueOrEmpty;
 
-  /// Auto-send tooltip
+  /// No description provided for @autoSendTooltip.
   ///
-  /// In en, this message translates to:
-  /// **'Auto-send'**
+  /// In zh, this message translates to:
+  /// **'自动'**
   String get autoSendTooltip;
 
-  /// Add quick reply dialog title
+  /// No description provided for @addQuickReply.
   ///
-  /// In en, this message translates to:
-  /// **'Add Quick Reply'**
+  /// In zh, this message translates to:
+  /// **'添加'**
   String get addQuickReply;
 
-  /// Edit quick reply dialog title
+  /// No description provided for @editQuickReplyLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Edit Quick Reply'**
+  /// In zh, this message translates to:
+  /// **'编辑'**
   String get editQuickReplyLabel;
 
-  /// Button label field
+  /// No description provided for @buttonLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Button Label'**
+  /// In zh, this message translates to:
+  /// **'标签'**
   String get buttonLabel;
 
-  /// Button label hint
+  /// No description provided for @buttonLabelHint.
   ///
-  /// In en, this message translates to:
-  /// **'e.g., Yes, Continue, Think...'**
+  /// In zh, this message translates to:
+  /// **'例如：是、继续、思考...'**
   String get buttonLabelHint;
 
-  /// Message label
+  /// No description provided for @messageLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Message'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get messageLabel;
 
-  /// Leave empty hint
+  /// No description provided for @leaveEmptyForContinue.
   ///
-  /// In en, this message translates to:
-  /// **'Leave empty for continue action'**
+  /// In zh, this message translates to:
+  /// **'留空表示继续操作'**
   String get leaveEmptyForContinue;
 
-  /// Supports macros help
+  /// No description provided for @supportsMacros.
   ///
-  /// In en, this message translates to:
-  /// **'Supports macros like \'{user}\', \'{char}\''**
+  /// In zh, this message translates to:
+  /// **'宏'**
   String supportsMacros(Object char, Object user);
 
-  /// Auto-send label
+  /// No description provided for @autoSendLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Auto-send'**
+  /// In zh, this message translates to:
+  /// **'自动'**
   String get autoSendLabel;
 
-  /// Auto-send enabled description
+  /// No description provided for @messageSentImmediately.
   ///
-  /// In en, this message translates to:
-  /// **'Message will be sent immediately'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get messageSentImmediately;
 
-  /// Auto-send disabled description
+  /// No description provided for @messageFillsInput.
   ///
-  /// In en, this message translates to:
-  /// **'Message will fill the input field'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get messageFillsInput;
 
-  /// Regex scripts screen title
+  /// No description provided for @regexScripts.
   ///
-  /// In en, this message translates to:
-  /// **'Regex Scripts'**
+  /// In zh, this message translates to:
+  /// **'正则表达式'**
   String get regexScripts;
 
-  /// Add script tooltip
+  /// No description provided for @addScript.
   ///
-  /// In en, this message translates to:
-  /// **'Add Script'**
+  /// In zh, this message translates to:
+  /// **'添加'**
   String get addScript;
 
-  /// Add presets menu item
+  /// No description provided for @addPresets.
   ///
-  /// In en, this message translates to:
-  /// **'Add Presets'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get addPresets;
 
-  /// Clear all menu item
+  /// No description provided for @clearAll.
   ///
-  /// In en, this message translates to:
-  /// **'Clear All'**
+  /// In zh, this message translates to:
+  /// **'清除'**
   String get clearAll;
 
-  /// Enable regex scripts toggle
+  /// No description provided for @enableRegexScripts.
   ///
-  /// In en, this message translates to:
-  /// **'Enable Regex Scripts'**
+  /// In zh, this message translates to:
+  /// **'正则表达式'**
   String get enableRegexScripts;
 
-  /// Regex scripts description
+  /// No description provided for @applyFindReplacePatterns.
   ///
-  /// In en, this message translates to:
-  /// **'Apply find/replace patterns to messages'**
+  /// In zh, this message translates to:
+  /// **'应用'**
   String get applyFindReplacePatterns;
 
-  /// Apply to section header
+  /// No description provided for @applyTo.
   ///
-  /// In en, this message translates to:
-  /// **'Apply To'**
+  /// In zh, this message translates to:
+  /// **'应用'**
   String get applyTo;
 
-  /// User input label
+  /// No description provided for @userInput.
   ///
-  /// In en, this message translates to:
-  /// **'User Input'**
+  /// In zh, this message translates to:
+  /// **'输入'**
   String get userInput;
 
-  /// User input description
+  /// No description provided for @applyBeforeSending.
   ///
-  /// In en, this message translates to:
-  /// **'Apply to messages before sending'**
+  /// In zh, this message translates to:
+  /// **'应用'**
   String get applyBeforeSending;
 
-  /// AI output label
+  /// No description provided for @aiOutput.
   ///
-  /// In en, this message translates to:
-  /// **'AI Output'**
+  /// In zh, this message translates to:
+  /// **'输出'**
   String get aiOutput;
 
-  /// AI output description
+  /// No description provided for @applyToAiResponses.
   ///
-  /// In en, this message translates to:
-  /// **'Apply to AI responses'**
+  /// In zh, this message translates to:
+  /// **'应用'**
   String get applyToAiResponses;
 
-  /// Slash commands label
+  /// No description provided for @slashCommandsLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Slash Commands'**
+  /// In zh, this message translates to:
+  /// **'斜杠命令'**
   String get slashCommandsLabel;
 
-  /// Slash commands description
+  /// No description provided for @applyDuringCommandProcessing.
   ///
-  /// In en, this message translates to:
-  /// **'Apply during command processing'**
+  /// In zh, this message translates to:
+  /// **'应用'**
   String get applyDuringCommandProcessing;
 
-  /// World info label
+  /// No description provided for @worldInfoLabel.
   ///
-  /// In en, this message translates to:
-  /// **'World Info'**
+  /// In zh, this message translates to:
+  /// **'世界'**
   String get worldInfoLabel;
 
-  /// World info description
+  /// No description provided for @applyToWorldInfoEntries.
   ///
-  /// In en, this message translates to:
-  /// **'Apply to world info entries'**
+  /// In zh, this message translates to:
+  /// **'世界'**
   String get applyToWorldInfoEntries;
 
-  /// Scripts count
+  /// No description provided for @scriptsCount.
   ///
-  /// In en, this message translates to:
-  /// **'Scripts ({count})'**
-  String scriptsCount(int count);
+  /// In zh, this message translates to:
+  /// **'计数'**
+  String scriptsCount(Object count);
 
-  /// No regex scripts message
+  /// No description provided for @noRegexScripts.
   ///
-  /// In en, this message translates to:
-  /// **'No regex scripts'**
+  /// In zh, this message translates to:
+  /// **'正则表达式'**
   String get noRegexScripts;
 
-  /// No regex scripts hint
+  /// No description provided for @tapToAddOrUseMenu.
   ///
-  /// In en, this message translates to:
-  /// **'Tap + to add a script or use the menu to add presets'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get tapToAddOrUseMenu;
 
-  /// About regex scripts label
+  /// No description provided for @aboutRegexScripts.
   ///
-  /// In en, this message translates to:
-  /// **'About Regex Scripts'**
+  /// In zh, this message translates to:
+  /// **'正则表达式'**
   String get aboutRegexScripts;
 
-  /// About regex scripts description
+  /// No description provided for @aboutRegexScriptsDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Regex scripts allow you to find and replace text patterns in messages. Use capture groups (\\\$1, \\\$2) in replacements.'**
+  /// In zh, this message translates to:
+  /// **'正则表达式'**
   String get aboutRegexScriptsDescription;
 
-  /// Pattern format label
+  /// No description provided for @patternFormat.
   ///
-  /// In en, this message translates to:
-  /// **'Pattern Format'**
+  /// In zh, this message translates to:
+  /// **'模式格式'**
   String get patternFormat;
 
-  /// Pattern format description
+  /// No description provided for @patternFormatDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Use /pattern/flags format (e.g., /hello/gi) or plain patterns. Flags: i=case-insensitive, m=multiline, s=dotall'**
+  /// In zh, this message translates to:
+  /// **'使用 /pattern/flags 格式（例如 /hello/gi）或纯文本模式。标志：i=忽略大小写，m=多行，s=点匹配全部'**
   String get patternFormatDescription;
 
-  /// Preset scripts added message
+  /// No description provided for @presetScriptsAdded.
   ///
-  /// In en, this message translates to:
-  /// **'Preset scripts added'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get presetScriptsAdded;
 
-  /// Delete script confirmation
+  /// No description provided for @deleteScriptQuestion.
   ///
-  /// In en, this message translates to:
-  /// **'Delete \"{name}\"?'**
-  String deleteScriptQuestion(String name);
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String deleteScriptQuestion(Object name);
 
-  /// Clear all scripts dialog title
+  /// No description provided for @clearAllScripts.
   ///
-  /// In en, this message translates to:
-  /// **'Clear All Scripts'**
+  /// In zh, this message translates to:
+  /// **'清除'**
   String get clearAllScripts;
 
-  /// Clear all scripts confirmation
+  /// No description provided for @clearAllScriptsQuestion.
   ///
-  /// In en, this message translates to:
-  /// **'This will delete all regex scripts. This cannot be undone.'**
+  /// In zh, this message translates to:
+  /// **'正则表达式'**
   String get clearAllScriptsQuestion;
 
-  /// Import scripts dialog title
+  /// No description provided for @importScripts.
   ///
-  /// In en, this message translates to:
-  /// **'Import Scripts'**
+  /// In zh, this message translates to:
+  /// **'导入'**
   String get importScripts;
 
-  /// Paste JSON hint
+  /// No description provided for @pasteJsonArray.
   ///
-  /// In en, this message translates to:
-  /// **'Paste JSON array of scripts'**
+  /// In zh, this message translates to:
+  /// **'粘贴脚本的 JSON 数组'**
   String get pasteJsonArray;
 
-  /// Imported count message
+  /// No description provided for @importedCount.
   ///
-  /// In en, this message translates to:
-  /// **'Imported {count} scripts'**
-  String importedCount(int count);
+  /// In zh, this message translates to:
+  /// **'导入'**
+  String importedCount(Object count);
 
-  /// Export scripts dialog title
+  /// No description provided for @exportScripts.
   ///
-  /// In en, this message translates to:
-  /// **'Export Scripts'**
+  /// In zh, this message translates to:
+  /// **'导出'**
   String get exportScripts;
 
-  /// New script title
+  /// No description provided for @newScript.
   ///
-  /// In en, this message translates to:
-  /// **'New Script'**
+  /// In zh, this message translates to:
+  /// **'新建脚本'**
   String get newScript;
 
-  /// Edit script title
+  /// No description provided for @editScript.
   ///
-  /// In en, this message translates to:
-  /// **'Edit Script'**
+  /// In zh, this message translates to:
+  /// **'编辑'**
   String get editScript;
 
-  /// Script name label
+  /// No description provided for @scriptName.
   ///
-  /// In en, this message translates to:
-  /// **'Script Name'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get scriptName;
 
-  /// Description optional field
+  /// No description provided for @descriptionOptionalLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Description (optional)'**
+  /// In zh, this message translates to:
+  /// **'描述'**
   String get descriptionOptionalLabel;
 
-  /// Find pattern label
+  /// No description provided for @findPattern.
   ///
-  /// In en, this message translates to:
-  /// **'Find Pattern'**
+  /// In zh, this message translates to:
+  /// **'查找模式'**
   String get findPattern;
 
-  /// Find pattern hint
+  /// No description provided for @patternOrPlainPattern.
   ///
-  /// In en, this message translates to:
-  /// **'/pattern/flags or plain pattern'**
+  /// In zh, this message translates to:
+  /// **'/pattern/flags 或纯文本模式'**
   String get patternOrPlainPattern;
 
-  /// Replace with label
+  /// No description provided for @replaceWith.
   ///
-  /// In en, this message translates to:
-  /// **'Replace With'**
+  /// In zh, this message translates to:
+  /// **'替换为'**
   String get replaceWith;
 
-  /// Replace with hint
+  /// No description provided for @useCaptureGroups.
   ///
-  /// In en, this message translates to:
-  /// **'Use \\\$1, \\\$2 for capture groups'**
+  /// In zh, this message translates to:
+  /// **'使用 \$1、\$2 表示捕获组'**
   String get useCaptureGroups;
 
-  /// Apply to label
+  /// No description provided for @applyToLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Apply To'**
+  /// In zh, this message translates to:
+  /// **'应用'**
   String get applyToLabel;
 
-  /// Options section header
+  /// No description provided for @options.
   ///
-  /// In en, this message translates to:
-  /// **'Options'**
+  /// In zh, this message translates to:
+  /// **'选项'**
   String get options;
 
-  /// Markdown only label
+  /// No description provided for @markdownOnly.
   ///
-  /// In en, this message translates to:
-  /// **'Markdown Only'**
+  /// In zh, this message translates to:
+  /// **'仅 Markdown'**
   String get markdownOnly;
 
-  /// Markdown only description
+  /// No description provided for @onlyApplyDuringMarkdown.
   ///
-  /// In en, this message translates to:
-  /// **'Only apply during markdown rendering'**
+  /// In zh, this message translates to:
+  /// **'应用'**
   String get onlyApplyDuringMarkdown;
 
-  /// Prompt only label
+  /// No description provided for @promptOnly.
   ///
-  /// In en, this message translates to:
-  /// **'Prompt Only'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get promptOnly;
 
-  /// Prompt only description
+  /// No description provided for @onlyApplyDuringPrompt.
   ///
-  /// In en, this message translates to:
-  /// **'Only apply during prompt generation'**
+  /// In zh, this message translates to:
+  /// **'应用'**
   String get onlyApplyDuringPrompt;
 
-  /// Run on edit label
+  /// No description provided for @runOnEdit.
   ///
-  /// In en, this message translates to:
-  /// **'Run on Edit'**
+  /// In zh, this message translates to:
+  /// **'编辑'**
   String get runOnEdit;
 
-  /// Run on edit description
+  /// No description provided for @applyWhenEditingMessages.
   ///
-  /// In en, this message translates to:
-  /// **'Apply when editing messages'**
+  /// In zh, this message translates to:
+  /// **'编辑'**
   String get applyWhenEditingMessages;
 
-  /// Macro substitution label
+  /// No description provided for @macroSubstitution.
   ///
-  /// In en, this message translates to:
-  /// **'Macro Substitution'**
+  /// In zh, this message translates to:
+  /// **'宏'**
   String get macroSubstitution;
 
-  /// Name and pattern required message
+  /// No description provided for @nameAndPatternRequired.
   ///
-  /// In en, this message translates to:
-  /// **'Name and pattern are required'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get nameAndPatternRequired;
 
-  /// Pattern label for testing
+  /// No description provided for @patternLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Pattern'**
+  /// In zh, this message translates to:
+  /// **'模式'**
   String get patternLabel;
 
-  /// Pattern hint for testing
+  /// No description provided for @patternHint.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'/pattern/flags'**
   String get patternHint;
 
-  /// Test string label
+  /// No description provided for @testString.
   ///
-  /// In en, this message translates to:
-  /// **'Test String'**
+  /// In zh, this message translates to:
+  /// **'测试'**
   String get testString;
 
-  /// Replacement label for testing
+  /// No description provided for @replacementLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Replacement'**
+  /// In zh, this message translates to:
+  /// **'替换内容'**
   String get replacementLabel;
 
-  /// Replacement hint for testing
+  /// No description provided for @replacementHint.
   ///
-  /// In en, this message translates to:
-  /// **'\$1, \$2, \'{match}\''**
+  /// In zh, this message translates to:
+  /// **'\$1、\$2、{match}'**
   String replacementHint(Object match);
 
-  /// Test button
+  /// No description provided for @testButton.
   ///
-  /// In en, this message translates to:
-  /// **'Test'**
+  /// In zh, this message translates to:
+  /// **'测试'**
   String get testButton;
 
-  /// Matches count
+  /// No description provided for @matchesCount.
   ///
-  /// In en, this message translates to:
-  /// **'{count} match(es)'**
-  String matchesCount(int count);
+  /// In zh, this message translates to:
+  /// **'计数'**
+  String matchesCount(Object count);
 
-  /// Error label
+  /// No description provided for @errorLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Error'**
+  /// In zh, this message translates to:
+  /// **'错误'**
   String get errorLabel;
 
-  /// Result label
+  /// No description provided for @resultLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Result:'**
+  /// In zh, this message translates to:
+  /// **'结果'**
   String get resultLabel;
 
-  /// Expression sprites screen title
+  /// No description provided for @expressionSprites.
   ///
-  /// In en, this message translates to:
-  /// **'Expression Sprites'**
+  /// In zh, this message translates to:
+  /// **'立绘'**
   String get expressionSprites;
 
-  /// Enable sprites toggle
+  /// No description provided for @enableSprites.
   ///
-  /// In en, this message translates to:
-  /// **'Enable Sprites'**
+  /// In zh, this message translates to:
+  /// **'启用'**
   String get enableSprites;
 
-  /// Enable sprites description
+  /// No description provided for @showCharacterExpressions.
   ///
-  /// In en, this message translates to:
-  /// **'Show character expression images in chat'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get showCharacterExpressions;
 
-  /// Display section header
+  /// No description provided for @display.
   ///
-  /// In en, this message translates to:
-  /// **'Display'**
+  /// In zh, this message translates to:
+  /// **'显示'**
   String get display;
 
-  /// Sprite size label
+  /// No description provided for @spriteSize.
   ///
-  /// In en, this message translates to:
-  /// **'Sprite Size'**
+  /// In zh, this message translates to:
+  /// **'立绘'**
   String get spriteSize;
 
-  /// Position label
+  /// No description provided for @position.
   ///
-  /// In en, this message translates to:
-  /// **'Position'**
+  /// In zh, this message translates to:
+  /// **'位置'**
   String get position;
 
-  /// Position description
+  /// No description provided for @whereToDisplaySprites.
   ///
-  /// In en, this message translates to:
-  /// **'Where to display sprites'**
+  /// In zh, this message translates to:
+  /// **'立绘'**
   String get whereToDisplaySprites;
 
-  /// Left position
+  /// No description provided for @left.
   ///
-  /// In en, this message translates to:
-  /// **'Left'**
+  /// In zh, this message translates to:
+  /// **'左侧'**
   String get left;
 
-  /// Right position
+  /// No description provided for @right.
   ///
-  /// In en, this message translates to:
-  /// **'Right'**
+  /// In zh, this message translates to:
+  /// **'右侧'**
   String get right;
 
-  /// Center position
+  /// No description provided for @center.
   ///
-  /// In en, this message translates to:
-  /// **'Center'**
+  /// In zh, this message translates to:
+  /// **'居中'**
   String get center;
 
-  /// Floating left position
+  /// No description provided for @floatingLeft.
   ///
-  /// In en, this message translates to:
-  /// **'Floating Left'**
+  /// In zh, this message translates to:
+  /// **'左侧'**
   String get floatingLeft;
 
-  /// Floating right position
+  /// No description provided for @floatingRight.
   ///
-  /// In en, this message translates to:
-  /// **'Floating Right'**
+  /// In zh, this message translates to:
+  /// **'右侧'**
   String get floatingRight;
 
-  /// Animation section header
+  /// No description provided for @animation.
   ///
-  /// In en, this message translates to:
-  /// **'Animation'**
+  /// In zh, this message translates to:
+  /// **'动画'**
   String get animation;
 
-  /// Animate transitions toggle
+  /// No description provided for @animateTransitions.
   ///
-  /// In en, this message translates to:
-  /// **'Animate Transitions'**
+  /// In zh, this message translates to:
+  /// **'过渡'**
   String get animateTransitions;
 
-  /// Animate transitions description
+  /// No description provided for @smoothFadeWhenSpriteChanges.
   ///
-  /// In en, this message translates to:
-  /// **'Smooth fade when sprite changes'**
+  /// In zh, this message translates to:
+  /// **'立绘'**
   String get smoothFadeWhenSpriteChanges;
 
-  /// Transition duration label
+  /// No description provided for @transitionDuration.
   ///
-  /// In en, this message translates to:
-  /// **'Transition Duration'**
+  /// In zh, this message translates to:
+  /// **'持续时间'**
   String get transitionDuration;
 
-  /// Show during streaming toggle
+  /// No description provided for @showDuringStreaming.
   ///
-  /// In en, this message translates to:
-  /// **'Show During Streaming'**
+  /// In zh, this message translates to:
+  /// **'显示'**
   String get showDuringStreaming;
 
-  /// Show during streaming description
+  /// No description provided for @displaySpritesWhileGenerating.
   ///
-  /// In en, this message translates to:
-  /// **'Display sprites while AI is generating'**
+  /// In zh, this message translates to:
+  /// **'立绘'**
   String get displaySpritesWhileGenerating;
 
-  /// Emotion detection section header
+  /// No description provided for @emotionDetection.
   ///
-  /// In en, this message translates to:
-  /// **'Emotion Detection'**
+  /// In zh, this message translates to:
+  /// **'情绪'**
   String get emotionDetection;
 
-  /// How it works label
+  /// No description provided for @howItWorks.
   ///
-  /// In en, this message translates to:
-  /// **'How it works'**
+  /// In zh, this message translates to:
+  /// **'工作原理'**
   String get howItWorks;
 
-  /// Sprite emotion detection description
+  /// No description provided for @spriteEmotionDetectionDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Sprites are automatically selected based on emotion keywords detected in messages. Action text like *smiles* or *laughs* is prioritized.'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get spriteEmotionDetectionDescription;
 
-  /// Supported emotions label
+  /// No description provided for @supportedEmotions.
   ///
-  /// In en, this message translates to:
-  /// **'Supported Emotions'**
+  /// In zh, this message translates to:
+  /// **'情绪'**
   String get supportedEmotions;
 
-  /// Character sprites title
+  /// No description provided for @characterSprites.
   ///
-  /// In en, this message translates to:
-  /// **'{name} Sprites'**
-  String characterSprites(String name);
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String characterSprites(Object name);
 
-  /// Import from folder tooltip
+  /// No description provided for @importFromFolder.
   ///
-  /// In en, this message translates to:
-  /// **'Import from folder'**
+  /// In zh, this message translates to:
+  /// **'导入'**
   String get importFromFolder;
 
-  /// Delete all sprites menu item
+  /// No description provided for @deleteAllSprites.
   ///
-  /// In en, this message translates to:
-  /// **'Delete All Sprites'**
+  /// In zh, this message translates to:
+  /// **'删除'**
   String get deleteAllSprites;
 
-  /// Add sprite button
+  /// No description provided for @addSprite.
   ///
-  /// In en, this message translates to:
-  /// **'Add Sprite'**
+  /// In zh, this message translates to:
+  /// **'添加'**
   String get addSprite;
 
-  /// Sprites count
+  /// No description provided for @spritesCount.
   ///
-  /// In en, this message translates to:
-  /// **'{count} sprites'**
-  String spritesCount(int count);
+  /// In zh, this message translates to:
+  /// **'立绘'**
+  String spritesCount(Object count);
 
-  /// Default emotion label
+  /// No description provided for @defaultEmotion.
   ///
-  /// In en, this message translates to:
-  /// **'Default: {emotion}'**
-  String defaultEmotion(String emotion);
+  /// In zh, this message translates to:
+  /// **'情绪'**
+  String defaultEmotion(Object emotion);
 
-  /// No sprites message
+  /// No description provided for @noSpritesYet.
   ///
-  /// In en, this message translates to:
-  /// **'No sprites yet'**
+  /// In zh, this message translates to:
+  /// **'立绘'**
   String get noSpritesYet;
 
-  /// Add expression images hint
+  /// No description provided for @addExpressionImages.
   ///
-  /// In en, this message translates to:
-  /// **'Add expression images for this character'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get addExpressionImages;
 
-  /// Select emotion dialog title
+  /// No description provided for @selectEmotion.
   ///
-  /// In en, this message translates to:
-  /// **'Select Emotion'**
+  /// In zh, this message translates to:
+  /// **'选择'**
   String get selectEmotion;
 
-  /// Added sprite message
+  /// No description provided for @addedSpriteEmotion.
   ///
-  /// In en, this message translates to:
-  /// **'Added {emotion} sprite'**
-  String addedSpriteEmotion(String emotion);
+  /// In zh, this message translates to:
+  /// **'添加'**
+  String addedSpriteEmotion(Object emotion);
 
-  /// Set as default emotion menu item
+  /// No description provided for @setAsDefaultEmotion.
   ///
-  /// In en, this message translates to:
-  /// **'Set as Default'**
+  /// In zh, this message translates to:
+  /// **'默认'**
   String get setAsDefaultEmotion;
 
-  /// Change emotion menu item
+  /// No description provided for @changeEmotion.
   ///
-  /// In en, this message translates to:
-  /// **'Change Emotion'**
+  /// In zh, this message translates to:
+  /// **'情绪'**
   String get changeEmotion;
 
-  /// Delete sprite dialog title
+  /// No description provided for @deleteSprite.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Sprite'**
+  /// In zh, this message translates to:
+  /// **'删除'**
   String get deleteSprite;
 
-  /// Delete sprite confirmation
+  /// No description provided for @deleteSpriteConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Delete the {emotion} sprite?'**
-  String deleteSpriteConfirmation(String emotion);
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String deleteSpriteConfirmation(Object emotion);
 
-  /// Delete all sprites confirmation
+  /// No description provided for @deleteAllSpritesConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete all sprites for this character? This cannot be undone.'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get deleteAllSpritesConfirmation;
 
-  /// Import sprites dialog title
+  /// No description provided for @importSprites.
   ///
-  /// In en, this message translates to:
-  /// **'Import Sprites'**
+  /// In zh, this message translates to:
+  /// **'导入'**
   String get importSprites;
 
-  /// Import sprites description
+  /// No description provided for @importSpritesDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Import sprites from a folder. Files should be named with emotion keywords:'**
+  /// In zh, this message translates to:
+  /// **'导入'**
   String get importSpritesDescription;
 
-  /// Supported formats for sprites
+  /// No description provided for @supportedFormatsSprites.
   ///
-  /// In en, this message translates to:
-  /// **'Supported formats: PNG, JPG, GIF, WebP'**
+  /// In zh, this message translates to:
+  /// **'支持的格式：PNG、JPG、GIF、WebP'**
   String get supportedFormatsSprites;
 
-  /// Select folder button
+  /// No description provided for @selectFolder.
   ///
-  /// In en, this message translates to:
-  /// **'Select Folder'**
+  /// In zh, this message translates to:
+  /// **'文件夹'**
   String get selectFolder;
 
-  /// Folder import requirement message
+  /// No description provided for @folderImportRequiresPackage.
   ///
-  /// In en, this message translates to:
-  /// **'Folder import requires file_picker package'**
+  /// In zh, this message translates to:
+  /// **'导入'**
   String get folderImportRequiresPackage;
 
-  /// App statistics title
+  /// No description provided for @appStatistics.
   ///
-  /// In en, this message translates to:
-  /// **'App Statistics'**
+  /// In zh, this message translates to:
+  /// **'统计'**
   String get appStatistics;
 
-  /// Chat statistics title
+  /// No description provided for @chatStatistics.
   ///
-  /// In en, this message translates to:
-  /// **'Chat Statistics'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get chatStatistics;
 
-  /// Reset statistics tooltip
+  /// No description provided for @resetStatistics.
   ///
-  /// In en, this message translates to:
-  /// **'Reset statistics'**
+  /// In zh, this message translates to:
+  /// **'重置'**
   String get resetStatistics;
 
-  /// Reset statistics confirmation
+  /// No description provided for @resetStatisticsConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to reset all statistics? This cannot be undone.'**
+  /// In zh, this message translates to:
+  /// **'重置'**
   String get resetStatisticsConfirmation;
 
-  /// Statistics reset message
+  /// No description provided for @statisticsReset.
   ///
-  /// In en, this message translates to:
-  /// **'Statistics reset'**
+  /// In zh, this message translates to:
+  /// **'重置'**
   String get statisticsReset;
 
-  /// Overview section header
+  /// No description provided for @overview.
   ///
-  /// In en, this message translates to:
-  /// **'Overview'**
+  /// In zh, this message translates to:
+  /// **'查看'**
   String get overview;
 
-  /// First used label
+  /// No description provided for @firstUsed.
   ///
-  /// In en, this message translates to:
-  /// **'First Used'**
+  /// In zh, this message translates to:
+  /// **'首次使用'**
   String get firstUsed;
 
-  /// Unknown label
+  /// No description provided for @unknown.
   ///
-  /// In en, this message translates to:
-  /// **'Unknown'**
+  /// In zh, this message translates to:
+  /// **'未知'**
   String get unknown;
 
-  /// Total groups statistic
+  /// No description provided for @totalGroups.
   ///
-  /// In en, this message translates to:
-  /// **'Total Groups'**
+  /// In zh, this message translates to:
+  /// **'总计'**
   String get totalGroups;
 
-  /// Total generations statistic
+  /// No description provided for @totalGenerations.
   ///
-  /// In en, this message translates to:
-  /// **'Total Generations'**
+  /// In zh, this message translates to:
+  /// **'生成'**
   String get totalGenerations;
 
-  /// Token usage section header
+  /// No description provided for @tokenUsage.
   ///
-  /// In en, this message translates to:
-  /// **'Token Usage'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get tokenUsage;
 
-  /// Total tokens used label
+  /// No description provided for @totalTokensUsed.
   ///
-  /// In en, this message translates to:
-  /// **'Total Tokens Used'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get totalTokensUsed;
 
-  /// Average tokens per generation label
+  /// No description provided for @avgTokensPerGeneration.
   ///
-  /// In en, this message translates to:
-  /// **'Avg Tokens/Generation'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get avgTokensPerGeneration;
 
-  /// Performance section header
+  /// No description provided for @performance.
   ///
-  /// In en, this message translates to:
-  /// **'Performance'**
+  /// In zh, this message translates to:
+  /// **'性能'**
   String get performance;
 
-  /// Total generation time label
+  /// No description provided for @totalGenerationTime.
   ///
-  /// In en, this message translates to:
-  /// **'Total Generation Time'**
+  /// In zh, this message translates to:
+  /// **'生成'**
   String get totalGenerationTime;
 
-  /// Average generation time label
+  /// No description provided for @avgGenerationTime.
   ///
-  /// In en, this message translates to:
-  /// **'Avg Generation Time'**
+  /// In zh, this message translates to:
+  /// **'生成'**
   String get avgGenerationTime;
 
-  /// User messages count
+  /// No description provided for @userMessages.
   ///
-  /// In en, this message translates to:
-  /// **'User Messages'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get userMessages;
 
-  /// Assistant messages count
+  /// No description provided for @assistantMessages.
   ///
-  /// In en, this message translates to:
-  /// **'Assistant Messages'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get assistantMessages;
 
-  /// System messages count
+  /// No description provided for @systemMessages.
   ///
-  /// In en, this message translates to:
-  /// **'System Messages'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get systemMessages;
 
-  /// Timeline section header
+  /// No description provided for @timeline.
   ///
-  /// In en, this message translates to:
-  /// **'Timeline'**
+  /// In zh, this message translates to:
+  /// **'时间线'**
   String get timeline;
 
-  /// First message timestamp label
+  /// No description provided for @firstMessage_.
   ///
-  /// In en, this message translates to:
-  /// **'First Message'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get firstMessage_;
 
-  /// Last message timestamp label
+  /// No description provided for @lastMessage.
   ///
-  /// In en, this message translates to:
-  /// **'Last Message'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get lastMessage;
 
-  /// Chat duration label
+  /// No description provided for @chatDuration.
   ///
-  /// In en, this message translates to:
-  /// **'Chat Duration'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get chatDuration;
 
-  /// Prompt tokens count
+  /// No description provided for @promptTokens.
   ///
-  /// In en, this message translates to:
-  /// **'Prompt Tokens'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get promptTokens;
 
-  /// Completion tokens count
+  /// No description provided for @completionTokens.
   ///
-  /// In en, this message translates to:
-  /// **'Completion Tokens'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get completionTokens;
 
-  /// Average tokens per message label
+  /// No description provided for @avgTokensPerMessage.
   ///
-  /// In en, this message translates to:
-  /// **'Avg Tokens/Message'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get avgTokensPerMessage;
 
-  /// Generation performance section header
+  /// No description provided for @generationPerformance.
   ///
-  /// In en, this message translates to:
-  /// **'Generation Performance'**
+  /// In zh, this message translates to:
+  /// **'生成'**
   String get generationPerformance;
 
-  /// Generation count label
+  /// No description provided for @generationCount.
   ///
-  /// In en, this message translates to:
-  /// **'Total Generations'**
+  /// In zh, this message translates to:
+  /// **'生成'**
   String get generationCount;
 
-  /// Speech-to-text screen title
+  /// No description provided for @speechToText.
   ///
-  /// In en, this message translates to:
-  /// **'Speech-to-Text'**
+  /// In zh, this message translates to:
+  /// **'文本'**
   String get speechToText;
 
-  /// Enable STT toggle
+  /// No description provided for @enableStt.
   ///
-  /// In en, this message translates to:
-  /// **'Enable STT'**
+  /// In zh, this message translates to:
+  /// **'启用'**
   String get enableStt;
 
-  /// Enable STT description
+  /// No description provided for @useVoiceInputForMessages.
   ///
-  /// In en, this message translates to:
-  /// **'Use voice input for messages'**
+  /// In zh, this message translates to:
+  /// **'语音'**
   String get useVoiceInputForMessages;
 
-  /// Auto-send toggle for STT
+  /// No description provided for @autoSendStt.
   ///
-  /// In en, this message translates to:
-  /// **'Auto-send'**
+  /// In zh, this message translates to:
+  /// **'自动'**
   String get autoSendStt;
 
-  /// Auto-send STT description
+  /// No description provided for @automaticallySendAfterSpeaking.
   ///
-  /// In en, this message translates to:
-  /// **'Automatically send message after speaking'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get automaticallySendAfterSpeaking;
 
-  /// Continuous listening toggle
+  /// No description provided for @continuousListening.
   ///
-  /// In en, this message translates to:
-  /// **'Continuous Listening'**
+  /// In zh, this message translates to:
+  /// **'列表'**
   String get continuousListening;
 
-  /// Continuous listening description
+  /// No description provided for @keepListeningAfterPhrase.
   ///
-  /// In en, this message translates to:
-  /// **'Keep listening after each phrase'**
+  /// In zh, this message translates to:
+  /// **'列表'**
   String get keepListeningAfterPhrase;
 
-  /// Show partial results toggle
+  /// No description provided for @showPartialResults.
   ///
-  /// In en, this message translates to:
-  /// **'Show Partial Results'**
+  /// In zh, this message translates to:
+  /// **'显示'**
   String get showPartialResults;
 
-  /// Show partial results description
+  /// No description provided for @displayTextAsYouSpeak.
   ///
-  /// In en, this message translates to:
-  /// **'Display text as you speak'**
+  /// In zh, this message translates to:
+  /// **'文本'**
   String get displayTextAsYouSpeak;
 
-  /// STT provider label
+  /// No description provided for @sttProvider.
   ///
-  /// In en, this message translates to:
-  /// **'STT Provider'**
+  /// In zh, this message translates to:
+  /// **'语音识别服务商'**
   String get sttProvider;
 
-  /// Recognition language label
+  /// No description provided for @recognitionLanguage.
   ///
-  /// In en, this message translates to:
-  /// **'Recognition Language'**
+  /// In zh, this message translates to:
+  /// **'语言'**
   String get recognitionLanguage;
 
-  /// Test voice input label
+  /// No description provided for @testVoiceInput.
   ///
-  /// In en, this message translates to:
-  /// **'Test Voice Input'**
+  /// In zh, this message translates to:
+  /// **'测试'**
   String get testVoiceInput;
 
-  /// Stop listening label
+  /// No description provided for @stopListening.
   ///
-  /// In en, this message translates to:
-  /// **'Stop Listening'**
+  /// In zh, this message translates to:
+  /// **'列表'**
   String get stopListening;
 
-  /// Tap to stop hint
+  /// No description provided for @tapToStop.
   ///
-  /// In en, this message translates to:
-  /// **'Tap to stop'**
+  /// In zh, this message translates to:
+  /// **'顶部'**
   String get tapToStop;
 
-  /// Test speech recognition hint
+  /// No description provided for @tapToTestSpeechRecognition.
   ///
-  /// In en, this message translates to:
-  /// **'Tap to test speech recognition'**
+  /// In zh, this message translates to:
+  /// **'测试'**
   String get tapToTestSpeechRecognition;
 
-  /// Final status label
+  /// No description provided for @final_.
   ///
-  /// In en, this message translates to:
-  /// **'Final'**
+  /// In zh, this message translates to:
+  /// **'最终'**
   String get final_;
 
-  /// Listening status
+  /// No description provided for @listening.
   ///
-  /// In en, this message translates to:
-  /// **'Listening...'**
+  /// In zh, this message translates to:
+  /// **'列表'**
   String get listening;
 
-  /// About STT label
+  /// No description provided for @aboutStt.
   ///
-  /// In en, this message translates to:
-  /// **'About STT'**
+  /// In zh, this message translates to:
+  /// **'关于 STT'**
   String get aboutStt;
 
-  /// About STT description
+  /// No description provided for @aboutSttDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Speech-to-Text allows you to dictate messages using your voice. Tap the microphone button in the chat input to start speaking.'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get aboutSttDescription;
 
-  /// System STT label
+  /// No description provided for @systemStt.
   ///
-  /// In en, this message translates to:
-  /// **'System STT'**
+  /// In zh, this message translates to:
+  /// **'系统'**
   String get systemStt;
 
-  /// System STT description
+  /// No description provided for @systemSttDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Using your device\'s built-in speech recognition. Accuracy depends on your system settings.'**
+  /// In zh, this message translates to:
+  /// **'设置'**
   String get systemSttDescription;
 
-  /// Whisper label
+  /// No description provided for @whisper.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Whisper'**
   String get whisper;
 
-  /// Whisper description
+  /// No description provided for @whisperDescription.
   ///
-  /// In en, this message translates to:
-  /// **'OpenAI\'s Whisper model for high-accuracy transcription. Requires an API key.'**
+  /// In zh, this message translates to:
+  /// **'模型'**
   String get whisperDescription;
 
-  /// Voice input tooltip
+  /// No description provided for @voiceInput.
   ///
-  /// In en, this message translates to:
-  /// **'Voice input'**
+  /// In zh, this message translates to:
+  /// **'语音'**
   String get voiceInput;
 
-  /// Speech recognition not available warning
+  /// No description provided for @speechRecognitionNotAvailable.
   ///
-  /// In en, this message translates to:
-  /// **'Speech recognition may not be available on this device.'**
+  /// In zh, this message translates to:
+  /// **'识别'**
   String get speechRecognitionNotAvailable;
 
-  /// Themes screen title
+  /// No description provided for @themes.
   ///
-  /// In en, this message translates to:
-  /// **'Themes'**
+  /// In zh, this message translates to:
+  /// **'主题'**
   String get themes;
 
-  /// Create custom theme tooltip
+  /// No description provided for @createCustomTheme.
   ///
-  /// In en, this message translates to:
-  /// **'Create custom theme'**
+  /// In zh, this message translates to:
+  /// **'主题'**
   String get createCustomTheme;
 
-  /// Built-in themes section
+  /// No description provided for @builtInThemes.
   ///
-  /// In en, this message translates to:
-  /// **'Built-in Themes'**
+  /// In zh, this message translates to:
+  /// **'主题'**
   String get builtInThemes;
 
-  /// Preview section header
+  /// No description provided for @preview.
   ///
-  /// In en, this message translates to:
-  /// **'Preview'**
+  /// In zh, this message translates to:
+  /// **'查看'**
   String get preview;
 
-  /// Chat preview label
+  /// No description provided for @chatPreview.
   ///
-  /// In en, this message translates to:
-  /// **'Chat Preview'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get chatPreview;
 
-  /// Sample AI message
+  /// No description provided for @helloHowCanIHelp.
   ///
-  /// In en, this message translates to:
-  /// **'Hello! How can I help you today?'**
+  /// In zh, this message translates to:
+  /// **'帮助'**
   String get helloHowCanIHelp;
 
-  /// Sample user message
+  /// No description provided for @tellMeAStory.
   ///
-  /// In en, this message translates to:
-  /// **'Tell me a story!'**
+  /// In zh, this message translates to:
+  /// **'给我讲个故事吧！'**
   String get tellMeAStory;
 
-  /// Message input placeholder
+  /// No description provided for @typeAMessage.
   ///
-  /// In en, this message translates to:
-  /// **'Type a message...'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get typeAMessage;
 
-  /// Create theme dialog title
+  /// No description provided for @createTheme.
   ///
-  /// In en, this message translates to:
-  /// **'Create Theme'**
+  /// In zh, this message translates to:
+  /// **'主题'**
   String get createTheme;
 
-  /// Edit theme dialog title
+  /// No description provided for @editTheme.
   ///
-  /// In en, this message translates to:
-  /// **'Edit Theme'**
+  /// In zh, this message translates to:
+  /// **'编辑'**
   String get editTheme;
 
-  /// Delete theme dialog title
+  /// No description provided for @deleteTheme.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Theme'**
+  /// In zh, this message translates to:
+  /// **'删除'**
   String get deleteTheme;
 
-  /// Delete theme confirmation
+  /// No description provided for @deleteThemeConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete \"{name}\"?'**
-  String deleteThemeConfirmation(String name);
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String deleteThemeConfirmation(Object name);
 
-  /// Theme name label
+  /// No description provided for @themeName.
   ///
-  /// In en, this message translates to:
-  /// **'Theme Name'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get themeName;
 
-  /// Background color label
+  /// No description provided for @background.
   ///
-  /// In en, this message translates to:
-  /// **'Background'**
+  /// In zh, this message translates to:
+  /// **'背景'**
   String get background;
 
-  /// Surface color label
+  /// No description provided for @surface.
   ///
-  /// In en, this message translates to:
-  /// **'Surface'**
+  /// In zh, this message translates to:
+  /// **'表面'**
   String get surface;
 
-  /// Card color label
+  /// No description provided for @card.
   ///
-  /// In en, this message translates to:
-  /// **'Card'**
+  /// In zh, this message translates to:
+  /// **'卡片'**
   String get card;
 
-  /// Select color dialog title
+  /// No description provided for @selectThemeColor.
   ///
-  /// In en, this message translates to:
-  /// **'Select {label}'**
-  String selectThemeColor(String label);
+  /// In zh, this message translates to:
+  /// **'选择'**
+  String selectThemeColor(Object label);
 
-  /// Hex color label
+  /// No description provided for @hexColor.
   ///
-  /// In en, this message translates to:
-  /// **'Hex Color'**
+  /// In zh, this message translates to:
+  /// **'十六进制颜色'**
   String get hexColor;
 
-  /// Tokenizer screen title
+  /// No description provided for @tokenizerSettings.
   ///
-  /// In en, this message translates to:
-  /// **'Tokenizer'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get tokenizerSettings;
 
-  /// Tokenizer help tooltip
+  /// No description provided for @tokenizerHelp.
   ///
-  /// In en, this message translates to:
-  /// **'Help'**
+  /// In zh, this message translates to:
+  /// **'帮助'**
   String get tokenizerHelp;
 
-  /// Tokenizer selection label
+  /// No description provided for @tokenizerLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Tokenizer'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get tokenizerLabel;
 
-  /// Show token count toggle
+  /// No description provided for @showTokenCount.
   ///
-  /// In en, this message translates to:
-  /// **'Show Token Count'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get showTokenCount;
 
-  /// Show token count description
+  /// No description provided for @displayTokenCountInInput.
   ///
-  /// In en, this message translates to:
-  /// **'Display token count in chat input'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get displayTokenCountInInput;
 
-  /// Show token visualization toggle
+  /// No description provided for @showTokenVisualization.
   ///
-  /// In en, this message translates to:
-  /// **'Show Token Visualization'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get showTokenVisualization;
 
-  /// Show token visualization description
+  /// No description provided for @highlightIndividualTokens.
   ///
-  /// In en, this message translates to:
-  /// **'Highlight individual tokens'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get highlightIndividualTokens;
 
-  /// Cache results toggle
+  /// No description provided for @cacheResults.
   ///
-  /// In en, this message translates to:
-  /// **'Cache Results'**
+  /// In zh, this message translates to:
+  /// **'缓存'**
   String get cacheResults;
 
-  /// Cache results description
+  /// No description provided for @cacheTokenizationForPerformance.
   ///
-  /// In en, this message translates to:
-  /// **'Cache tokenization for performance'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get cacheTokenizationForPerformance;
 
-  /// Token visualization section header
+  /// No description provided for @tokenVisualization.
   ///
-  /// In en, this message translates to:
-  /// **'Token Visualization'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get tokenVisualization;
 
-  /// Text to tokenize label
+  /// No description provided for @enterTextToTokenize.
   ///
-  /// In en, this message translates to:
-  /// **'Enter text to tokenize'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get enterTextToTokenize;
 
-  /// Type or paste text hint
+  /// No description provided for @typePasteTextHere.
   ///
-  /// In en, this message translates to:
-  /// **'Type or paste text here...'**
+  /// In zh, this message translates to:
+  /// **'文本'**
   String get typePasteTextHere;
 
-  /// Quick estimate label
+  /// No description provided for @quickEstimate.
   ///
-  /// In en, this message translates to:
-  /// **'Quick Estimate'**
+  /// In zh, this message translates to:
+  /// **'快速估算'**
   String get quickEstimate;
 
-  /// Approximate tokens count
+  /// No description provided for @approximateTokens.
   ///
-  /// In en, this message translates to:
-  /// **'~{count} tokens'**
-  String approximateTokens(int count);
+  /// In zh, this message translates to:
+  /// **'令牌'**
+  String approximateTokens(Object count);
 
-  /// Characters count
+  /// No description provided for @chars.
   ///
-  /// In en, this message translates to:
-  /// **'{count} chars'**
-  String chars(int count);
+  /// In zh, this message translates to:
+  /// **'计数'**
+  String chars(Object count);
 
-  /// Statistics section label
+  /// No description provided for @statisticsLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Statistics'**
+  /// In zh, this message translates to:
+  /// **'统计'**
   String get statisticsLabel;
 
-  /// Total tokens label
+  /// No description provided for @unique.
   ///
-  /// In en, this message translates to:
-  /// **'Total Tokens'**
-  String get totalTokens;
-
-  /// Unique tokens label
-  ///
-  /// In en, this message translates to:
-  /// **'Unique'**
+  /// In zh, this message translates to:
+  /// **'唯一'**
   String get unique;
 
-  /// Characters per token label
+  /// No description provided for @charsPerToken.
   ///
-  /// In en, this message translates to:
-  /// **'Chars/Token'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get charsPerToken;
 
-  /// Average length label
+  /// No description provided for @avgLength.
   ///
-  /// In en, this message translates to:
-  /// **'Avg Length'**
+  /// In zh, this message translates to:
+  /// **'平均长度'**
   String get avgLength;
 
-  /// Longest token label
+  /// No description provided for @longest.
   ///
-  /// In en, this message translates to:
-  /// **'Longest'**
+  /// In zh, this message translates to:
+  /// **'最长'**
   String get longest;
 
-  /// Shortest token label
+  /// No description provided for @shortest.
   ///
-  /// In en, this message translates to:
-  /// **'Shortest'**
+  /// In zh, this message translates to:
+  /// **'测试'**
   String get shortest;
 
-  /// Most common tokens label
+  /// No description provided for @mostCommonTokens.
   ///
-  /// In en, this message translates to:
-  /// **'Most Common Tokens'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get mostCommonTokens;
 
-  /// Token breakdown label
+  /// No description provided for @tokenBreakdown.
   ///
-  /// In en, this message translates to:
-  /// **'Token Breakdown'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get tokenBreakdown;
 
-  /// Tokens count
+  /// No description provided for @tokensCount.
   ///
-  /// In en, this message translates to:
-  /// **'{count} tokens'**
-  String tokensCount(int count);
+  /// In zh, this message translates to:
+  /// **'令牌'**
+  String tokensCount(Object count);
 
-  /// Token tooltip info
+  /// No description provided for @tokenIdLength.
   ///
-  /// In en, this message translates to:
-  /// **'Token ID: {id}\nLength: {length} chars'**
-  String tokenIdLength(String id, int length);
+  /// In zh, this message translates to:
+  /// **'令牌'**
+  String tokenIdLength(Object id, Object length);
 
-  /// Translation settings screen title
+  /// No description provided for @translationSettings.
   ///
-  /// In en, this message translates to:
-  /// **'Translation'**
+  /// In zh, this message translates to:
+  /// **'翻译'**
   String get translationSettings;
 
-  /// Enable translation toggle
+  /// No description provided for @enableTranslation.
   ///
-  /// In en, this message translates to:
-  /// **'Enable Translation'**
+  /// In zh, this message translates to:
+  /// **'启用'**
   String get enableTranslation;
 
-  /// Enable translation description
+  /// No description provided for @translateMessagesAutomatically.
   ///
-  /// In en, this message translates to:
-  /// **'Translate messages automatically'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get translateMessagesAutomatically;
 
-  /// Translation provider label
+  /// No description provided for @translationProvider.
   ///
-  /// In en, this message translates to:
-  /// **'Translation Provider'**
+  /// In zh, this message translates to:
+  /// **'翻译'**
   String get translationProvider;
 
-  /// Source language label
+  /// No description provided for @sourceLanguage.
   ///
-  /// In en, this message translates to:
-  /// **'Source Language'**
+  /// In zh, this message translates to:
+  /// **'语言'**
   String get sourceLanguage;
 
-  /// Target language label
+  /// No description provided for @targetLanguage.
   ///
-  /// In en, this message translates to:
-  /// **'Target Language'**
+  /// In zh, this message translates to:
+  /// **'语言'**
   String get targetLanguage;
 
-  /// Auto-detect option
+  /// No description provided for @autoDetect.
   ///
-  /// In en, this message translates to:
-  /// **'Auto-detect'**
+  /// In zh, this message translates to:
+  /// **'自动'**
   String get autoDetect;
 
-  /// Translate user messages toggle
+  /// No description provided for @translateUserMessages.
   ///
-  /// In en, this message translates to:
-  /// **'Translate User Messages'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get translateUserMessages;
 
-  /// Translate AI responses toggle
+  /// No description provided for @translateAiResponses.
   ///
-  /// In en, this message translates to:
-  /// **'Translate AI Responses'**
+  /// In zh, this message translates to:
+  /// **'翻译 AI 回复'**
   String get translateAiResponses;
 
-  /// Text-to-speech screen title
+  /// No description provided for @textToSpeech.
   ///
-  /// In en, this message translates to:
-  /// **'Text-to-Speech'**
+  /// In zh, this message translates to:
+  /// **'文本'**
   String get textToSpeech;
 
-  /// Enable TTS toggle
+  /// No description provided for @enableTts.
   ///
-  /// In en, this message translates to:
-  /// **'Enable TTS'**
+  /// In zh, this message translates to:
+  /// **'启用'**
   String get enableTts;
 
-  /// Enable TTS description
+  /// No description provided for @readAiResponsesAloud.
   ///
-  /// In en, this message translates to:
-  /// **'Read AI responses aloud'**
+  /// In zh, this message translates to:
+  /// **'朗读 AI 回复'**
   String get readAiResponsesAloud;
 
-  /// TTS provider label
+  /// No description provided for @ttsProvider.
   ///
-  /// In en, this message translates to:
-  /// **'TTS Provider'**
+  /// In zh, this message translates to:
+  /// **'语音合成服务商'**
   String get ttsProvider;
 
-  /// Voice settings section header
+  /// No description provided for @voiceSettings.
   ///
-  /// In en, this message translates to:
-  /// **'Voice Settings'**
+  /// In zh, this message translates to:
+  /// **'设置'**
   String get voiceSettings;
 
-  /// Voice label
+  /// No description provided for @voice.
   ///
-  /// In en, this message translates to:
-  /// **'Voice'**
+  /// In zh, this message translates to:
+  /// **'语音'**
   String get voice;
 
-  /// Speed label
+  /// No description provided for @speed.
   ///
-  /// In en, this message translates to:
-  /// **'Speed'**
+  /// In zh, this message translates to:
+  /// **'速度'**
   String get speed;
 
-  /// Pitch label
+  /// No description provided for @pitch.
   ///
-  /// In en, this message translates to:
-  /// **'Pitch'**
+  /// In zh, this message translates to:
+  /// **'音调'**
   String get pitch;
 
-  /// Volume label
+  /// No description provided for @volume.
   ///
-  /// In en, this message translates to:
-  /// **'Volume'**
+  /// In zh, this message translates to:
+  /// **'音量'**
   String get volume;
 
-  /// Auto-play toggle
+  /// No description provided for @autoPlay.
   ///
-  /// In en, this message translates to:
-  /// **'Auto-play'**
+  /// In zh, this message translates to:
+  /// **'自动'**
   String get autoPlay;
 
-  /// Auto-play description
+  /// No description provided for @automaticallyPlayResponses.
   ///
-  /// In en, this message translates to:
-  /// **'Automatically play AI responses'**
+  /// In zh, this message translates to:
+  /// **'自动'**
   String get automaticallyPlayResponses;
 
-  /// Test voice button
+  /// No description provided for @testVoice.
   ///
-  /// In en, this message translates to:
-  /// **'Test Voice'**
+  /// In zh, this message translates to:
+  /// **'测试'**
   String get testVoice;
 
-  /// Chat variables screen title
+  /// No description provided for @chatVariables.
   ///
-  /// In en, this message translates to:
-  /// **'Chat Variables'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get chatVariables;
 
-  /// Variable system section header
+  /// No description provided for @variableSystem.
   ///
-  /// In en, this message translates to:
-  /// **'Variable System'**
+  /// In zh, this message translates to:
+  /// **'变量'**
   String get variableSystem;
 
-  /// Global variables label
+  /// No description provided for @globalVariables.
   ///
-  /// In en, this message translates to:
-  /// **'Global Variables'**
+  /// In zh, this message translates to:
+  /// **'变量'**
   String get globalVariables;
 
-  /// Global variables count
+  /// No description provided for @globalVariablesCount.
   ///
-  /// In en, this message translates to:
-  /// **'{count} global variables'**
-  String globalVariablesCount(int count);
+  /// In zh, this message translates to:
+  /// **'变量'**
+  String globalVariablesCount(Object count);
 
-  /// Local variables label
+  /// No description provided for @localVariables.
   ///
-  /// In en, this message translates to:
-  /// **'Local Variables'**
+  /// In zh, this message translates to:
+  /// **'变量'**
   String get localVariables;
 
-  /// Local variables count
+  /// No description provided for @localVariablesCount.
   ///
-  /// In en, this message translates to:
-  /// **'{count} local variables'**
-  String localVariablesCount(int count);
+  /// In zh, this message translates to:
+  /// **'变量'**
+  String localVariablesCount(Object count);
 
-  /// Add variable button
+  /// No description provided for @addVariable.
   ///
-  /// In en, this message translates to:
-  /// **'Add Variable'**
+  /// In zh, this message translates to:
+  /// **'添加'**
   String get addVariable;
 
-  /// Variable name label
+  /// No description provided for @variableName.
   ///
-  /// In en, this message translates to:
-  /// **'Variable Name'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get variableName;
 
-  /// Variable value label
+  /// No description provided for @variableValue.
   ///
-  /// In en, this message translates to:
-  /// **'Variable Value'**
+  /// In zh, this message translates to:
+  /// **'变量'**
   String get variableValue;
 
-  /// Scope label
+  /// No description provided for @scope.
   ///
-  /// In en, this message translates to:
-  /// **'Scope'**
+  /// In zh, this message translates to:
+  /// **'作用域'**
   String get scope;
 
-  /// Global scope
+  /// No description provided for @global.
   ///
-  /// In en, this message translates to:
-  /// **'Global'**
+  /// In zh, this message translates to:
+  /// **'全局'**
   String get global;
 
-  /// Vector storage screen title
+  /// No description provided for @vectorStorageRag.
   ///
-  /// In en, this message translates to:
-  /// **'Vector Storage (RAG)'**
+  /// In zh, this message translates to:
+  /// **'向量检索'**
   String get vectorStorageRag;
 
-  /// Enable RAG toggle
+  /// No description provided for @enableRag.
   ///
-  /// In en, this message translates to:
-  /// **'Enable RAG'**
+  /// In zh, this message translates to:
+  /// **'向量检索'**
   String get enableRag;
 
-  /// Enable RAG description
+  /// No description provided for @useVectorStorageForContext.
   ///
-  /// In en, this message translates to:
-  /// **'Use vector storage for context retrieval'**
+  /// In zh, this message translates to:
+  /// **'向量检索'**
   String get useVectorStorageForContext;
 
-  /// Collections section header
+  /// No description provided for @collections.
   ///
-  /// In en, this message translates to:
-  /// **'Collections'**
+  /// In zh, this message translates to:
+  /// **'集合'**
   String get collections;
 
-  /// Create collection button
+  /// No description provided for @createCollection.
   ///
-  /// In en, this message translates to:
-  /// **'Create Collection'**
+  /// In zh, this message translates to:
+  /// **'创建'**
   String get createCollection;
 
-  /// Collection name label
+  /// No description provided for @collectionName.
   ///
-  /// In en, this message translates to:
-  /// **'Collection Name'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get collectionName;
 
-  /// Embedding provider label
+  /// No description provided for @embeddingProvider.
   ///
-  /// In en, this message translates to:
-  /// **'Embedding Provider'**
+  /// In zh, this message translates to:
+  /// **'嵌入向量服务商'**
   String get embeddingProvider;
 
-  /// Embedding model label
+  /// No description provided for @embeddingModel.
   ///
-  /// In en, this message translates to:
-  /// **'Embedding Model'**
+  /// In zh, this message translates to:
+  /// **'模型'**
   String get embeddingModel;
 
-  /// Chunk size label
+  /// No description provided for @chunkSize.
   ///
-  /// In en, this message translates to:
-  /// **'Chunk Size'**
+  /// In zh, this message translates to:
+  /// **'大小'**
   String get chunkSize;
 
-  /// Chunk overlap label
+  /// No description provided for @chunkOverlap.
   ///
-  /// In en, this message translates to:
-  /// **'Chunk Overlap'**
+  /// In zh, this message translates to:
+  /// **'分块重叠'**
   String get chunkOverlap;
 
-  /// Top K results label
+  /// No description provided for @topKResults.
   ///
-  /// In en, this message translates to:
-  /// **'Top K Results'**
+  /// In zh, this message translates to:
+  /// **'结果'**
   String get topKResults;
 
-  /// Similarity threshold label
+  /// No description provided for @similarityThreshold.
   ///
-  /// In en, this message translates to:
-  /// **'Similarity Threshold'**
+  /// In zh, this message translates to:
+  /// **'阈值'**
   String get similarityThreshold;
 
-  /// Character editor screen title
+  /// No description provided for @characterEditor.
   ///
-  /// In en, this message translates to:
-  /// **'Character Editor'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get characterEditor;
 
-  /// Basic tab label
+  /// No description provided for @basic.
   ///
-  /// In en, this message translates to:
-  /// **'Basic'**
+  /// In zh, this message translates to:
+  /// **'基础'**
   String get basic;
 
-  /// Prompts tab label
+  /// No description provided for @prompts.
   ///
-  /// In en, this message translates to:
-  /// **'Prompts'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get prompts;
 
-  /// Meta tab label
+  /// No description provided for @meta.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Meta'**
   String get meta;
 
-  /// Name required field
+  /// No description provided for @nameRequired.
   ///
-  /// In en, this message translates to:
-  /// **'Name *'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get nameRequired;
 
-  /// Character name hint
+  /// No description provided for @characterName.
   ///
-  /// In en, this message translates to:
-  /// **'Character name'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get characterName;
 
-  /// Name is required validation
+  /// No description provided for @nameIsRequired.
   ///
-  /// In en, this message translates to:
-  /// **'Name is required'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get nameIsRequired;
 
-  /// Description hint
+  /// No description provided for @characterDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Character description, background, appearance...'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get characterDescription;
 
-  /// Personality hint
+  /// No description provided for @characterPersonalityTraits.
   ///
-  /// In en, this message translates to:
-  /// **'Character personality traits...'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get characterPersonalityTraits;
 
-  /// Scenario hint
+  /// No description provided for @currentCircumstancesContext.
   ///
-  /// In en, this message translates to:
-  /// **'The current circumstances and context...'**
+  /// In zh, this message translates to:
+  /// **'文本'**
   String get currentCircumstancesContext;
 
-  /// System prompt description
+  /// No description provided for @customInstructionsSystemMessage.
   ///
-  /// In en, this message translates to:
-  /// **'Custom instructions sent as part of the system message.'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get customInstructionsSystemMessage;
 
-  /// System prompt hint
+  /// No description provided for @systemPromptHint.
   ///
-  /// In en, this message translates to:
-  /// **'You are {char}. You will...'**
+  /// In zh, this message translates to:
+  /// **'你是 {char}。你将...'**
   String systemPromptHint(Object char);
 
-  /// Post-history instructions description
+  /// No description provided for @instructionsInsertedAfterHistory.
   ///
-  /// In en, this message translates to:
-  /// **'Instructions inserted after the chat history (also known as \"jailbreak\").'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get instructionsInsertedAfterHistory;
 
-  /// Post-history instructions hint
+  /// No description provided for @postHistoryInstructionsHint.
   ///
-  /// In en, this message translates to:
-  /// **'Continue the roleplay as {char}...'**
+  /// In zh, this message translates to:
+  /// **'以 {char} 的身份继续角色扮演...'**
   String postHistoryInstructionsHint(Object char);
 
-  /// First message section title
+  /// No description provided for @firstMessageGreeting.
   ///
-  /// In en, this message translates to:
-  /// **'First Message (Greeting)'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get firstMessageGreeting;
 
-  /// First message description
+  /// No description provided for @firstMessageSentByCharacter.
   ///
-  /// In en, this message translates to:
-  /// **'The first message sent by the character when starting a new chat.'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get firstMessageSentByCharacter;
 
-  /// First message hint
+  /// No description provided for @firstMessageHint.
   ///
-  /// In en, this message translates to:
-  /// **'*walks into the room* Hello, {user}!'**
+  /// In zh, this message translates to:
+  /// **'*走进房间* 你好，{user}！'**
   String firstMessageHint(Object user);
 
-  /// Alternate greetings description
+  /// No description provided for @alternateGreetingsCanSwipe.
   ///
-  /// In en, this message translates to:
-  /// **'Alternative first messages that can be swiped through.'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get alternateGreetingsCanSwipe;
 
-  /// Greeting index label
+  /// No description provided for @greeting.
   ///
-  /// In en, this message translates to:
-  /// **'Greeting {index}'**
-  String greeting(int index);
+  /// In zh, this message translates to:
+  /// **'问候语 {index}'**
+  String greeting(Object index);
 
-  /// Alternative greeting hint
+  /// No description provided for @alternativeGreetingMessage.
   ///
-  /// In en, this message translates to:
-  /// **'Alternative greeting message...'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get alternativeGreetingMessage;
 
-  /// Remove greeting tooltip
+  /// No description provided for @removeGreeting.
   ///
-  /// In en, this message translates to:
-  /// **'Remove greeting'**
+  /// In zh, this message translates to:
+  /// **'移除'**
   String get removeGreeting;
 
-  /// Move up tooltip
+  /// No description provided for @moveUp.
   ///
-  /// In en, this message translates to:
-  /// **'Move up'**
+  /// In zh, this message translates to:
+  /// **'上移'**
   String get moveUp;
 
-  /// Move down tooltip
+  /// No description provided for @moveDown.
   ///
-  /// In en, this message translates to:
-  /// **'Move down'**
+  /// In zh, this message translates to:
+  /// **'下移'**
   String get moveDown;
 
-  /// No alternate greetings message
+  /// No description provided for @noAlternateGreetings.
   ///
-  /// In en, this message translates to:
-  /// **'No alternate greetings. Tap + to add one.'**
+  /// In zh, this message translates to:
+  /// **'添加'**
   String get noAlternateGreetings;
 
-  /// Example messages description
+  /// No description provided for @exampleDialogueDemonstrate.
   ///
-  /// In en, this message translates to:
-  /// **'Example dialogue to demonstrate how the character speaks.\\nFormat: <START>\\n{user}: Hello\\n{char}: Hi there!'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String exampleDialogueDemonstrate(Object char, Object user);
 
-  /// Example messages hint
+  /// No description provided for @exampleMessagesHint.
   ///
-  /// In en, this message translates to:
-  /// **'<START>\\n{user}: How are you?\\n{char}: I\'m doing well, thanks for asking!'**
+  /// In zh, this message translates to:
+  /// **'<START>\\n{user}: 你好吗？\\n{char}: 我很好，谢谢关心！'**
   String exampleMessagesHint(Object char, Object user);
 
-  /// Creator notes description
+  /// No description provided for @creatorNotesNotSentToAi.
   ///
-  /// In en, this message translates to:
-  /// **'Notes from the character creator (not sent to the AI).'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get creatorNotesNotSentToAi;
 
-  /// Creator notes hint
+  /// No description provided for @creatorNotesHint.
   ///
-  /// In en, this message translates to:
-  /// **'Recommended settings, backstory notes...'**
+  /// In zh, this message translates to:
+  /// **'设置'**
   String get creatorNotesHint;
 
-  /// Tags helper text
+  /// No description provided for @tagsCommaSeparated.
   ///
-  /// In en, this message translates to:
-  /// **'Comma-separated list of tags'**
+  /// In zh, this message translates to:
+  /// **'比率'**
   String get tagsCommaSeparated;
 
-  /// Tags hint
+  /// No description provided for @tagsHint.
   ///
-  /// In en, this message translates to:
-  /// **'fantasy, female, adventure'**
+  /// In zh, this message translates to:
+  /// **'奇幻、女性、冒险'**
   String get tagsHint;
 
-  /// Creator label
+  /// No description provided for @creator.
   ///
-  /// In en, this message translates to:
-  /// **'Creator'**
+  /// In zh, this message translates to:
+  /// **'创作者'**
   String get creator;
 
-  /// Creator hint
+  /// No description provided for @yourNameOrUsername.
   ///
-  /// In en, this message translates to:
-  /// **'Your name or username'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get yourNameOrUsername;
 
-  /// Version number hint
+  /// No description provided for @versionNumber.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'1.0.0'**
   String get versionNumber;
 
-  /// Character info section title
+  /// No description provided for @characterInfo.
   ///
-  /// In en, this message translates to:
-  /// **'Character Info'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get characterInfo;
 
-  /// Character ID label
+  /// No description provided for @characterId.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'ID: {id}'**
-  String characterId(String id);
+  String characterId(Object id);
 
-  /// Created date label
+  /// No description provided for @created.
   ///
-  /// In en, this message translates to:
-  /// **'Created: {date}'**
-  String created(String date);
+  /// In zh, this message translates to:
+  /// **'创建'**
+  String created(Object date);
 
-  /// Modified date label
+  /// No description provided for @modified.
   ///
-  /// In en, this message translates to:
-  /// **'Modified: {date}'**
-  String modified(String date);
+  /// In zh, this message translates to:
+  /// **'修改于：{date}'**
+  String modified(Object date);
 
-  /// Character saved message
+  /// No description provided for @characterSavedSuccessfully.
   ///
-  /// In en, this message translates to:
-  /// **'Character saved successfully'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get characterSavedSuccessfully;
 
-  /// Failed to save character error
+  /// No description provided for @failedToSaveCharacter.
   ///
-  /// In en, this message translates to:
-  /// **'Failed to save character: {error}'**
-  String failedToSaveCharacter(String error);
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String failedToSaveCharacter(Object error);
 
-  /// Add alternate greeting tooltip
+  /// No description provided for @addAlternateGreeting.
   ///
-  /// In en, this message translates to:
-  /// **'Add alternate greeting'**
+  /// In zh, this message translates to:
+  /// **'添加'**
   String get addAlternateGreeting;
 
-  /// Group info section title
+  /// No description provided for @groupInfo.
   ///
-  /// In en, this message translates to:
-  /// **'Group Info'**
+  /// In zh, this message translates to:
+  /// **'信息'**
   String get groupInfo;
 
-  /// Response mode section title
+  /// No description provided for @responseMode.
   ///
-  /// In en, this message translates to:
-  /// **'Response Mode'**
+  /// In zh, this message translates to:
+  /// **'模式'**
   String get responseMode;
 
-  /// Response mode description
+  /// No description provided for @howCharactersTakeTurns.
   ///
-  /// In en, this message translates to:
-  /// **'How characters take turns responding'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get howCharactersTakeTurns;
 
-  /// Sequential response mode
+  /// No description provided for @sequential.
   ///
-  /// In en, this message translates to:
-  /// **'Sequential'**
+  /// In zh, this message translates to:
+  /// **'顺序'**
   String get sequential;
 
-  /// Sequential mode description
+  /// No description provided for @charactersRespondInOrder.
   ///
-  /// In en, this message translates to:
-  /// **'Characters respond in order'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get charactersRespondInOrder;
 
-  /// Random response mode
+  /// No description provided for @random.
   ///
-  /// In en, this message translates to:
-  /// **'Random'**
+  /// In zh, this message translates to:
+  /// **'随机'**
   String get random;
 
-  /// Random mode description
+  /// No description provided for @randomCharacterResponds.
   ///
-  /// In en, this message translates to:
-  /// **'Random character responds each turn'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get randomCharacterResponds;
 
-  /// All at once response mode
+  /// No description provided for @allAtOnce.
   ///
-  /// In en, this message translates to:
-  /// **'All at Once'**
+  /// In zh, this message translates to:
+  /// **'一次全部'**
   String get allAtOnce;
 
-  /// All at once mode description
+  /// No description provided for @allNonMutedCharactersRespond.
   ///
-  /// In en, this message translates to:
-  /// **'All non-muted characters respond'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get allNonMutedCharactersRespond;
 
-  /// Manual response mode
+  /// No description provided for @manual.
   ///
-  /// In en, this message translates to:
-  /// **'Manual'**
+  /// In zh, this message translates to:
+  /// **'手动'**
   String get manual;
 
-  /// Manual mode description
+  /// No description provided for @youSelectWhoResponds.
   ///
-  /// In en, this message translates to:
-  /// **'You select which character responds'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get youSelectWhoResponds;
 
-  /// Natural response mode
+  /// No description provided for @natural.
   ///
-  /// In en, this message translates to:
-  /// **'Natural'**
+  /// In zh, this message translates to:
+  /// **'自然'**
   String get natural;
 
-  /// Natural mode description
+  /// No description provided for @aiDecidesBasedOnContext.
   ///
-  /// In en, this message translates to:
-  /// **'AI decides based on context and trigger words'**
+  /// In zh, this message translates to:
+  /// **'文本'**
   String get aiDecidesBasedOnContext;
 
-  /// Members count label
+  /// No description provided for @membersCount.
   ///
-  /// In en, this message translates to:
-  /// **'Members ({count})'**
-  String membersCount(int count);
+  /// In zh, this message translates to:
+  /// **'计数'**
+  String membersCount(Object count);
 
-  /// No members message
+  /// No description provided for @noMembersYet.
   ///
-  /// In en, this message translates to:
-  /// **'No members yet. Add characters to this group.'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get noMembersYet;
 
-  /// Talkativeness label
+  /// No description provided for @talkativenessPercent.
   ///
-  /// In en, this message translates to:
-  /// **'Talkativeness: {percent}%'**
-  String talkativenessPercent(int percent);
+  /// In zh, this message translates to:
+  /// **'健谈度：{percent}%'**
+  String talkativenessPercent(Object percent);
 
-  /// Triggers label
+  /// No description provided for @triggers.
   ///
-  /// In en, this message translates to:
-  /// **'Triggers: {words}'**
-  String triggers(String words);
+  /// In zh, this message translates to:
+  /// **'触发词：{words}'**
+  String triggers(Object words);
 
-  /// Mute tooltip
+  /// No description provided for @mute.
   ///
-  /// In en, this message translates to:
-  /// **'Mute'**
+  /// In zh, this message translates to:
+  /// **'静音'**
   String get mute;
 
-  /// Unmute tooltip
+  /// No description provided for @unmute.
   ///
-  /// In en, this message translates to:
-  /// **'Unmute'**
+  /// In zh, this message translates to:
+  /// **'取消静音'**
   String get unmute;
 
-  /// Member settings dialog title
+  /// No description provided for @memberSettings.
   ///
-  /// In en, this message translates to:
-  /// **'Member Settings'**
+  /// In zh, this message translates to:
+  /// **'设置'**
   String get memberSettings;
 
-  /// Talkativeness slider label
+  /// No description provided for @talkativenessLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Talkativeness: {percent}%'**
-  String talkativenessLabel(int percent);
+  /// In zh, this message translates to:
+  /// **'健谈度：{percent}%'**
+  String talkativenessLabel(Object percent);
 
-  /// Talkativeness help text
+  /// No description provided for @higherValuesMoreLikely.
   ///
-  /// In en, this message translates to:
-  /// **'Higher values make the character more likely to respond.'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get higherValuesMoreLikely;
 
-  /// Trigger words label
+  /// No description provided for @triggerWords.
   ///
-  /// In en, this message translates to:
-  /// **'Trigger Words'**
+  /// In zh, this message translates to:
+  /// **'触发词'**
   String get triggerWords;
 
-  /// Trigger words hint
+  /// No description provided for @triggerWordsHint.
   ///
-  /// In en, this message translates to:
-  /// **'word1, word2, word3'**
+  /// In zh, this message translates to:
+  /// **'词1、词2、词3'**
   String get triggerWordsHint;
 
-  /// Trigger words help text
+  /// No description provided for @characterWillRespondWhenTriggered.
   ///
-  /// In en, this message translates to:
-  /// **'Character will respond when these words appear in messages.'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get characterWillRespondWhenTriggered;
 
-  /// Add member dialog title
+  /// No description provided for @addMemberToGroup.
   ///
-  /// In en, this message translates to:
-  /// **'Add Member'**
+  /// In zh, this message translates to:
+  /// **'添加'**
   String get addMemberToGroup;
 
-  /// No more characters message
+  /// No description provided for @noMoreCharactersAvailable.
   ///
-  /// In en, this message translates to:
-  /// **'No more characters available to add'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get noMoreCharactersAvailable;
 
-  /// Group saved message
+  /// No description provided for @groupSaved.
   ///
-  /// In en, this message translates to:
-  /// **'Group saved'**
+  /// In zh, this message translates to:
+  /// **'保存'**
   String get groupSaved;
 
-  /// Delete group confirmation short
+  /// No description provided for @deleteGroupAndChats.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete \"{name}\"?'**
-  String deleteGroupAndChats(String name);
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String deleteGroupAndChats(Object name);
 
-  /// Start chat tooltip
+  /// No description provided for @startChatAction.
   ///
-  /// In en, this message translates to:
-  /// **'Start Chat'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get startChatAction;
 
-  /// No tags empty state
+  /// No description provided for @noTagsYet.
   ///
-  /// In en, this message translates to:
-  /// **'No tags yet'**
+  /// In zh, this message translates to:
+  /// **'暂无标签'**
   String get noTagsYet;
 
-  /// Create tags description
+  /// No description provided for @createTagsToOrganize.
   ///
-  /// In en, this message translates to:
-  /// **'Create tags to organize your characters'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get createTagsToOrganize;
 
-  /// Character count label
+  /// No description provided for @characterCount.
   ///
-  /// In en, this message translates to:
-  /// **'{count} character{plural}'**
-  String characterCount(int count, String plural);
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String characterCount(Object count, Object plural);
 
-  /// Delete tag confirmation
+  /// No description provided for @deleteTagConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete the tag \"{name}\"?\\n\\nThis will remove the tag from all characters.'**
-  String deleteTagConfirmation(String name);
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String deleteTagConfirmation(Object name);
 
-  /// Tag name hint
+  /// No description provided for @enterTagName.
   ///
-  /// In en, this message translates to:
-  /// **'Enter tag name'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get enterTagName;
 
-  /// Icon emoji label
+  /// No description provided for @iconEmoji.
   ///
-  /// In en, this message translates to:
-  /// **'Icon (emoji)'**
+  /// In zh, this message translates to:
+  /// **'图标（表情符号）'**
   String get iconEmoji;
 
-  /// Icon emoji hint
+  /// No description provided for @enterEmojiOptional.
   ///
-  /// In en, this message translates to:
-  /// **'Enter an emoji (optional)'**
+  /// In zh, this message translates to:
+  /// **'可选'**
   String get enterEmojiOptional;
 
-  /// Please enter tag name validation
+  /// No description provided for @pleaseEnterTagName.
   ///
-  /// In en, this message translates to:
-  /// **'Please enter a tag name'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get pleaseEnterTagName;
 
-  /// World info screen title
+  /// No description provided for @worldInfoLorebooks.
   ///
-  /// In en, this message translates to:
-  /// **'World Info / Lorebooks'**
+  /// In zh, this message translates to:
+  /// **'世界'**
   String get worldInfoLorebooks;
 
-  /// Create lorebook tooltip
+  /// No description provided for @createLorebook.
   ///
-  /// In en, this message translates to:
-  /// **'Create Lorebook'**
+  /// In zh, this message translates to:
+  /// **'创建'**
   String get createLorebook;
 
-  /// No lorebooks empty state
+  /// No description provided for @noLorebooksYet.
   ///
-  /// In en, this message translates to:
-  /// **'No Lorebooks yet'**
+  /// In zh, this message translates to:
+  /// **'暂无世界书'**
   String get noLorebooksYet;
 
-  /// Lorebooks description
+  /// No description provided for @lorebooksInjectContext.
   ///
-  /// In en, this message translates to:
-  /// **'Lorebooks inject context into your chats when keywords are detected.'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get lorebooksInjectContext;
 
-  /// Entries count label
+  /// No description provided for @entriesCount.
   ///
-  /// In en, this message translates to:
-  /// **'{count} entries'**
-  String entriesCount(int count);
+  /// In zh, this message translates to:
+  /// **'计数'**
+  String entriesCount(Object count);
 
-  /// Delete lorebook confirmation
+  /// No description provided for @deleteLorebookConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete \"{name}\" and all its entries?'**
-  String deleteLorebookConfirmation(String name);
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String deleteLorebookConfirmation(Object name);
 
-  /// Lorebook name hint
+  /// No description provided for @enterLorebookName.
   ///
-  /// In en, this message translates to:
-  /// **'Enter lorebook name'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get enterLorebookName;
 
-  /// Optional description hint
+  /// No description provided for @optionalDescriptionHint.
   ///
-  /// In en, this message translates to:
-  /// **'Optional description'**
+  /// In zh, this message translates to:
+  /// **'描述'**
   String get optionalDescriptionHint;
 
-  /// Global scope label
+  /// No description provided for @globalScope.
   ///
-  /// In en, this message translates to:
-  /// **'Global'**
+  /// In zh, this message translates to:
+  /// **'全局'**
   String get globalScope;
 
-  /// Global toggle description
+  /// No description provided for @applyToAllChats.
   ///
-  /// In en, this message translates to:
-  /// **'Apply to all chats'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get applyToAllChats;
 
-  /// Please enter name validation alternate
+  /// No description provided for @pleaseEnterName2.
   ///
-  /// In en, this message translates to:
-  /// **'Please enter a name'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get pleaseEnterName2;
 
-  /// No entries empty state
+  /// No description provided for @noEntriesYet.
   ///
-  /// In en, this message translates to:
-  /// **'No entries yet'**
+  /// In zh, this message translates to:
+  /// **'暂无条目'**
   String get noEntriesYet;
 
-  /// Add entries description
+  /// No description provided for @addEntriesWithKeywords.
   ///
-  /// In en, this message translates to:
-  /// **'Add entries with keywords to inject context into chats'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get addEntriesWithKeywords;
 
-  /// Delete entry confirmation
+  /// No description provided for @deleteEntryConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete this entry?\\n\\nKeys: {keys}'**
-  String deleteEntryConfirmation(String keys);
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String deleteEntryConfirmation(Object keys);
 
-  /// Constant badge
+  /// No description provided for @constant.
   ///
-  /// In en, this message translates to:
-  /// **'Constant'**
+  /// In zh, this message translates to:
+  /// **'常驻'**
   String get constant;
 
-  /// Selective badge
+  /// No description provided for @selective.
   ///
-  /// In en, this message translates to:
-  /// **'Selective'**
+  /// In zh, this message translates to:
+  /// **'选择'**
   String get selective;
 
-  /// Keywords label
+  /// No description provided for @keywordsCommaSeparated.
   ///
-  /// In en, this message translates to:
-  /// **'Keywords (comma-separated)'**
+  /// In zh, this message translates to:
+  /// **'比率'**
   String get keywordsCommaSeparated;
 
-  /// Keywords hint
+  /// No description provided for @keywordsHint.
   ///
-  /// In en, this message translates to:
-  /// **'dragon, wyrm, serpent'**
+  /// In zh, this message translates to:
+  /// **'向量检索'**
   String get keywordsHint;
 
-  /// Keywords helper text
+  /// No description provided for @entryActivatesWhenKeywordFound.
   ///
-  /// In en, this message translates to:
-  /// **'Entry activates when any keyword is found in chat'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get entryActivatesWhenKeywordFound;
 
-  /// Secondary keys label
+  /// No description provided for @secondaryKeysOptional.
   ///
-  /// In en, this message translates to:
-  /// **'Secondary Keys (optional)'**
+  /// In zh, this message translates to:
+  /// **'可选'**
   String get secondaryKeysOptional;
 
-  /// Secondary keys hint
+  /// No description provided for @secondaryKeysHint.
   ///
-  /// In en, this message translates to:
-  /// **'fire, flame'**
+  /// In zh, this message translates to:
+  /// **'火、火焰'**
   String get secondaryKeysHint;
 
-  /// Secondary keys helper text
+  /// No description provided for @bothPrimaryAndSecondaryMustMatch.
   ///
-  /// In en, this message translates to:
-  /// **'If set, both primary AND secondary must match (selective mode)'**
+  /// In zh, this message translates to:
+  /// **'选择'**
   String get bothPrimaryAndSecondaryMustMatch;
 
-  /// Comment label
+  /// No description provided for @commentOptional.
   ///
-  /// In en, this message translates to:
-  /// **'Comment (optional)'**
+  /// In zh, this message translates to:
+  /// **'可选'**
   String get commentOptional;
 
-  /// Comment hint
+  /// No description provided for @noteForThisEntry.
   ///
-  /// In en, this message translates to:
-  /// **'Note for this entry'**
+  /// In zh, this message translates to:
+  /// **'此条目的备注'**
   String get noteForThisEntry;
 
-  /// Content field label
+  /// No description provided for @contentLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Content'**
+  /// In zh, this message translates to:
+  /// **'内容'**
   String get contentLabel;
 
-  /// Content hint
+  /// No description provided for @contextToInjectWhenMatches.
   ///
-  /// In en, this message translates to:
-  /// **'The context to inject when keywords match...'**
+  /// In zh, this message translates to:
+  /// **'文本'**
   String get contextToInjectWhenMatches;
 
-  /// Keywords validation
+  /// No description provided for @pleaseEnterAtLeastOneKeyword.
   ///
-  /// In en, this message translates to:
-  /// **'Please enter at least one keyword'**
+  /// In zh, this message translates to:
+  /// **'请至少输入一个关键词'**
   String get pleaseEnterAtLeastOneKeyword;
 
-  /// Content validation
+  /// No description provided for @pleaseEnterContent.
   ///
-  /// In en, this message translates to:
-  /// **'Please enter content'**
+  /// In zh, this message translates to:
+  /// **'内容'**
   String get pleaseEnterContent;
 
-  /// Anthropic provider name
+  /// No description provided for @anthropic.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Anthropic'**
   String get anthropic;
 
-  /// Cohere provider name
+  /// No description provided for @cohere.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'Cohere'**
   String get cohere;
 
-  /// Custom provider name
+  /// No description provided for @customProvider.
   ///
-  /// In en, this message translates to:
-  /// **'Custom'**
+  /// In zh, this message translates to:
+  /// **'自定义'**
   String get customProvider;
 
-  /// API endpoint hint
+  /// No description provided for @apiEndpointHint.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'https://api.example.com/v1'**
   String get apiEndpointHint;
 
-  /// API key hint
+  /// No description provided for @apiKeyHint.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'sk-...'**
   String get apiKeyHint;
 
-  /// Temperature value display
+  /// No description provided for @temperatureValue.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'{value}'**
-  String temperatureValue(String value);
+  String temperatureValue(Object value);
 
-  /// Max tokens value display
+  /// No description provided for @maxTokensValue.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'{value}'**
-  String maxTokensValue(String value);
+  String maxTokensValue(Object value);
 
-  /// Top P value display
+  /// No description provided for @topPValue.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'{value}'**
-  String topPValue(String value);
+  String topPValue(Object value);
 
-  /// Frequency penalty value display
+  /// No description provided for @frequencyPenaltyValue.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'{value}'**
-  String frequencyPenaltyValue(String value);
+  String frequencyPenaltyValue(Object value);
 
-  /// Presence penalty value display
+  /// No description provided for @presencePenaltyValue.
   ///
-  /// In en, this message translates to:
+  /// In zh, this message translates to:
   /// **'{value}'**
-  String presencePenaltyValue(String value);
+  String presencePenaltyValue(Object value);
 
-  /// Stream response label
+  /// No description provided for @streamResponse.
   ///
-  /// In en, this message translates to:
-  /// **'Stream Response'**
+  /// In zh, this message translates to:
+  /// **'流式响应'**
   String get streamResponse;
 
-  /// Stream response description
+  /// No description provided for @streamTokensAsGenerated.
   ///
-  /// In en, this message translates to:
-  /// **'Stream tokens as they are generated'**
+  /// In zh, this message translates to:
+  /// **'令牌'**
   String get streamTokensAsGenerated;
 
-  /// Use system prompt label
+  /// No description provided for @useSystemPrompt.
   ///
-  /// In en, this message translates to:
-  /// **'Use System Prompt'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get useSystemPrompt;
 
-  /// Use system prompt description
+  /// No description provided for @includeSystemInstructions.
   ///
-  /// In en, this message translates to:
-  /// **'Include system instructions'**
+  /// In zh, this message translates to:
+  /// **'系统'**
   String get includeSystemInstructions;
 
-  /// Configuration saved message
+  /// No description provided for @configurationSavedSuccessfully.
   ///
-  /// In en, this message translates to:
-  /// **'Configuration saved successfully'**
+  /// In zh, this message translates to:
+  /// **'保存'**
   String get configurationSavedSuccessfully;
 
-  /// Error saving configuration message
+  /// No description provided for @errorSavingConfiguration.
   ///
-  /// In en, this message translates to:
-  /// **'Error saving configuration'**
+  /// In zh, this message translates to:
+  /// **'错误'**
   String get errorSavingConfiguration;
 
-  /// Copy all action
+  /// No description provided for @copyAll.
   ///
-  /// In en, this message translates to:
-  /// **'Copy All'**
+  /// In zh, this message translates to:
+  /// **'复制'**
   String get copyAll;
 
-  /// Show favorites only tooltip
+  /// No description provided for @showFavoritesOnly.
   ///
-  /// In en, this message translates to:
-  /// **'Show favorites only'**
+  /// In zh, this message translates to:
+  /// **'显示'**
   String get showFavoritesOnly;
 
-  /// Sort by tooltip
+  /// No description provided for @sortBy.
   ///
-  /// In en, this message translates to:
-  /// **'Sort by'**
+  /// In zh, this message translates to:
+  /// **'排序方式'**
   String get sortBy;
 
-  /// Filter by tags tooltip
+  /// No description provided for @filterByTags.
   ///
-  /// In en, this message translates to:
-  /// **'Filter by tags'**
+  /// In zh, this message translates to:
+  /// **'按标签筛选'**
   String get filterByTags;
 
-  /// Favorites filter label
+  /// No description provided for @favorites.
   ///
-  /// In en, this message translates to:
-  /// **'Favorites'**
+  /// In zh, this message translates to:
+  /// **'收藏'**
   String get favorites;
 
-  /// Manage button
+  /// No description provided for @manage.
   ///
-  /// In en, this message translates to:
-  /// **'Manage'**
+  /// In zh, this message translates to:
+  /// **'管理'**
   String get manage;
 
-  /// No tags created message
+  /// No description provided for @noTagsCreatedYet.
   ///
-  /// In en, this message translates to:
-  /// **'No tags created yet'**
+  /// In zh, this message translates to:
+  /// **'创建'**
   String get noTagsCreatedYet;
 
-  /// Create tags button
+  /// No description provided for @createTags.
   ///
-  /// In en, this message translates to:
-  /// **'Create Tags'**
+  /// In zh, this message translates to:
+  /// **'创建'**
   String get createTags;
 
-  /// Characters count with plural
+  /// No description provided for @charactersCount.
   ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 character} other{{count} characters}}'**
-  String charactersCount(int count);
+  /// In zh, this message translates to:
+  /// **'角色'**
+  String charactersCount(num count);
 
-  /// Legacy character tags section
+  /// No description provided for @characterTagsLegacy.
   ///
-  /// In en, this message translates to:
-  /// **'Character Tags (Legacy)'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get characterTagsLegacy;
 
-  /// Done button
+  /// No description provided for @done.
   ///
-  /// In en, this message translates to:
-  /// **'Done'**
+  /// In zh, this message translates to:
+  /// **'完成'**
   String get done;
 
-  /// Apply filters with count
+  /// No description provided for @applyFiltersSelected.
   ///
-  /// In en, this message translates to:
-  /// **'Apply ({count} selected)'**
-  String applyFiltersSelected(int count);
+  /// In zh, this message translates to:
+  /// **'应用'**
+  String applyFiltersSelected(Object count);
 
-  /// Enter preset name hint
+  /// No description provided for @enterPresetName.
   ///
-  /// In en, this message translates to:
-  /// **'Enter preset name'**
+  /// In zh, this message translates to:
+  /// **'预设'**
   String get enterPresetName;
 
-  /// Delete script title
+  /// No description provided for @deleteScript.
   ///
-  /// In en, this message translates to:
-  /// **'Delete Script'**
+  /// In zh, this message translates to:
+  /// **'删除'**
   String get deleteScript;
 
-  /// AI config navigation label
+  /// No description provided for @aiConfig.
   ///
-  /// In en, this message translates to:
-  /// **'AI Config'**
+  /// In zh, this message translates to:
+  /// **'配置'**
   String get aiConfig;
 
-  /// Author's note description
+  /// No description provided for @authorsNoteDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Add context or instructions that will be injected into the conversation at a specific depth.'**
+  /// In zh, this message translates to:
+  /// **'文本'**
   String get authorsNoteDescription;
 
-  /// Enable author's note toggle
+  /// No description provided for @enableAuthorsNote.
   ///
-  /// In en, this message translates to:
-  /// **'Enable Author\'s Note'**
+  /// In zh, this message translates to:
+  /// **'启用'**
   String get enableAuthorsNote;
 
-  /// Inject note description
+  /// No description provided for @injectNoteIntoContext.
   ///
-  /// In en, this message translates to:
-  /// **'Inject note into conversation context'**
+  /// In zh, this message translates to:
+  /// **'文本'**
   String get injectNoteIntoContext;
 
-  /// Injection depth label
+  /// No description provided for @injectionDepth.
   ///
-  /// In en, this message translates to:
-  /// **'Injection Depth'**
+  /// In zh, this message translates to:
+  /// **'注入深度'**
   String get injectionDepth;
 
-  /// Injection depth description
+  /// No description provided for @messagesFromEndWhereInserted.
   ///
-  /// In en, this message translates to:
-  /// **'Messages from the end where note is inserted'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get messagesFromEndWhereInserted;
 
-  /// Note content label
+  /// No description provided for @noteContent.
   ///
-  /// In en, this message translates to:
-  /// **'Note Content'**
+  /// In zh, this message translates to:
+  /// **'内容'**
   String get noteContent;
 
-  /// Author's note hint text
+  /// No description provided for @authorsNoteHint.
   ///
-  /// In en, this message translates to:
-  /// **'Enter your author\'s note here...\\n\\nExamples:\\n• [Style: Write in a poetic, descriptive manner]\\n• [Focus on emotional depth and character development]\\n• [The character is feeling melancholic today]'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get authorsNoteHint;
 
-  /// Bookmark name hint
+  /// No description provided for @enterNameForCheckpoint.
   ///
-  /// In en, this message translates to:
-  /// **'Enter a name for this checkpoint'**
+  /// In zh, this message translates to:
+  /// **'名称'**
   String get enterNameForCheckpoint;
 
-  /// Add description hint
+  /// No description provided for @addDescription.
   ///
-  /// In en, this message translates to:
-  /// **'Add a description'**
+  /// In zh, this message translates to:
+  /// **'描述'**
   String get addDescription;
 
-  /// Create checkpoint confirmation
+  /// No description provided for @createCheckpointAtMessage.
   ///
-  /// In en, this message translates to:
-  /// **'This will create a checkpoint at message {index}.'**
-  String createCheckpointAtMessage(int index);
+  /// In zh, this message translates to:
+  /// **'消息'**
+  String createCheckpointAtMessage(Object index);
 
-  /// Long press to bookmark hint
+  /// No description provided for @longPressMessageToBookmark.
   ///
-  /// In en, this message translates to:
-  /// **'Long-press a message to create a bookmark'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get longPressMessageToBookmark;
 
-  /// Context management section header
+  /// No description provided for @branchFromBookmark.
   ///
-  /// In en, this message translates to:
-  /// **'Context Management'**
-  String get contextManagement;
-
-  /// Auto-summarize toggle label
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-Summarize'**
-  String get autoSummarize;
-
-  /// Auto-summarize toggle description
-  ///
-  /// In en, this message translates to:
-  /// **'Automatically summarize and compress chat history when context usage is high'**
-  String get autoSummarizeDescription;
-
-  /// Auto-summarize threshold label
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-Summarize Threshold'**
-  String get autoSummarizeThreshold;
-
-  /// Auto-summarize threshold description
-  ///
-  /// In en, this message translates to:
-  /// **'Trigger summarization when context reaches this percentage of maximum'**
-  String get autoSummarizeThresholdDescription;
-
-  /// Branch from bookmark title
-  ///
-  /// In en, this message translates to:
-  /// **'Branch from Bookmark'**
+  /// In zh, this message translates to:
+  /// **'从书签分支'**
   String get branchFromBookmark;
 
-  /// Branch from bookmark warning
+  /// No description provided for @branchFromBookmarkWarning.
   ///
-  /// In en, this message translates to:
-  /// **'This will delete all messages after \"{name}\" and continue from that point. You can create a new bookmark before doing this to save the current state.'**
-  String branchFromBookmarkWarning(String name);
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String branchFromBookmarkWarning(Object name);
 
-  /// Branch button
+  /// No description provided for @branch.
   ///
-  /// In en, this message translates to:
-  /// **'Branch'**
+  /// In zh, this message translates to:
+  /// **'分支'**
   String get branch;
 
-  /// Branched from message
+  /// No description provided for @branchedFrom.
   ///
-  /// In en, this message translates to:
-  /// **'Branched from \"{name}\"'**
-  String branchedFrom(String name);
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String branchedFrom(Object name);
 
-  /// Delete bookmark confirmation
+  /// No description provided for @deleteBookmarkConfirmation.
   ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete \"{name}\"?'**
-  String deleteBookmarkConfirmation(String name);
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String deleteBookmarkConfirmation(Object name);
 
-  /// Message index and date label
+  /// No description provided for @messageIndexAndDate.
   ///
-  /// In en, this message translates to:
-  /// **'Message {index} • {date}'**
-  String messageIndexAndDate(int index, String date);
+  /// In zh, this message translates to:
+  /// **'消息'**
+  String messageIndexAndDate(Object date, Object index);
 
-  /// Branch from here tooltip
+  /// No description provided for @branchFromHere.
   ///
-  /// In en, this message translates to:
-  /// **'Branch from here'**
+  /// In zh, this message translates to:
+  /// **'从此处分支'**
   String get branchFromHere;
 
-  /// Preview bookmark title
+  /// No description provided for @previewBookmark.
   ///
-  /// In en, this message translates to:
-  /// **'Preview: {name}'**
-  String previewBookmark(String name);
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String previewBookmark(Object name);
 
-  /// Message not found message
+  /// No description provided for @messageNotFoundInChat.
   ///
-  /// In en, this message translates to:
-  /// **'Message not found in current chat'**
+  /// In zh, this message translates to:
+  /// **'聊天'**
   String get messageNotFoundInChat;
 
-  /// You label for user messages
+  /// No description provided for @you.
   ///
-  /// In en, this message translates to:
-  /// **'You'**
+  /// In zh, this message translates to:
+  /// **'你'**
   String get you;
 
-  /// Assistant label
+  /// No description provided for @assistant.
   ///
-  /// In en, this message translates to:
-  /// **'Assistant'**
+  /// In zh, this message translates to:
+  /// **'助手'**
   String get assistant;
 
-  /// Reasoning copied message
+  /// No description provided for @reasoningCopiedToClipboard.
   ///
-  /// In en, this message translates to:
-  /// **'Reasoning copied to clipboard'**
+  /// In zh, this message translates to:
+  /// **'推理内容已复制到剪贴板'**
   String get reasoningCopiedToClipboard;
 
-  /// Characters count for reasoning
+  /// No description provided for @charsCount.
   ///
-  /// In en, this message translates to:
-  /// **'{count} chars'**
-  String charsCount(int count);
+  /// In zh, this message translates to:
+  /// **'计数'**
+  String charsCount(Object count);
 
-  /// Copy reasoning tooltip
+  /// No description provided for @copyReasoning.
   ///
-  /// In en, this message translates to:
-  /// **'Copy reasoning'**
+  /// In zh, this message translates to:
+  /// **'复制'**
   String get copyReasoning;
 
-  /// Commands label
+  /// No description provided for @commands.
   ///
-  /// In en, this message translates to:
-  /// **'Commands'**
+  /// In zh, this message translates to:
+  /// **'命令'**
   String get commands;
 
-  /// Aliases label with list
+  /// No description provided for @aliasesLabel.
   ///
-  /// In en, this message translates to:
-  /// **'Aliases: {aliases}'**
-  String aliasesLabel(String aliases);
+  /// In zh, this message translates to:
+  /// **'别名：{aliases}'**
+  String aliasesLabel(Object aliases);
 
-  /// No sprites message
+  /// No description provided for @noSpritesAddedYet.
   ///
-  /// In en, this message translates to:
-  /// **'No sprites added yet'**
+  /// In zh, this message translates to:
+  /// **'添加'**
   String get noSpritesAddedYet;
 
-  /// Error loading sprites message
+  /// No description provided for @errorLoadingSprites.
   ///
-  /// In en, this message translates to:
-  /// **'Error loading sprites'**
+  /// In zh, this message translates to:
+  /// **'加载'**
   String get errorLoadingSprites;
 
-  /// Insertion position label for world info entry
+  /// No description provided for @insertionPosition.
   ///
-  /// In en, this message translates to:
-  /// **'Insertion Position'**
+  /// In zh, this message translates to:
+  /// **'位置'**
   String get insertionPosition;
 
-  /// World info position: before character definition
+  /// No description provided for @beforeCharacterDefinition.
   ///
-  /// In en, this message translates to:
-  /// **'Before Character Definition'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get beforeCharacterDefinition;
 
-  /// World info position: after character definition
+  /// No description provided for @afterCharacterDefinition.
   ///
-  /// In en, this message translates to:
-  /// **'After Character Definition'**
+  /// In zh, this message translates to:
+  /// **'角色'**
   String get afterCharacterDefinition;
 
-  /// World info position: before example messages
+  /// No description provided for @beforeExampleMessages.
   ///
-  /// In en, this message translates to:
-  /// **'Before Example Messages'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get beforeExampleMessages;
 
-  /// World info position: after example messages
+  /// No description provided for @afterExampleMessages.
   ///
-  /// In en, this message translates to:
-  /// **'After Example Messages'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get afterExampleMessages;
 
-  /// World info position: before author's note
+  /// No description provided for @beforeAuthorNote.
   ///
-  /// In en, this message translates to:
-  /// **'Before Author\'s Note'**
+  /// In zh, this message translates to:
+  /// **'作者注释之前'**
   String get beforeAuthorNote;
 
-  /// World info position: after author's note
+  /// No description provided for @afterAuthorNote.
   ///
-  /// In en, this message translates to:
-  /// **'After Author\'s Note'**
+  /// In zh, this message translates to:
+  /// **'作者注释之后'**
   String get afterAuthorNote;
 
-  /// World info position: at specific depth
+  /// No description provided for @atDepth.
   ///
-  /// In en, this message translates to:
-  /// **'At Depth'**
+  /// In zh, this message translates to:
+  /// **'深度'**
   String get atDepth;
 
-  /// World info position: before system prompt
+  /// No description provided for @beforeSystemPrompt.
   ///
-  /// In en, this message translates to:
-  /// **'Before System Prompt'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get beforeSystemPrompt;
 
-  /// World info position: after system prompt
+  /// No description provided for @afterSystemPrompt.
   ///
-  /// In en, this message translates to:
-  /// **'After System Prompt'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get afterSystemPrompt;
 
-  /// Insertion order label for world info entry
+  /// No description provided for @insertionOrder.
   ///
-  /// In en, this message translates to:
-  /// **'Insertion Order'**
+  /// In zh, this message translates to:
+  /// **'插入顺序'**
   String get insertionOrder;
 
-  /// Helper text for insertion order
+  /// No description provided for @lowerOrderInsertsFirst.
   ///
-  /// In en, this message translates to:
-  /// **'Lower order values are inserted first'**
+  /// In zh, this message translates to:
+  /// **'数值越小越先插入'**
   String get lowerOrderInsertsFirst;
 
-  /// Helper text for constant toggle
+  /// No description provided for @alwaysIncludeInPrompt.
   ///
-  /// In en, this message translates to:
-  /// **'Always include in prompt (ignore keywords)'**
+  /// In zh, this message translates to:
+  /// **'提示'**
   String get alwaysIncludeInPrompt;
 
-  /// Helper text for selective toggle
+  /// No description provided for @requiresSecondaryKey.
   ///
-  /// In en, this message translates to:
-  /// **'Requires both primary AND secondary key to match'**
+  /// In zh, this message translates to:
+  /// **'需同时匹配主关键词和次关键词'**
   String get requiresSecondaryKey;
 
-  /// Debug log setting title
+  /// No description provided for @bubbleOpacity.
   ///
-  /// In en, this message translates to:
-  /// **'Debug Log'**
-  String get debugLog;
-
-  /// Debug log setting description
-  ///
-  /// In en, this message translates to:
-  /// **'Show floating debug button to view logs'**
-  String get debugLogDescription;
-
-  /// Auto scroll toggle tooltip
-  ///
-  /// In en, this message translates to:
-  /// **'Auto Scroll'**
-  String get autoScroll;
-
-  /// Clear logs button tooltip
-  ///
-  /// In en, this message translates to:
-  /// **'Clear Logs'**
-  String get clearLogs;
-
-  /// Search logs placeholder
-  ///
-  /// In en, this message translates to:
-  /// **'Search logs...'**
-  String get searchLogs;
-
-  /// Empty state when no logs
-  ///
-  /// In en, this message translates to:
-  /// **'No logs yet'**
-  String get noLogsYet;
-
-  /// World info scope: available to all characters
-  ///
-  /// In en, this message translates to:
-  /// **'All Characters'**
-  String get allCharactersAvailable;
-
-  /// Description for all characters scope
-  ///
-  /// In en, this message translates to:
-  /// **'Available to all characters (contextual matching)'**
-  String get availableToAllCharactersNotGlobal;
-
-  /// World info scope: bound to specific character
-  ///
-  /// In en, this message translates to:
-  /// **'Specific Character'**
-  String get specificCharacter;
-
-  /// Description for specific character scope
-  ///
-  /// In en, this message translates to:
-  /// **'Link to a specific character only'**
-  String get linkToSpecificCharacter;
-
-  /// Character selection dropdown label
-  ///
-  /// In en, this message translates to:
-  /// **'Select character'**
-  String get selectCharacter;
-
-  /// Character selection validation message
-  ///
-  /// In en, this message translates to:
-  /// **'Please select a character'**
-  String get pleaseSelectCharacter;
-
-  /// Context usage dialog title
-  ///
-  /// In en, this message translates to:
-  /// **'Context Usage'**
-  String get contextUsage;
-
-  /// Max context label
-  ///
-  /// In en, this message translates to:
-  /// **'Max Context'**
-  String get maxContext;
-
-  /// Remaining tokens label
-  ///
-  /// In en, this message translates to:
-  /// **'Remaining'**
-  String get remaining;
-
-  /// Token breakdown section title
-  ///
-  /// In en, this message translates to:
-  /// **'Breakdown'**
-  String get breakdown;
-
-  /// Cloud backup screen title
-  ///
-  /// In en, this message translates to:
-  /// **'Cloud Backup'**
-  String get cloudBackup;
-
-  /// Cloud backup info section title
-  ///
-  /// In en, this message translates to:
-  /// **'Cloud Backup'**
-  String get cloudBackupInfo;
-
-  /// Cloud backup description
-  ///
-  /// In en, this message translates to:
-  /// **'Sync your data across devices'**
-  String get cloudBackupDescription;
-
-  /// Cloud backup subtitle
-  ///
-  /// In en, this message translates to:
-  /// **'Backup to iCloud or Google Drive and restore on any device'**
-  String get cloudBackupSubtitle;
-
-  /// Enable iCloud backup toggle
-  ///
-  /// In en, this message translates to:
-  /// **'Enable iCloud Backup'**
-  String get enableICloudBackup;
-
-  /// Enable iCloud backup description
-  ///
-  /// In en, this message translates to:
-  /// **'Automatically sync backups to iCloud'**
-  String get enableICloudBackupDescription;
-
-  /// iCloud not available message
-  ///
-  /// In en, this message translates to:
-  /// **'iCloud Not Available'**
-  String get iCloudNotAvailable;
-
-  /// iCloud not available description
-  ///
-  /// In en, this message translates to:
-  /// **'Please sign in to iCloud in Settings'**
-  String get iCloudNotAvailableDescription;
-
-  /// Backup to iCloud button
-  ///
-  /// In en, this message translates to:
-  /// **'Backup to iCloud'**
-  String get backupToICloud;
-
-  /// Last sync time
-  ///
-  /// In en, this message translates to:
-  /// **'Last sync: {time}'**
-  String lastSync(String time);
-
-  /// Never synced message
-  ///
-  /// In en, this message translates to:
-  /// **'Never synced'**
-  String get neverSynced;
-
-  /// iCloud backups section title
-  ///
-  /// In en, this message translates to:
-  /// **'iCloud Backups'**
-  String get iCloudBackups;
-
-  /// No cloud backups message
-  ///
-  /// In en, this message translates to:
-  /// **'No cloud backups'**
-  String get noCloudBackups;
-
-  /// Google Drive export button
-  ///
-  /// In en, this message translates to:
-  /// **'Export to Google Drive'**
-  String get googleDriveExport;
-
-  /// Google Drive export description
-  ///
-  /// In en, this message translates to:
-  /// **'Save backup file to Google Drive or other location'**
-  String get googleDriveExportDescription;
-
-  /// Google Drive import button
-  ///
-  /// In en, this message translates to:
-  /// **'Import from Google Drive'**
-  String get googleDriveImport;
-
-  /// Google Drive import description
-  ///
-  /// In en, this message translates to:
-  /// **'Restore from a backup file in Google Drive or other location'**
-  String get googleDriveImportDescription;
-
-  /// Import button
-  ///
-  /// In en, this message translates to:
-  /// **'Import'**
-  String get import_action;
-
-  /// Import backup dialog title
-  ///
-  /// In en, this message translates to:
-  /// **'Import Backup'**
-  String get importBackup;
-
-  /// Backup exported message
-  ///
-  /// In en, this message translates to:
-  /// **'Backup exported successfully'**
-  String get backupExported;
-
-  /// Restore settings section title
-  ///
-  /// In en, this message translates to:
-  /// **'Restore Settings'**
-  String get restoreSettings;
-
-  /// Default restore mode label
-  ///
-  /// In en, this message translates to:
-  /// **'Default Restore Mode'**
-  String get defaultRestoreMode;
-
-  /// Select restore mode prompt
-  ///
-  /// In en, this message translates to:
-  /// **'Select how to restore data:'**
-  String get selectRestoreMode;
-
-  /// Restore warning message
-  ///
-  /// In en, this message translates to:
-  /// **'Restoring data may overwrite existing data depending on the selected mode. Make sure to backup your current data first.'**
-  String get restoreWarning;
-
-  /// Restore button
-  ///
-  /// In en, this message translates to:
-  /// **'Restore'**
-  String get restore;
-
-  /// Restore complete message
-  ///
-  /// In en, this message translates to:
-  /// **'Restore complete: {added} added, {updated} updated, {skipped} skipped'**
-  String restoreComplete(int added, int updated, int skipped);
-
-  /// Select file and import button
-  ///
-  /// In en, this message translates to:
-  /// **'Select File & Import'**
-  String get selectFileAndImport;
-
-  /// About restore modes label
-  ///
-  /// In en, this message translates to:
-  /// **'About Restore Modes'**
-  String get aboutRestoreModes;
-
-  /// About restore modes description
-  ///
-  /// In en, this message translates to:
-  /// **'Replace: Overwrites all local data with backup data.\\nMerge: Keeps both, newer data wins for conflicts.\\nAdd New Only: Only adds new items, keeps all existing data.'**
-  String get aboutRestoreModesDescription;
-
-  /// Sign in to Google Drive title
-  ///
-  /// In en, this message translates to:
-  /// **'Sign in to Google Drive'**
-  String get signInToGoogleDrive;
-
-  /// Sign in to Google Drive description
-  ///
-  /// In en, this message translates to:
-  /// **'Sign in with your Google account to backup and restore data'**
-  String get signInToGoogleDriveDescription;
-
-  /// Sign in button
-  ///
-  /// In en, this message translates to:
-  /// **'Sign In'**
-  String get signIn;
-
-  /// Sign out button
-  ///
-  /// In en, this message translates to:
-  /// **'Sign Out'**
-  String get signOut;
-
-  /// Signed in successfully message
-  ///
-  /// In en, this message translates to:
-  /// **'Signed in successfully'**
-  String get signedInSuccessfully;
-
-  /// Backup to Google Drive button
-  ///
-  /// In en, this message translates to:
-  /// **'Backup to Google Drive'**
-  String get backupToGoogleDrive;
-
-  /// Google Drive backups section title
-  ///
-  /// In en, this message translates to:
-  /// **'Google Drive Backups'**
-  String get googleDriveBackups;
-
-  /// Label for message bubble opacity slider
-  ///
-  /// In en, this message translates to:
-  /// **'Message Opacity'**
+  /// In zh, this message translates to:
+  /// **'透明度'**
   String get bubbleOpacity;
 
-  /// Helper text for message bubble opacity slider
+  /// No description provided for @bubbleOpacityHelp.
   ///
-  /// In en, this message translates to:
-  /// **'Controls the transparency of message bubbles when a background is active.'**
+  /// In zh, this message translates to:
+  /// **'消息'**
   String get bubbleOpacityHelp;
 }
 
-class _AppLocalizationsDelegate
-    extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -6702,90 +6704,51 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) => <String>[
-        'ar',
-        'de',
-        'en',
-        'es',
-        'fr',
-        'hi',
-        'id',
-        'it',
-        'ja',
-        'ko',
-        'ms',
-        'nl',
-        'pl',
-        'pt',
-        'ru',
-        'th',
-        'tr',
-        'vi',
-        'zh'
-      ].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['ar', 'de', 'en', 'es', 'fr', 'hi', 'id', 'it', 'ja', 'ko', 'ms', 'nl', 'pl', 'pt', 'ru', 'th', 'tr', 'vi', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
+
   // Lookup logic when language+country codes are specified.
   switch (locale.languageCode) {
-    case 'zh':
-      {
-        switch (locale.countryCode) {
-          case 'TW':
-            return AppLocalizationsZhTw();
-        }
-        break;
-      }
+    case 'zh': {
+  switch (locale.countryCode) {
+    case 'TW': return AppLocalizationsZhTw();
+   }
+  break;
+   }
   }
 
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'ar':
-      return AppLocalizationsAr();
-    case 'de':
-      return AppLocalizationsDe();
-    case 'en':
-      return AppLocalizationsEn();
-    case 'es':
-      return AppLocalizationsEs();
-    case 'fr':
-      return AppLocalizationsFr();
-    case 'hi':
-      return AppLocalizationsHi();
-    case 'id':
-      return AppLocalizationsId();
-    case 'it':
-      return AppLocalizationsIt();
-    case 'ja':
-      return AppLocalizationsJa();
-    case 'ko':
-      return AppLocalizationsKo();
-    case 'ms':
-      return AppLocalizationsMs();
-    case 'nl':
-      return AppLocalizationsNl();
-    case 'pl':
-      return AppLocalizationsPl();
-    case 'pt':
-      return AppLocalizationsPt();
-    case 'ru':
-      return AppLocalizationsRu();
-    case 'th':
-      return AppLocalizationsTh();
-    case 'tr':
-      return AppLocalizationsTr();
-    case 'vi':
-      return AppLocalizationsVi();
-    case 'zh':
-      return AppLocalizationsZh();
+    case 'ar': return AppLocalizationsAr();
+    case 'de': return AppLocalizationsDe();
+    case 'en': return AppLocalizationsEn();
+    case 'es': return AppLocalizationsEs();
+    case 'fr': return AppLocalizationsFr();
+    case 'hi': return AppLocalizationsHi();
+    case 'id': return AppLocalizationsId();
+    case 'it': return AppLocalizationsIt();
+    case 'ja': return AppLocalizationsJa();
+    case 'ko': return AppLocalizationsKo();
+    case 'ms': return AppLocalizationsMs();
+    case 'nl': return AppLocalizationsNl();
+    case 'pl': return AppLocalizationsPl();
+    case 'pt': return AppLocalizationsPt();
+    case 'ru': return AppLocalizationsRu();
+    case 'th': return AppLocalizationsTh();
+    case 'tr': return AppLocalizationsTr();
+    case 'vi': return AppLocalizationsVi();
+    case 'zh': return AppLocalizationsZh();
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.'
+  );
 }

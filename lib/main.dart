@@ -8,17 +8,21 @@ import 'package:kirakira/data/repositories/character_repository.dart';
 import 'package:kirakira/data/repositories/chat_repository.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:kirakira/domain/services/llm_service.dart';
+import 'package:kirakira/domain/providers/register_providers.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/screens/import/import_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 图片缓存上限调到200MB，角色多时减少淘汰频率
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20;
   FlutterError.onError = (details) { KiraLogger().error('FLUTTER', details.exceptionAsString(), details.stack); };
   
   // Initialize core services
   final initData = await InitializationService.initialize();
   KiraLogger().init();
+  registerLlmProviders();
   
   // Get shared preferences
   final prefs = await SharedPreferences.getInstance();

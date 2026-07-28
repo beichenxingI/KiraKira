@@ -18,7 +18,7 @@ final activeThemeIdProvider = StateNotifierProvider<ActiveThemeIdNotifier, Strin
 class ActiveThemeIdNotifier extends StateNotifier<String> {
   final SharedPreferences _prefs;
 
-  ActiveThemeIdNotifier(this._prefs) : super(BuiltInThemes.defaultDark.id) {
+  ActiveThemeIdNotifier(this._prefs) : super(BuiltInThemes.defaultLight.id) {
     _loadActiveThemeId();
   }
 

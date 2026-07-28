@@ -171,7 +171,7 @@ class RegexService {
       // Check markdown/prompt only flags
       if (script.markdownOnly && !isMarkdown) continue;
       if (script.promptOnly && !isPrompt) continue;
-      if (!script.markdownOnly && !script.promptOnly && (isMarkdown || isPrompt)) continue;
+      if (!script.markdownOnly && !script.promptOnly && isPrompt) continue;
 
       // Check edit flag
       if (isEdit && !script.runOnEdit) continue;

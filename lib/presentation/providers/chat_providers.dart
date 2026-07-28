@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -16,12 +16,19 @@ import 'package:kirakira/data/repositories/character_repository.dart';
 import 'package:kirakira/data/repositories/persona_repository.dart';
 import 'package:kirakira/domain/services/llm_service.dart';
 import 'package:kirakira/domain/services/macro_service.dart';
+import 'package:kirakira/domain/services/variables_service.dart';
 import 'package:kirakira/domain/services/chat_summarization_service.dart';
 import 'package:kirakira/presentation/providers/group_providers.dart';
 import 'package:kirakira/presentation/providers/persona_providers.dart';
 import 'package:kirakira/presentation/providers/prompt_manager_providers.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
+import 'package:kirakira/presentation/providers/image_gen_providers.dart';
+import 'package:kirakira/domain/services/image_generation_service.dart';
+import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 
 // Note: Repository providers are defined in their respective repository files
 // llmServiceProvider is defined in settings_providers.dart
@@ -39,6 +46,7 @@ class ActiveChatState {
   final List<ChatMessage> messages;
   final bool isLoading;
   final bool isGenerating;
+  final bool isGeneratingImage; // 自动生图进行中（用于呼吸✨提示）
   final String? error;
   final String?
       currentResponderId; // Which character is currently responding (group chat)
@@ -51,6 +59,7 @@ class ActiveChatState {
     this.messages = const [],
     this.isLoading = false,
     this.isGenerating = false,
+    this.isGeneratingImage = false,
     this.error,
     this.currentResponderId,
   });
@@ -67,6 +76,7 @@ class ActiveChatState {
     List<ChatMessage>? messages,
     bool? isLoading,
     bool? isGenerating,
+    bool? isGeneratingImage,
     String? error,
     String? currentResponderId,
     bool clearCurrentResponder = false,
@@ -79,6 +89,7 @@ class ActiveChatState {
       messages: messages ?? this.messages,
       isLoading: isLoading ?? this.isLoading,
       isGenerating: isGenerating ?? this.isGenerating,
+      isGeneratingImage: isGeneratingImage ?? this.isGeneratingImage,
       error: error,
       currentResponderId: clearCurrentResponder
           ? null
@@ -99,6 +110,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
   // Track cancellation flag for stream processing
   bool _isCancelling = false;
+  int _generationToken = 0;
 
   ActiveChatNotifier({
     required ChatRepository chatRepository,
@@ -120,8 +132,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   /// Cancel current generation
   Future<void> cancelGeneration() async {
     _isCancelling = true;
+    _generationToken++; // 令牌失效：任何在跑的循环立即作废
     state = state.copyWith(isGenerating: false);
-    // Reset flag after a short delay
     Future.delayed(const Duration(milliseconds: 500), () {
       _isCancelling = false;
     });
@@ -129,7 +141,12 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
   /// Load a chat by ID
   Future<void> loadChat(String chatId) async {
+    _generationToken++; // 切换聊天前作废正在跑的生成，杜绝串台
+    _isCancelling = true; // 先掐断上一个聊天正在跑的生成
     state = state.copyWith(isLoading: true, error: null);
+    // 关键：本聊天加载后立刻复位，否则这面停止旗会一直举着，
+    // 导致之后所有生成刚收到几个 token 就被 break 掉（空回复但扣费）。
+    _isCancelling = false;
 
     try {
       final chat = await _chatRepository.getChat(chatId);
@@ -141,6 +158,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       final character =
           await _characterRepository.getCharacter(chat.characterId);
       final messages = await _chatRepository.getMessages(chatId);
+
+      // 恢复本聊天的局部变量（酒馆助手 getVariables 存档）
+      await VariablesService.instance.loadLocalVariablesFromPrefs(chatId);
 
       // Check if this is a group chat
       if (chat.isGroupChat) {
@@ -186,7 +206,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   }
 
   /// Create a new chat with a character
-  Future<String?> createChat(String characterId) async {
+  Future<String?> createChat(String characterId, {String? selectedGreeting}) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
@@ -207,7 +227,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       await _chatRepository.createChat(chat);
 
       // Add first message (greeting) if character has one
-      if (character.firstMessage.isNotEmpty) {
+      final greetingText = selectedGreeting ?? character.firstMessage;
+      if (greetingText.isNotEmpty) {
         // Get active persona for macro processing
         final activePersonaId = _ref.read(activePersonaIdProvider);
         Persona? persona;
@@ -224,7 +245,16 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           messages: [],
         );
         final processedGreeting =
-            MacroService(macroContext).process(character.firstMessage);
+            MacroService(macroContext).process(greetingText);
+
+        // 主开场白 + 所有备用开场白(alternate_greetings)一起放进 swipes，
+        // 与 SillyTavern 对齐：swipe 0 是主开场白，swipe 1+ 是备用开场白。
+        // 重前端卡常用 setChatMessage 切到 swipe 1 进入真正的游戏开局。
+        final allSwipes = <String>[processedGreeting];
+        for (final alt in character.alternateGreetings) {
+          if (alt.trim().isEmpty) continue;
+          allSwipes.add(MacroService(macroContext).process(alt));
+        }
 
         final greeting = ChatMessage(
           id: _generateId(),
@@ -232,7 +262,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           role: MessageRole.assistant,
           content: processedGreeting,
           timestamp: DateTime.now(),
-          swipes: [processedGreeting],
+          swipes: allSwipes,
           currentSwipeIndex: 0,
         );
         await _chatRepository.addMessage(greeting);
@@ -389,10 +419,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       error: null,
     );
 
-    // Check if we need to summarize before generating response
     await _checkAndSummarize(config);
 
-    // Prepare context for LLM
     final context = await _buildContext();
 
     try {
@@ -418,8 +446,15 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         // Stream the response with reasoning support
         final contentBuffer = StringBuffer();
         final reasoningBuffer = StringBuffer();
+        final int myToken = ++_generationToken;
+        final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
+          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          if (myToken != _generationToken || state.chat?.id != myChatId) {
+            return;
+          }
+          if (_isCancelling) break;
           if (chunk.isReasoningChunk && chunk.reasoning != null) {
             reasoningBuffer.write(chunk.reasoning);
           }
@@ -460,6 +495,19 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         state = state.copyWith(messages: updatedMessages);
       }
 
+      // 空回复处理：AI 什么都没返回 → 删掉空壳消息，提示"收到空回复"，不落库。
+      // 避免留一条空气泡让人误以为卡住。被用户 cancel 的半截不走这里（上面已 break/return）。
+      if (finalContent.trim().isEmpty) {
+        final withoutEmpty = List<ChatMessage>.from(state.messages)
+          ..removeWhere((m) => m.id == assistantMessage.id);
+        state = state.copyWith(
+          messages: withoutEmpty,
+          isGenerating: false,
+          error: '收到空回复',
+        );
+        return;
+      }
+
       // Save the final message
       final finalMessage = assistantMessage.copyWith(
         content: finalContent,
@@ -470,12 +518,137 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       await _chatRepository.addMessage(finalMessage);
 
       state = state.copyWith(isGenerating: false);
+
+      // 自动生图（不阻塞主流程，失败也不影响对话）
+      _maybeAutoGenerateImage(finalMessage, config);
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProvider sendMessage error: $e\n$stackTrace');
+      // 失败（503/400/网络等）时删掉还在"思考中"的空壳消息，避免永远转圈。
+      // 判据：最后一条是 assistant 且内容为空 = 那个没收到任何 token 的空壳。
+      // 若流式已收到部分内容才断，content 非空 → 保留不删。
+      final msgs = List<ChatMessage>.from(state.messages);
+      if (msgs.isNotEmpty &&
+          msgs.last.role == MessageRole.assistant &&
+          msgs.last.content.trim().isEmpty) {
+        msgs.removeLast();
+      }
       state = state.copyWith(
+        messages: msgs,
         isGenerating: false,
         error: e.toString(),
       );
+    }
+  }
+  /// 自动生图：根据 autoImageMode 档位，从 AI 回复中提取 <image> 标签生图。
+  /// 用文件名 ai_auto_{messageId}_* 作为"已生图"标志，杜绝重进重复生成。
+  Future<void> _maybeAutoGenerateImage(ChatMessage msg, LLMConfig config) async {
+    try {
+      final settings = _ref.read(imageGenSettingsProvider);
+      final mode = settings.autoImageMode;
+      debugPrint('[自动生图] 触发检查: mode=$mode, enabled=${settings.enabled}, role=${msg.role}');
+      if (mode == AutoImageMode.off) { debugPrint('[自动生图] 跳过: 模式关闭'); return; }
+      if (!settings.enabled) { debugPrint('[自动生图] 跳过: 生图总开关未开'); return; }
+      if (msg.role != MessageRole.assistant) { debugPrint('[自动生图] 跳过: 非AI消息'); return; }
+
+      final chatId = msg.chatId;
+
+      // 提取 <image>...</image> 标签内容
+      final match = RegExp(r'<image>([\s\S]*?)</image>', caseSensitive: false)
+          .firstMatch(msg.content);
+      String? prompt = match?.group(1)?.trim();
+      debugPrint('[自动生图] 提取标签: ${prompt ?? "(无标签)"}');
+
+      if (prompt == null || prompt.isEmpty) {
+        // 没标签：仅提示词档位不兜底，直接结束
+        if (mode == AutoImageMode.promptOnly) return;
+
+        // 去掉标签后的纯正文
+        final body = msg.content
+            .replaceAll(RegExp(r'<image>[\s\S]*?</image>', caseSensitive: false), '')
+            .trim();
+
+        // 问题2：无实质内容就跳过（太短的回复没有视觉场景，别生废图）
+        if (body.length < 10) {
+          debugPrint('[自动生图] 跳过: 正文过短无视觉内容');
+          return;
+        }
+
+        // 问题1：调一次 LLM 把正文提炼成英文视觉标签（比直接塞正文质量高）
+        prompt = await _extractVisualTags(body, config);
+        if (prompt == null || prompt.isEmpty) {
+          debugPrint('[自动生图] 跳过: 提炼视觉标签失败');
+          return;
+        }
+        debugPrint('[自动生图] 提炼标签: $prompt');
+      }
+
+      // promptOnly 档位：只提取标签，不出图
+      if (mode == AutoImageMode.promptOnly) return;
+
+      // 防重生：检查该消息是否已有自动生成的图片
+      final base = await getApplicationDocumentsDirectory();
+      final dir = Directory(p.join(base.path, 'chat_images', chatId));
+      if (!await dir.exists()) await dir.create(recursive: true);
+      final already = dir
+          .listSync()
+          .whereType<File>()
+          .any((f) => p.basename(f.path).startsWith('ai_auto_${msg.id}_'));
+      if (already) return; // 已生过图，跳过
+
+      // 调用生图服务（期间点亮呼吸✨）
+      state = state.copyWith(isGeneratingImage: true);
+      try {
+        final service = _ref.read(imageGenServiceProvider);
+        final result = await service.generate(ImageGenRequest(
+          prompt: prompt,
+          width: settings.defaultWidth,
+          height: settings.defaultHeight,
+          steps: settings.defaultSteps,
+          cfgScale: settings.defaultCfgScale,
+          sampler: settings.defaultSampler,
+          model: settings.model,
+          negativePrompt: settings.defaultNegativePrompt,
+        ));
+
+        if (result != null && result.images.isNotEmpty) {
+          for (var i = 0; i < result.images.length; i++) {
+            final name = 'ai_auto_${msg.id}_$i.${result.format}';
+            await File(p.join(dir.path, name)).writeAsBytes(result.images[i]);
+          }
+          debugPrint('[自动生图] 消息 ${msg.id} 生成 ${result.images.length} 张');
+        }
+      } finally {
+        state = state.copyWith(isGeneratingImage: false); // 无论成败都熄灭✨
+      }
+    } catch (e) {
+      debugPrint('[自动生图] 失败: $e'); // 静默失败，不影响对话
+    }
+  }
+
+  /// 二次调用 LLM，把一段正文提炼成英文逗号分隔的视觉标签。
+  /// 失败返回 null。注意：这会产生一次额外的 API 调用（额度消耗）。
+  Future<String?> _extractVisualTags(String body, LLMConfig config) async {
+    try {
+      final truncated = body.length > 600 ? body.substring(0, 600) : body;
+      final messages = <Map<String, dynamic>>[
+        {
+          'role': 'system',
+          'content':
+              'You are a prompt extractor for an image generator. '
+              'Read the text and output ONLY a comma-separated list of English '
+              'visual tags describing the scene (characters, appearance, actions, '
+              'environment, lighting). No sentences, no explanation, tags only. '
+              'If there is no visual scene, output: NONE',
+        },
+        {'role': 'user', 'content': truncated},
+      ];
+      final resp = await _llmService.generateWithReasoning(messages, config);
+      final tags = resp.content.trim();
+      if (tags.isEmpty || tags.toUpperCase().contains('NONE')) return null;
+      return tags;
+    } catch (e) {
+      debugPrint('[自动生图] 提炼调用失败: $e');
+      return null;
     }
   }
 
@@ -807,6 +980,107 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       await _generateAssistantResponse(config);
     }
   }
+  /// 重试：按被点消息的角色分流。
+  /// - AI 消息：删掉这条及之后所有，从上一条重新生成。
+  /// - 用户消息：保留这条，删掉之后所有，接着这条重新生成。
+  Future<void> retryMessage(String messageId, LLMConfig config) async {
+    final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex < 0) return;
+    final message = state.messages[messageIndex];
+
+    // 确定要保留到第几条（含）：AI 保留到上一条，用户保留到自己。
+    final keepUpTo =
+        message.role == MessageRole.assistant ? messageIndex : messageIndex + 1;
+
+    // 先把要删的 id 全部固定下来（避免 state 变动导致漏删）
+    final deleteIds =
+        state.messages.sublist(keepUpTo).map((m) => m.id).toList();
+    // 先更新内存 state，UI 立即反映
+    state = state.copyWith(messages: state.messages.sublist(0, keepUpTo));
+    // 再逐条从数据库删除，单条失败不影响其他
+    for (final delId in deleteIds) {
+      try {
+        await _chatRepository.deleteMessage(delId);
+      } catch (e) {
+        debugPrint('⚠ retry 删除消息失败 $delId: $e');
+      }
+    }
+
+    // 基于剩余上下文重新生成一条 AI 回复
+    await _generateAssistantResponse(config);
+  }
+
+  /// 继续：仅 AI 消息可用。新建一条 AI 气泡，
+  /// 上下文包含被继续的这条消息，让模型衔接着往下写新内容。
+  Future<void> continueMessage(String messageId, LLMConfig config) async {
+    if (state.chat == null) return;
+    final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex < 0) return;
+    final message = state.messages[messageIndex];
+    if (message.role != MessageRole.assistant) return;
+
+    state = state.copyWith(isGenerating: true, error: null);
+    try {
+      // 上下文截到被继续的消息为止（含），模型据此衔接
+      final context = await _buildContextUpTo(messageIndex + 1);
+
+      // 新建一条空的 AI 气泡，内容从空开始
+      final newMessage = ChatMessage(
+        id: _generateId(),
+        chatId: state.chat!.id,
+        role: MessageRole.assistant,
+        content: '',
+        timestamp: DateTime.now(),
+        swipes: [''],
+        currentSwipeIndex: 0,
+      );
+      state = state.copyWith(messages: [...state.messages, newMessage]);
+
+      final contentBuffer = StringBuffer();
+      final int myToken = ++_generationToken;
+      final String myChatId = state.chat!.id;
+
+      if (config.streamEnabled) {
+        await for (final chunk
+            in _llmService.generateStreamWithReasoning(context, config)) {
+          if (myToken != _generationToken || state.chat?.id != myChatId) {
+            return;
+          }
+          if (_isCancelling) break;
+          if (chunk.content != null) {
+            contentBuffer.write(chunk.content);
+          }
+          final updated = newMessage.copyWith(
+            content: contentBuffer.toString(),
+            swipes: [contentBuffer.toString()],
+          );
+          final msgs = List<ChatMessage>.from(state.messages);
+          final idx = msgs.indexWhere((m) => m.id == newMessage.id);
+          if (idx >= 0) {
+            msgs[idx] = updated;
+            state = state.copyWith(messages: msgs);
+          }
+        }
+      } else {
+        final response =
+            await _llmService.generateWithReasoning(context, config);
+        contentBuffer.write(response.content);
+      }
+
+      final finalMessage = newMessage.copyWith(
+        content: contentBuffer.toString(),
+        swipes: [contentBuffer.toString()],
+      );
+      await _chatRepository.addMessage(finalMessage);
+      final msgs = List<ChatMessage>.from(state.messages);
+      final idx = msgs.indexWhere((m) => m.id == newMessage.id);
+      if (idx >= 0) msgs[idx] = finalMessage;
+      state = state.copyWith(messages: msgs, isGenerating: false);
+    } catch (e, st) {
+      debugPrint('❌ continueMessage error: $e\n$st');
+      state = state.copyWith(isGenerating: false, error: e.toString());
+    }
+  }
 
   /// Continue generation without user message (for "Continue" quick reply)
   Future<void> continueGeneration(LLMConfig config) async {
@@ -879,8 +1153,14 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         // Stream the response with reasoning support
         final contentBuffer = StringBuffer();
         final reasoningBuffer = StringBuffer();
+        final int myToken = ++_generationToken;
+        final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
+          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          if (myToken != _generationToken || state.chat?.id != myChatId) {
+            return;
+          }
           // Check if generation was cancelled
           if (_isCancelling) {
             break;
@@ -936,6 +1216,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       await _chatRepository.addMessage(finalMessage);
 
       state = state.copyWith(isGenerating: false);
+
+      // 重新生成：删掉该消息的旧自动图，再重新生图
+      await _clearAutoImages(finalMessage);
+      _maybeAutoGenerateImage(finalMessage, config);
     } catch (e, stackTrace) {
       debugPrint(
           '❌ ChatProvider _generateAssistantResponse error: $e\n$stackTrace');
@@ -945,12 +1229,41 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       );
     }
   }
+  /// 删除某条消息的旧自动生成图（重新生成时调用，让防重生失效以便重新出图）。
+  Future<void> _clearAutoImages(ChatMessage msg) async {
+    try {
+      final base = await getApplicationDocumentsDirectory();
+      final dir = Directory(p.join(base.path, 'chat_images', msg.chatId));
+      if (!await dir.exists()) return;
+      for (final f in dir.listSync().whereType<File>()) {
+        if (p.basename(f.path).startsWith('ai_auto_${msg.id}_')) {
+          await f.delete();
+        }
+      }
+    } catch (e) {
+      debugPrint('[自动生图] 清理旧图失败: $e');
+    }
+  }
 
   /// Build context for LLM
   /// This method builds the full message list according to Prompt Manager configuration
   Future<List<Map<String, dynamic>>> _buildContext(
       {bool excludeLastAssistant = false}) async {
     final messages = <Map<String, dynamic>>[];
+
+    // 自动生图：非关闭时，注入配图指令，教 AI 输出 <image> 视觉标签
+    final autoMode = _ref.read(imageGenSettingsProvider).autoImageMode;
+    if (autoMode != AutoImageMode.off) {
+      messages.add({
+        'role': 'system',
+        'content':
+            '【配图指令】当你的回复描绘了具体的视觉场景（人物、动作、环境）时，'
+            '在回复的最末尾追加一行图像描述，格式严格为：\n'
+            '<image>用英文逗号分隔的视觉标签，例如：1girl, silver hair, '
+            'white dress, garden, sunlight</image>\n'
+            '只写画面能看到的视觉元素，不要写心理、对话或剧情。',
+      });
+    }
     final character = state.character;
     final chat = state.chat;
 
@@ -973,15 +1286,51 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       );
       // Use recent messages for building context
       chatMessages = recentMessages;
-      debugPrint(
-          '📝 Using summary + ${chatMessages.length} recent messages for context');
     }
 
     // Find matching World Info entries
     List<WorldInfoEntry> worldInfoEntries = [];
     if (character != null) {
       worldInfoEntries =
-          await _findMatchingWorldInfoEntries(character, chatMessages);
+          await _findMatchingWorldInfoEntries(character!, chatMessages);
+    }
+    // ═══ RAG 向量检索注入 ═══
+    // 把用户最新消息转向量 → 检索知识库 → 命中内容作为背景注入。
+    // 整段容错：embedding/检索任何失败都只跳过 RAG，绝不阻断对话发送。
+    try {
+      final vsSettings = _ref.read(vectorStorageSettingsProvider);
+      if (vsSettings.enabled &&
+          vsSettings.includeInPrompt &&
+          vsSettings.activeCollectionId != null &&
+          chatMessages.isNotEmpty) {
+        // 取最后一条 user 消息作为检索 query
+        final userMsgs =
+            chatMessages.where((m) => m.role == MessageRole.user);
+        final query =
+            userMsgs.isNotEmpty ? userMsgs.last.content.trim() : '';
+        if (query.isNotEmpty) {
+          final embedder = _ref.read(embeddingServiceProvider);
+          final vsService = _ref.read(vectorStorageServiceProvider);
+          final queryVec = await embedder.generateEmbedding(query, vsSettings);
+          final results = vsService.search(
+            collectionId: vsSettings.activeCollectionId!,
+            queryEmbedding: queryVec,
+            topK: vsSettings.topK,
+            similarityThreshold: vsSettings.similarityThreshold,
+          );
+          if (results.isNotEmpty) {
+            final contextStr = vsService.generateContext(results);
+            final injected = vsSettings.promptTemplate
+                .replaceAll('{{context}}', contextStr);
+            messages.add({'role': 'system', 'content': injected});
+            debugPrint('🔍 RAG 注入 ${results.length} 条检索结果');
+          } else {
+            debugPrint('🔍 RAG 无命中（阈值 ${vsSettings.similarityThreshold}）');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ RAG 检索跳过（不影响对话）: $e');
     }
 
     // Get Prompt Manager configuration
@@ -1014,8 +1363,20 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       macroService = MacroService(macroContext);
     }
 
-    // Helper to process macros in text
-    String processMacros(String text) => macroService?.process(text) ?? text;
+    // Helper to process macros in text (basic macros + variable macros)
+    final chatIdForMacros = state.chat?.id;
+    String processMacros(String text) {
+      final step1 = macroService?.process(text) ?? text;
+      return VariablesService.instance
+          .processVariableMacrosSync(step1, chatId: chatIdForMacros);
+    }
+
+    // Helper to process macros including variable macros (async)
+    final chatId = state.chat?.id;
+    Future<String> processMacrosAsync(String text) async {
+      final step1 = macroService?.process(text) ?? text;
+      return VariablesService.instance.processVariableMacros(step1, chatId: chatId);
+    }
 
     // Group world info entries by position
     final groupedEntries = _worldInfoMatcher.groupByPosition(worldInfoEntries);
@@ -1148,7 +1509,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
       // Build message with attachments if present
       if (msg.hasAttachments && msg.role == MessageRole.user) {
-        messages.add(_buildMultimodalMessage(msg));
+          messages.add(await _buildMultimodalMessage(msg));
       } else {
         messages.add({
           'role': msg.role == MessageRole.user ? 'user' : 'assistant',
@@ -1185,29 +1546,6 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       );
       messages.addAll(sectionMessages);
     }
-
-    // Debug logging
-    print('=== Built Context Messages ===');
-    print('Total messages: ${messages.length}');
-    print('Pre-chat sections: ${preChatSections.length}');
-    print('Post-chat sections: ${postChatSections.length}');
-    print('Depth-based sections: ${depthBasedSections.length}');
-    print('Chat messages: ${chatMessages.length}');
-    for (var i = 0; i < messages.length; i++) {
-      final msg = messages[i];
-      final content = msg['content'];
-      String preview;
-      if (content is String) {
-        preview =
-            content.length > 100 ? '${content.substring(0, 100)}...' : content;
-      } else if (content is List) {
-        preview = '[Multimodal: ${content.length} parts]';
-      } else {
-        preview = content.toString();
-      }
-      print('[$i] ${msg['role']}: $preview');
-    }
-    print('=== End Context Messages ===');
 
     return messages;
   }
@@ -1661,7 +1999,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
       // Build message with attachments if present
       if (msg.hasAttachments && msg.role == MessageRole.user) {
-        messages.add(_buildMultimodalMessage(msg));
+          messages.add(await _buildMultimodalMessage(msg));
       } else {
         messages.add({
           'role': msg.role == MessageRole.user ? 'user' : 'assistant',
@@ -1706,18 +2044,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     Character character,
     List<ChatMessage> chatMessages,
   ) async {
-    // Get active world info IDs (manually enabled for this chat)
     final activeIds = _ref.read(activeWorldInfoIdsProvider);
-
-    // Get ALL world infos and filter by enabled status
     final allWorldInfos = await _ref.read(allWorldInfosProvider.future);
 
-    // Filter to get enabled world infos that are either:
-    // 1. Global (isGlobal = true) - explicitly marked as global
-    // 2. Linked to this character
-    // 3. Manually activated via activeWorldInfoIdsProvider
-    // NOTE: World infos with characterId == null but isGlobal == false are NOT included
-    // The user must explicitly enable isGlobal to make a world info available to all characters
     final enabledWorldInfoIds = allWorldInfos
         .where((w) =>
             w.enabled &&
@@ -1727,131 +2056,28 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         .map((w) => w.id)
         .toList();
 
-    // Combine with manually activated IDs
     final allWorldInfoIds =
         <String>{...enabledWorldInfoIds, ...activeIds}.toList();
 
-    // Debug logging - Enhanced for troubleshooting
-    debugPrint(
-        '\n╔══════════════════════════════════════════════════════════════');
-    debugPrint('║ 🌍 WORLD INFO DEBUG - Finding matching entries');
-    debugPrint(
-        '╠══════════════════════════════════════════════════════════════');
-    debugPrint('║ Current character: ${character.name} (ID: ${character.id})');
-    debugPrint('║ Active IDs from provider: $activeIds');
-    debugPrint('║ Total world infos in database: ${allWorldInfos.length}');
-    debugPrint(
-        '╠──────────────────────────────────────────────────────────────');
+    if (allWorldInfoIds.isEmpty) return [];
 
-    for (final wi in allWorldInfos) {
-      final included = allWorldInfoIds.contains(wi.id);
-      final isGlobalMatch = wi.isGlobal;
-      final isCharacterMatch = wi.characterId == character.id;
-      final isManuallyActive = activeIds.contains(wi.id);
-
-      final status = included ? '✅ INCLUDED' : '❌ EXCLUDED';
-      final reasons = <String>[];
-      if (!wi.enabled) reasons.add('disabled');
-      if (isGlobalMatch) reasons.add('global (isGlobal=true)');
-      if (isCharacterMatch) reasons.add('linked to this character');
-      if (isManuallyActive) reasons.add('manually activated');
-
-      debugPrint('║');
-      debugPrint('║ $status ${wi.name}');
-      debugPrint('║   • ID: ${wi.id}');
-      debugPrint('║   • Entries: ${wi.entries.length}');
-      debugPrint('║   • enabled: ${wi.enabled}');
-      debugPrint('║   • isGlobal: ${wi.isGlobal}');
-      debugPrint(
-          '║   • characterId: ${wi.characterId ?? "null (not linked to any character)"}');
-      if (reasons.isNotEmpty) {
-        debugPrint('║   • Reasons: ${reasons.join(", ")}');
-      }
-      if (!wi.enabled) {
-        debugPrint('║   ⚠️ World Info is DISABLED - will not be used!');
-      }
-      if (!wi.isGlobal && wi.characterId == null && !isManuallyActive) {
-        debugPrint(
-            '║   ℹ️ Not global and not linked - enable isGlobal to use with all characters');
-      }
-    }
-
-    debugPrint(
-        '╠──────────────────────────────────────────────────────────────');
-    debugPrint('║ Final world info IDs to search: $allWorldInfoIds');
-    debugPrint(
-        '╚══════════════════════════════════════════════════════════════\n');
-
-    if (allWorldInfoIds.isEmpty) {
-      debugPrint('⚠️ No world info IDs to search - returning empty list');
-      return [];
-    }
-
-    // Build context text from chat messages
     final contextBuffer = StringBuffer();
     contextBuffer.writeln(character.name);
     contextBuffer.writeln(character.description);
     contextBuffer.writeln(character.personality);
     contextBuffer.writeln(character.scenario);
-
     for (final msg in chatMessages) {
       contextBuffer.writeln(msg.content);
     }
 
-    final contextText = contextBuffer.toString();
-    debugPrint(
-        '\n╔══════════════════════════════════════════════════════════════');
-    debugPrint('║ 🔍 WORLD INFO MATCHING');
-    debugPrint(
-        '╠══════════════════════════════════════════════════════════════');
-    debugPrint('║ Context text length: ${contextText.length} chars');
-    debugPrint(
-        '║ Context preview: ${contextText.substring(0, min(200, contextText.length))}...');
-    debugPrint(
-        '╠──────────────────────────────────────────────────────────────');
-
-    // Find matching entries
-    final matchedEntries = await _worldInfoMatcher.findMatchingEntries(
-      contextText: contextText,
+    return _worldInfoMatcher.findMatchingEntries(
+      contextText: contextBuffer.toString(),
       worldInfoIds: allWorldInfoIds,
     );
-
-    debugPrint('║');
-    if (matchedEntries.isEmpty) {
-      debugPrint('║ ⚠️ NO MATCHED ENTRIES!');
-      debugPrint('║ Possible reasons:');
-      debugPrint('║   • World Info is not enabled');
-      debugPrint('║   • Entry is not enabled');
-      debugPrint('║   • Entry is not constant and keys don\'t match context');
-      debugPrint(
-          '║   • World Info is not linked to this character and not global');
-    } else {
-      debugPrint('║ ✅ MATCHED ${matchedEntries.length} ENTRIES:');
-      for (final entry in matchedEntries) {
-        final name = entry.comment.isNotEmpty
-            ? entry.comment
-            : (entry.keys.isEmpty
-                ? "(constant, no keys)"
-                : entry.keys.join(", "));
-        final isConstant = entry.constant || entry.keys.isEmpty;
-        debugPrint('║   • [${entry.position.name}] $name');
-        debugPrint(
-            '║     enabled=${entry.enabled}, constant=${entry.constant}, keys=${entry.keys}');
-        if (isConstant) {
-          debugPrint('║     → Included as CONSTANT entry');
-        }
-        debugPrint(
-            '║     Content: ${entry.content.substring(0, min(50, entry.content.length))}...');
-      }
-    }
-    debugPrint(
-        '╚══════════════════════════════════════════════════════════════\n');
-
-    return matchedEntries;
   }
 
   /// Build a multimodal message with text and images
-  Map<String, dynamic> _buildMultimodalMessage(ChatMessage msg) {
+  Future<Map<String, dynamic>> _buildMultimodalMessage(ChatMessage msg) async {
     // Build content array with text and images
     final contentParts = <Map<String, dynamic>>[];
 
@@ -1868,11 +2094,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       try {
         final file = File(attachment.path);
         if (file.existsSync()) {
-          final bytes = file.readAsBytesSync();
+          final bytes = await file.readAsBytes();
           final base64Data = base64Encode(bytes);
           final mimeType = attachment.mimeType ?? 'image/jpeg';
-
-          // Use OpenAI-compatible format (works with most providers)
           contentParts.add({
             'type': 'image_url',
             'image_url': {
@@ -1881,8 +2105,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           });
         }
       } catch (e) {
-        // Skip invalid attachments
-        print('Error loading attachment: $e');
+        debugPrint('Error loading attachment: $e');
       }
     }
 
@@ -1979,19 +2202,21 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   }
 
   /// Import messages into the current chat and refresh local state.
-  Future<int> importMessages(List<ChatMessage> messages) async {
-    if (state.chat == null || messages.isEmpty) return 0;
+  Future<int> importMessages(List<ChatMessage> messages, {String? chatId}) async {
+    final resolvedChatId = chatId ?? state.chat?.id;
+    if (resolvedChatId == null || messages.isEmpty) return 0;
 
-    final chatId = state.chat!.id;
+    await _chatRepository.clearMessages(resolvedChatId);
     final sortedMessages = [...messages]
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     for (final message in sortedMessages) {
-      await _chatRepository.addMessage(message.copyWith(chatId: chatId));
+      await _chatRepository.addMessage(message.copyWith(chatId: resolvedChatId));
     }
 
-    final updatedChat = await _chatRepository.getChat(chatId);
-    final updatedMessages = await _chatRepository.getMessages(chatId);
+    final updatedChat = await _chatRepository.getChat(resolvedChatId);
+    final updatedMessages = await _chatRepository.getMessages(resolvedChatId);
+    print('DEBUG importMessages: resolvedChatId=$resolvedChatId, stored=${updatedMessages.length}');
 
     state = state.copyWith(
       chat: updatedChat ?? state.chat,

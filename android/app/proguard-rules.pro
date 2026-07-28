@@ -1,0 +1,3 @@
+-keep class com.kirakira.** { *; }
+-keep class io.flutter.** { *; }
+-keep class * extends io.flutter.plugin.common.MethodChannel { *; }

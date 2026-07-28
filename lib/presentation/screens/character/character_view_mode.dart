@@ -39,9 +39,9 @@ extension CharacterViewModeExtension on CharacterViewMode {
   String getDisplayName(dynamic l10n) {
     switch (this) {
       case CharacterViewMode.list:
-        return l10n.listView;
+        return l10n.listView as String;
       case CharacterViewMode.grid:
-        return l10n.gridView;
+        return l10n.gridView as String;
       case CharacterViewMode.compactGrid:
         return 'Compact Grid'; // 紧凑网格视图
     }

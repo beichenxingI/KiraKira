@@ -190,6 +190,8 @@ class VectorStorageSettings {
   final String promptTemplate;
   final EmbeddingProvider embeddingProvider;
   final String? embeddingModel;
+  final String? embeddingApiKey;
+  final String? embeddingApiUrl;
 
   const VectorStorageSettings({
     this.enabled = false,
@@ -198,8 +200,10 @@ class VectorStorageSettings {
     this.similarityThreshold = 0.7,
     this.includeInPrompt = true,
     this.promptTemplate = defaultPromptTemplate,
-    this.embeddingProvider = EmbeddingProvider.openai,
+    this.embeddingProvider = EmbeddingProvider.local,
     this.embeddingModel,
+    this.embeddingApiKey,
+    this.embeddingApiUrl,
   });
 
   static const defaultPromptTemplate = '''
@@ -219,9 +223,11 @@ Use the above context to help answer the user's question if relevant.
       promptTemplate: json['promptTemplate'] as String? ?? defaultPromptTemplate,
       embeddingProvider: EmbeddingProvider.values.firstWhere(
         (e) => e.name == json['embeddingProvider'],
-        orElse: () => EmbeddingProvider.openai,
+        orElse: () => EmbeddingProvider.local,
       ),
       embeddingModel: json['embeddingModel'] as String?,
+      embeddingApiKey: json['embeddingApiKey'] as String?,
+      embeddingApiUrl: json['embeddingApiUrl'] as String?,
     );
   }
 
@@ -235,6 +241,8 @@ Use the above context to help answer the user's question if relevant.
       'promptTemplate': promptTemplate,
       'embeddingProvider': embeddingProvider.name,
       'embeddingModel': embeddingModel,
+      'embeddingApiKey': embeddingApiKey,
+      'embeddingApiUrl': embeddingApiUrl,
     };
   }
 
@@ -247,6 +255,8 @@ Use the above context to help answer the user's question if relevant.
     String? promptTemplate,
     EmbeddingProvider? embeddingProvider,
     String? embeddingModel,
+    String? embeddingApiKey,
+    String? embeddingApiUrl,
     bool clearActiveCollection = false,
   }) {
     return VectorStorageSettings(
@@ -258,6 +268,8 @@ Use the above context to help answer the user's question if relevant.
       promptTemplate: promptTemplate ?? this.promptTemplate,
       embeddingProvider: embeddingProvider ?? this.embeddingProvider,
       embeddingModel: embeddingModel ?? this.embeddingModel,
+      embeddingApiKey: embeddingApiKey ?? this.embeddingApiKey,
+      embeddingApiUrl: embeddingApiUrl ?? this.embeddingApiUrl,
     );
   }
 
@@ -286,7 +298,7 @@ extension EmbeddingProviderExtension on EmbeddingProvider {
       case EmbeddingProvider.cohere:
         return 'Cohere';
       case EmbeddingProvider.local:
-        return 'Local (Sentence Transformers)';
+        return '本地模型（免费）';
       case EmbeddingProvider.custom:
         return 'Custom API';
     }
@@ -299,7 +311,7 @@ extension EmbeddingProviderExtension on EmbeddingProvider {
       case EmbeddingProvider.cohere:
         return 'embed-english-v3.0';
       case EmbeddingProvider.local:
-        return 'all-MiniLM-L6-v2';
+        return 'bge-small-zh-v1.5';
       case EmbeddingProvider.custom:
         return '';
     }

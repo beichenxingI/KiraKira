@@ -9,6 +9,7 @@ import 'package:kirakira/presentation/providers/chat_providers.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
+import 'package:kirakira/presentation/widgets/common/kira_components.dart';
 
 /// Home screen showing recent chats
 class HomeScreen extends ConsumerStatefulWidget {
@@ -61,7 +62,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         controller: _searchController,
         onChanged: (value) => setState(() => _searchQuery = value),
         decoration: InputDecoration(
-          hintText: '鎼滅储鑱婂ぉ璁板綍...',
+          hintText: '搜索聊天记录...',
           prefixIcon: const Icon(Icons.search, size: 20),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
@@ -90,20 +91,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.appTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.groups),
-            tooltip: l10n.groupChats,
-            onPressed: () => context.push(AppRoutes.groups),
-          ),
-          IconButton(
-            icon: const Icon(Icons.file_download_outlined),
-            tooltip: l10n.import,
-            onPressed: () => context.push(AppRoutes.import_),
-          ),
-        ],
-      ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(l10n.appTitle),
+            Text(
+              '基于 NativeTavern',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
+                color: Theme.of(context).textTheme.bodySmall?.color
+                    ?.withValues(alpha: 0.55),
+              ),
+            ),
+          ],
+        ),
+       ),
       body: Column(
         children: [
           _buildSearchBar(context),
@@ -112,11 +116,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(AppRoutes.characters),
-        icon: const Icon(Icons.add),
-        label: Text(l10n.newChat),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 80),
+        child: FloatingActionButton.extended(
+          onPressed: () => context.push(AppRoutes.characters),
+          icon: const Icon(Icons.add),
+          label: Text(l10n.newChat),
+        ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 }
@@ -190,6 +198,7 @@ class _ChatListView extends ConsumerWidget {
           },
           child: ListView.builder(
             padding: const EdgeInsets.all(8),
+            cacheExtent: 1200,
             itemCount: chats.length,
             itemBuilder: (context, index) {
               final chat = chats[index];
@@ -213,30 +222,35 @@ class _ChatListTile extends ConsumerWidget {
     final characterAsync = ref.watch(_characterForChatProvider(chat.characterId));
     final lastMessageAsync = ref.watch(_lastMessageProvider(chat.id));
 
-    return Card(
+    return KiraCard(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      padding: EdgeInsets.zero,
+      onTap: () => context.push('/chat/${chat.id}'),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: characterAsync.when(
           loading: () => const CircleAvatar(child: CircularProgressIndicator(strokeWidth: 2)),
           error: (_, __) => const CircleAvatar(child: Icon(Icons.person)),
           data: (character) {
             final avatarPath = character?.assets?.avatarPath;
+            final accent = Theme.of(context).colorScheme.primary;
             if (avatarPath != null && avatarPath.isNotEmpty) {
               return CharacterAvatarCircle(
                 imagePath: avatarPath,
                 errorBuilder: (_, __, ___) => CircleAvatar(
-                  backgroundColor: AppTheme.accentColor.withValues(alpha: 0.2),
+                  backgroundColor: accent.withValues(alpha: 0.2),
                   child: Text(
                     character?.name.isNotEmpty == true ? character!.name[0].toUpperCase() : '?',
-                    style: const TextStyle(color: AppTheme.accentColor),
+                    style: TextStyle(color: accent),
                   ),
                 ),
               );
             }
             return CircleAvatar(
-              backgroundColor: AppTheme.accentColor.withValues(alpha: 0.2),
+              backgroundColor: accent.withValues(alpha: 0.2),
               child: Text(
                 character?.name.isNotEmpty == true ? character!.name[0].toUpperCase() : '?',
-                style: const TextStyle(color: AppTheme.accentColor),
+                style: TextStyle(color: accent),
               ),
             );
           },
@@ -260,9 +274,7 @@ class _ChatListTile extends ConsumerWidget {
           children: [
             Text(
               _formatTime(context, chat.updatedAt),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textMuted,
-                  ),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, size: 20),
@@ -283,10 +295,6 @@ class _ChatListTile extends ConsumerWidget {
             ),
           ],
         ),
-        onTap: () {
-          // Navigate to chat screen
-          context.push('/chat/${chat.id}');
-        },
       ),
     );
   }

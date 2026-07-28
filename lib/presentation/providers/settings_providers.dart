@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,8 @@ import 'package:kirakira/domain/services/tokenizer_service.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:kirakira/data/database/database.dart';
 import 'package:kirakira/core/services/initialization_service.dart';
+import 'package:kirakira/presentation/screens/terms_dialog.dart';
+import 'package:kirakira/presentation/providers/settings_providers.dart';
 
 /// Log a message to the console
 void _log(String message, {String? error, StackTrace? stackTrace}) {
@@ -46,6 +49,39 @@ class LLMConfigNotifier extends StateNotifier<LLMConfig> {
   static const _configKey = 'llm_config';
   static const _providerConfigKeyPrefix = 'llm_provider_config_';
 
+  /// Phase 3: Map a multi-config provider string to the LLMProvider enum.
+  static LLMProvider _mapMultiConfigProvider(String s) {
+    switch (s) {
+      case 'deepseek':
+        return LLMProvider.deepSeek;
+      case 'openai':
+        return LLMProvider.openai;
+      case 'claude':
+        return LLMProvider.claude;
+      case 'custom':
+      default:
+        return LLMProvider.openAICompatible;
+    }
+  }
+
+  /// Phase 3: Load the active (isDefault) entry from the llm_configs table.
+  Future<void> applyActiveMultiConfig() async {
+    final row = await (_db.select(_db.llmConfigs)
+          ..where((t) => t.isDefault.equals(true)))
+        .getSingleOrNull();
+    if (row == null) {
+      _log('applyActiveMultiConfig: no active multi-config, skipping');
+      return;
+    }
+    state = state.copyWith(
+      provider: _mapMultiConfigProvider(row.provider),
+      apiKey: row.apiKey ?? '',
+      apiUrl: row.endpoint,
+      model: (row.model == null || row.model!.isEmpty) ? state.model : row.model!,
+    );
+    await _saveConfig();
+    _log('applyActiveMultiConfig: applied config');
+  }
   LLMConfigNotifier(this._prefs, this._db) : super(_defaultConfig()) {
     _loadConfig();
   }
@@ -908,4 +944,107 @@ final chatSummarizationServiceProvider = Provider<ChatSummarizationService>((ref
   final llmService = ref.watch(llmServiceProvider);
   final tokenizerService = ref.watch(tokenizerServiceProvider);
   return ChatSummarizationService(llmService, tokenizerService);
+});
+enum MetricsStatus { idle, measuring, success, error }
+
+class ConnectionMetricsState {
+  final MetricsStatus status;
+  final int? ttftMs;
+  final double? charsPerSec;
+  final String? error;
+  // 稳定性深度检测（独立状态）
+  final MetricsStatus stabilityStatus;
+  final String? stabilityRating;
+  const ConnectionMetricsState({
+    this.status = MetricsStatus.idle,
+    this.ttftMs,
+    this.charsPerSec,
+    this.error,
+    this.stabilityStatus = MetricsStatus.idle,
+    this.stabilityRating,
+  });
+
+  ConnectionMetricsState copyWith({
+    MetricsStatus? status,
+    int? ttftMs,
+    double? charsPerSec,
+    String? error,
+    MetricsStatus? stabilityStatus,
+    String? stabilityRating,
+  }) {
+    return ConnectionMetricsState(
+      status: status ?? this.status,
+      ttftMs: ttftMs ?? this.ttftMs,
+      charsPerSec: charsPerSec ?? this.charsPerSec,
+      error: error ?? this.error,
+      stabilityStatus: stabilityStatus ?? this.stabilityStatus,
+      stabilityRating: stabilityRating ?? this.stabilityRating,
+    );
+  }
+}
+
+class ConnectionMetricsNotifier
+    extends StateNotifier<ConnectionMetricsState> {
+  final LLMService _llmService;
+  ConnectionMetricsNotifier(this._llmService)
+      : super(const ConnectionMetricsState());
+
+  Future<void> measure(LLMConfig config) async {
+    state = state.copyWith(status: MetricsStatus.measuring, error: null);
+    try {
+      final result = await _llmService.measureConnection(config);
+      state = state.copyWith(
+        status: MetricsStatus.success,
+        ttftMs: result.ttftMs,
+        charsPerSec: result.charsPerSec,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: MetricsStatus.error,
+        error: e.toString(),
+      );
+    }
+  }
+
+  /// 稳定性深度检测：连测3次，看首Token延迟的波动
+  Future<void> measureStability(LLMConfig config) async {
+    state = state.copyWith(stabilityStatus: MetricsStatus.measuring);
+    try {
+      final samples = <int>[];
+      for (var i = 0; i < 3; i++) {
+        final result = await _llmService.measureConnection(config);
+        samples.add(result.ttftMs);
+      }
+      final mean = samples.reduce((a, b) => a + b) / samples.length;
+      final variance = samples
+              .map((x) => (x - mean) * (x - mean))
+              .reduce((a, b) => a + b) /
+          samples.length;
+      final stdDev = variance <= 0 ? 0.0 : math.sqrt(variance);
+      final cv = mean > 0 ? stdDev / mean : 0.0; // 变异系数
+      final String rating;
+      if (cv < 0.15) {
+        rating = '稳定';
+      } else if (cv < 0.35) {
+        rating = '一般';
+      } else {
+        rating = '波动大';
+      }
+      state = state.copyWith(
+        stabilityStatus: MetricsStatus.success,
+        stabilityRating: rating,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        stabilityStatus: MetricsStatus.error,
+        stabilityRating: '检测失败',
+      );
+    }
+  }
+}
+
+final connectionMetricsProvider = StateNotifierProvider<
+    ConnectionMetricsNotifier, ConnectionMetricsState>((ref) {
+  final llmService = ref.watch(llmServiceProvider);
+  return ConnectionMetricsNotifier(llmService);
 });

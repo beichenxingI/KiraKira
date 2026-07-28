@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kirakira/presentation/providers/advanced_mode_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/providers/locale_provider.dart';
@@ -9,6 +10,10 @@ import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/screens/settings/log_view_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:kirakira/presentation/providers/theme_providers.dart';
+import 'package:kirakira/data/models/app_theme_config.dart';
+import 'package:kirakira/presentation/widgets/common/kira_components.dart';
 
 /// Settings screen - App settings only (AI config is in separate tab)
 class SettingsScreen extends ConsumerWidget {
@@ -24,174 +29,122 @@ class SettingsScreen extends ConsumerWidget {
       ),
       body: ListView(
         children: [
-          const Divider(height: 16),
-          _buildSectionHeader(context, l10n.user),
-          _PersonaTile(),
-          ListTile(
-            leading: const Icon(Icons.backup),
-            title: Text(l10n.backup),
-            subtitle: Text(l10n.backupSubtitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.backupSettings),
-          ),
-          
-          const Divider(height: 32),
-          _buildSectionHeader(context, l10n.chats),
-          ListTile(
-            leading: const Icon(Icons.quickreply),
-            title: Text(l10n.quickReplies),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.quickReplies),
-          ),
-          ListTile(
-            leading: const Icon(Icons.wallpaper),
-            title: Text(l10n.backgrounds),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.backgroundSettings),
-          ),
-          
-          const Divider(height: 32),
-          _buildSectionHeader(context, '\u591a\u5a92\u4f53'),
-          ListTile(
-            leading: const Icon(Icons.record_voice_over),
-            title: Text(l10n.tts),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.ttsSettings),
-          ),
-          ListTile(
-            leading: const Icon(Icons.mic),
-            title: Text(l10n.stt),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.sttSettings),
-          ),
-          ListTile(
-            leading: const Icon(Icons.translate),
-            title: Text(l10n.translation),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.translationSettings),
-          ),
-          ListTile(
-            leading: const Icon(Icons.image),
-            title: Text(l10n.imageGeneration),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.imageGenSettings),
-          ),
-          ListTile(
-            leading: const Icon(Icons.emoji_emotions),
-            title: Text(l10n.sprites),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.spriteSettings),
-          ),
-          
-          const Divider(height: 32),
-          _buildSectionHeader(context, l10n.advanced),
-          ListTile(
-            leading: const Icon(Icons.find_replace),
-            title: Text(l10n.regex),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.regexSettings),
-          ),
-          ListTile(
-            leading: const Icon(Icons.data_object),
-            title: Text(l10n.variables),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.variablesSettings),
-          ),
-          ListTile(
-            leading: const Icon(Icons.tune),
-            title: Text(l10n.logitBias),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.logitBiasSettings),
-          ),
-          ListTile(
-            leading: const Icon(Icons.linear_scale),
-            title: Text(l10n.cfgScale),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.cfgScaleSettings),
-          ),
-          ListTile(
-            leading: const Icon(Icons.token),
-            title: Text(l10n.tokenizer),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.tokenizerSettings),
-          ),
-          ListTile(
-            leading: const Icon(Icons.storage),
-            title: Text(l10n.vectorStorage),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.vectorStorageSettings),
-          ),
-          
-          const Divider(height: 32),
-          _buildSectionHeader(context, l10n.settings),
-          const _LanguageTile(),
-          ListTile(
-            leading: const Icon(Icons.palette),
-            title: Text(l10n.theme),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.themeSettings),
-          ),
-          const _ConfirmDeleteTile(),
-          const _AutoSaveTile(),
-          const _DebugLogTile(),
-          
-          ListTile(
-            leading: const Icon(Icons.analytics),
-            title: Text(l10n.statistics),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.statistics),
-          ),
-          
-          const Divider(height: 32),
-          _buildSectionHeader(context, '调试'),
-          ListTile(
-            leading: const Icon(Icons.terminal),
-            title: const Text('日志查看器'),
-            subtitle: const Text('查看应用运行日志'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const LogViewScreen()),
-            ),
-          ),
-          const Divider(height: 32),
-          _buildSectionHeader(context, l10n.about),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: Text(l10n.version),
-            subtitle: const Text('1.0.0 (Build 1)'),
-            onLongPress: () {
-              Clipboard.setData(const ClipboardData(text: '1.0.0 (Build 1)'));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('${l10n.copiedToClipboard}: 1.0.0 (Build 1)'),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.description),
-            title: Text(l10n.licenses),
-            onTap: () {
-              showLicensePage(context: context);
-            },
-          ),
-          
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
+          const SizedBox(height: 8),
 
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppTheme.accentColor,
-              fontWeight: FontWeight.bold,
-            ),
+          KiraSection(
+            title: l10n.user,
+            icon: Icons.person_outline,
+            children: [
+              _PersonaTile(),
+            ],
+          ),
+
+          KiraSection(
+            title: l10n.chats,
+            icon: Icons.chat_bubble_outline,
+            children: [
+              KiraListTile(
+                icon: Icons.wallpaper,
+                title: l10n.backgrounds,
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push(AppRoutes.backgroundSettings),
+              ),
+              KiraListTile(
+                icon: Icons.home_outlined,
+                title: '主页外观',
+                subtitle: '主页背景与音乐',
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push(AppRoutes.homeAppearance),
+              ),
+            ],
+          ),
+
+          KiraSection(
+            title: l10n.advanced,
+            icon: Icons.tune,
+            children: [
+              KiraSwitchTile(
+                icon: Icons.auto_awesome,
+                title: '极客Core',
+                subtitle: 'ROOT模式 · 解锁全部高级功能',
+                value: ref.watch(advancedModeProvider),
+                onChanged: (v) =>
+                    ref.read(advancedModeProvider.notifier).toggle(v),
+              ),
+              KiraSwitchTile(
+                icon: Icons.dark_mode,
+                title: '深色主题',
+                subtitle: '关闭切换为海天一色亮色',
+                value: ref.watch(activeThemeConfigProvider).isDark,
+                onChanged: (v) {
+                  ref.read(activeThemeIdProvider.notifier).setActiveTheme(
+                        v
+                            ? BuiltInThemes.defaultDark.id
+                            : BuiltInThemes.defaultLight.id,
+                      );
+                },
+              ),
+            ],
+          ),
+
+          KiraSection(
+            title: l10n.about,
+            icon: Icons.info_outline,
+            children: [
+              KiraListTile(
+                icon: Icons.info_outline,
+                title: l10n.version,
+                subtitle: '1.0.0 (Build 1)',
+                onTap: () {
+                  Clipboard.setData(
+                      const ClipboardData(text: '1.0.0 (Build 1)'));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          '${l10n.copiedToClipboard}: 1.0.0 (Build 1)'),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+              KiraListTile(
+                icon: Icons.description,
+                title: l10n.licenses,
+                onTap: () => showLicensePage(context: context),
+              ),
+              KiraListTile(
+                icon: Icons.gavel,
+                title: '开源许可',
+                subtitle:
+                    'KiraKira 基于 AGPL-3.0 协议发布。\n'
+                    '本程序不提供任何担保，使用风险由用户自行承担。\n'
+                    '版权所有 © 2026 北辰星',
+              ),
+              KiraListTile(
+                icon: Icons.code,
+                title: '基于开源项目',
+                subtitle:
+                    '本项目是 NativeTavern 的修改版本，自 2026 年起修改开发。\n'
+                    '点击查看 KiraKira 完整源码仓库。',
+                onTap: () => launchUrl(
+                  Uri.parse('https://github.com/beichenxingI/KiraKira'),
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
+              KiraListTile(
+                icon: Icons.favorite,
+                title: '支持 KiraKira',
+                subtitle: 'KiraKira 免费开源，若它对你有帮助，欢迎赞助支持开发 🌟',
+                onTap: () => launchUrl(
+                  Uri.parse('https://ifdian.net/a/KiraKira-APP'),
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }

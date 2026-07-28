@@ -3,20 +3,21 @@ import 'package:kirakira/core/logger/logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kirakira/presentation/screens/home/home_screen.dart';
+import 'package:kirakira/presentation/screens/splash/splash_screen.dart';
 import 'package:kirakira/presentation/screens/main_page/main_page.dart';
-import 'package:kirakira/presentation/screens/chat/chat_screen.dart';
+import 'package:kirakira/presentation/screens/settings/home_appearance_screen.dart';
 import 'package:kirakira/presentation/screens/character/character_list_screen.dart';
 import 'package:kirakira/presentation/screens/character/character_detail_screen.dart';
 import 'package:kirakira/presentation/screens/character_editor/character_editor_screen.dart';
+import 'package:kirakira/presentation/screens/character/character_regex_screen.dart';
 import 'package:kirakira/presentation/screens/settings/settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/prompt_manager_screen.dart';
 import 'package:kirakira/presentation/screens/settings/advanced_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/advanced_screen.dart';
-import 'package:kirakira/presentation/screens/settings/quick_reply_screen.dart';
+import 'package:kirakira/presentation/screens/ai_config/llm_test_screen.dart';
+import 'package:kirakira/presentation/screens/ai_config/llm_config_list_screen.dart';
 import 'package:kirakira/presentation/screens/settings/background_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/theme_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/statistics_screen.dart';
-import 'package:kirakira/presentation/screens/settings/advanced_screen.dart';
 import 'package:kirakira/presentation/screens/settings/ai_presets_screen.dart';
 import 'package:kirakira/presentation/screens/settings/sprite_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/tts_settings_screen.dart';
@@ -25,8 +26,6 @@ import 'package:kirakira/presentation/screens/settings/translation_settings_scre
 import 'package:kirakira/presentation/screens/settings/image_gen_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/regex_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/variables_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/backup_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/cloud_backup_screen.dart';
 import 'package:kirakira/presentation/screens/settings/logit_bias_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/cfg_scale_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/tokenizer_settings_screen.dart';
@@ -40,10 +39,15 @@ import 'package:kirakira/presentation/screens/groups/groups_screen.dart';
 import 'package:kirakira/presentation/screens/groups/group_detail_screen.dart';
 import 'package:kirakira/presentation/screens/tags/tags_screen.dart';
 import 'package:kirakira/presentation/widgets/common/app_shell.dart';
+import 'package:kirakira/presentation/screens/chat/webview_chat_stage.dart';
+import 'package:kirakira/presentation/screens/settings/geek_dashboard_screen.dart';
 
 /// Route paths
+import '../screens/ai_config/model_detection_screen.dart';
+
 abstract class AppRoutes {
   static const home = '/';
+  static const splash = '/splash';
   static const characters = '/characters';
   static const characterDetail = '/characters/:id';
   static const characterCreate = '/characters/new';
@@ -54,8 +58,8 @@ abstract class AppRoutes {
   static const aiConfig = '/ai-config';
   static const promptManager = '/prompt-manager';
   static const advancedSettings = '/advanced-settings';
-  static const quickReplies = '/quick-replies';
   static const backgroundSettings = '/background-settings';
+  static const homeAppearance = '/home-appearance';
   static const themeSettings = '/theme-settings';
   static const statistics = '/statistics';
   static const advanced = '/advanced';
@@ -69,19 +73,22 @@ abstract class AppRoutes {
   static const tags = '/tags';
   static const spriteSettings = '/sprite-settings';
   static const characterSprites = '/characters/:id/sprites';
+  static const characterRegex = '/characters/:id/regex';
   static const ttsSettings = '/tts-settings';
   static const sttSettings = '/stt-settings';
   static const translationSettings = '/translation-settings';
   static const imageGenSettings = '/image-gen-settings';
   static const regexSettings = '/regex-settings';
   static const variablesSettings = '/variables-settings';
-  static const backupSettings = '/backup-settings';
-  static const cloudBackupSettings = '/cloud-backup-settings';
   static const logitBiasSettings = '/logit-bias-settings';
   static const cfgScaleSettings = '/cfg-scale-settings';
   static const logprobsSettings = '/logprobs-settings';
   static const tokenizerSettings = '/tokenizer-settings';
   static const vectorStorageSettings = '/vector-storage-settings';
+  static const llmTest = '/llm-test';
+  static const llmConfigList = '/llm-config-list';
+  static const modelDetection = '/model-detection';
+  static const webviewStage = '/webview-stage/:id';
 }
 
 /// Navigation keys for nested navigation
@@ -113,10 +120,16 @@ class _NavObserver extends NavigatorObserver {
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: AppRoutes.home,
+    initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
     observers: [_NavObserver()],
     routes: [
+      GoRoute(
+        path: AppRoutes.splash,
+        name: 'splash',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SplashScreen(),
+      ),
       // Main shell with bottom navigation
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -169,6 +182,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return WorldInfoScreen(characterId: cid, isGlobal: isGlobal);
         },
       ),
+      GoRoute(
+        path: AppRoutes.characterRegex,
+        name: 'characterRegex',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return CharacterRegexScreen(characterId: id);
+        },
+      ),
       // Full-screen routes (outside shell)
       // NOTE: More specific routes must come BEFORE wildcard routes
       // /characters/new must come before /characters/:id
@@ -197,12 +219,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: AppRoutes.webviewStage,
+        name: 'webviewStage',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return WebViewChatStage(chatId: id);
+        },
+      ),
+      GoRoute(
         path: AppRoutes.chat,
         name: 'chat',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) {
           final id = state.pathParameters['id']!;
-          return ChatScreen(chatId: id);
+          return WebViewChatStage(chatId: id);
         },
       ),
       GoRoute(
@@ -230,10 +261,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdvancedSettingsScreen(),
       ),
       GoRoute(
-        path: AppRoutes.quickReplies,
-        name: 'quickReplies',
+        path: AppRoutes.homeAppearance,
+        name: 'homeAppearance',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const QuickReplyScreen(),
+        builder: (context, state) => const HomeAppearanceScreen(),
       ),
       GoRoute(
         path: AppRoutes.backgroundSettings,
@@ -251,7 +282,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.advanced,
         name: 'advanced',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const AdvancedScreen(),
+        builder: (context, state) => const GeekDashboardScreen(),
       ),
       GoRoute(
         path: AppRoutes.statistics,
@@ -351,18 +382,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: AppRoutes.backupSettings,
-        name: 'backupSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const BackupSettingsScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.cloudBackupSettings,
-        name: 'cloudBackupSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const CloudBackupScreen(),
-      ),
-      GoRoute(
         path: AppRoutes.logitBiasSettings,
         name: 'logitBiasSettings',
         parentNavigatorKey: _rootNavigatorKey,
@@ -398,6 +417,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'vectorStorageSettings',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const VectorStorageSettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.llmTest,
+        name: 'llmTest',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const LlmTestScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.llmConfigList,
+        name: 'llmConfigList',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const LlmConfigListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.modelDetection,
+        name: 'modelDetection',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const ModelDetectionScreen(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

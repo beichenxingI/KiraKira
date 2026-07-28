@@ -1,5 +1,5 @@
-﻿// ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -51,9 +51,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get save => '保存';
 
   @override
-  String get saveAs => 'Save As';
-
-  @override
   String get edit => '编辑';
 
   @override
@@ -81,7 +78,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get error => '错误';
 
   @override
-  String errorLoadingChats(String error) {
+  String errorLoadingChats(Object error) {
     return '加载聊天失败：$error';
   }
 
@@ -98,7 +95,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get yesterday => '昨天';
 
   @override
-  String daysAgo(int count) {
+  String daysAgo(Object count) {
     return '$count天前';
   }
 
@@ -151,12 +148,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noModelsAvailable => '没有可用的模型。请检查API配置。';
 
   @override
-  String modelChangedTo(String model) {
+  String modelChangedTo(Object model) {
     return '模型已切换为 $model';
   }
 
   @override
-  String failedToLoadModels(String error) {
+  String failedToLoadModels(Object error) {
     return '加载模型失败：$error';
   }
 
@@ -248,27 +245,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get takePhoto => '拍照';
 
   @override
-  String failedToPickImage(String error) {
+  String failedToPickImage(Object error) {
     return '选择图片失败：$error';
   }
 
   @override
-  String failedToTakePhoto(String error) {
+  String failedToTakePhoto(Object error) {
     return '拍照失败：$error';
   }
 
   @override
-  String failedToAddAttachment(String error) {
+  String failedToAddAttachment(Object error) {
     return '添加附件失败：$error';
   }
 
   @override
-  String exportChatWith(String character) {
+  String exportChatWith(Object character) {
     return '导出与 $character 的聊天';
   }
 
   @override
-  String messagesCount(int count) {
+  String messagesCount(Object count) {
     return '$count 条消息';
   }
 
@@ -285,7 +282,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noChatToExport => '没有可导出的聊天';
 
   @override
-  String exportFailed(String error) {
+  String exportFailed(Object error) {
     return '导出失败：$error';
   }
 
@@ -299,7 +296,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get jsonlSillyTavernFormat => 'JSONL (SillyTavern格式)';
 
   @override
-  String get jsonKiraKiraFormat => 'JSON (KiraKira格式)';
+  String get jsonNativeTavernFormat => 'JSON (NativeTavern格式)';
 
   @override
   String get importNote => '注意：导入的消息将添加到当前聊天中。';
@@ -335,12 +332,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noActiveChat => '没有活动的聊天';
 
   @override
-  String importedMessages(int count) {
+  String importedMessages(Object count) {
     return '已导入 $count 条消息';
   }
 
   @override
-  String importFailed(String error) {
+  String importFailed(Object error) {
     return '导入失败：$error';
   }
 
@@ -387,7 +384,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get deletePersona => '删除人设';
 
   @override
-  String deletePersonaConfirmation(String name) {
+  String deletePersonaConfirmation(Object name) {
     return '确定要删除\"$name\"吗？';
   }
 
@@ -428,7 +425,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get removeAvatar => '移除头像';
 
   @override
-  String failedToSaveAvatar(String error) {
+  String failedToSaveAvatar(Object error) {
     return '保存头像失败：$error';
   }
 
@@ -457,16 +454,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get maxTokens => '最大令牌数';
 
   @override
-  String get contextLength => 'Context Length';
-
-  @override
-  String get contextWindowSize => 'Context Window Size';
-
-  @override
-  String get contextLengthDescription =>
-      'Maximum number of tokens the model can process as input context.';
-
-  @override
   String get topP => 'Top P';
 
   @override
@@ -491,7 +478,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get connectionSuccessful => '连接成功！';
 
   @override
-  String connectionFailed(String error) {
+  String connectionFailed(Object error) {
     return '连接失败：$error';
   }
 
@@ -661,12 +648,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupRestored => '备份恢复成功';
 
   @override
-  String backupFailed(String error) {
+  String backupFailed(Object error) {
     return '备份失败：$error';
   }
 
   @override
-  String restoreFailed(String error) {
+  String restoreFailed(Object error) {
     return '恢复失败：$error';
   }
 
@@ -770,7 +757,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get deleteCharacter => '删除角色';
 
   @override
-  String deleteCharacterConfirmation(String name) {
+  String deleteCharacterConfirmation(Object name) {
     return '确定要删除\"$name\"吗？这也将删除与此角色的所有聊天。';
   }
 
@@ -907,601 +894,167 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commandHelp => '输入 / 查看可用命令';
 
   @override
-  String get characterNotFound => 'Character Not Found';
+  String get debugLog => '调试日志';
 
   @override
-  String get characterNotFoundMessage => 'Character not found';
+  String get debugLogDescription => '显示悬浮调试按钮以查看日志';
 
   @override
-  String get exportAsPng => 'Export as PNG';
+  String get autoScroll => '自动滚动';
 
   @override
-  String get exportAsCharx => 'Export as CharX';
+  String get clearLogs => '清除日志';
 
   @override
-  String get duplicate => 'Duplicate';
+  String get searchLogs => '搜索日志...';
 
   @override
-  String deleteCharacterConfirmationSimple(String name) {
-    return 'Are you sure you want to delete \"$name\"? This action cannot be undone.';
-  }
+  String get noLogsYet => '暂无日志';
 
   @override
-  String characterDuplicated(String name) {
-    return '$name duplicated';
-  }
+  String get contextManagement => '上下文管理';
 
   @override
-  String failedToDelete(String error) {
-    return 'Failed to delete: $error';
-  }
+  String get autoSummarize => '自动总结';
 
   @override
-  String failedToDuplicate(String error) {
-    return 'Failed to duplicate: $error';
-  }
+  String get autoSummarizeDescription => '当上下文使用率较高时自动总结并压缩聊天历史';
 
   @override
-  String get pngExportComingSoon => 'PNG export coming soon';
+  String get autoSummarizeThreshold => '自动总结阈值';
 
   @override
-  String get charxExportComingSoon => 'CharX export coming soon';
+  String get autoSummarizeThresholdDescription => '当上下文达到最大值的此百分比时触发总结';
 
   @override
-  String get failedToCreateChat => 'Failed to create chat';
+  String get allCharactersAvailable => '所有角色';
 
   @override
-  String get creating => 'Creating...';
+  String get availableToAllCharactersNotGlobal => '所有角色可用（上下文匹配）';
 
   @override
-  String byCreator(String creator) {
-    return 'by $creator';
-  }
+  String get specificCharacter => '特定角色';
 
   @override
-  String versionLabel(String version) {
-    return 'v$version';
-  }
+  String get linkToSpecificCharacter => '仅关联到特定角色';
 
   @override
-  String get showLess => 'Show less';
-
-  @override
-  String get showMore => 'Show more';
-
-  @override
-  String greetingNumber(int number) {
-    return 'Greeting $number';
-  }
-
-  @override
-  String alternateGreetingsCount(int count) {
-    return 'Alternate Greetings ($count)';
-  }
-
-  @override
-  String get embeddedLorebook => 'Embedded Lorebook';
-
-  @override
-  String entriesEnabled(int enabled, int total) {
-    return '$enabled of $total entries enabled';
-  }
-
-  @override
-  String andMoreEntries(int count) {
-    return '... and $count more entries';
-  }
-
-  @override
-  String get exampleMessages => 'Example Messages';
-
-  @override
-  String get postHistoryInstructions => 'Post-History Instructions';
-
-  @override
-  String get selectImages => 'Select Images';
-
-  @override
-  String get presetsAndTemplates => 'Presets & Templates';
-
-  @override
-  String get activePreset => 'Active Preset';
-
-  @override
-  String get change => 'Change';
-
-  @override
-  String get noPresetSelected => 'No preset selected';
-
-  @override
-  String get instructTemplate => 'Instruct Template';
-
-  @override
-  String get selectInstructTemplate => 'Select Instruct Template';
-
-  @override
-  String get instructTemplateDescription =>
-      'Instruct templates format prompts for different LLM models. Use \"None\" for API providers like OpenAI or Claude that handle formatting automatically.';
-
-  @override
-  String get orderAndTogglePromptSections => 'Order and toggle prompt sections';
-
-  @override
-  String get llmConnection => 'LLM Connection';
-
-  @override
-  String get generationSettings => 'Generation Settings';
-
-  @override
-  String get advancedSamplerSettings => 'Advanced Sampler Settings';
-
-  @override
-  String get fullControlOverSampling => 'Full control over sampling parameters';
-
-  @override
-  String get selectLlmProvider => 'Select LLM Provider';
-
-  @override
-  String get notSet => 'Not set';
-
-  @override
-  String get enterApiKey => 'Enter your API key';
-
-  @override
-  String get apiEndpointUrl => 'API endpoint URL';
-
-  @override
-  String get modelName => 'Model name';
-
-  @override
-  String get fetchAvailableModels => 'Fetch Available Models';
-
-  @override
-  String get fetchModelsDescription =>
-      'Fetch models from the API or enter a model name manually';
-
-  @override
-  String get enterModelName => 'Enter Model Name';
-
-  @override
-  String get fetchingModels => 'Fetching models...';
-
-  @override
-  String get failedToFetchModels => 'Failed to fetch models';
-
-  @override
-  String get tapToTestConnection => 'Tap to test API connection';
-
-  @override
-  String get testing => 'Testing...';
-
-  @override
-  String get connected => 'Connected';
-
-  @override
-  String get connectionFailedSimple => 'Connection failed';
-
-  @override
-  String get maximumTokensToGenerate => 'Maximum tokens to generate';
-
-  @override
-  String get streaming => 'Streaming';
-
-  @override
-  String get showResponseAsItGenerates => 'Show response as it generates';
-
-  @override
-  String selectModelCount(int count) {
-    return 'Select Model ($count)';
-  }
-
-  @override
-  String get refreshModels => 'Refresh models';
-
-  @override
-  String get enterManually => 'Enter manually';
-
-  @override
-  String get noModelsFound => 'No models found';
-
-  @override
-  String get tryDifferentSearchTerm => 'Try a different search term';
-
-  @override
-  String modelsOfTotal(int filtered, int total) {
-    return '$filtered of $total models';
-  }
-
-  @override
-  String get importPreset => 'Import Preset';
-
-  @override
-  String get noGroupChatsYet => 'No group chats yet';
-
-  @override
-  String get createGroupDescription =>
-      'Create a group to chat with multiple characters';
-
-  @override
-  String get newGroup => 'New Group';
-
-  @override
-  String membersAndMode(int count, String mode) {
-    return '$count members • $mode mode';
-  }
-
-  @override
-  String get groupChatWillBeImplemented =>
-      'Group chat will be implemented with chat integration';
-
-  @override
-  String deleteGroupConfirmation(String name) {
-    return 'Are you sure you want to delete \"$name\"? This will also delete all associated chats.';
-  }
-
-  @override
-  String groupDeleted(String name) {
-    return '$name deleted';
-  }
-
-  @override
-  String get groupNameRequired => 'Group Name *';
-
-  @override
-  String get enterGroupName => 'Enter group name';
-
-  @override
-  String get optionalDescription => 'Optional description';
-
-  @override
-  String get selectCharacters => 'Select Characters';
+  String get selectCharacter => '选择角色';
 
   @override
   String get noCharactersAvailable => '暂无可用角色';
 
   @override
-  String charactersSelected(int count) {
-    return '$count character(s) selected';
+  String get pleaseSelectCharacter => '请选择一个角色';
+
+  @override
+  String get contextUsage => '上下文使用';
+
+  @override
+  String get totalTokens => '总令牌数';
+
+  @override
+  String get maxContext => '最大上下文';
+
+  @override
+  String get remaining => '剩余';
+
+  @override
+  String get breakdown => '详细分解';
+
+  @override
+  String get cloudBackup => '云备份';
+
+  @override
+  String get cloudBackupInfo => '云备份';
+
+  @override
+  String get cloudBackupDescription => '跨设备同步数据';
+
+  @override
+  String get cloudBackupSubtitle => '备份到 iCloud 或 Google Drive，在任何设备上恢复';
+
+  @override
+  String get enableICloudBackup => '启用 iCloud 备份';
+
+  @override
+  String get enableICloudBackupDescription => '自动同步备份到 iCloud';
+
+  @override
+  String get iCloudNotAvailable => 'iCloud 不可用';
+
+  @override
+  String get iCloudNotAvailableDescription => '请在设置中登录 iCloud';
+
+  @override
+  String get backupToICloud => '备份到 iCloud';
+
+  @override
+  String lastSync(Object time) {
+    return '上次同步：$time';
   }
 
   @override
-  String get create => 'Create';
+  String get neverSynced => '从未同步';
 
   @override
-  String get selectAtLeast2Characters => 'Select at least 2 characters';
+  String get iCloudBackups => 'iCloud 备份';
 
   @override
-  String get groupCreatedSuccessfully => 'Group created successfully';
+  String get noCloudBackups => '暂无云备份';
 
   @override
-  String failedToCreateGroup(String error) {
-    return 'Failed to create group: $error';
-  }
+  String get googleDriveExport => '导出到 Google Drive';
 
   @override
-  String get selectCharacterCard => 'Select a character card';
+  String get googleDriveExportDescription => '保存备份文件到 Google Drive 或其他位置';
 
   @override
-  String get supportsPngCharxJson => 'Supports PNG, CharX, and JSON formats';
+  String get googleDriveImport => '从 Google Drive 导入';
 
   @override
-  String get browseFiles => 'Browse Files';
-
-  @override
-  String failedToPickFile(String error) {
-    return 'Failed to pick file: $error';
-  }
-
-  @override
-  String failedToLoadCharacter(String error) {
-    return 'Failed to load character: $error';
-  }
-
-  @override
-  String unsupportedFileFormat(String format) {
-    return 'Unsupported file format: $format';
-  }
-
-  @override
-  String get pngCharacterCard => 'PNG Character Card';
-
-  @override
-  String get characterDataEmbeddedInImage =>
-      'Character data embedded in image metadata';
-
-  @override
-  String get charxArchive => 'CharX Archive';
-
-  @override
-  String get zipArchiveWithCharacterData =>
-      'ZIP archive with character data and assets';
-
-  @override
-  String get plainCharacterCardJson => 'Plain character card JSON file';
-
-  @override
-  String importedWithLorebook(String name) {
-    return 'Imported \"$name\" with embedded lorebook!';
-  }
-
-  @override
-  String importedSuccessfully(String name) {
-    return 'Imported \"$name\" successfully!';
-  }
-
-  @override
-  String failedToImport(String error) {
-    return 'Failed to import: $error';
-  }
-
-  @override
-  String embeddedLorebookEntries(int count) {
-    return 'Embedded Lorebook ($count entries)';
-  }
-
-  @override
-  String get saveCurrentAsPreset => 'Save Current as Preset';
-
-  @override
-  String get exportCurrentSettings => 'Export Current Settings';
-
-  @override
-  String get builtInPresets => 'Built-in Presets';
-
-  @override
-  String get customPresets => 'Custom Presets';
-
-  @override
-  String get aiPresetsDescription =>
-      'AI Presets combine generation settings, prompt ordering, and instruct templates. Select a preset to apply all settings at once.';
-
-  @override
-  String appliedPreset(String name) {
-    return 'Applied \"$name\" preset';
-  }
-
-  @override
-  String failedToApplyPreset(String error) {
-    return 'Failed to apply preset: $error';
-  }
-
-  @override
-  String get invalidPresetFormat =>
-      'Invalid preset format. Expected preset with generation settings.';
-
-  @override
-  String importedAndApplied(String name) {
-    return 'Imported and applied \"$name\"';
-  }
-
-  @override
-  String get saveAsPreset => 'Save as Preset';
-
-  @override
-  String get descriptionOptional => 'Description (optional)';
-
-  @override
-  String get pleaseEnterAName => 'Please enter a name';
-
-  @override
-  String savedPreset(String name) {
-    return 'Saved \"$name\"';
-  }
-
-  @override
-  String saveFailed(String error) {
-    return 'Save failed: $error';
-  }
-
-  @override
-  String deletePresetConfirmation(String name) {
-    return 'Are you sure you want to delete \"$name\"?';
-  }
-
-  @override
-  String deletedPreset(String name) {
-    return 'Deleted \"$name\"';
-  }
+  String get googleDriveImportDescription => '从 Google Drive 或其他位置恢复备份文件';
 
   @override
   String get export => '导出';
 
   @override
-  String get resetToDefaults => 'Reset to Defaults';
+  String get import_action => '导入';
 
   @override
-  String get basicSampling => 'Basic Sampling';
+  String get importBackup => '导入备份';
 
   @override
-  String get temperatureDescription =>
-      'Controls randomness. Higher = more creative, lower = more focused.';
+  String get backupExported => '备份导出成功';
 
   @override
-  String get topPNucleusSampling => 'Top P (Nucleus Sampling)';
+  String get restoreSettings => '恢复设置';
 
   @override
-  String get topPDescription =>
-      'Cumulative probability threshold for token selection.';
+  String get defaultRestoreMode => '默认恢复模式';
 
   @override
-  String get topKDescription =>
-      'Number of top tokens to consider. 0 = disabled.';
+  String get selectRestoreMode => '选择数据恢复方式：';
 
   @override
-  String get advancedSampling => 'Advanced Sampling';
+  String get restoreWarning => '根据所选模式，恢复数据可能会覆盖现有数据。请确保先备份当前数据。';
 
   @override
-  String get minP => 'Min P';
+  String get restore => '恢复';
 
   @override
-  String get minPDescription =>
-      'Minimum probability threshold relative to top token.';
-
-  @override
-  String get typicalP => 'Typical P';
-
-  @override
-  String get typicalPDescription => 'Locally typical sampling. 1.0 = disabled.';
-
-  @override
-  String get topA => 'Top A';
-
-  @override
-  String get topADescription => 'Top-A sampling threshold. 0 = disabled.';
-
-  @override
-  String get tailFreeSamplingTfs => 'Tail Free Sampling (TFS)';
-
-  @override
-  String get tfsDescription => 'Removes low-probability tail. 1.0 = disabled.';
-
-  @override
-  String get repetitionControl => 'Repetition Control';
-
-  @override
-  String get repetitionPenaltyDescription =>
-      'Penalizes repeated tokens. 1.0 = no penalty.';
-
-  @override
-  String get repetitionPenaltyRange => 'Repetition Penalty Range';
-
-  @override
-  String get repetitionPenaltyRangeDescription =>
-      'How many tokens to consider. 0 = all.';
-
-  @override
-  String get frequencyPenaltyDescription =>
-      'Penalizes tokens based on frequency in text.';
-
-  @override
-  String get presencePenaltyDescription =>
-      'Penalizes tokens that appear at all in text.';
-
-  @override
-  String get mirostatLocalModels => 'Mirostat (Local Models)';
-
-  @override
-  String get mirostatMode => 'Mirostat Mode';
-
-  @override
-  String get adaptiveSamplingForLocalModels =>
-      'Adaptive sampling for local models';
-
-  @override
-  String get off => 'Off';
-
-  @override
-  String get mirostatTau => 'Mirostat Tau';
-
-  @override
-  String get mirostatTauDescription => 'Target entropy/perplexity.';
-
-  @override
-  String get mirostatEta => 'Mirostat Eta';
-
-  @override
-  String get mirostatEtaDescription => 'Learning rate for Mirostat.';
-
-  @override
-  String get generationControl => 'Generation Control';
-
-  @override
-  String get maxTokensDescription => 'Maximum tokens to generate.';
-
-  @override
-  String get seed => 'Seed';
-
-  @override
-  String get seedDescription => 'Random seed for reproducibility. -1 = random.';
-
-  @override
-  String get stopSequences => 'Stop Sequences';
-
-  @override
-  String get noStopSequencesConfigured => 'No stop sequences configured';
-
-  @override
-  String get stopSequencesDescription =>
-      'Enter one sequence per line. Generation stops when any of these are produced.';
-
-  @override
-  String get resetConfirmation =>
-      'This will reset all sampler settings to their default values. Continue?';
-
-  @override
-  String get reset => 'Reset';
-
-  @override
-  String get settingsResetToDefaults => 'Settings reset to defaults';
-
-  @override
-  String get characterBackground => 'Character Background';
-
-  @override
-  String get chatBackground => 'Chat Background';
-
-  @override
-  String get clearBackground => 'Clear background';
-
-  @override
-  String get gradientPresets => 'Gradient Presets';
-
-  @override
-  String get solidColors => 'Solid Colors';
-
-  @override
-  String get customImage => 'Custom Image';
-
-  @override
-  String get adjustments => 'Adjustments';
-
-  @override
-  String get noBackgroundSelected => 'No background selected';
-
-  @override
-  String get chooseImage => 'Choose Image';
-
-  @override
-  String get fromUrl => 'From URL';
-
-  @override
-  String localImage(String filename) {
-    return 'Local image: $filename';
+  String restoreComplete(Object added, Object skipped, Object updated) {
+    return '恢复完成：新增 $added 项，更新 $updated 项，跳过 $skipped 项';
   }
 
   @override
-  String urlLabel(String url) {
-    return 'URL: $url';
-  }
+  String get selectFileAndImport => '选择文件并导入';
 
   @override
-  String get noImage => 'No image';
+  String get aboutRestoreModes => '关于恢复模式';
 
   @override
-  String get opacity => 'Opacity';
-
-  @override
-  String get blurEffect => 'Blur Effect';
-
-  @override
-  String get applyBlurToBackground => 'Apply blur to the background';
-
-  @override
-  String get blurAmount => 'Blur Amount';
-
-  @override
-  String failedToLoadImage(String error) {
-    return 'Failed to load image: $error';
-  }
-
-  @override
-  String get imageUrl => 'Image URL';
-
-  @override
-  String get enterImageUrl => 'Enter image URL';
-
-  @override
-  String get apply => 'Apply';
+  String get aboutRestoreModesDescription => '替换：用备份数据覆盖所有本地数据。\\n合并：保留两者，冲突时新数据优先。\\n仅添加新项：仅从备份添加新项，保留所有现有数据。';
 
   @override
   String get backupAndRestore => '备份与恢复';
@@ -1546,7 +1099,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get maxChatBackups => '最大聊天备份数';
 
   @override
-  String keepUpToChatBackups(int count) {
+  String keepUpToChatBackups(Object count) {
     return '最多保留 $count 个聊天备份';
   }
 
@@ -1554,7 +1107,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get maxFullBackups => '最大完整备份数';
 
   @override
-  String keepUpToFullBackups(int count) {
+  String keepUpToFullBackups(Object count) {
     return '最多保留 $count 个完整备份';
   }
 
@@ -1568,7 +1121,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cleanup => '清理';
 
   @override
-  String deletedOldBackups(int count) {
+  String deletedOldBackups(Object count) {
     return '已删除 $count 个旧备份';
   }
 
@@ -1579,7 +1132,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noChatBackups => '暂无聊天备份';
 
   @override
-  String viewAllBackups(int count) {
+  String viewAllBackups(Object count) {
     return '查看全部 $count 个备份';
   }
 
@@ -1602,7 +1155,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupLocation => '备份位置';
 
   @override
-  String errorReadingBackup(String error) {
+  String errorReadingBackup(Object error) {
     return '读取备份错误：$error';
   }
 
@@ -1610,7 +1163,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get deleteBackup => '删除备份';
 
   @override
-  String deleteBackupConfirmation(String name) {
+  String deleteBackupConfirmation(Object name) {
     return '删除 \"$name\"？\\n\\n此操作无法撤销。';
   }
 
@@ -1621,1982 +1174,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get justNow => '刚刚';
 
   @override
-  String minutesAgo(int count) {
+  String minutesAgo(Object count) {
     return '$count 分钟前';
   }
 
   @override
-  String hoursAgo(int count) {
+  String hoursAgo(Object count) {
     return '$count 小时前';
   }
 
   @override
-  String get enableCfgScale => 'Enable CFG Scale';
-
-  @override
-  String get cfgScaleDescription =>
-      'Classifier-Free Guidance for text generation';
-
-  @override
-  String get globalSettings => 'Global Settings';
-
-  @override
-  String get guidanceScale => 'Guidance Scale';
-
-  @override
-  String get negativePrompt => 'Negative Prompt';
-
-  @override
-  String get textToSteerAwayFrom => 'Text to steer the model away from';
-
-  @override
-  String get positivePromptOptional => 'Positive Prompt (Optional)';
-
-  @override
-  String get textToEnhanceInOutput => 'Text to enhance in the output';
-
-  @override
-  String get characterSettings => 'Character Settings';
-
-  @override
-  String get useCharacterSpecificSettings => 'Use Character-Specific Settings';
-
-  @override
-  String get overrideGlobalForCharacter =>
-      'Override global settings for this character';
-
-  @override
-  String get characterNegativePrompt => 'Character Negative Prompt';
-
-  @override
-  String get overrideGlobalNegativePrompt => 'Override global negative prompt';
-
-  @override
-  String get chatSettings => 'Chat Settings';
-
-  @override
-  String get chatSettingsDescription =>
-      'These settings override global and character settings for this chat only.';
-
-  @override
-  String get chatNegativePrompt => 'Chat Negative Prompt';
-
-  @override
-  String get overrideForThisChat => 'Override for this chat';
-
-  @override
-  String get chatPositivePrompt => 'Chat Positive Prompt';
-
-  @override
-  String get enhancementForThisChat => 'Enhancement for this chat';
-
-  @override
-  String get promptCombineMode => 'Prompt Combine Mode';
-
-  @override
-  String get replaceChatPromptOnly => 'Replace (use chat prompt only)';
-
-  @override
-  String get prependChatPlusGlobal => 'Prepend (chat + global)';
-
-  @override
-  String get appendGlobalPlusChat => 'Append (global + chat)';
-
-  @override
-  String get aboutCfgScale => 'About CFG Scale';
-
-  @override
-  String get aboutCfgScaleDescription =>
-      'CFG (Classifier-Free Guidance) Scale controls how strongly the model follows the negative prompt to avoid certain content or styles.\n\n• Scale 1.0 = No effect (default)\n• Scale 1.5-3.0 = Subtle guidance\n• Scale 3.0-7.0 = Moderate guidance\n• Scale 7.0+ = Strong guidance (may affect coherence)';
-
-  @override
-  String get cfgScaleHelp => 'CFG Scale Help';
-
-  @override
-  String get cfgScaleHelpContent =>
-      'Classifier-Free Guidance (CFG) Scale is a technique that allows you to guide the AI model\'s output by specifying what you want to avoid.\n\n**How it works:**\nThe model generates two outputs - one with your prompt and one with the negative prompt. The final output is adjusted to move away from the negative prompt direction.\n\n**Settings Priority:**\n1. Chat-specific settings (highest)\n2. Character-specific settings\n3. Global settings (lowest)\n\n**Tips:**\n• Start with low values (1.5-2.0) and increase gradually\n• Use specific negative prompts for better results\n• High values may cause repetition or incoherence\n• Not all AI backends support CFG Scale';
-
-  @override
-  String get help => 'Help';
-
-  @override
   String get processing => '处理中...';
-
-  @override
-  String get sampleMessage1 => 'Hello! How are you?';
-
-  @override
-  String get sampleMessage2 => 'I\'m doing great!';
-
-  @override
-  String get general => 'General';
-
-  @override
-  String get enableImageGeneration => 'Enable Image Generation';
-
-  @override
-  String get generateImagesUsingAi => 'Generate images using AI';
-
-  @override
-  String get imageGenerationProvider => 'Image Generation Provider';
-
-  @override
-  String get apiEndpoint => 'API Endpoint';
-
-  @override
-  String get notConfigured => 'Not configured';
-
-  @override
-  String get defaultParameters => 'Default Parameters';
-
-  @override
-  String get imageSize => 'Image Size';
-
-  @override
-  String get steps => 'Steps';
-
-  @override
-  String get sampler => 'Sampler';
-
-  @override
-  String get defaultNegativePrompt => 'Default Negative Prompt';
-
-  @override
-  String get enterTermsToAvoid => 'Enter terms to avoid in generated images';
-
-  @override
-  String get test => 'Test';
-
-  @override
-  String get aboutImageGeneration => 'About Image Generation';
-
-  @override
-  String get aboutImageGenerationDescription =>
-      'Generate images using AI models. Use the /imagine command in chat or generate character portraits from the character editor.';
-
-  @override
-  String get imagineCommand => '/imagine Command';
-
-  @override
-  String get imagineCommandUsage =>
-      'Usage: /imagine <prompt> [--width N] [--height N] [--steps N] [--cfg N] [--seed N]';
-
-  @override
-  String get stableDiffusion => 'Stable Diffusion';
-
-  @override
-  String get stableDiffusionDescription =>
-      'Connect to a local or remote Stable Diffusion WebUI instance. Requires the API to be enabled.';
-
-  @override
-  String get dalle => 'DALL-E';
-
-  @override
-  String get dalleDescription =>
-      'OpenAI\'s DALL-E image generation. Requires an API key from OpenAI.';
-
-  @override
-  String get prompt => 'Prompt';
-
-  @override
-  String get enterPromptToGenerate => 'Enter a prompt to generate an image';
-
-  @override
-  String get generate => 'Generate';
-
-  @override
-  String get generating => 'Generating...';
-
-  @override
-  String get generationComplete => 'Generation Complete';
-
-  @override
-  String get imageWouldBeDisplayed => 'Image would be displayed here';
-
-  @override
-  String get enableLogitBias => 'Enable Logit Bias';
-
-  @override
-  String get adjustTokenProbabilities =>
-      'Adjust token probabilities in AI responses';
-
-  @override
-  String get presets => 'Presets';
-
-  @override
-  String get activePresetLabel => 'Active Preset';
-
-  @override
-  String get none => 'None';
-
-  @override
-  String get newPreset => 'New Preset';
-
-  @override
-  String get importPresetLabel => 'Import Preset';
-
-  @override
-  String get biasEntries => 'Bias Entries';
-
-  @override
-  String get noBiasEntries => 'No bias entries';
-
-  @override
-  String get addEntriesToAdjust => 'Add entries to adjust token probabilities';
-
-  @override
-  String get addEntry => 'Add Entry';
-
-  @override
-  String get textOrToken => 'Text / Token';
-
-  @override
-  String textTokenHint(Object verbatim) {
-    return 'word, $verbatim, or [1234]';
-  }
-
-  @override
-  String get bias => 'Bias';
-
-  @override
-  String get logitBiasHelp => 'Logit Bias Help';
-
-  @override
-  String get presetCopiedToClipboard => 'Preset copied to clipboard';
-
-  @override
-  String exportPresetFailed(String error) {
-    return 'Export failed: $error';
-  }
-
-  @override
-  String get pastePresetJson => 'Paste preset JSON here';
-
-  @override
-  String get presetImportedSuccessfully => 'Preset imported successfully';
-
-  @override
-  String importPresetFailed(String error) {
-    return 'Import failed: $error';
-  }
-
-  @override
-  String get rename => 'Rename';
-
-  @override
-  String get deletePresetQuestion =>
-      'Are you sure you want to delete this preset?';
-
-  @override
-  String get moreOptions => 'More options';
-
-  @override
-  String get loadPreset => 'Load Preset';
-
-  @override
-  String get saveAsPresetLabel => 'Save as Preset';
-
-  @override
-  String get exportPreset => 'Export Preset';
-
-  @override
-  String get resetToDefault => 'Reset to Default';
-
-  @override
-  String get dragToReorder =>
-      'Drag to reorder sections. Toggle switches to enable/disable.';
-
-  @override
-  String deleted(String name) {
-    return 'Deleted \"$name\"';
-  }
-
-  @override
-  String imported(String name) {
-    return 'Imported \"$name\"';
-  }
-
-  @override
-  String get invalidPresetFormatMessage => 'Invalid preset format';
-
-  @override
-  String get exportPresetTitle => 'Export Preset';
-
-  @override
-  String get presetNameLabel => 'Preset Name';
-
-  @override
-  String get pleaseEnterNameMessage => 'Please enter a name';
-
-  @override
-  String saved(String name) {
-    return 'Saved \"$name\"';
-  }
-
-  @override
-  String saveFailedMessage(String error) {
-    return 'Save failed: $error';
-  }
-
-  @override
-  String get resetToDefaultQuestion =>
-      'This will reset all prompt sections to their default order and enable all sections. Continue?';
-
-  @override
-  String get resetToDefaultConfig => 'Reset to default configuration';
-
-  @override
-  String get promptManagerHelp => 'Prompt Manager Help';
-
-  @override
-  String applied(String name) {
-    return 'Applied \"$name\" preset';
-  }
-
-  @override
-  String get showQuickReplies => 'Show Quick Replies';
-
-  @override
-  String get displayQuickReplyButtons => 'Display quick reply buttons in chat';
-
-  @override
-  String get positionAboveInput => 'Position Above Input';
-
-  @override
-  String get quickRepliesAboveInput =>
-      'Quick replies appear above the input field';
-
-  @override
-  String get quickRepliesBelowInput =>
-      'Quick replies appear below the input field';
-
-  @override
-  String get add => 'Add';
-
-  @override
-  String get noQuickReplies => 'No quick replies';
-
-  @override
-  String get addYourFirstQuickReply => 'Add your first quick reply';
-
-  @override
-  String deleteQuickReplyQuestion(String label) {
-    return 'Are you sure you want to delete \"$label\"?';
-  }
-
-  @override
-  String get resetToDefaultQuestion2 =>
-      'This will replace all your quick replies with the default set. Continue?';
-
-  @override
-  String get continueOrEmpty => '(Continue/Empty message)';
-
-  @override
-  String get autoSendTooltip => 'Auto-send';
-
-  @override
-  String get addQuickReply => 'Add Quick Reply';
-
-  @override
-  String get editQuickReplyLabel => 'Edit Quick Reply';
-
-  @override
-  String get buttonLabel => 'Button Label';
-
-  @override
-  String get buttonLabelHint => 'e.g., Yes, Continue, Think...';
-
-  @override
-  String get messageLabel => 'Message';
-
-  @override
-  String get leaveEmptyForContinue => 'Leave empty for continue action';
-
-  @override
-  String supportsMacros(Object char, Object user) {
-    return 'Supports macros like \'$user\', \'$char\'';
-  }
-
-  @override
-  String get autoSendLabel => 'Auto-send';
-
-  @override
-  String get messageSentImmediately => 'Message will be sent immediately';
-
-  @override
-  String get messageFillsInput => 'Message will fill the input field';
-
-  @override
-  String get regexScripts => 'Regex Scripts';
-
-  @override
-  String get addScript => 'Add Script';
-
-  @override
-  String get addPresets => 'Add Presets';
-
-  @override
-  String get clearAll => 'Clear All';
-
-  @override
-  String get enableRegexScripts => 'Enable Regex Scripts';
-
-  @override
-  String get applyFindReplacePatterns =>
-      'Apply find/replace patterns to messages';
-
-  @override
-  String get applyTo => 'Apply To';
-
-  @override
-  String get userInput => 'User Input';
-
-  @override
-  String get applyBeforeSending => 'Apply to messages before sending';
-
-  @override
-  String get aiOutput => 'AI Output';
-
-  @override
-  String get applyToAiResponses => 'Apply to AI responses';
-
-  @override
-  String get slashCommandsLabel => 'Slash Commands';
-
-  @override
-  String get applyDuringCommandProcessing => 'Apply during command processing';
-
-  @override
-  String get worldInfoLabel => 'World Info';
-
-  @override
-  String get applyToWorldInfoEntries => 'Apply to world info entries';
-
-  @override
-  String scriptsCount(int count) {
-    return 'Scripts ($count)';
-  }
-
-  @override
-  String get noRegexScripts => 'No regex scripts';
-
-  @override
-  String get tapToAddOrUseMenu =>
-      'Tap + to add a script or use the menu to add presets';
-
-  @override
-  String get aboutRegexScripts => 'About Regex Scripts';
-
-  @override
-  String get aboutRegexScriptsDescription =>
-      'Regex scripts allow you to find and replace text patterns in messages. Use capture groups (\\\$1, \\\$2) in replacements.';
-
-  @override
-  String get patternFormat => 'Pattern Format';
-
-  @override
-  String get patternFormatDescription =>
-      'Use /pattern/flags format (e.g., /hello/gi) or plain patterns. Flags: i=case-insensitive, m=multiline, s=dotall';
-
-  @override
-  String get presetScriptsAdded => 'Preset scripts added';
-
-  @override
-  String deleteScriptQuestion(String name) {
-    return 'Delete \"$name\"?';
-  }
-
-  @override
-  String get clearAllScripts => 'Clear All Scripts';
-
-  @override
-  String get clearAllScriptsQuestion =>
-      'This will delete all regex scripts. This cannot be undone.';
-
-  @override
-  String get importScripts => 'Import Scripts';
-
-  @override
-  String get pasteJsonArray => 'Paste JSON array of scripts';
-
-  @override
-  String importedCount(int count) {
-    return 'Imported $count scripts';
-  }
-
-  @override
-  String get exportScripts => 'Export Scripts';
-
-  @override
-  String get newScript => 'New Script';
-
-  @override
-  String get editScript => 'Edit Script';
-
-  @override
-  String get scriptName => 'Script Name';
-
-  @override
-  String get descriptionOptionalLabel => 'Description (optional)';
-
-  @override
-  String get findPattern => 'Find Pattern';
-
-  @override
-  String get patternOrPlainPattern => '/pattern/flags or plain pattern';
-
-  @override
-  String get replaceWith => 'Replace With';
-
-  @override
-  String get useCaptureGroups => 'Use \\\$1, \\\$2 for capture groups';
-
-  @override
-  String get applyToLabel => 'Apply To';
-
-  @override
-  String get options => 'Options';
-
-  @override
-  String get markdownOnly => 'Markdown Only';
-
-  @override
-  String get onlyApplyDuringMarkdown => 'Only apply during markdown rendering';
-
-  @override
-  String get promptOnly => 'Prompt Only';
-
-  @override
-  String get onlyApplyDuringPrompt => 'Only apply during prompt generation';
-
-  @override
-  String get runOnEdit => 'Run on Edit';
-
-  @override
-  String get applyWhenEditingMessages => 'Apply when editing messages';
-
-  @override
-  String get macroSubstitution => 'Macro Substitution';
-
-  @override
-  String get nameAndPatternRequired => 'Name and pattern are required';
-
-  @override
-  String get patternLabel => 'Pattern';
-
-  @override
-  String get patternHint => '/pattern/flags';
-
-  @override
-  String get testString => 'Test String';
-
-  @override
-  String get replacementLabel => 'Replacement';
-
-  @override
-  String replacementHint(Object match) {
-    return '\$1, \$2, \'$match\'';
-  }
-
-  @override
-  String get testButton => 'Test';
-
-  @override
-  String matchesCount(int count) {
-    return '$count match(es)';
-  }
-
-  @override
-  String get errorLabel => 'Error';
-
-  @override
-  String get resultLabel => 'Result:';
-
-  @override
-  String get expressionSprites => 'Expression Sprites';
-
-  @override
-  String get enableSprites => 'Enable Sprites';
-
-  @override
-  String get showCharacterExpressions =>
-      'Show character expression images in chat';
-
-  @override
-  String get display => 'Display';
-
-  @override
-  String get spriteSize => 'Sprite Size';
-
-  @override
-  String get position => 'Position';
-
-  @override
-  String get whereToDisplaySprites => 'Where to display sprites';
-
-  @override
-  String get left => 'Left';
-
-  @override
-  String get right => 'Right';
-
-  @override
-  String get center => 'Center';
-
-  @override
-  String get floatingLeft => 'Floating Left';
-
-  @override
-  String get floatingRight => 'Floating Right';
-
-  @override
-  String get animation => 'Animation';
-
-  @override
-  String get animateTransitions => 'Animate Transitions';
-
-  @override
-  String get smoothFadeWhenSpriteChanges => 'Smooth fade when sprite changes';
-
-  @override
-  String get transitionDuration => 'Transition Duration';
-
-  @override
-  String get showDuringStreaming => 'Show During Streaming';
-
-  @override
-  String get displaySpritesWhileGenerating =>
-      'Display sprites while AI is generating';
-
-  @override
-  String get emotionDetection => 'Emotion Detection';
-
-  @override
-  String get howItWorks => 'How it works';
-
-  @override
-  String get spriteEmotionDetectionDescription =>
-      'Sprites are automatically selected based on emotion keywords detected in messages. Action text like *smiles* or *laughs* is prioritized.';
-
-  @override
-  String get supportedEmotions => 'Supported Emotions';
-
-  @override
-  String characterSprites(String name) {
-    return '$name Sprites';
-  }
-
-  @override
-  String get importFromFolder => 'Import from folder';
-
-  @override
-  String get deleteAllSprites => 'Delete All Sprites';
-
-  @override
-  String get addSprite => 'Add Sprite';
-
-  @override
-  String spritesCount(int count) {
-    return '$count sprites';
-  }
-
-  @override
-  String defaultEmotion(String emotion) {
-    return 'Default: $emotion';
-  }
-
-  @override
-  String get noSpritesYet => 'No sprites yet';
-
-  @override
-  String get addExpressionImages => 'Add expression images for this character';
-
-  @override
-  String get selectEmotion => 'Select Emotion';
-
-  @override
-  String addedSpriteEmotion(String emotion) {
-    return 'Added $emotion sprite';
-  }
-
-  @override
-  String get setAsDefaultEmotion => 'Set as Default';
-
-  @override
-  String get changeEmotion => 'Change Emotion';
-
-  @override
-  String get deleteSprite => 'Delete Sprite';
-
-  @override
-  String deleteSpriteConfirmation(String emotion) {
-    return 'Delete the $emotion sprite?';
-  }
-
-  @override
-  String get deleteAllSpritesConfirmation =>
-      'Are you sure you want to delete all sprites for this character? This cannot be undone.';
-
-  @override
-  String get importSprites => 'Import Sprites';
-
-  @override
-  String get importSpritesDescription =>
-      'Import sprites from a folder. Files should be named with emotion keywords:';
-
-  @override
-  String get supportedFormatsSprites =>
-      'Supported formats: PNG, JPG, GIF, WebP';
-
-  @override
-  String get selectFolder => 'Select Folder';
-
-  @override
-  String get folderImportRequiresPackage =>
-      'Folder import requires file_picker package';
-
-  @override
-  String get appStatistics => 'App Statistics';
-
-  @override
-  String get chatStatistics => 'Chat Statistics';
-
-  @override
-  String get resetStatistics => 'Reset statistics';
-
-  @override
-  String get resetStatisticsConfirmation =>
-      'Are you sure you want to reset all statistics? This cannot be undone.';
-
-  @override
-  String get statisticsReset => 'Statistics reset';
-
-  @override
-  String get overview => 'Overview';
-
-  @override
-  String get firstUsed => 'First Used';
-
-  @override
-  String get unknown => 'Unknown';
-
-  @override
-  String get totalGroups => 'Total Groups';
-
-  @override
-  String get totalGenerations => 'Total Generations';
-
-  @override
-  String get tokenUsage => 'Token Usage';
-
-  @override
-  String get totalTokensUsed => 'Total Tokens Used';
-
-  @override
-  String get avgTokensPerGeneration => 'Avg Tokens/Generation';
-
-  @override
-  String get performance => 'Performance';
-
-  @override
-  String get totalGenerationTime => 'Total Generation Time';
-
-  @override
-  String get avgGenerationTime => 'Avg Generation Time';
-
-  @override
-  String get userMessages => 'User Messages';
-
-  @override
-  String get assistantMessages => 'Assistant Messages';
-
-  @override
-  String get systemMessages => 'System Messages';
-
-  @override
-  String get timeline => 'Timeline';
-
-  @override
-  String get firstMessage_ => 'First Message';
-
-  @override
-  String get lastMessage => 'Last Message';
-
-  @override
-  String get chatDuration => 'Chat Duration';
-
-  @override
-  String get promptTokens => 'Prompt Tokens';
-
-  @override
-  String get completionTokens => 'Completion Tokens';
-
-  @override
-  String get avgTokensPerMessage => 'Avg Tokens/Message';
-
-  @override
-  String get generationPerformance => 'Generation Performance';
-
-  @override
-  String get generationCount => 'Total Generations';
-
-  @override
-  String get speechToText => 'Speech-to-Text';
-
-  @override
-  String get enableStt => 'Enable STT';
-
-  @override
-  String get useVoiceInputForMessages => 'Use voice input for messages';
-
-  @override
-  String get autoSendStt => 'Auto-send';
-
-  @override
-  String get automaticallySendAfterSpeaking =>
-      'Automatically send message after speaking';
-
-  @override
-  String get continuousListening => 'Continuous Listening';
-
-  @override
-  String get keepListeningAfterPhrase => 'Keep listening after each phrase';
-
-  @override
-  String get showPartialResults => 'Show Partial Results';
-
-  @override
-  String get displayTextAsYouSpeak => 'Display text as you speak';
-
-  @override
-  String get sttProvider => 'STT Provider';
-
-  @override
-  String get recognitionLanguage => 'Recognition Language';
-
-  @override
-  String get testVoiceInput => 'Test Voice Input';
-
-  @override
-  String get stopListening => 'Stop Listening';
-
-  @override
-  String get tapToStop => 'Tap to stop';
-
-  @override
-  String get tapToTestSpeechRecognition => 'Tap to test speech recognition';
-
-  @override
-  String get final_ => 'Final';
-
-  @override
-  String get listening => 'Listening...';
-
-  @override
-  String get aboutStt => 'About STT';
-
-  @override
-  String get aboutSttDescription =>
-      'Speech-to-Text allows you to dictate messages using your voice. Tap the microphone button in the chat input to start speaking.';
-
-  @override
-  String get systemStt => 'System STT';
-
-  @override
-  String get systemSttDescription =>
-      'Using your device\'s built-in speech recognition. Accuracy depends on your system settings.';
-
-  @override
-  String get whisper => 'Whisper';
-
-  @override
-  String get whisperDescription =>
-      'OpenAI\'s Whisper model for high-accuracy transcription. Requires an API key.';
-
-  @override
-  String get voiceInput => 'Voice input';
-
-  @override
-  String get speechRecognitionNotAvailable =>
-      'Speech recognition may not be available on this device.';
-
-  @override
-  String get themes => 'Themes';
-
-  @override
-  String get createCustomTheme => 'Create custom theme';
-
-  @override
-  String get builtInThemes => 'Built-in Themes';
-
-  @override
-  String get preview => 'Preview';
-
-  @override
-  String get chatPreview => 'Chat Preview';
-
-  @override
-  String get helloHowCanIHelp => 'Hello! How can I help you today?';
-
-  @override
-  String get tellMeAStory => 'Tell me a story!';
-
-  @override
-  String get typeAMessage => 'Type a message...';
-
-  @override
-  String get createTheme => 'Create Theme';
-
-  @override
-  String get editTheme => 'Edit Theme';
-
-  @override
-  String get deleteTheme => 'Delete Theme';
-
-  @override
-  String deleteThemeConfirmation(String name) {
-    return 'Are you sure you want to delete \"$name\"?';
-  }
-
-  @override
-  String get themeName => 'Theme Name';
-
-  @override
-  String get background => 'Background';
-
-  @override
-  String get surface => 'Surface';
-
-  @override
-  String get card => 'Card';
-
-  @override
-  String selectThemeColor(String label) {
-    return 'Select $label';
-  }
-
-  @override
-  String get hexColor => 'Hex Color';
-
-  @override
-  String get tokenizerSettings => 'Tokenizer';
-
-  @override
-  String get tokenizerHelp => 'Help';
-
-  @override
-  String get tokenizerLabel => 'Tokenizer';
-
-  @override
-  String get showTokenCount => 'Show Token Count';
-
-  @override
-  String get displayTokenCountInInput => 'Display token count in chat input';
-
-  @override
-  String get showTokenVisualization => 'Show Token Visualization';
-
-  @override
-  String get highlightIndividualTokens => 'Highlight individual tokens';
-
-  @override
-  String get cacheResults => 'Cache Results';
-
-  @override
-  String get cacheTokenizationForPerformance =>
-      'Cache tokenization for performance';
-
-  @override
-  String get tokenVisualization => 'Token Visualization';
-
-  @override
-  String get enterTextToTokenize => 'Enter text to tokenize';
-
-  @override
-  String get typePasteTextHere => 'Type or paste text here...';
-
-  @override
-  String get quickEstimate => 'Quick Estimate';
-
-  @override
-  String approximateTokens(int count) {
-    return '~$count tokens';
-  }
-
-  @override
-  String chars(int count) {
-    return '$count chars';
-  }
-
-  @override
-  String get statisticsLabel => 'Statistics';
-
-  @override
-  String get totalTokens => '总令牌数';
-
-  @override
-  String get unique => 'Unique';
-
-  @override
-  String get charsPerToken => 'Chars/Token';
-
-  @override
-  String get avgLength => 'Avg Length';
-
-  @override
-  String get longest => 'Longest';
-
-  @override
-  String get shortest => 'Shortest';
-
-  @override
-  String get mostCommonTokens => 'Most Common Tokens';
-
-  @override
-  String get tokenBreakdown => 'Token Breakdown';
-
-  @override
-  String tokensCount(int count) {
-    return '$count tokens';
-  }
-
-  @override
-  String tokenIdLength(String id, int length) {
-    return 'Token ID: $id\nLength: $length chars';
-  }
-
-  @override
-  String get translationSettings => 'Translation';
-
-  @override
-  String get enableTranslation => 'Enable Translation';
-
-  @override
-  String get translateMessagesAutomatically =>
-      'Translate messages automatically';
-
-  @override
-  String get translationProvider => 'Translation Provider';
-
-  @override
-  String get sourceLanguage => 'Source Language';
-
-  @override
-  String get targetLanguage => 'Target Language';
-
-  @override
-  String get autoDetect => 'Auto-detect';
-
-  @override
-  String get translateUserMessages => 'Translate User Messages';
-
-  @override
-  String get translateAiResponses => 'Translate AI Responses';
-
-  @override
-  String get textToSpeech => 'Text-to-Speech';
-
-  @override
-  String get enableTts => 'Enable TTS';
-
-  @override
-  String get readAiResponsesAloud => 'Read AI responses aloud';
-
-  @override
-  String get ttsProvider => 'TTS Provider';
-
-  @override
-  String get voiceSettings => 'Voice Settings';
-
-  @override
-  String get voice => 'Voice';
-
-  @override
-  String get speed => 'Speed';
-
-  @override
-  String get pitch => 'Pitch';
-
-  @override
-  String get volume => 'Volume';
-
-  @override
-  String get autoPlay => 'Auto-play';
-
-  @override
-  String get automaticallyPlayResponses => 'Automatically play AI responses';
-
-  @override
-  String get testVoice => 'Test Voice';
-
-  @override
-  String get chatVariables => 'Chat Variables';
-
-  @override
-  String get variableSystem => 'Variable System';
-
-  @override
-  String get globalVariables => 'Global Variables';
-
-  @override
-  String globalVariablesCount(int count) {
-    return '$count global variables';
-  }
-
-  @override
-  String get localVariables => 'Local Variables';
-
-  @override
-  String localVariablesCount(int count) {
-    return '$count local variables';
-  }
-
-  @override
-  String get addVariable => 'Add Variable';
-
-  @override
-  String get variableName => 'Variable Name';
-
-  @override
-  String get variableValue => 'Variable Value';
-
-  @override
-  String get scope => 'Scope';
-
-  @override
-  String get global => 'Global';
-
-  @override
-  String get vectorStorageRag => 'Vector Storage (RAG)';
-
-  @override
-  String get enableRag => 'Enable RAG';
-
-  @override
-  String get useVectorStorageForContext =>
-      'Use vector storage for context retrieval';
-
-  @override
-  String get collections => 'Collections';
-
-  @override
-  String get createCollection => 'Create Collection';
-
-  @override
-  String get collectionName => 'Collection Name';
-
-  @override
-  String get embeddingProvider => 'Embedding Provider';
-
-  @override
-  String get embeddingModel => 'Embedding Model';
-
-  @override
-  String get chunkSize => 'Chunk Size';
-
-  @override
-  String get chunkOverlap => 'Chunk Overlap';
-
-  @override
-  String get topKResults => 'Top K Results';
-
-  @override
-  String get similarityThreshold => 'Similarity Threshold';
-
-  @override
-  String get characterEditor => 'Character Editor';
-
-  @override
-  String get basic => 'Basic';
-
-  @override
-  String get prompts => 'Prompts';
-
-  @override
-  String get meta => 'Meta';
-
-  @override
-  String get nameRequired => 'Name *';
-
-  @override
-  String get characterName => 'Character name';
-
-  @override
-  String get nameIsRequired => 'Name is required';
-
-  @override
-  String get characterDescription =>
-      'Character description, background, appearance...';
-
-  @override
-  String get characterPersonalityTraits => 'Character personality traits...';
-
-  @override
-  String get currentCircumstancesContext =>
-      'The current circumstances and context...';
-
-  @override
-  String get customInstructionsSystemMessage =>
-      'Custom instructions sent as part of the system message.';
-
-  @override
-  String systemPromptHint(Object char) {
-    return 'You are $char. You will...';
-  }
-
-  @override
-  String get instructionsInsertedAfterHistory =>
-      'Instructions inserted after the chat history (also known as \"jailbreak\").';
-
-  @override
-  String postHistoryInstructionsHint(Object char) {
-    return 'Continue the roleplay as $char...';
-  }
-
-  @override
-  String get firstMessageGreeting => 'First Message (Greeting)';
-
-  @override
-  String get firstMessageSentByCharacter =>
-      'The first message sent by the character when starting a new chat.';
-
-  @override
-  String firstMessageHint(Object user) {
-    return '*walks into the room* Hello, $user!';
-  }
-
-  @override
-  String get alternateGreetingsCanSwipe =>
-      'Alternative first messages that can be swiped through.';
-
-  @override
-  String greeting(int index) {
-    return 'Greeting $index';
-  }
-
-  @override
-  String get alternativeGreetingMessage => 'Alternative greeting message...';
-
-  @override
-  String get removeGreeting => 'Remove greeting';
-
-  @override
-  String get moveUp => 'Move up';
-
-  @override
-  String get moveDown => 'Move down';
-
-  @override
-  String get noAlternateGreetings =>
-      'No alternate greetings. Tap + to add one.';
-
-  @override
-  String exampleDialogueDemonstrate(Object char, Object user) {
-    return 'Example dialogue to demonstrate how the character speaks.\\nFormat: <START>\\n$user: Hello\\n$char: Hi there!';
-  }
-
-  @override
-  String exampleMessagesHint(Object char, Object user) {
-    return '<START>\\n$user: How are you?\\n$char: I\'m doing well, thanks for asking!';
-  }
-
-  @override
-  String get creatorNotesNotSentToAi =>
-      'Notes from the character creator (not sent to the AI).';
-
-  @override
-  String get creatorNotesHint => 'Recommended settings, backstory notes...';
-
-  @override
-  String get tagsCommaSeparated => 'Comma-separated list of tags';
-
-  @override
-  String get tagsHint => 'fantasy, female, adventure';
-
-  @override
-  String get creator => 'Creator';
-
-  @override
-  String get yourNameOrUsername => 'Your name or username';
-
-  @override
-  String get versionNumber => '1.0.0';
-
-  @override
-  String get characterInfo => 'Character Info';
-
-  @override
-  String characterId(String id) {
-    return 'ID: $id';
-  }
-
-  @override
-  String created(String date) {
-    return 'Created: $date';
-  }
-
-  @override
-  String modified(String date) {
-    return 'Modified: $date';
-  }
-
-  @override
-  String get characterSavedSuccessfully => 'Character saved successfully';
-
-  @override
-  String failedToSaveCharacter(String error) {
-    return 'Failed to save character: $error';
-  }
-
-  @override
-  String get addAlternateGreeting => 'Add alternate greeting';
-
-  @override
-  String get groupInfo => 'Group Info';
-
-  @override
-  String get responseMode => 'Response Mode';
-
-  @override
-  String get howCharactersTakeTurns => 'How characters take turns responding';
-
-  @override
-  String get sequential => 'Sequential';
-
-  @override
-  String get charactersRespondInOrder => 'Characters respond in order';
-
-  @override
-  String get random => 'Random';
-
-  @override
-  String get randomCharacterResponds => 'Random character responds each turn';
-
-  @override
-  String get allAtOnce => 'All at Once';
-
-  @override
-  String get allNonMutedCharactersRespond => 'All non-muted characters respond';
-
-  @override
-  String get manual => 'Manual';
-
-  @override
-  String get youSelectWhoResponds => 'You select which character responds';
-
-  @override
-  String get natural => 'Natural';
-
-  @override
-  String get aiDecidesBasedOnContext =>
-      'AI decides based on context and trigger words';
-
-  @override
-  String membersCount(int count) {
-    return 'Members ($count)';
-  }
-
-  @override
-  String get noMembersYet => 'No members yet. Add characters to this group.';
-
-  @override
-  String talkativenessPercent(int percent) {
-    return 'Talkativeness: $percent%';
-  }
-
-  @override
-  String triggers(String words) {
-    return 'Triggers: $words';
-  }
-
-  @override
-  String get mute => 'Mute';
-
-  @override
-  String get unmute => 'Unmute';
-
-  @override
-  String get memberSettings => 'Member Settings';
-
-  @override
-  String talkativenessLabel(int percent) {
-    return 'Talkativeness: $percent%';
-  }
-
-  @override
-  String get higherValuesMoreLikely =>
-      'Higher values make the character more likely to respond.';
-
-  @override
-  String get triggerWords => 'Trigger Words';
-
-  @override
-  String get triggerWordsHint => 'word1, word2, word3';
-
-  @override
-  String get characterWillRespondWhenTriggered =>
-      'Character will respond when these words appear in messages.';
-
-  @override
-  String get addMemberToGroup => 'Add Member';
-
-  @override
-  String get noMoreCharactersAvailable => 'No more characters available to add';
-
-  @override
-  String get groupSaved => 'Group saved';
-
-  @override
-  String deleteGroupAndChats(String name) {
-    return 'Are you sure you want to delete \"$name\"?';
-  }
-
-  @override
-  String get startChatAction => 'Start Chat';
-
-  @override
-  String get noTagsYet => 'No tags yet';
-
-  @override
-  String get createTagsToOrganize => 'Create tags to organize your characters';
-
-  @override
-  String characterCount(int count, String plural) {
-    return '$count character$plural';
-  }
-
-  @override
-  String deleteTagConfirmation(String name) {
-    return 'Are you sure you want to delete the tag \"$name\"?\\n\\nThis will remove the tag from all characters.';
-  }
-
-  @override
-  String get enterTagName => 'Enter tag name';
-
-  @override
-  String get iconEmoji => 'Icon (emoji)';
-
-  @override
-  String get enterEmojiOptional => 'Enter an emoji (optional)';
-
-  @override
-  String get pleaseEnterTagName => 'Please enter a tag name';
-
-  @override
-  String get worldInfoLorebooks => 'World Info / Lorebooks';
-
-  @override
-  String get createLorebook => 'Create Lorebook';
-
-  @override
-  String get noLorebooksYet => 'No Lorebooks yet';
-
-  @override
-  String get lorebooksInjectContext =>
-      'Lorebooks inject context into your chats when keywords are detected.';
-
-  @override
-  String entriesCount(int count) {
-    return '$count entries';
-  }
-
-  @override
-  String deleteLorebookConfirmation(String name) {
-    return 'Are you sure you want to delete \"$name\" and all its entries?';
-  }
-
-  @override
-  String get enterLorebookName => 'Enter lorebook name';
-
-  @override
-  String get optionalDescriptionHint => 'Optional description';
-
-  @override
-  String get globalScope => 'Global';
-
-  @override
-  String get applyToAllChats => 'Apply to all chats';
-
-  @override
-  String get pleaseEnterName2 => 'Please enter a name';
-
-  @override
-  String get noEntriesYet => 'No entries yet';
-
-  @override
-  String get addEntriesWithKeywords =>
-      'Add entries with keywords to inject context into chats';
-
-  @override
-  String deleteEntryConfirmation(String keys) {
-    return 'Are you sure you want to delete this entry?\\n\\nKeys: $keys';
-  }
-
-  @override
-  String get constant => 'Constant';
-
-  @override
-  String get selective => 'Selective';
-
-  @override
-  String get keywordsCommaSeparated => 'Keywords (comma-separated)';
-
-  @override
-  String get keywordsHint => 'dragon, wyrm, serpent';
-
-  @override
-  String get entryActivatesWhenKeywordFound =>
-      'Entry activates when any keyword is found in chat';
-
-  @override
-  String get secondaryKeysOptional => 'Secondary Keys (optional)';
-
-  @override
-  String get secondaryKeysHint => 'fire, flame';
-
-  @override
-  String get bothPrimaryAndSecondaryMustMatch =>
-      'If set, both primary AND secondary must match (selective mode)';
-
-  @override
-  String get commentOptional => 'Comment (optional)';
-
-  @override
-  String get noteForThisEntry => 'Note for this entry';
-
-  @override
-  String get contentLabel => 'Content';
-
-  @override
-  String get contextToInjectWhenMatches =>
-      'The context to inject when keywords match...';
-
-  @override
-  String get pleaseEnterAtLeastOneKeyword =>
-      'Please enter at least one keyword';
-
-  @override
-  String get pleaseEnterContent => 'Please enter content';
-
-  @override
-  String get anthropic => 'Anthropic';
-
-  @override
-  String get cohere => 'Cohere';
-
-  @override
-  String get customProvider => 'Custom';
-
-  @override
-  String get apiEndpointHint => 'https://api.example.com/v1';
-
-  @override
-  String get apiKeyHint => 'sk-...';
-
-  @override
-  String temperatureValue(String value) {
-    return '$value';
-  }
-
-  @override
-  String maxTokensValue(String value) {
-    return '$value';
-  }
-
-  @override
-  String topPValue(String value) {
-    return '$value';
-  }
-
-  @override
-  String frequencyPenaltyValue(String value) {
-    return '$value';
-  }
-
-  @override
-  String presencePenaltyValue(String value) {
-    return '$value';
-  }
-
-  @override
-  String get streamResponse => 'Stream Response';
-
-  @override
-  String get streamTokensAsGenerated => 'Stream tokens as they are generated';
-
-  @override
-  String get useSystemPrompt => 'Use System Prompt';
-
-  @override
-  String get includeSystemInstructions => 'Include system instructions';
-
-  @override
-  String get configurationSavedSuccessfully =>
-      'Configuration saved successfully';
-
-  @override
-  String get errorSavingConfiguration => 'Error saving configuration';
-
-  @override
-  String get copyAll => 'Copy All';
-
-  @override
-  String get showFavoritesOnly => 'Show favorites only';
-
-  @override
-  String get sortBy => 'Sort by';
-
-  @override
-  String get filterByTags => 'Filter by tags';
-
-  @override
-  String get favorites => 'Favorites';
-
-  @override
-  String get manage => 'Manage';
-
-  @override
-  String get noTagsCreatedYet => 'No tags created yet';
-
-  @override
-  String get createTags => 'Create Tags';
-
-  @override
-  String charactersCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count characters',
-      one: '1 character',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get characterTagsLegacy => 'Character Tags (Legacy)';
-
-  @override
-  String get done => 'Done';
-
-  @override
-  String applyFiltersSelected(int count) {
-    return 'Apply ($count selected)';
-  }
-
-  @override
-  String get enterPresetName => 'Enter preset name';
-
-  @override
-  String get deleteScript => 'Delete Script';
-
-  @override
-  String get aiConfig => 'AI Config';
-
-  @override
-  String get authorsNoteDescription =>
-      'Add context or instructions that will be injected into the conversation at a specific depth.';
-
-  @override
-  String get enableAuthorsNote => 'Enable Author\'s Note';
-
-  @override
-  String get injectNoteIntoContext => 'Inject note into conversation context';
-
-  @override
-  String get injectionDepth => 'Injection Depth';
-
-  @override
-  String get messagesFromEndWhereInserted =>
-      'Messages from the end where note is inserted';
-
-  @override
-  String get noteContent => 'Note Content';
-
-  @override
-  String get authorsNoteHint =>
-      'Enter your author\'s note here...\\n\\nExamples:\\n• [Style: Write in a poetic, descriptive manner]\\n• [Focus on emotional depth and character development]\\n• [The character is feeling melancholic today]';
-
-  @override
-  String get enterNameForCheckpoint => 'Enter a name for this checkpoint';
-
-  @override
-  String get addDescription => 'Add a description';
-
-  @override
-  String createCheckpointAtMessage(int index) {
-    return 'This will create a checkpoint at message $index.';
-  }
-
-  @override
-  String get longPressMessageToBookmark =>
-      'Long-press a message to create a bookmark';
-
-  @override
-  String get contextManagement => '上下文管理';
-
-  @override
-  String get autoSummarize => '自动总结';
-
-  @override
-  String get autoSummarizeDescription => '当上下文使用率较高时自动总结并压缩聊天历史';
-
-  @override
-  String get autoSummarizeThreshold => '自动总结阈值';
-
-  @override
-  String get autoSummarizeThresholdDescription => '当上下文达到最大值的此百分比时触发总结';
-
-  @override
-  String get branchFromBookmark => 'Branch from Bookmark';
-
-  @override
-  String branchFromBookmarkWarning(String name) {
-    return 'This will delete all messages after \"$name\" and continue from that point. You can create a new bookmark before doing this to save the current state.';
-  }
-
-  @override
-  String get branch => 'Branch';
-
-  @override
-  String branchedFrom(String name) {
-    return 'Branched from \"$name\"';
-  }
-
-  @override
-  String deleteBookmarkConfirmation(String name) {
-    return 'Are you sure you want to delete \"$name\"?';
-  }
-
-  @override
-  String messageIndexAndDate(int index, String date) {
-    return 'Message $index • $date';
-  }
-
-  @override
-  String get branchFromHere => 'Branch from here';
-
-  @override
-  String previewBookmark(String name) {
-    return 'Preview: $name';
-  }
-
-  @override
-  String get messageNotFoundInChat => 'Message not found in current chat';
-
-  @override
-  String get you => 'You';
-
-  @override
-  String get assistant => 'Assistant';
-
-  @override
-  String get reasoningCopiedToClipboard => 'Reasoning copied to clipboard';
-
-  @override
-  String charsCount(int count) {
-    return '$count chars';
-  }
-
-  @override
-  String get copyReasoning => 'Copy reasoning';
-
-  @override
-  String get commands => 'Commands';
-
-  @override
-  String aliasesLabel(String aliases) {
-    return 'Aliases: $aliases';
-  }
-
-  @override
-  String get noSpritesAddedYet => 'No sprites added yet';
-
-  @override
-  String get errorLoadingSprites => 'Error loading sprites';
-
-  @override
-  String get insertionPosition => 'Insertion Position';
-
-  @override
-  String get beforeCharacterDefinition => 'Before Character Definition';
-
-  @override
-  String get afterCharacterDefinition => 'After Character Definition';
-
-  @override
-  String get beforeExampleMessages => 'Before Example Messages';
-
-  @override
-  String get afterExampleMessages => 'After Example Messages';
-
-  @override
-  String get beforeAuthorNote => 'Before Author\'s Note';
-
-  @override
-  String get afterAuthorNote => 'After Author\'s Note';
-
-  @override
-  String get atDepth => 'At Depth';
-
-  @override
-  String get beforeSystemPrompt => 'Before System Prompt';
-
-  @override
-  String get afterSystemPrompt => 'After System Prompt';
-
-  @override
-  String get insertionOrder => 'Insertion Order';
-
-  @override
-  String get lowerOrderInsertsFirst => 'Lower order values are inserted first';
-
-  @override
-  String get alwaysIncludeInPrompt =>
-      'Always include in prompt (ignore keywords)';
-
-  @override
-  String get requiresSecondaryKey =>
-      'Requires both primary AND secondary key to match';
-
-  @override
-  String get debugLog => '调试日志';
-
-  @override
-  String get debugLogDescription => '显示悬浮调试按钮以查看日志';
-
-  @override
-  String get autoScroll => '自动滚动';
-
-  @override
-  String get clearLogs => '清除日志';
-
-  @override
-  String get searchLogs => '搜索日志...';
-
-  @override
-  String get noLogsYet => '暂无日志';
-
-  @override
-  String get allCharactersAvailable => '所有角色';
-
-  @override
-  String get availableToAllCharactersNotGlobal => '所有角色可用（上下文匹配）';
-
-  @override
-  String get specificCharacter => '特定角色';
-
-  @override
-  String get linkToSpecificCharacter => '仅关联到特定角色';
-
-  @override
-  String get selectCharacter => '选择角色';
-
-  @override
-  String get pleaseSelectCharacter => '请选择一个角色';
-
-  @override
-  String get contextUsage => '上下文使用';
-
-  @override
-  String get maxContext => '最大上下文';
-
-  @override
-  String get remaining => '剩余';
-
-  @override
-  String get breakdown => '详细分解';
-
-  @override
-  String get cloudBackup => '云备份';
-
-  @override
-  String get cloudBackupInfo => '云备份';
-
-  @override
-  String get cloudBackupDescription => '跨设备同步数据';
-
-  @override
-  String get cloudBackupSubtitle => '备份到 iCloud 或 Google Drive，在任何设备上恢复';
-
-  @override
-  String get enableICloudBackup => '启用 iCloud 备份';
-
-  @override
-  String get enableICloudBackupDescription => '自动同步备份到 iCloud';
-
-  @override
-  String get iCloudNotAvailable => 'iCloud 不可用';
-
-  @override
-  String get iCloudNotAvailableDescription => '请在设置中登录 iCloud';
-
-  @override
-  String get backupToICloud => '备份到 iCloud';
-
-  @override
-  String lastSync(String time) {
-    return '上次同步：$time';
-  }
-
-  @override
-  String get neverSynced => '从未同步';
-
-  @override
-  String get iCloudBackups => 'iCloud 备份';
-
-  @override
-  String get noCloudBackups => '暂无云备份';
-
-  @override
-  String get googleDriveExport => '导出到 Google Drive';
-
-  @override
-  String get googleDriveExportDescription => '保存备份文件到 Google Drive 或其他位置';
-
-  @override
-  String get googleDriveImport => '从 Google Drive 导入';
-
-  @override
-  String get googleDriveImportDescription => '从 Google Drive 或其他位置恢复备份文件';
-
-  @override
-  String get import_action => '导入';
-
-  @override
-  String get importBackup => '导入备份';
-
-  @override
-  String get backupExported => '备份导出成功';
-
-  @override
-  String get restoreSettings => '恢复设置';
-
-  @override
-  String get defaultRestoreMode => '默认恢复模式';
-
-  @override
-  String get selectRestoreMode => '选择数据恢复方式：';
-
-  @override
-  String get restoreWarning => '根据所选模式，恢复数据可能会覆盖现有数据。请确保先备份当前数据。';
-
-  @override
-  String get restore => '恢复';
-
-  @override
-  String restoreComplete(int added, int updated, int skipped) {
-    return '恢复完成：新增 $added 项，更新 $updated 项，跳过 $skipped 项';
-  }
-
-  @override
-  String get selectFileAndImport => '选择文件并导入';
-
-  @override
-  String get aboutRestoreModes => '关于恢复模式';
-
-  @override
-  String get aboutRestoreModesDescription =>
-      '替换：用备份数据覆盖所有本地数据。\\n合并：保留两者，冲突时新数据优先。\\n仅添加新项：仅从备份添加新项，保留所有现有数据。';
 
   @override
   String get signInToGoogleDrive => '登录 Google Drive';
@@ -3620,16 +1208,2342 @@ class AppLocalizationsZh extends AppLocalizations {
   String get googleDriveBackups => 'Google Drive 备份';
 
   @override
-  String get bubbleOpacity => 'Message Opacity';
+  String get saveAs => '保存';
 
   @override
-  String get bubbleOpacityHelp =>
-      'Controls the transparency of message bubbles when a background is active.';
+  String get contextLength => '文本';
+
+  @override
+  String get contextWindowSize => '文本';
+
+  @override
+  String get contextLengthDescription => '模型';
+
+  @override
+  String get characterNotFound => '角色';
+
+  @override
+  String get characterNotFoundMessage => '角色';
+
+  @override
+  String get exportAsPng => '导出为PNG图片卡';
+
+  @override
+  String get exportAsCharx => '导出为CharX';
+
+  @override
+  String get exportAsJson => '导出为JSON';
+
+  @override
+  String get duplicate => '复制角色';
+
+  @override
+  String deleteCharacterConfirmationSimple(Object name) {
+    return '删除';
+  }
+
+  @override
+  String characterDuplicated(Object name) {
+    return '名称';
+  }
+
+  @override
+  String failedToDelete(Object error) {
+    return '删除';
+  }
+
+  @override
+  String failedToDuplicate(Object error) {
+    return '错误';
+  }
+
+  @override
+  String get pngExportComingSoon => '导出';
+
+  @override
+  String get charxExportComingSoon => '导出';
+
+  @override
+  String get failedToCreateChat => '聊天';
+
+  @override
+  String get creating => '创建中...';
+
+  @override
+  String byCreator(Object creator) {
+    return '由 $creator 创建';
+  }
+
+  @override
+  String versionLabel(Object version) {
+    return 'v$version';
+  }
+
+  @override
+  String get showLess => '显示';
+
+  @override
+  String get showMore => '显示';
+
+  @override
+  String greetingNumber(Object number) {
+    return '数字';
+  }
+
+  @override
+  String alternateGreetingsCount(Object count) {
+    return '计数';
+  }
+
+  @override
+  String get embeddedLorebook => '内嵌世界书';
+
+  @override
+  String entriesEnabled(Object enabled, Object total) {
+    return '启用';
+  }
+
+  @override
+  String andMoreEntries(Object count) {
+    return '计数';
+  }
+
+  @override
+  String get exampleMessages => '消息';
+
+  @override
+  String get postHistoryInstructions => '历史后指令';
+
+  @override
+  String get selectImages => '图像';
+
+  @override
+  String get presetsAndTemplates => '预设';
+
+  @override
+  String get activePreset => '预设';
+
+  @override
+  String get change => '更改';
+
+  @override
+  String get noPresetSelected => '预设';
+
+  @override
+  String get instructTemplate => '指令模板';
+
+  @override
+  String get selectInstructTemplate => '选择';
+
+  @override
+  String get instructTemplateDescription => '模型';
+
+  @override
+  String get orderAndTogglePromptSections => '提示';
+
+  @override
+  String get llmConnection => 'LLM 连接';
+
+  @override
+  String get generationSettings => '设置';
+
+  @override
+  String get advancedSamplerSettings => '设置';
+
+  @override
+  String get fullControlOverSampling => '完全控制采样参数';
+
+  @override
+  String get selectLlmProvider => '选择';
+
+  @override
+  String get notSet => '未设置';
+
+  @override
+  String get enterApiKey => '输入你的 API 密钥';
+
+  @override
+  String get apiEndpointUrl => 'API 端点地址';
+
+  @override
+  String get modelName => '模型';
+
+  @override
+  String get fetchAvailableModels => '模型';
+
+  @override
+  String get fetchModelsDescription => '模型';
+
+  @override
+  String get enterModelName => '模型';
+
+  @override
+  String get fetchingModels => '模型';
+
+  @override
+  String get failedToFetchModels => '模型';
+
+  @override
+  String get tapToTestConnection => '测试';
+
+  @override
+  String get testing => '测试';
+
+  @override
+  String get connected => '已连接';
+
+  @override
+  String get connectionFailedSimple => '失败';
+
+  @override
+  String get maximumTokensToGenerate => '令牌';
+
+  @override
+  String get streaming => '流式输出';
+
+  @override
+  String get showResponseAsItGenerates => '显示';
+
+  @override
+  String selectModelCount(Object count) {
+    return '模型';
+  }
+
+  @override
+  String get refreshModels => '模型';
+
+  @override
+  String get enterManually => '手动';
+
+  @override
+  String get noModelsFound => '模型';
+
+  @override
+  String get tryDifferentSearchTerm => '搜索';
+
+  @override
+  String modelsOfTotal(Object filtered, Object total) {
+    return '模型';
+  }
+
+  @override
+  String get importPreset => '预设';
+
+  @override
+  String get noGroupChatsYet => '聊天';
+
+  @override
+  String get createGroupDescription => '角色';
+
+  @override
+  String get newGroup => '新建群组';
+
+  @override
+  String membersAndMode(Object count, Object mode) {
+    return '模式';
+  }
+
+  @override
+  String get groupChatWillBeImplemented => '聊天';
+
+  @override
+  String deleteGroupConfirmation(Object name) {
+    return '聊天';
+  }
+
+  @override
+  String groupDeleted(Object name) {
+    return '删除';
+  }
+
+  @override
+  String get groupNameRequired => '名称';
+
+  @override
+  String get enterGroupName => '名称';
+
+  @override
+  String get optionalDescription => '描述';
+
+  @override
+  String get selectCharacters => '角色';
+
+  @override
+  String charactersSelected(Object count) {
+    return '角色';
+  }
+
+  @override
+  String get create => '创建';
+
+  @override
+  String get selectAtLeast2Characters => '角色';
+
+  @override
+  String get groupCreatedSuccessfully => '成功';
+
+  @override
+  String failedToCreateGroup(Object error) {
+    return '错误';
+  }
+
+  @override
+  String get selectCharacterCard => '角色';
+
+  @override
+  String get supportsPngCharxJson => '支持 PNG、CharX 和 JSON 格式';
+
+  @override
+  String get browseFiles => '文件';
+
+  @override
+  String failedToPickFile(Object error) {
+    return '错误';
+  }
+
+  @override
+  String failedToLoadCharacter(Object error) {
+    return '角色';
+  }
+
+  @override
+  String unsupportedFileFormat(Object format) {
+    return '文件';
+  }
+
+  @override
+  String get pngCharacterCard => '角色';
+
+  @override
+  String get characterDataEmbeddedInImage => '角色';
+
+  @override
+  String get charxArchive => 'CharX 压缩包';
+
+  @override
+  String get zipArchiveWithCharacterData => '角色';
+
+  @override
+  String get plainCharacterCardJson => '角色';
+
+  @override
+  String importedWithLorebook(Object name) {
+    return '导入';
+  }
+
+  @override
+  String importedSuccessfully(Object name) {
+    return '导入';
+  }
+
+  @override
+  String failedToImport(Object error) {
+    return '导入';
+  }
+
+  @override
+  String embeddedLorebookEntries(Object count) {
+    return '计数';
+  }
+
+  @override
+  String get saveCurrentAsPreset => '预设';
+
+  @override
+  String get exportCurrentSettings => '设置';
+
+  @override
+  String get builtInPresets => '预设';
+
+  @override
+  String get customPresets => '预设';
+
+  @override
+  String get aiPresetsDescription => '预设';
+
+  @override
+  String appliedPreset(Object name) {
+    return '预设';
+  }
+
+  @override
+  String failedToApplyPreset(Object error) {
+    return '预设';
+  }
+
+  @override
+  String get invalidPresetFormat => '预设';
+
+  @override
+  String importedAndApplied(Object name) {
+    return '导入';
+  }
+
+  @override
+  String get saveAsPreset => '预设';
+
+  @override
+  String get descriptionOptional => '描述';
+
+  @override
+  String get pleaseEnterAName => '名称';
+
+  @override
+  String savedPreset(Object name) {
+    return '保存';
+  }
+
+  @override
+  String saveFailed(Object error) {
+    return '保存';
+  }
+
+  @override
+  String deletePresetConfirmation(Object name) {
+    return '删除';
+  }
+
+  @override
+  String deletedPreset(Object name) {
+    return '删除';
+  }
+
+  @override
+  String get resetToDefaults => '重置';
+
+  @override
+  String get basicSampling => '基础采样';
+
+  @override
+  String get temperatureDescription => '控制随机性。越高越有创意，越低越专注。';
+
+  @override
+  String get topPNucleusSampling => 'Top P (核采样)';
+
+  @override
+  String get topPDescription => '令牌';
+
+  @override
+  String get topKDescription => '令牌';
+
+  @override
+  String get advancedSampling => '高级';
+
+  @override
+  String get minP => '最小';
+
+  @override
+  String get minPDescription => '令牌';
+
+  @override
+  String get typicalP => 'Typical P';
+
+  @override
+  String get typicalPDescription => '禁用';
+
+  @override
+  String get topA => '顶部';
+
+  @override
+  String get topADescription => '禁用';
+
+  @override
+  String get tailFreeSamplingTfs => '无尾采样 (TFS)';
+
+  @override
+  String get tfsDescription => '禁用';
+
+  @override
+  String get repetitionControl => '重复控制';
+
+  @override
+  String get repetitionPenaltyDescription => '令牌';
+
+  @override
+  String get repetitionPenaltyRange => '重复惩罚范围';
+
+  @override
+  String get repetitionPenaltyRangeDescription => '令牌';
+
+  @override
+  String get frequencyPenaltyDescription => '令牌';
+
+  @override
+  String get presencePenaltyDescription => '令牌';
+
+  @override
+  String get mirostatLocalModels => '模型';
+
+  @override
+  String get mirostatMode => '模式';
+
+  @override
+  String get adaptiveSamplingForLocalModels => '模型';
+
+  @override
+  String get off => '关闭';
+
+  @override
+  String get mirostatTau => 'Mirostat Tau';
+
+  @override
+  String get mirostatTauDescription => '目标熵/困惑度。';
+
+  @override
+  String get mirostatEta => 'Mirostat Eta';
+
+  @override
+  String get mirostatEtaDescription => '比率';
+
+  @override
+  String get generationControl => '生成';
+
+  @override
+  String get maxTokensDescription => '令牌';
+
+  @override
+  String get seed => '种子';
+
+  @override
+  String get seedDescription => '用于可复现的随机种子。-1 = 随机。';
+
+  @override
+  String get stopSequences => '顶部';
+
+  @override
+  String get noStopSequencesConfigured => '配置';
+
+  @override
+  String get stopSequencesDescription => '生成';
+
+  @override
+  String get resetConfirmation => '设置';
+
+  @override
+  String get reset => '重置';
+
+  @override
+  String get settingsResetToDefaults => '设置';
+
+  @override
+  String get characterBackground => '角色';
+
+  @override
+  String get chatBackground => '聊天';
+
+  @override
+  String get clearBackground => '清除';
+
+  @override
+  String get gradientPresets => '预设';
+
+  @override
+  String get solidColors => '纯色';
+
+  @override
+  String get customImage => '图像';
+
+  @override
+  String get adjustments => '调整';
+
+  @override
+  String get noBackgroundSelected => '选择';
+
+  @override
+  String get chooseImage => '图像';
+
+  @override
+  String get fromUrl => '来自 URL';
+
+  @override
+  String localImage(Object filename) {
+    return '名称';
+  }
+
+  @override
+  String urlLabel(Object url) {
+    return 'URL: $url';
+  }
+
+  @override
+  String get noImage => '图像';
+
+  @override
+  String get opacity => '透明度';
+
+  @override
+  String get blurEffect => '模糊效果';
+
+  @override
+  String get applyBlurToBackground => '应用';
+
+  @override
+  String get blurAmount => '模糊程度';
+
+  @override
+  String failedToLoadImage(Object error) {
+    return '加载';
+  }
+
+  @override
+  String get imageUrl => '图像';
+
+  @override
+  String get enterImageUrl => '图像';
+
+  @override
+  String get apply => '应用';
+
+  @override
+  String get enableCfgScale => '启用';
+
+  @override
+  String get cfgScaleDescription => '文本';
+
+  @override
+  String get globalSettings => '设置';
+
+  @override
+  String get guidanceScale => '引导系数';
+
+  @override
+  String get negativePrompt => '提示';
+
+  @override
+  String get textToSteerAwayFrom => '模型';
+
+  @override
+  String get positivePromptOptional => '提示';
+
+  @override
+  String get textToEnhanceInOutput => '文本';
+
+  @override
+  String get characterSettings => '角色';
+
+  @override
+  String get useCharacterSpecificSettings => '角色';
+
+  @override
+  String get overrideGlobalForCharacter => '角色';
+
+  @override
+  String get characterNegativePrompt => '角色';
+
+  @override
+  String get overrideGlobalNegativePrompt => '提示';
+
+  @override
+  String get chatSettings => '聊天';
+
+  @override
+  String get chatSettingsDescription => '角色';
+
+  @override
+  String get chatNegativePrompt => '聊天';
+
+  @override
+  String get overrideForThisChat => '聊天';
+
+  @override
+  String get chatPositivePrompt => '聊天';
+
+  @override
+  String get enhancementForThisChat => '聊天';
+
+  @override
+  String get promptCombineMode => '提示';
+
+  @override
+  String get replaceChatPromptOnly => '聊天';
+
+  @override
+  String get prependChatPlusGlobal => '聊天';
+
+  @override
+  String get appendGlobalPlusChat => '聊天';
+
+  @override
+  String get aboutCfgScale => '关于 CFG Scale';
+
+  @override
+  String get aboutCfgScaleDescription => '模型';
+
+  @override
+  String get cfgScaleHelp => '帮助';
+
+  @override
+  String get cfgScaleHelpContent => '角色';
+
+  @override
+  String get help => '帮助';
+
+  @override
+  String get sampleMessage1 => '你好！最近怎么样？';
+
+  @override
+  String get sampleMessage2 => '我很好！';
+
+  @override
+  String get general => '通用';
+
+  @override
+  String get enableImageGeneration => '图像';
+
+  @override
+  String get generateImagesUsingAi => '图像';
+
+  @override
+  String get imageGenerationProvider => '图像';
+
+  @override
+  String get apiEndpoint => 'API 端点';
+
+  @override
+  String get notConfigured => '配置';
+
+  @override
+  String get defaultParameters => '默认';
+
+  @override
+  String get imageSize => '图像';
+
+  @override
+  String get steps => '步数';
+
+  @override
+  String get sampler => '采样器';
+
+  @override
+  String get defaultNegativePrompt => '提示';
+
+  @override
+  String get enterTermsToAvoid => '图像';
+
+  @override
+  String get test => '测试';
+
+  @override
+  String get aboutImageGeneration => '图像';
+
+  @override
+  String get aboutImageGenerationDescription => '角色';
+
+  @override
+  String get imagineCommand => '/imagine 命令';
+
+  @override
+  String get imagineCommandUsage => '提示';
+
+  @override
+  String get stableDiffusion => 'Stable Diffusion';
+
+  @override
+  String get stableDiffusionDescription => '启用';
+
+  @override
+  String get dalle => 'DALL-E';
+
+  @override
+  String get dalleDescription => '图像';
+
+  @override
+  String get prompt => '提示';
+
+  @override
+  String get enterPromptToGenerate => '提示';
+
+  @override
+  String get generate => '比率';
+
+  @override
+  String get generating => '生成中...';
+
+  @override
+  String get generationComplete => '完成';
+
+  @override
+  String get imageWouldBeDisplayed => '图像';
+
+  @override
+  String get enableLogitBias => '启用';
+
+  @override
+  String get adjustTokenProbabilities => '令牌';
+
+  @override
+  String get presets => '预设';
+
+  @override
+  String get activePresetLabel => '预设';
+
+  @override
+  String get none => '无';
+
+  @override
+  String get newPreset => '预设';
+
+  @override
+  String get importPresetLabel => '预设';
+
+  @override
+  String get biasEntries => '偏置条目';
+
+  @override
+  String get noBiasEntries => '暂无偏置条目';
+
+  @override
+  String get addEntriesToAdjust => '令牌';
+
+  @override
+  String get addEntry => '添加';
+
+  @override
+  String get textOrToken => '令牌';
+
+  @override
+  String textTokenHint(Object verbatim) {
+    return '单词、$verbatim 或 [1234]';
+  }
+
+  @override
+  String get bias => '偏置';
+
+  @override
+  String get logitBiasHelp => '帮助';
+
+  @override
+  String get presetCopiedToClipboard => '预设';
+
+  @override
+  String exportPresetFailed(Object error) {
+    return '导出';
+  }
+
+  @override
+  String get pastePresetJson => '预设';
+
+  @override
+  String get presetImportedSuccessfully => '预设';
+
+  @override
+  String importPresetFailed(Object error) {
+    return '导入';
+  }
+
+  @override
+  String get rename => '名称';
+
+  @override
+  String get deletePresetQuestion => '预设';
+
+  @override
+  String get moreOptions => '更多选项';
+
+  @override
+  String get loadPreset => '预设';
+
+  @override
+  String get saveAsPresetLabel => '预设';
+
+  @override
+  String get exportPreset => '预设';
+
+  @override
+  String get resetToDefault => '重置';
+
+  @override
+  String get dragToReorder => '向量检索';
+
+  @override
+  String deleted(Object name) {
+    return '删除';
+  }
+
+  @override
+  String imported(Object name) {
+    return '导入';
+  }
+
+  @override
+  String get invalidPresetFormatMessage => '预设';
+
+  @override
+  String get exportPresetTitle => '预设';
+
+  @override
+  String get presetNameLabel => '预设';
+
+  @override
+  String get pleaseEnterNameMessage => '名称';
+
+  @override
+  String saved(Object name) {
+    return '保存';
+  }
+
+  @override
+  String saveFailedMessage(Object error) {
+    return '保存';
+  }
+
+  @override
+  String get resetToDefaultQuestion => '重置';
+
+  @override
+  String get resetToDefaultConfig => '重置';
+
+  @override
+  String get promptManagerHelp => '帮助';
+
+  @override
+  String applied(Object name) {
+    return '预设';
+  }
+
+  @override
+  String get showQuickReplies => '显示';
+
+  @override
+  String get displayQuickReplyButtons => '聊天';
+
+  @override
+  String get positionAboveInput => '位置';
+
+  @override
+  String get quickRepliesAboveInput => '字段';
+
+  @override
+  String get quickRepliesBelowInput => '字段';
+
+  @override
+  String get add => '添加';
+
+  @override
+  String get noQuickReplies => '暂无快捷回复';
+
+  @override
+  String get addYourFirstQuickReply => '添加';
+
+  @override
+  String deleteQuickReplyQuestion(Object label) {
+    return '删除';
+  }
+
+  @override
+  String get resetToDefaultQuestion2 => '默认';
+
+  @override
+  String get continueOrEmpty => '消息';
+
+  @override
+  String get autoSendTooltip => '自动';
+
+  @override
+  String get addQuickReply => '添加';
+
+  @override
+  String get editQuickReplyLabel => '编辑';
+
+  @override
+  String get buttonLabel => '标签';
+
+  @override
+  String get buttonLabelHint => '例如：是、继续、思考...';
+
+  @override
+  String get messageLabel => '消息';
+
+  @override
+  String get leaveEmptyForContinue => '留空表示继续操作';
+
+  @override
+  String supportsMacros(Object char, Object user) {
+    return '宏';
+  }
+
+  @override
+  String get autoSendLabel => '自动';
+
+  @override
+  String get messageSentImmediately => '消息';
+
+  @override
+  String get messageFillsInput => '消息';
+
+  @override
+  String get regexScripts => '正则表达式';
+
+  @override
+  String get addScript => '添加';
+
+  @override
+  String get addPresets => '预设';
+
+  @override
+  String get clearAll => '清除';
+
+  @override
+  String get enableRegexScripts => '正则表达式';
+
+  @override
+  String get applyFindReplacePatterns => '应用';
+
+  @override
+  String get applyTo => '应用';
+
+  @override
+  String get userInput => '输入';
+
+  @override
+  String get applyBeforeSending => '应用';
+
+  @override
+  String get aiOutput => '输出';
+
+  @override
+  String get applyToAiResponses => '应用';
+
+  @override
+  String get slashCommandsLabel => '斜杠命令';
+
+  @override
+  String get applyDuringCommandProcessing => '应用';
+
+  @override
+  String get worldInfoLabel => '世界';
+
+  @override
+  String get applyToWorldInfoEntries => '世界';
+
+  @override
+  String scriptsCount(Object count) {
+    return '计数';
+  }
+
+  @override
+  String get noRegexScripts => '正则表达式';
+
+  @override
+  String get tapToAddOrUseMenu => '预设';
+
+  @override
+  String get aboutRegexScripts => '正则表达式';
+
+  @override
+  String get aboutRegexScriptsDescription => '正则表达式';
+
+  @override
+  String get patternFormat => '模式格式';
+
+  @override
+  String get patternFormatDescription => '使用 /pattern/flags 格式（例如 /hello/gi）或纯文本模式。标志：i=忽略大小写，m=多行，s=点匹配全部';
+
+  @override
+  String get presetScriptsAdded => '预设';
+
+  @override
+  String deleteScriptQuestion(Object name) {
+    return '删除';
+  }
+
+  @override
+  String get clearAllScripts => '清除';
+
+  @override
+  String get clearAllScriptsQuestion => '正则表达式';
+
+  @override
+  String get importScripts => '导入';
+
+  @override
+  String get pasteJsonArray => '粘贴脚本的 JSON 数组';
+
+  @override
+  String importedCount(Object count) {
+    return '导入';
+  }
+
+  @override
+  String get exportScripts => '导出';
+
+  @override
+  String get newScript => '新建脚本';
+
+  @override
+  String get editScript => '编辑';
+
+  @override
+  String get scriptName => '名称';
+
+  @override
+  String get descriptionOptionalLabel => '描述';
+
+  @override
+  String get findPattern => '查找模式';
+
+  @override
+  String get patternOrPlainPattern => '/pattern/flags 或纯文本模式';
+
+  @override
+  String get replaceWith => '替换为';
+
+  @override
+  String get useCaptureGroups => '使用 \$1、\$2 表示捕获组';
+
+  @override
+  String get applyToLabel => '应用';
+
+  @override
+  String get options => '选项';
+
+  @override
+  String get markdownOnly => '仅 Markdown';
+
+  @override
+  String get onlyApplyDuringMarkdown => '应用';
+
+  @override
+  String get promptOnly => '提示';
+
+  @override
+  String get onlyApplyDuringPrompt => '应用';
+
+  @override
+  String get runOnEdit => '编辑';
+
+  @override
+  String get applyWhenEditingMessages => '编辑';
+
+  @override
+  String get macroSubstitution => '宏';
+
+  @override
+  String get nameAndPatternRequired => '名称';
+
+  @override
+  String get patternLabel => '模式';
+
+  @override
+  String get patternHint => '/pattern/flags';
+
+  @override
+  String get testString => '测试';
+
+  @override
+  String get replacementLabel => '替换内容';
+
+  @override
+  String replacementHint(Object match) {
+    return '\$1、\$2、$match';
+  }
+
+  @override
+  String get testButton => '测试';
+
+  @override
+  String matchesCount(Object count) {
+    return '计数';
+  }
+
+  @override
+  String get errorLabel => '错误';
+
+  @override
+  String get resultLabel => '结果';
+
+  @override
+  String get expressionSprites => '立绘';
+
+  @override
+  String get enableSprites => '启用';
+
+  @override
+  String get showCharacterExpressions => '角色';
+
+  @override
+  String get display => '显示';
+
+  @override
+  String get spriteSize => '立绘';
+
+  @override
+  String get position => '位置';
+
+  @override
+  String get whereToDisplaySprites => '立绘';
+
+  @override
+  String get left => '左侧';
+
+  @override
+  String get right => '右侧';
+
+  @override
+  String get center => '居中';
+
+  @override
+  String get floatingLeft => '左侧';
+
+  @override
+  String get floatingRight => '右侧';
+
+  @override
+  String get animation => '动画';
+
+  @override
+  String get animateTransitions => '过渡';
+
+  @override
+  String get smoothFadeWhenSpriteChanges => '立绘';
+
+  @override
+  String get transitionDuration => '持续时间';
+
+  @override
+  String get showDuringStreaming => '显示';
+
+  @override
+  String get displaySpritesWhileGenerating => '立绘';
+
+  @override
+  String get emotionDetection => '情绪';
+
+  @override
+  String get howItWorks => '工作原理';
+
+  @override
+  String get spriteEmotionDetectionDescription => '消息';
+
+  @override
+  String get supportedEmotions => '情绪';
+
+  @override
+  String characterSprites(Object name) {
+    return '名称';
+  }
+
+  @override
+  String get importFromFolder => '导入';
+
+  @override
+  String get deleteAllSprites => '删除';
+
+  @override
+  String get addSprite => '添加';
+
+  @override
+  String spritesCount(Object count) {
+    return '立绘';
+  }
+
+  @override
+  String defaultEmotion(Object emotion) {
+    return '情绪';
+  }
+
+  @override
+  String get noSpritesYet => '立绘';
+
+  @override
+  String get addExpressionImages => '角色';
+
+  @override
+  String get selectEmotion => '选择';
+
+  @override
+  String addedSpriteEmotion(Object emotion) {
+    return '添加';
+  }
+
+  @override
+  String get setAsDefaultEmotion => '默认';
+
+  @override
+  String get changeEmotion => '情绪';
+
+  @override
+  String get deleteSprite => '删除';
+
+  @override
+  String deleteSpriteConfirmation(Object emotion) {
+    return '删除';
+  }
+
+  @override
+  String get deleteAllSpritesConfirmation => '角色';
+
+  @override
+  String get importSprites => '导入';
+
+  @override
+  String get importSpritesDescription => '导入';
+
+  @override
+  String get supportedFormatsSprites => '支持的格式：PNG、JPG、GIF、WebP';
+
+  @override
+  String get selectFolder => '文件夹';
+
+  @override
+  String get folderImportRequiresPackage => '导入';
+
+  @override
+  String get appStatistics => '统计';
+
+  @override
+  String get chatStatistics => '聊天';
+
+  @override
+  String get resetStatistics => '重置';
+
+  @override
+  String get resetStatisticsConfirmation => '重置';
+
+  @override
+  String get statisticsReset => '重置';
+
+  @override
+  String get overview => '查看';
+
+  @override
+  String get firstUsed => '首次使用';
+
+  @override
+  String get unknown => '未知';
+
+  @override
+  String get totalGroups => '总计';
+
+  @override
+  String get totalGenerations => '生成';
+
+  @override
+  String get tokenUsage => '令牌';
+
+  @override
+  String get totalTokensUsed => '令牌';
+
+  @override
+  String get avgTokensPerGeneration => '令牌';
+
+  @override
+  String get performance => '性能';
+
+  @override
+  String get totalGenerationTime => '生成';
+
+  @override
+  String get avgGenerationTime => '生成';
+
+  @override
+  String get userMessages => '消息';
+
+  @override
+  String get assistantMessages => '消息';
+
+  @override
+  String get systemMessages => '消息';
+
+  @override
+  String get timeline => '时间线';
+
+  @override
+  String get firstMessage_ => '消息';
+
+  @override
+  String get lastMessage => '消息';
+
+  @override
+  String get chatDuration => '聊天';
+
+  @override
+  String get promptTokens => '令牌';
+
+  @override
+  String get completionTokens => '令牌';
+
+  @override
+  String get avgTokensPerMessage => '令牌';
+
+  @override
+  String get generationPerformance => '生成';
+
+  @override
+  String get generationCount => '生成';
+
+  @override
+  String get speechToText => '文本';
+
+  @override
+  String get enableStt => '启用';
+
+  @override
+  String get useVoiceInputForMessages => '语音';
+
+  @override
+  String get autoSendStt => '自动';
+
+  @override
+  String get automaticallySendAfterSpeaking => '消息';
+
+  @override
+  String get continuousListening => '列表';
+
+  @override
+  String get keepListeningAfterPhrase => '列表';
+
+  @override
+  String get showPartialResults => '显示';
+
+  @override
+  String get displayTextAsYouSpeak => '文本';
+
+  @override
+  String get sttProvider => '语音识别服务商';
+
+  @override
+  String get recognitionLanguage => '语言';
+
+  @override
+  String get testVoiceInput => '测试';
+
+  @override
+  String get stopListening => '列表';
+
+  @override
+  String get tapToStop => '顶部';
+
+  @override
+  String get tapToTestSpeechRecognition => '测试';
+
+  @override
+  String get final_ => '最终';
+
+  @override
+  String get listening => '列表';
+
+  @override
+  String get aboutStt => '关于 STT';
+
+  @override
+  String get aboutSttDescription => '聊天';
+
+  @override
+  String get systemStt => '系统';
+
+  @override
+  String get systemSttDescription => '设置';
+
+  @override
+  String get whisper => 'Whisper';
+
+  @override
+  String get whisperDescription => '模型';
+
+  @override
+  String get voiceInput => '语音';
+
+  @override
+  String get speechRecognitionNotAvailable => '识别';
+
+  @override
+  String get themes => '主题';
+
+  @override
+  String get createCustomTheme => '主题';
+
+  @override
+  String get builtInThemes => '主题';
+
+  @override
+  String get preview => '查看';
+
+  @override
+  String get chatPreview => '聊天';
+
+  @override
+  String get helloHowCanIHelp => '帮助';
+
+  @override
+  String get tellMeAStory => '给我讲个故事吧！';
+
+  @override
+  String get typeAMessage => '消息';
+
+  @override
+  String get createTheme => '主题';
+
+  @override
+  String get editTheme => '编辑';
+
+  @override
+  String get deleteTheme => '删除';
+
+  @override
+  String deleteThemeConfirmation(Object name) {
+    return '删除';
+  }
+
+  @override
+  String get themeName => '名称';
+
+  @override
+  String get background => '背景';
+
+  @override
+  String get surface => '表面';
+
+  @override
+  String get card => '卡片';
+
+  @override
+  String selectThemeColor(Object label) {
+    return '选择';
+  }
+
+  @override
+  String get hexColor => '十六进制颜色';
+
+  @override
+  String get tokenizerSettings => '令牌';
+
+  @override
+  String get tokenizerHelp => '帮助';
+
+  @override
+  String get tokenizerLabel => '令牌';
+
+  @override
+  String get showTokenCount => '令牌';
+
+  @override
+  String get displayTokenCountInInput => '聊天';
+
+  @override
+  String get showTokenVisualization => '令牌';
+
+  @override
+  String get highlightIndividualTokens => '令牌';
+
+  @override
+  String get cacheResults => '缓存';
+
+  @override
+  String get cacheTokenizationForPerformance => '令牌';
+
+  @override
+  String get tokenVisualization => '令牌';
+
+  @override
+  String get enterTextToTokenize => '令牌';
+
+  @override
+  String get typePasteTextHere => '文本';
+
+  @override
+  String get quickEstimate => '快速估算';
+
+  @override
+  String approximateTokens(Object count) {
+    return '令牌';
+  }
+
+  @override
+  String chars(Object count) {
+    return '计数';
+  }
+
+  @override
+  String get statisticsLabel => '统计';
+
+  @override
+  String get unique => '唯一';
+
+  @override
+  String get charsPerToken => '令牌';
+
+  @override
+  String get avgLength => '平均长度';
+
+  @override
+  String get longest => '最长';
+
+  @override
+  String get shortest => '测试';
+
+  @override
+  String get mostCommonTokens => '令牌';
+
+  @override
+  String get tokenBreakdown => '令牌';
+
+  @override
+  String tokensCount(Object count) {
+    return '令牌';
+  }
+
+  @override
+  String tokenIdLength(Object id, Object length) {
+    return '令牌';
+  }
+
+  @override
+  String get translationSettings => '翻译';
+
+  @override
+  String get enableTranslation => '启用';
+
+  @override
+  String get translateMessagesAutomatically => '消息';
+
+  @override
+  String get translationProvider => '翻译';
+
+  @override
+  String get sourceLanguage => '语言';
+
+  @override
+  String get targetLanguage => '语言';
+
+  @override
+  String get autoDetect => '自动';
+
+  @override
+  String get translateUserMessages => '消息';
+
+  @override
+  String get translateAiResponses => '翻译 AI 回复';
+
+  @override
+  String get textToSpeech => '文本';
+
+  @override
+  String get enableTts => '启用';
+
+  @override
+  String get readAiResponsesAloud => '朗读 AI 回复';
+
+  @override
+  String get ttsProvider => '语音合成服务商';
+
+  @override
+  String get voiceSettings => '设置';
+
+  @override
+  String get voice => '语音';
+
+  @override
+  String get speed => '速度';
+
+  @override
+  String get pitch => '音调';
+
+  @override
+  String get volume => '音量';
+
+  @override
+  String get autoPlay => '自动';
+
+  @override
+  String get automaticallyPlayResponses => '自动';
+
+  @override
+  String get testVoice => '测试';
+
+  @override
+  String get chatVariables => '聊天';
+
+  @override
+  String get variableSystem => '变量';
+
+  @override
+  String get globalVariables => '变量';
+
+  @override
+  String globalVariablesCount(Object count) {
+    return '变量';
+  }
+
+  @override
+  String get localVariables => '变量';
+
+  @override
+  String localVariablesCount(Object count) {
+    return '变量';
+  }
+
+  @override
+  String get addVariable => '添加';
+
+  @override
+  String get variableName => '名称';
+
+  @override
+  String get variableValue => '变量';
+
+  @override
+  String get scope => '作用域';
+
+  @override
+  String get global => '全局';
+
+  @override
+  String get vectorStorageRag => '向量检索';
+
+  @override
+  String get enableRag => '向量检索';
+
+  @override
+  String get useVectorStorageForContext => '向量检索';
+
+  @override
+  String get collections => '集合';
+
+  @override
+  String get createCollection => '创建';
+
+  @override
+  String get collectionName => '名称';
+
+  @override
+  String get embeddingProvider => '嵌入向量服务商';
+
+  @override
+  String get embeddingModel => '模型';
+
+  @override
+  String get chunkSize => '大小';
+
+  @override
+  String get chunkOverlap => '分块重叠';
+
+  @override
+  String get topKResults => '结果';
+
+  @override
+  String get similarityThreshold => '阈值';
+
+  @override
+  String get characterEditor => '角色';
+
+  @override
+  String get basic => '基础';
+
+  @override
+  String get prompts => '提示';
+
+  @override
+  String get meta => 'Meta';
+
+  @override
+  String get nameRequired => '名称';
+
+  @override
+  String get characterName => '角色';
+
+  @override
+  String get nameIsRequired => '名称';
+
+  @override
+  String get characterDescription => '角色';
+
+  @override
+  String get characterPersonalityTraits => '角色';
+
+  @override
+  String get currentCircumstancesContext => '文本';
+
+  @override
+  String get customInstructionsSystemMessage => '消息';
+
+  @override
+  String systemPromptHint(Object char) {
+    return '你是 $char。你将...';
+  }
+
+  @override
+  String get instructionsInsertedAfterHistory => '聊天';
+
+  @override
+  String postHistoryInstructionsHint(Object char) {
+    return '以 $char 的身份继续角色扮演...';
+  }
+
+  @override
+  String get firstMessageGreeting => '消息';
+
+  @override
+  String get firstMessageSentByCharacter => '角色';
+
+  @override
+  String firstMessageHint(Object user) {
+    return '*走进房间* 你好，$user！';
+  }
+
+  @override
+  String get alternateGreetingsCanSwipe => '消息';
+
+  @override
+  String greeting(Object index) {
+    return '问候语 $index';
+  }
+
+  @override
+  String get alternativeGreetingMessage => '消息';
+
+  @override
+  String get removeGreeting => '移除';
+
+  @override
+  String get moveUp => '上移';
+
+  @override
+  String get moveDown => '下移';
+
+  @override
+  String get noAlternateGreetings => '添加';
+
+  @override
+  String exampleDialogueDemonstrate(Object char, Object user) {
+    return '角色';
+  }
+
+  @override
+  String exampleMessagesHint(Object char, Object user) {
+    return '<START>\\n$user: 你好吗？\\n$char: 我很好，谢谢关心！';
+  }
+
+  @override
+  String get creatorNotesNotSentToAi => '角色';
+
+  @override
+  String get creatorNotesHint => '设置';
+
+  @override
+  String get tagsCommaSeparated => '比率';
+
+  @override
+  String get tagsHint => '奇幻、女性、冒险';
+
+  @override
+  String get creator => '创作者';
+
+  @override
+  String get yourNameOrUsername => '名称';
+
+  @override
+  String get versionNumber => '1.0.0';
+
+  @override
+  String get characterInfo => '角色';
+
+  @override
+  String characterId(Object id) {
+    return 'ID: $id';
+  }
+
+  @override
+  String created(Object date) {
+    return '创建';
+  }
+
+  @override
+  String modified(Object date) {
+    return '修改于：$date';
+  }
+
+  @override
+  String get characterSavedSuccessfully => '角色';
+
+  @override
+  String failedToSaveCharacter(Object error) {
+    return '角色';
+  }
+
+  @override
+  String get addAlternateGreeting => '添加';
+
+  @override
+  String get groupInfo => '信息';
+
+  @override
+  String get responseMode => '模式';
+
+  @override
+  String get howCharactersTakeTurns => '角色';
+
+  @override
+  String get sequential => '顺序';
+
+  @override
+  String get charactersRespondInOrder => '角色';
+
+  @override
+  String get random => '随机';
+
+  @override
+  String get randomCharacterResponds => '角色';
+
+  @override
+  String get allAtOnce => '一次全部';
+
+  @override
+  String get allNonMutedCharactersRespond => '角色';
+
+  @override
+  String get manual => '手动';
+
+  @override
+  String get youSelectWhoResponds => '角色';
+
+  @override
+  String get natural => '自然';
+
+  @override
+  String get aiDecidesBasedOnContext => '文本';
+
+  @override
+  String membersCount(Object count) {
+    return '计数';
+  }
+
+  @override
+  String get noMembersYet => '角色';
+
+  @override
+  String talkativenessPercent(Object percent) {
+    return '健谈度：$percent%';
+  }
+
+  @override
+  String triggers(Object words) {
+    return '触发词：$words';
+  }
+
+  @override
+  String get mute => '静音';
+
+  @override
+  String get unmute => '取消静音';
+
+  @override
+  String get memberSettings => '设置';
+
+  @override
+  String talkativenessLabel(Object percent) {
+    return '健谈度：$percent%';
+  }
+
+  @override
+  String get higherValuesMoreLikely => '角色';
+
+  @override
+  String get triggerWords => '触发词';
+
+  @override
+  String get triggerWordsHint => '词1、词2、词3';
+
+  @override
+  String get characterWillRespondWhenTriggered => '角色';
+
+  @override
+  String get addMemberToGroup => '添加';
+
+  @override
+  String get noMoreCharactersAvailable => '角色';
+
+  @override
+  String get groupSaved => '保存';
+
+  @override
+  String deleteGroupAndChats(Object name) {
+    return '删除';
+  }
+
+  @override
+  String get startChatAction => '聊天';
+
+  @override
+  String get noTagsYet => '暂无标签';
+
+  @override
+  String get createTagsToOrganize => '角色';
+
+  @override
+  String characterCount(Object count, Object plural) {
+    return '角色';
+  }
+
+  @override
+  String deleteTagConfirmation(Object name) {
+    return '角色';
+  }
+
+  @override
+  String get enterTagName => '名称';
+
+  @override
+  String get iconEmoji => '图标（表情符号）';
+
+  @override
+  String get enterEmojiOptional => '可选';
+
+  @override
+  String get pleaseEnterTagName => '名称';
+
+  @override
+  String get worldInfoLorebooks => '世界';
+
+  @override
+  String get createLorebook => '创建';
+
+  @override
+  String get noLorebooksYet => '暂无世界书';
+
+  @override
+  String get lorebooksInjectContext => '聊天';
+
+  @override
+  String entriesCount(Object count) {
+    return '计数';
+  }
+
+  @override
+  String deleteLorebookConfirmation(Object name) {
+    return '删除';
+  }
+
+  @override
+  String get enterLorebookName => '名称';
+
+  @override
+  String get optionalDescriptionHint => '描述';
+
+  @override
+  String get globalScope => '全局';
+
+  @override
+  String get applyToAllChats => '聊天';
+
+  @override
+  String get pleaseEnterName2 => '名称';
+
+  @override
+  String get noEntriesYet => '暂无条目';
+
+  @override
+  String get addEntriesWithKeywords => '聊天';
+
+  @override
+  String deleteEntryConfirmation(Object keys) {
+    return '删除';
+  }
+
+  @override
+  String get constant => '常驻';
+
+  @override
+  String get selective => '选择';
+
+  @override
+  String get keywordsCommaSeparated => '比率';
+
+  @override
+  String get keywordsHint => '向量检索';
+
+  @override
+  String get entryActivatesWhenKeywordFound => '聊天';
+
+  @override
+  String get secondaryKeysOptional => '可选';
+
+  @override
+  String get secondaryKeysHint => '火、火焰';
+
+  @override
+  String get bothPrimaryAndSecondaryMustMatch => '选择';
+
+  @override
+  String get commentOptional => '可选';
+
+  @override
+  String get noteForThisEntry => '此条目的备注';
+
+  @override
+  String get contentLabel => '内容';
+
+  @override
+  String get contextToInjectWhenMatches => '文本';
+
+  @override
+  String get pleaseEnterAtLeastOneKeyword => '请至少输入一个关键词';
+
+  @override
+  String get pleaseEnterContent => '内容';
+
+  @override
+  String get anthropic => 'Anthropic';
+
+  @override
+  String get cohere => 'Cohere';
+
+  @override
+  String get customProvider => '自定义';
+
+  @override
+  String get apiEndpointHint => 'https://api.example.com/v1';
+
+  @override
+  String get apiKeyHint => 'sk-...';
+
+  @override
+  String temperatureValue(Object value) {
+    return '$value';
+  }
+
+  @override
+  String maxTokensValue(Object value) {
+    return '$value';
+  }
+
+  @override
+  String topPValue(Object value) {
+    return '$value';
+  }
+
+  @override
+  String frequencyPenaltyValue(Object value) {
+    return '$value';
+  }
+
+  @override
+  String presencePenaltyValue(Object value) {
+    return '$value';
+  }
+
+  @override
+  String get streamResponse => '流式响应';
+
+  @override
+  String get streamTokensAsGenerated => '令牌';
+
+  @override
+  String get useSystemPrompt => '提示';
+
+  @override
+  String get includeSystemInstructions => '系统';
+
+  @override
+  String get configurationSavedSuccessfully => '保存';
+
+  @override
+  String get errorSavingConfiguration => '错误';
+
+  @override
+  String get copyAll => '复制';
+
+  @override
+  String get showFavoritesOnly => '显示';
+
+  @override
+  String get sortBy => '排序方式';
+
+  @override
+  String get filterByTags => '按标签筛选';
+
+  @override
+  String get favorites => '收藏';
+
+  @override
+  String get manage => '管理';
+
+  @override
+  String get noTagsCreatedYet => '创建';
+
+  @override
+  String get createTags => '创建';
+
+  @override
+  String charactersCount(num count) {
+    return '角色';
+  }
+
+  @override
+  String get characterTagsLegacy => '角色';
+
+  @override
+  String get done => '完成';
+
+  @override
+  String applyFiltersSelected(Object count) {
+    return '应用';
+  }
+
+  @override
+  String get enterPresetName => '预设';
+
+  @override
+  String get deleteScript => '删除';
+
+  @override
+  String get aiConfig => '配置';
+
+  @override
+  String get authorsNoteDescription => '文本';
+
+  @override
+  String get enableAuthorsNote => '启用';
+
+  @override
+  String get injectNoteIntoContext => '文本';
+
+  @override
+  String get injectionDepth => '注入深度';
+
+  @override
+  String get messagesFromEndWhereInserted => '消息';
+
+  @override
+  String get noteContent => '内容';
+
+  @override
+  String get authorsNoteHint => '角色';
+
+  @override
+  String get enterNameForCheckpoint => '名称';
+
+  @override
+  String get addDescription => '描述';
+
+  @override
+  String createCheckpointAtMessage(Object index) {
+    return '消息';
+  }
+
+  @override
+  String get longPressMessageToBookmark => '消息';
+
+  @override
+  String get branchFromBookmark => '从书签分支';
+
+  @override
+  String branchFromBookmarkWarning(Object name) {
+    return '删除';
+  }
+
+  @override
+  String get branch => '分支';
+
+  @override
+  String branchedFrom(Object name) {
+    return '名称';
+  }
+
+  @override
+  String deleteBookmarkConfirmation(Object name) {
+    return '删除';
+  }
+
+  @override
+  String messageIndexAndDate(Object date, Object index) {
+    return '消息';
+  }
+
+  @override
+  String get branchFromHere => '从此处分支';
+
+  @override
+  String previewBookmark(Object name) {
+    return '名称';
+  }
+
+  @override
+  String get messageNotFoundInChat => '聊天';
+
+  @override
+  String get you => '你';
+
+  @override
+  String get assistant => '助手';
+
+  @override
+  String get reasoningCopiedToClipboard => '推理内容已复制到剪贴板';
+
+  @override
+  String charsCount(Object count) {
+    return '计数';
+  }
+
+  @override
+  String get copyReasoning => '复制';
+
+  @override
+  String get commands => '命令';
+
+  @override
+  String aliasesLabel(Object aliases) {
+    return '别名：$aliases';
+  }
+
+  @override
+  String get noSpritesAddedYet => '添加';
+
+  @override
+  String get errorLoadingSprites => '加载';
+
+  @override
+  String get insertionPosition => '位置';
+
+  @override
+  String get beforeCharacterDefinition => '角色';
+
+  @override
+  String get afterCharacterDefinition => '角色';
+
+  @override
+  String get beforeExampleMessages => '消息';
+
+  @override
+  String get afterExampleMessages => '消息';
+
+  @override
+  String get beforeAuthorNote => '作者注释之前';
+
+  @override
+  String get afterAuthorNote => '作者注释之后';
+
+  @override
+  String get atDepth => '深度';
+
+  @override
+  String get beforeSystemPrompt => '提示';
+
+  @override
+  String get afterSystemPrompt => '提示';
+
+  @override
+  String get insertionOrder => '插入顺序';
+
+  @override
+  String get lowerOrderInsertsFirst => '数值越小越先插入';
+
+  @override
+  String get alwaysIncludeInPrompt => '提示';
+
+  @override
+  String get requiresSecondaryKey => '需同时匹配主关键词和次关键词';
+
+  @override
+  String get bubbleOpacity => '透明度';
+
+  @override
+  String get bubbleOpacityHelp => '消息';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
 class AppLocalizationsZhTw extends AppLocalizationsZh {
-  AppLocalizationsZhTw() : super('zh_TW');
+  AppLocalizationsZhTw(): super('zh_TW');
 
   @override
   String get appTitle => 'KiraKira';
@@ -3701,7 +3615,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get error => '錯誤';
 
   @override
-  String errorLoadingChats(String error) {
+  String errorLoadingChats(Object error) {
     return '載入聊天失敗：$error';
   }
 
@@ -3718,7 +3632,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get yesterday => '昨天';
 
   @override
-  String daysAgo(int count) {
+  String daysAgo(Object count) {
     return '$count天前';
   }
 
@@ -3771,12 +3685,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get noModelsAvailable => '沒有可用的模型。請檢查API設定。';
 
   @override
-  String modelChangedTo(String model) {
+  String modelChangedTo(Object model) {
     return '模型已切換為 $model';
   }
 
   @override
-  String failedToLoadModels(String error) {
+  String failedToLoadModels(Object error) {
     return '載入模型失敗：$error';
   }
 
@@ -3865,27 +3779,27 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get takePhoto => '拍照';
 
   @override
-  String failedToPickImage(String error) {
+  String failedToPickImage(Object error) {
     return '選擇圖片失敗：$error';
   }
 
   @override
-  String failedToTakePhoto(String error) {
+  String failedToTakePhoto(Object error) {
     return '拍照失敗：$error';
   }
 
   @override
-  String failedToAddAttachment(String error) {
+  String failedToAddAttachment(Object error) {
     return '新增附件失敗：$error';
   }
 
   @override
-  String exportChatWith(String character) {
+  String exportChatWith(Object character) {
     return '匯出與 $character 的聊天';
   }
 
   @override
-  String messagesCount(int count) {
+  String messagesCount(Object count) {
     return '$count 則訊息';
   }
 
@@ -3902,7 +3816,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get noChatToExport => '沒有可匯出的聊天';
 
   @override
-  String exportFailed(String error) {
+  String exportFailed(Object error) {
     return '匯出失敗：$error';
   }
 
@@ -3916,7 +3830,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get jsonlSillyTavernFormat => 'JSONL (SillyTavern格式)';
 
   @override
-  String get jsonKiraKiraFormat => 'JSON (KiraKira格式)';
+  String get jsonNativeTavernFormat => 'JSON (NativeTavern格式)';
 
   @override
   String get importNote => '注意：匯入的訊息將新增到目前的聊天中。';
@@ -3952,12 +3866,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get noActiveChat => '沒有進行中的聊天';
 
   @override
-  String importedMessages(int count) {
+  String importedMessages(Object count) {
     return '已匯入 $count 則訊息';
   }
 
   @override
-  String importFailed(String error) {
+  String importFailed(Object error) {
     return '匯入失敗：$error';
   }
 
@@ -4004,7 +3918,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get deletePersona => '刪除人設';
 
   @override
-  String deletePersonaConfirmation(String name) {
+  String deletePersonaConfirmation(Object name) {
     return '確定要刪除\"$name\"嗎？';
   }
 
@@ -4045,7 +3959,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get removeAvatar => '移除頭像';
 
   @override
-  String failedToSaveAvatar(String error) {
+  String failedToSaveAvatar(Object error) {
     return '儲存頭像失敗：$error';
   }
 
@@ -4098,7 +4012,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get connectionSuccessful => '連線成功！';
 
   @override
-  String connectionFailed(String error) {
+  String connectionFailed(Object error) {
     return '連線失敗：$error';
   }
 
@@ -4265,12 +4179,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get backupRestored => '備份還原成功';
 
   @override
-  String backupFailed(String error) {
+  String backupFailed(Object error) {
     return '備份失敗：$error';
   }
 
   @override
-  String restoreFailed(String error) {
+  String restoreFailed(Object error) {
     return '還原失敗：$error';
   }
 
@@ -4374,7 +4288,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get deleteCharacter => '刪除角色';
 
   @override
-  String deleteCharacterConfirmation(String name) {
+  String deleteCharacterConfirmation(Object name) {
     return '確定要刪除\"$name\"嗎？這也將刪除與此角色的所有聊天。';
   }
 

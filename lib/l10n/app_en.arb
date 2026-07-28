@@ -1,7 +1,7 @@
-{
+﻿{
   "@@locale": "en",
   
-  "appTitle": "NativeTavern",
+  "appTitle": "KiraKira",
   "@appTitle": {
     "description": "The application title"
   },
@@ -1555,6 +1555,10 @@
   },
   
   "exportAsPng": "Export as PNG",
+  "exportAsJson": "Export as JSON",
+  "@exportAsJson": {
+    "description": "Export as JSON menu item"
+  },
   "@exportAsPng": {
     "description": "Export as PNG menu item"
   },

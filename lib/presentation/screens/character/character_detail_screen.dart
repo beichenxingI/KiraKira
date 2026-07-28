@@ -10,6 +10,13 @@ import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
+import '../../widgets/common/greeting_picker.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:kirakira/presentation/screens/import/import_screen.dart' show importServiceProvider;
+import 'package:kirakira/data/models/world_info.dart';
+import 'package:kirakira/presentation/providers/world_info_providers.dart';
+import 'package:kirakira/presentation/screens/world_info/world_info_screen.dart';
 
 /// Provider for loading a single character by ID
 final characterDetailProvider = FutureProvider.family<Character?, String>((ref, id) async {
@@ -76,13 +83,43 @@ class _CharacterDetailContent extends ConsumerStatefulWidget {
 class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent> {
   bool _isCreatingChat = false;
 
+  late Character _character;
+
+  @override
+  void initState() {
+    super.initState();
+    _character = widget.character;
+  }
+
+  // 统一的字段保存：传入"基于新值生成的 character"
+  Future<void> _saveCharacter(Character updated) async {
+    final saved = await ref.read(characterRepositoryProvider).updateCharacter(updated);
+    if (mounted) setState(() => _character = saved);
+    // 让详情页缓存失效，退出重进时重新从库读取
+    ref.invalidate(characterDetailProvider(widget.character.id));
+    // 列表页也刷新（名字/头像可能变了）
+    ref.invalidate(characterListProvider);
+  }
+
   Future<void> _startChat() async {
     if (_isCreatingChat) return;
     
     setState(() => _isCreatingChat = true);
     
     try {
-      final chatId = await ref.read(activeChatProvider.notifier).createChat(widget.character.id);
+      String? selectedGreeting;
+      // 有备用开场白时，先让用户选
+      if (widget.character.alternateGreetings.any((g) => g.trim().isNotEmpty)) {
+        selectedGreeting = await showGreetingPicker(context, widget.character);
+        // 用户取消则中止创建
+        if (selectedGreeting == null || !mounted) {
+          setState(() => _isCreatingChat = false);
+          return;
+        }
+      }
+      final chatId = await ref
+          .read(activeChatProvider.notifier)
+          .createChat(widget.character.id, selectedGreeting: selectedGreeting);
       
       if (chatId != null && mounted) {
         context.push('/chat/$chatId');
@@ -107,7 +144,6 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
   }
 
   Future<void> _handleMenuAction(String action, Character character) async {
-    final l10n = AppLocalizations.of(context);
     switch (action) {
       case 'delete':
         await _confirmDelete(character);
@@ -116,19 +152,128 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
         await _duplicateCharacter(character);
         break;
       case 'export':
-        // TODO: Implement PNG export
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.pngExportComingSoon)),
-        );
+        await _exportCharacter(character, 'png');
+        break;
+      case 'export_json':
+        await _exportCharacter(character, 'json');
         break;
       case 'export_charx':
-        // TODO: Implement CharX export
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.charxExportComingSoon)),
-        );
+        await _exportCharacter(character, 'charx');
         break;
     }
   }
+  /// 导出角色卡：生成字节 → 写临时文件 → 系统分享面板
+  /// asCharx=false 走 PNG（内嵌 chara 数据，兼容 SillyTavern）；true 走 CharX 压缩包
+  Future<void> _exportCharacter(Character character, String format) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final importService = ref.read(importServiceProvider);
+
+      // 读取头像字节（有就用，没有让 service 内部兜底占位图）
+      Uint8List? avatarData;
+      final avatarPath = character.assets?.avatarPath;
+      if (avatarPath != null) {
+        final f = File(avatarPath);
+        if (await f.exists()) {
+          avatarData = await f.readAsBytes();
+        }
+      }
+
+      // 文件名安全化：去掉可能破坏路径的字符
+      final safeName = character.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final dir = await getTemporaryDirectory();
+
+      // 按格式生成对应字节并落地
+      late final File file;
+      switch (format) {
+        case 'json':
+          final jsonStr = importService.exportToJson(character);
+          file = File('${dir.path}/$safeName.json');
+          await file.writeAsString(jsonStr);
+          break;
+        case 'charx':
+          final bytes = await importService.exportToCharX(character, avatarData);
+          file = File('${dir.path}/$safeName.charx');
+          await file.writeAsBytes(bytes);
+          break;
+        case 'png':
+        default:
+          final bytes = await importService.exportToPng(character, avatarData);
+          file = File('${dir.path}/$safeName.png');
+          await file.writeAsBytes(bytes);
+          break;
+      }
+
+      // 弹系统分享面板，用户自己选存哪/发给谁
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)], subject: character.name),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('${l10n.error}: $e')),
+      );
+    }
+  }
+  /// 底部操作面板：导出/复制/删除。统一的操作菜单样式，替代默认下拉菜单。
+  void _showActionSheet(Character character) {
+    final l10n = AppLocalizations.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              title: Text(l10n.exportAsPng),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _handleMenuAction('export', character);
+              },
+            ),
+            ListTile(
+              title: Text(l10n.exportAsJson),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _handleMenuAction('export_json', character);
+              },
+            ),
+            ListTile(
+              title: Text(l10n.exportAsCharx),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _handleMenuAction('export_charx', character);
+              },
+            ),
+            ListTile(
+              title: Text(l10n.duplicate),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _handleMenuAction('duplicate', character);
+              },
+            ),
+            ListTile(
+              title: Text(
+                l10n.delete,
+                style: const TextStyle(color: Colors.red),
+              ),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _handleMenuAction('delete', character);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   Future<void> _confirmDelete(Character character) async {
     final l10n = AppLocalizations.of(context);
@@ -199,7 +344,7 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final character = widget.character;
+    final character = _character;
     
     return Scaffold(
       body: CustomScrollView(
@@ -217,40 +362,10 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
               background: _buildAvatarBackground(character),
             ),
             actions: [
+
               IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => context.push('/characters/${character.id}/edit'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.menu_book, size: 22),
-                tooltip: '世界书',
-                onPressed: () => context.push('/world-info?characterId=${character.id}'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.menu_book, size: 22),
-                tooltip: '世界书',
-                onPressed: () => context.push('/world-info?characterId=${character.id}'),
-              ),
-              PopupMenuButton<String>(
-                onSelected: (value) => _handleMenuAction(value, character),
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'export',
-                    child: Text(l10n.exportAsPng),
-                  ),
-                  PopupMenuItem(
-                    value: 'export_charx',
-                    child: Text(l10n.exportAsCharx),
-                  ),
-                  PopupMenuItem(
-                    value: 'duplicate',
-                    child: Text(l10n.duplicate),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Text(l10n.delete, style: const TextStyle(color: Colors.red)),
-                  ),
-                ],
+                icon: const Icon(Icons.more_vert),
+                onPressed: () => _showActionSheet(character),
               ),
             ],
           ),
@@ -267,32 +382,32 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
                       runSpacing: 4,
                       children: character.tags.map((tag) => Chip(
                         label: Text(tag),
-                        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                        backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                       )).toList(),
                     ),
                   if (character.tags.isNotEmpty) const SizedBox(height: 16),
-                  
+
                   // Creator info
                   Row(
                     children: [
                       if (character.creator.isNotEmpty) ...[
-                        const Icon(Icons.person_outline, size: 16, color: AppTheme.textMuted),
+                        Icon(Icons.person_outline, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                         const SizedBox(width: 4),
                         Text(
                           l10n.byCreator(character.creator),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.textMuted,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                               ),
                         ),
                         const SizedBox(width: 16),
                       ],
                       if (character.version.isNotEmpty) ...[
-                        const Icon(Icons.update, size: 16, color: AppTheme.textMuted),
+                        Icon(Icons.update, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                         const SizedBox(width: 4),
                         Text(
                           l10n.versionLabel(character.version),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.textMuted,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                               ),
                         ),
                       ],
@@ -300,95 +415,106 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
                   ),
                   const SizedBox(height: 24),
                   
-                  // Description section
-                  if (character.description.isNotEmpty)
-                    _SectionCard(
-                      title: l10n.description,
-                      content: character.description,
-                      icon: Icons.description,
-                    ),
-                  if (character.description.isNotEmpty) const SizedBox(height: 16),
-                  
+                   // Description section
+                  _SectionCard(
+                    title: l10n.description,
+                    content: character.description,
+                    icon: Icons.description,
+                    onSave: (v) => _saveCharacter(_character.copyWith(description: v)),
+                  ),
+                  const SizedBox(height: 10),
+
                   // Personality section
-                  if (character.personality.isNotEmpty)
-                    _SectionCard(
-                      title: l10n.personality,
-                      content: character.personality,
-                      icon: Icons.psychology,
-                    ),
-                  if (character.personality.isNotEmpty) const SizedBox(height: 16),
-                  
+                  _SectionCard(
+                    title: l10n.personality,
+                    content: character.personality,
+                    icon: Icons.psychology,
+                    onSave: (v) => _saveCharacter(_character.copyWith(personality: v)),
+                  ),
+                  const SizedBox(height: 10),
+
                   // Scenario section
-                  if (character.scenario.isNotEmpty)
-                    _SectionCard(
-                      title: l10n.scenario,
-                      content: character.scenario,
-                      icon: Icons.movie,
-                    ),
-                  if (character.scenario.isNotEmpty) const SizedBox(height: 16),
-                  
+                  _SectionCard(
+                    title: l10n.scenario,
+                    content: character.scenario,
+                    icon: Icons.movie,
+                    onSave: (v) => _saveCharacter(_character.copyWith(scenario: v)),
+                  ),
+                  const SizedBox(height: 10),
+
                   // First message section
-                  if (character.firstMessage.isNotEmpty)
-                    _SectionCard(
-                      title: l10n.firstMessage,
-                      content: character.firstMessage,
-                      icon: Icons.chat_bubble,
-                    ),
-                  if (character.firstMessage.isNotEmpty) const SizedBox(height: 16),
-                  
+                  _SectionCard(
+                    title: l10n.firstMessage,
+                    content: character.firstMessage,
+                    icon: Icons.chat_bubble,
+                    onSave: (v) => _saveCharacter(_character.copyWith(firstMessage: v)),
+                  ),
+                  const SizedBox(height: 10),
+
                   // Alternate greetings section
-                  if (character.alternateGreetings.isNotEmpty) ...[
-                    _AlternateGreetingsCard(
-                      greetings: character.alternateGreetings,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  
+                  _AlternateGreetingsCard(
+                    greetings: character.alternateGreetings,
+                    onSaveGreeting: (index, value) {
+                      final updated = List<String>.from(_character.alternateGreetings);
+                      updated[index] = value;
+                      return _saveCharacter(_character.copyWith(alternateGreetings: updated));
+                    },
+                    onAddGreeting: (value) {
+                      final updated = List<String>.from(_character.alternateGreetings)..add(value);
+                      return _saveCharacter(_character.copyWith(alternateGreetings: updated));
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
                   // Example messages section
-                  if (character.exampleMessages.isNotEmpty)
-                    _SectionCard(
-                      title: l10n.exampleMessages,
-                      content: character.exampleMessages,
-                      icon: Icons.format_quote,
-                    ),
-                  if (character.exampleMessages.isNotEmpty) const SizedBox(height: 16),
-                  
+                  _SectionCard(
+                    title: l10n.exampleMessages,
+                    content: character.exampleMessages,
+                    icon: Icons.format_quote,
+                    onSave: (v) => _saveCharacter(_character.copyWith(exampleMessages: v)),
+                  ),
+                  const SizedBox(height: 10),
+
                   // System prompt section
-                  if (character.systemPrompt.isNotEmpty)
-                    _SectionCard(
-                      title: l10n.systemPrompt,
-                      content: character.systemPrompt,
-                      icon: Icons.settings_suggest,
-                    ),
-                  if (character.systemPrompt.isNotEmpty) const SizedBox(height: 16),
-                  
+                  _SectionCard(
+                    title: l10n.systemPrompt,
+                    content: character.systemPrompt,
+                    icon: Icons.settings_suggest,
+                    onSave: (v) => _saveCharacter(_character.copyWith(systemPrompt: v)),
+                  ),
+                  const SizedBox(height: 10),
+
                   // Post-history instructions section
-                  if (character.postHistoryInstructions.isNotEmpty)
-                    _SectionCard(
-                      title: l10n.postHistoryInstructions,
-                      content: character.postHistoryInstructions,
-                      icon: Icons.rule,
-                    ),
-                  if (character.postHistoryInstructions.isNotEmpty) const SizedBox(height: 16),
-                  
+                  _SectionCard(
+                    title: l10n.postHistoryInstructions,
+                    content: character.postHistoryInstructions,
+                    icon: Icons.rule,
+                    onSave: (v) => _saveCharacter(_character.copyWith(postHistoryInstructions: v)),
+                  ),
+                  const SizedBox(height: 10),
+
                   // Creator notes section
-                  if (character.creatorNotes.isNotEmpty)
-                    _SectionCard(
-                      title: l10n.creatorNotes,
-                      content: character.creatorNotes,
-                      icon: Icons.note,
-                    ),
-                  if (character.creatorNotes.isNotEmpty) const SizedBox(height: 16),
+                  _SectionCard(
+                    title: l10n.creatorNotes,
+                    content: character.creatorNotes,
+                    icon: Icons.note,
+                    onSave: (v) => _saveCharacter(_character.copyWith(creatorNotes: v)),
+                  ),
+                  const SizedBox(height: 10),
                   
                   // Embedded Lorebook section
-                  if (character.characterBook != null &&
-                      character.characterBook!.entries.isNotEmpty)
-                    _CharacterBookCard(
-                      characterBook: character.characterBook!,
+                  _CharacterBookCard(characterId: character.id),
+                  const SizedBox(height: 16),
+                    const SizedBox(height: 8),
+                    Card(
+                      child: ListTile(
+                        leading: Icon(Icons.find_replace, color: Theme.of(context).colorScheme.secondary),
+                        title: const Text('角色正则脚本'),
+                        subtitle: const Text('Regex Scripts · 仅对此角色生效'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/characters/${character.id}/regex'),
+                      ),
                     ),
-                  if (character.characterBook != null &&
-                      character.characterBook!.entries.isNotEmpty)
-                    const SizedBox(height: 16),
                   
                   const SizedBox(height: 80), // Space for FAB
                 ],
@@ -442,12 +568,12 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
 
   Widget _defaultBackground() {
     return Container(
-      color: AppTheme.darkCard,
-      child: const Center(
+      color: Theme.of(context).cardColor,
+      child: Center(
         child: Icon(
           Icons.person,
           size: 120,
-          color: AppTheme.textMuted,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         ),
       ),
     );
@@ -459,12 +585,14 @@ class _SectionCard extends StatefulWidget {
   final String content;
   final IconData icon;
   final int maxLines;
+  final Future<void> Function(String newContent)? onSave; // 新增：保存回调，null 则不可编辑
 
   const _SectionCard({
     required this.title,
     required this.content,
     required this.icon,
     this.maxLines = 10,
+    this.onSave,
   });
 
   @override
@@ -473,6 +601,30 @@ class _SectionCard extends StatefulWidget {
 
 class _SectionCardState extends State<_SectionCard> {
   bool _expanded = false;
+  bool _editing = false;
+  bool _saving = false;
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.content);
+  }
+
+  @override
+  void didUpdateWidget(_SectionCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 外部内容变了且当前不在编辑，同步进输入框
+    if (!_editing && oldWidget.content != widget.content) {
+      _controller.text = widget.content;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   void _copyToClipboard() {
     Clipboard.setData(ClipboardData(text: widget.content));
@@ -485,54 +637,157 @@ class _SectionCardState extends State<_SectionCard> {
     );
   }
 
+  void _startEdit() {
+    _controller.text = widget.content;
+    setState(() => _editing = true);
+  }
+
+  void _cancelEdit() {
+    _controller.text = widget.content; // 恢复原值
+    setState(() => _editing = false);
+  }
+
+  Future<void> _saveEdit() async {
+    if (widget.onSave == null) return;
+    setState(() => _saving = true);
+    try {
+      await widget.onSave!(_controller.text.trim());
+      if (mounted) setState(() => _editing = false);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final mutedColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
     final lines = widget.content.split('\n');
     final shouldShowExpand = lines.length > widget.maxLines || widget.content.length > 500;
     final displayContent = _expanded || !shouldShowExpand
         ? widget.content
         : '${widget.content.substring(0, widget.content.length.clamp(0, 500))}...';
-    
+
     return GestureDetector(
-      onLongPress: _copyToClipboard,
+      onLongPress: _editing ? null : _copyToClipboard,
       child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(widget.icon, size: 20, color: AppTheme.primaryColor),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppTheme.primaryColor,
-                          ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.copy, size: 18),
-                    onPressed: _copyToClipboard,
-                    tooltip: l10n.copiedToClipboard,
-                  ),
-                  if (shouldShowExpand)
-                    IconButton(
-                      icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
-                      onPressed: () => setState(() => _expanded = !_expanded),
-                      tooltip: _expanded ? l10n.showLess : l10n.showMore,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                displayContent,
-                style: Theme.of(context).textTheme.bodyMedium,
+        // iOS 质感：大圆角 + 柔和阴影
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        elevation: 0,
+        shadowColor: Colors.black.withValues(alpha: 0.15),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            // 实色（跟随主题），消除半透明合成开销
+            color: theme.cardColor,
+            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
             ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(widget.icon, size: 20, color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                            ),
+                      ),
+                    ),
+                    if (!_editing) ...[
+                      if (widget.content.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.copy, size: 18),
+                          onPressed: _copyToClipboard,
+                          tooltip: l10n.copiedToClipboard,
+                        ),
+                      if (widget.onSave != null)
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          onPressed: _startEdit,
+                          tooltip: '编辑',
+                        ),
+                      if (shouldShowExpand)
+                        IconButton(
+                          icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
+                          onPressed: () => setState(() => _expanded = !_expanded),
+                          tooltip: _expanded ? l10n.showLess : l10n.showMore,
+                        ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (_editing) ...[
+                  TextField(
+                    controller: _controller,
+                    maxLines: null, // 自动撑高，占满整块宽度，不受弹窗限制
+                    minLines: 4,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: _saving ? null : _cancelEdit,
+                        child: const Text('取消'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: _saving ? null : _saveEdit,
+                        child: _saving
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('保存'),
+                      ),
+                    ],
+                  ),
+                ] else if (widget.content.isEmpty)
+                  InkWell(
+                    onTap: widget.onSave != null ? _startEdit : null,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(children: [
+                        Icon(Icons.add, size: 16, color: mutedColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          '点击添加${widget.title}',
+                          style: theme.textTheme.bodyMedium?.copyWith(color: mutedColor),
+                        ),
+                      ]),
+                    ),
+                  )
+                else
+                  Text(
+                    displayContent,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -540,11 +795,22 @@ class _SectionCardState extends State<_SectionCard> {
   }
 }
 
-class _AlternateGreetingsCard extends StatelessWidget {
+class _AlternateGreetingsCard extends StatefulWidget {
   final List<String> greetings;
+  final Future<void> Function(int index, String value)? onSaveGreeting;
+  final Future<void> Function(String value)? onAddGreeting;
 
-  const _AlternateGreetingsCard({required this.greetings});
+  const _AlternateGreetingsCard({
+    required this.greetings,
+    this.onSaveGreeting,
+    this.onAddGreeting,
+  });
 
+  @override
+  State<_AlternateGreetingsCard> createState() => _AlternateGreetingsCardState();
+}
+
+class _AlternateGreetingsCardState extends State<_AlternateGreetingsCard> {
   void _copyGreeting(BuildContext context, String greeting, int index) {
     Clipboard.setData(ClipboardData(text: greeting));
     final l10n = AppLocalizations.of(context);
@@ -557,258 +823,387 @@ class _AlternateGreetingsCard extends StatelessWidget {
   }
 
   void _copyAllGreetings(BuildContext context) {
-    final allText = greetings.asMap().entries
+    final allText = widget.greetings.asMap().entries
         .map((e) => '--- Greeting ${e.key + 1} ---\n${e.value}')
         .join('\n\n');
     Clipboard.setData(ClipboardData(text: allText));
     final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${l10n.copiedToClipboard}: ${l10n.alternateGreetingsCount(greetings.length)}'),
+        content: Text('${l10n.copiedToClipboard}: ${l10n.alternateGreetingsCount(widget.greetings.length)}'),
         duration: const Duration(seconds: 2),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.waving_hand, size: 20, color: AppTheme.primaryColor),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    l10n.alternateGreetingsCount(greetings.length),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppTheme.primaryColor,
+  void _addGreeting(BuildContext context) {
+    final controller = TextEditingController();
+    bool saving = false;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModal) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Theme.of(ctx).dividerColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '新增备用开场白',
+                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                          color: Theme.of(ctx).colorScheme.primary,
                         ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.copy_all, size: 18),
-                  onPressed: () => _copyAllGreetings(context),
-                  tooltip: l10n.copiedToClipboard,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...greetings.asMap().entries.map((entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: GestureDetector(
-                onLongPress: () => _copyGreeting(context, entry.value, entry.key),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.darkSurface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.darkDivider),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              l10n.greetingNumber(entry.key + 1),
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AppTheme.textMuted,
-                                  ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.copy, size: 14),
-                            onPressed: () => _copyGreeting(context, entry.value, entry.key),
-                            tooltip: l10n.copiedToClipboard,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    maxLines: null,
+                    minLines: 4,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        entry.value.length > 200
-                            ? '${entry.value.substring(0, 200)}...'
-                            : entry.value,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                    style: Theme.of(ctx).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: saving ? null : () => Navigator.pop(ctx),
+                        child: const Text('取消'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                final text = controller.text.trim();
+                                if (text.isEmpty) return;
+                                setModal(() => saving = true);
+                                try {
+                                  await widget.onAddGreeting!(text);
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                } finally {
+                                  if (ctx.mounted) setModal(() => saving = false);
+                                }
+                              },
+                        child: saving
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('保存'),
                       ),
                     ],
                   ),
-                ),
+                ],
               ),
-            )),
+            );
+          },
+        );
+      },
+    ).whenComplete(() => controller.dispose());
+  }
+  void _editGreeting(BuildContext context, int index, String current) {
+    final controller = TextEditingController(text: current);
+    bool saving = false;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      // 键盘弹起时面板上移，不被遮住
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModal) {
+            final l10n = AppLocalizations.of(ctx);
+            return Padding(
+              // 底部留出键盘高度
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 顶部把手
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Theme.of(ctx).dividerColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    l10n.greetingNumber(index + 1),
+                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                          color: Theme.of(ctx).colorScheme.primary,
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    maxLines: null,
+                    minLines: 4,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                    style: Theme.of(ctx).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: saving ? null : () => Navigator.pop(ctx),
+                        child: const Text('取消'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                setModal(() => saving = true);
+                                try {
+                                  await widget.onSaveGreeting!(index, controller.text.trim());
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                } finally {
+                                  if (ctx.mounted) setModal(() => saving = false);
+                                }
+                              },
+                        child: saving
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('保存'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() => controller.dispose());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final mutedColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      elevation: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          color: theme.cardColor,
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
           ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.waving_hand, size: 20, color: theme.colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      l10n.alternateGreetingsCount(widget.greetings.length),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy_all, size: 18),
+                    onPressed: () => _copyAllGreetings(context),
+                    tooltip: l10n.copiedToClipboard,
+                  ),
+                  if (widget.onAddGreeting != null)
+                    IconButton(
+                      icon: const Icon(Icons.add, size: 20),
+                      onPressed: () => _addGreeting(context),
+                      tooltip: '新增',
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...widget.greetings.asMap().entries.map((entry) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: GestureDetector(
+                      onLongPress: () => _copyGreeting(context, entry.value, entry.key),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.dividerColor),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    l10n.greetingNumber(entry.key + 1),
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                          color: mutedColor,
+                                        ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy, size: 14),
+                                  onPressed: () => _copyGreeting(context, entry.value, entry.key),
+                                  tooltip: l10n.copiedToClipboard,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                                if (widget.onSaveGreeting != null) ...[
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined, size: 14),
+                                    onPressed: () => _editGreeting(context, entry.key, entry.value),
+                                    tooltip: '编辑',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              entry.value.length > 200
+                                  ? '${entry.value.substring(0, 200)}...'
+                                  : entry.value,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _CharacterBookCard extends StatelessWidget {
-  final CharacterBook characterBook;
+class _CharacterBookCard extends ConsumerWidget {
+  final String characterId;
 
-  const _CharacterBookCard({required this.characterBook});
-
-  void _copyEntry(BuildContext context, CharacterBookEntry entry) {
-    final text = 'Name: ${entry.name}\nKeys: ${entry.keys.join(", ")}\nContent: ${entry.content}';
-    Clipboard.setData(ClipboardData(text: text));
-    final l10n = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${l10n.copiedToClipboard}: ${entry.name.isNotEmpty ? entry.name : entry.keys.join(", ")}'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
+  const _CharacterBookCard({required this.characterId});
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final enabledEntries = characterBook.entries.where((e) => e.enabled).length;
-    
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.auto_stories, size: 20, color: AppTheme.primaryColor),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        characterBook.name ?? l10n.embeddedLorebook,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: AppTheme.primaryColor,
-                            ),
-                      ),
-                      Text(
-                        l10n.entriesEnabled(enabledEntries, characterBook.entries.length),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textMuted,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (characterBook.description != null &&
-                characterBook.description!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                characterBook.description!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textMuted,
-                    ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            const Divider(),
-            const SizedBox(height: 8),
-            ...characterBook.entries.take(5).map((entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: GestureDetector(
-                onLongPress: () => _copyEntry(context, entry),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: entry.enabled ? AppTheme.darkSurface : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: entry.enabled ? AppTheme.primaryColor.withValues(alpha: 0.3) : AppTheme.darkDivider,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            entry.enabled ? Icons.check_circle : Icons.cancel,
-                            size: 14,
-                            color: entry.enabled ? Colors.green : AppTheme.textMuted,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              entry.name.isNotEmpty ? entry.name : entry.keys.join(', '),
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: entry.enabled ? null : AppTheme.textMuted,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.copy, size: 14),
-                            onPressed: () => _copyEntry(context, entry),
-                            tooltip: l10n.copiedToClipboard,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
-                      ),
-                      if (entry.keys.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Wrap(
-                          spacing: 4,
-                          runSpacing: 2,
-                          children: entry.keys.take(5).map((key) => Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              key,
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
-                          )).toList(),
-                        ),
-                      ],
-                      const SizedBox(height: 4),
-                      Text(
-                        entry.content.length > 100
-                            ? '${entry.content.substring(0, 100)}...'
-                            : entry.content,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textMuted,
-                            ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )),
-            if (characterBook.entries.length > 5)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  l10n.andMoreEntries(characterBook.entries.length - 5),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textMuted,
-                        fontStyle: FontStyle.italic,
-                      ),
-                ),
-              ),
-          ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final mutedColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
+    final worldInfosAsync = ref.watch(characterWorldInfosProvider(characterId));
+
+    return worldInfosAsync.when(
+      loading: () => const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: CircularProgressIndicator()),
         ),
       ),
+      error: (e, _) => const SizedBox.shrink(),
+      data: (worldInfos) {
+        final theme2 = Theme.of(context);
+        final worldInfo = worldInfos.isEmpty ? null : worldInfos.first;
+        return Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          elevation: 0,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: theme2.cardColor,
+              border: Border.all(color: theme2.dividerColor.withValues(alpha: 0.5)),
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              leading: Icon(Icons.auto_stories, color: theme2.colorScheme.primary),
+              title: Text(
+                worldInfo?.name ?? '世界书',
+                style: theme2.textTheme.titleMedium?.copyWith(
+                  color: theme2.colorScheme.primary,
+                ),
+              ),
+              subtitle: worldInfo == null
+                  ? Text('暂无世界书，点击创建', style: TextStyle(color: mutedColor))
+                  : Text(
+                      '${worldInfo.entries.where((e) => e.enabled).length} / ${worldInfo.entries.length} 条已启用',
+                      style: TextStyle(color: mutedColor),
+                    ),
+              trailing: Icon(Icons.chevron_right, color: mutedColor),
+              onTap: worldInfo == null
+                  ? () => context.push('/world-info?characterId=$characterId')
+                  : () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => WorldInfoEntriesScreen(worldInfo: worldInfo),
+                        ),
+                      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

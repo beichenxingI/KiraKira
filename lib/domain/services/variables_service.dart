@@ -326,6 +326,40 @@ class VariablesService {
     return {'variables': Map<String, dynamic>.from(vars)};
   }
 
+  /// 局部变量持久化存储 key 前缀
+  static String _localStorageKey(String chatId) => 'local_variables_$chatId';
+
+  /// 从 SharedPreferences 恢复某个聊天的局部变量（进入聊天时调用）
+  Future<void> loadLocalVariablesFromPrefs(String chatId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString(_localStorageKey(chatId));
+      if (jsonStr != null) {
+        final decoded = jsonDecode(jsonStr);
+        if (decoded is Map<String, dynamic>) {
+          _localVariables[chatId] = Map<String, dynamic>.from(decoded);
+        }
+      }
+    } catch (e) {
+      print('VariablesService: Error loading local variables for $chatId: $e');
+    }
+  }
+
+  /// 把某个聊天的局部变量落盘到 SharedPreferences（写变量后调用）
+  Future<void> saveLocalVariablesToPrefs(String chatId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final vars = _localVariables[chatId];
+      if (vars == null || vars.isEmpty) {
+        await prefs.remove(_localStorageKey(chatId));
+      } else {
+        await prefs.setString(_localStorageKey(chatId), jsonEncode(vars));
+      }
+    } catch (e) {
+      print('VariablesService: Error saving local variables for $chatId: $e');
+    }
+  }
+
   /// Add to a local variable (increment number or append string/array)
   dynamic addLocalVariable(String chatId, String name, dynamic value) {
     final currentValue = getLocalVariable(chatId, name);
@@ -508,6 +542,109 @@ class VariablesService {
         final name = match.group(1)!.trim();
         return getGlobalVariable(name).toString();
       },
+    );
+
+    return result;
+  }
+
+  /// Synchronous version of processVariableMacros.
+  /// Reads/writes in-memory variable cache directly. Global var writes are
+  /// fire-and-forget (memory updates immediately, persistence happens async).
+  String processVariableMacrosSync(String input, {String? chatId}) {
+    String result = input;
+
+    // {{setvar::name::value}}
+    result = result.replaceAllMapped(
+      RegExp(r'{{setvar::([^:]+)::([^}]*)}}', caseSensitive: false),
+      (match) {
+        if (chatId != null) {
+          setLocalVariable(chatId, match.group(1)!.trim(), match.group(2)!);
+        }
+        return '';
+      },
+    );
+
+    // {{addvar::name::value}}
+    result = result.replaceAllMapped(
+      RegExp(r'{{addvar::([^:]+)::([^}]+)}}', caseSensitive: false),
+      (match) {
+        if (chatId != null) {
+          addLocalVariable(chatId, match.group(1)!.trim(), match.group(2)!);
+        }
+        return '';
+      },
+    );
+
+    // {{incvar::name}}
+    result = result.replaceAllMapped(
+      RegExp(r'{{incvar::([^}]+)}}', caseSensitive: false),
+      (match) => chatId != null
+          ? incrementLocalVariable(chatId, match.group(1)!.trim()).toString()
+          : '',
+    );
+
+    // {{decvar::name}}
+    result = result.replaceAllMapped(
+      RegExp(r'{{decvar::([^}]+)}}', caseSensitive: false),
+      (match) => chatId != null
+          ? decrementLocalVariable(chatId, match.group(1)!.trim()).toString()
+          : '',
+    );
+
+    // {{getvar::name}}
+    result = result.replaceAllMapped(
+      RegExp(r'{{getvar::([^}]+)}}', caseSensitive: false),
+      (match) => chatId != null
+          ? getLocalVariable(chatId, match.group(1)!.trim()).toString()
+          : '',
+    );
+
+    // {{setglobalvar::name::value}} (fire-and-forget)
+    result = result.replaceAllMapped(
+      RegExp(r'{{setglobalvar::([^:]+)::([^}]*)}}', caseSensitive: false),
+      (match) {
+        setGlobalVariable(match.group(1)!.trim(), match.group(2)!);
+        return '';
+      },
+    );
+
+    // {{addglobalvar::name::value}} (fire-and-forget)
+    result = result.replaceAllMapped(
+      RegExp(r'{{addglobalvar::([^:]+)::([^}]+)}}', caseSensitive: false),
+      (match) {
+        addGlobalVariable(match.group(1)!.trim(), match.group(2)!);
+        return '';
+      },
+    );
+
+    // {{incglobalvar::name}} (read+1 from memory, fire-and-forget save)
+    result = result.replaceAllMapped(
+      RegExp(r'{{incglobalvar::([^}]+)}}', caseSensitive: false),
+      (match) {
+        final name = match.group(1)!.trim();
+        final current = int.tryParse(getGlobalVariable(name).toString()) ?? 0;
+        final next = current + 1;
+        setGlobalVariable(name, next.toString());
+        return next.toString();
+      },
+    );
+
+    // {{decglobalvar::name}}
+    result = result.replaceAllMapped(
+      RegExp(r'{{decglobalvar::([^}]+)}}', caseSensitive: false),
+      (match) {
+        final name = match.group(1)!.trim();
+        final current = int.tryParse(getGlobalVariable(name).toString()) ?? 0;
+        final next = current - 1;
+        setGlobalVariable(name, next.toString());
+        return next.toString();
+      },
+    );
+
+    // {{getglobalvar::name}}
+    result = result.replaceAllMapped(
+      RegExp(r'{{getglobalvar::([^}]+)}}', caseSensitive: false),
+      (match) => getGlobalVariable(match.group(1)!.trim()).toString(),
     );
 
     return result;

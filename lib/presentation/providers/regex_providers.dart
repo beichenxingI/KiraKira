@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:kirakira/data/models/regex_script.dart';
 import 'package:kirakira/domain/services/regex_service.dart';
+import 'package:kirakira/presentation/providers/character_providers.dart';
+import 'package:kirakira/data/repositories/character_repository.dart';
 
 const _uuid = Uuid();
 
@@ -126,6 +128,15 @@ class GlobalRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
   String exportScripts() {
     return jsonEncode(state.map((s) => s.toJson()).toList());
   }
+  /// Enable only the scripts with the given IDs, disable all others
+  Future<void> setActiveScripts(List<String> activeIds) async {
+    final activeSet = activeIds.toSet();
+    state = state.map((s) => s.copyWith(
+      disabled: !activeSet.contains(s.id),
+      updatedAt: DateTime.now(),
+    )).toList();
+    await _saveScripts();
+  }
 
   /// Add preset scripts
   Future<void> addPresets() async {
@@ -148,27 +159,29 @@ class GlobalRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
 
 /// Provider for character-specific regex scripts
 final characterRegexScriptsProvider = StateNotifierProvider.family<CharacterRegexScriptsNotifier, List<RegexScript>, String>((ref, characterId) {
-  return CharacterRegexScriptsNotifier(characterId);
+  return CharacterRegexScriptsNotifier(characterId, ref);
 });
 
 /// Notifier for managing character-specific regex scripts
+/// 数据内嵌于 character.extensions['regex_scripts']，跟随角色卡存储
 class CharacterRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
   final String characterId;
-  
-  CharacterRegexScriptsNotifier(this.characterId) : super([]) {
+  final Ref _ref;
+
+  CharacterRegexScriptsNotifier(this.characterId, this._ref) : super([]) {
     _loadScripts();
   }
 
-  String get _storageKey => 'character_regex_scripts_$characterId';
-
   Future<void> _loadScripts() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString(_storageKey);
-      if (jsonStr != null) {
-        final decoded = jsonDecode(jsonStr);
-        if (decoded is List) {
-          state = decoded.map((e) => RegexScript.fromJson(e as Map<String, dynamic>)).toList();
+      final repo = _ref.read(characterRepositoryProvider);
+      final character = await repo.getCharacter(characterId);
+      if (character != null) {
+        final rawList = character.extensions['regex_scripts'];
+        if (rawList is List) {
+          state = rawList
+              .map((e) => RegexScript.fromJson(e as Map<String, dynamic>))
+              .toList();
         }
       }
     } catch (e) {
@@ -178,9 +191,14 @@ class CharacterRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
 
   Future<void> _saveScripts() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final json = jsonEncode(state.map((s) => s.toJson()).toList());
-      await prefs.setString(_storageKey, json);
+      final repo = _ref.read(characterRepositoryProvider);
+      final character = await repo.getCharacter(characterId);
+      if (character == null) return;
+      final updatedExtensions = Map<String, dynamic>.from(character.extensions)
+        ..['regex_scripts'] = state.map((s) => s.toJson()).toList();
+      await _ref.read(characterListProvider.notifier).updateCharacter(
+            character.copyWith(extensions: updatedExtensions),
+          );
     } catch (e) {
       print('Error saving character regex scripts: $e');
     }
@@ -380,6 +398,7 @@ RegexScript createRegexScript({
   bool promptOnly = false,
   bool runOnEdit = false,
   SubstituteRegex substituteRegex = SubstituteRegex.none,
+  List<String> trimStrings = const [],
   int? minDepth,
   int? maxDepth,
   String? characterId,
@@ -392,6 +411,7 @@ RegexScript createRegexScript({
     findRegex: findRegex,
     replaceString: replaceString,
     placement: placement,
+    trimStrings: trimStrings,
     scriptType: scriptType,
     markdownOnly: markdownOnly,
     promptOnly: promptOnly,

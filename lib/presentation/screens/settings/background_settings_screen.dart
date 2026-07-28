@@ -10,6 +10,7 @@ import '../../providers/background_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/chat/chat_background_widget.dart';
+import '../../providers/quote_color_providers.dart';
 
 /// Screen for managing chat backgrounds
 class BackgroundSettingsScreen extends ConsumerStatefulWidget {
@@ -75,6 +76,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
           if (!isCharacterSpecific) ...[
             _buildCharacterAvatarSetting(),
             const SizedBox(height: 24),
+          _buildQuoteColorCard(),
           ],
           
           // Preview
@@ -215,6 +217,121 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
     );
   }
 
+  // ── 对话染色设置 ──
+  Widget _buildQuoteColorCard() {
+    final state = ref.watch(quoteColorStateProvider);
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.darkCard,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.format_quote, color: AppTheme.accentColor),
+              SizedBox(width: 8),
+              Text('对话染色',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text('引号、括号内文字的高亮颜色',
+              style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+          const SizedBox(height: 12),
+          // 引号主色
+          _quoteColorRow(
+            '引号 " " 「」 『』 【】 《》',
+            state.primaryA,
+            (c) => ref.read(quoteColorStateProvider.notifier).setPrimaryA(c),
+          ),
+          const SizedBox(height: 8),
+          // 括号主色
+          _quoteColorRow(
+            '括号 （ ） ( )',
+            state.primaryB,
+            (c) => ref.read(quoteColorStateProvider.notifier).setPrimaryB(c),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () =>
+                  ref.read(quoteColorStateProvider.notifier).resetAll(),
+              icon: const Icon(Icons.restart_alt, size: 18),
+              label: const Text('恢复默认'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quoteColorRow(String label, Color current, void Function(Color) onPick) {
+    return Row(
+      children: [
+        Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
+        GestureDetector(
+          onTap: () => _showQuoteColorPicker(current, onPick),
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: current,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white24),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showQuoteColorPicker(Color current, void Function(Color) onPick) {
+    // 预设色板：暖色/冷色各若干，覆盖常用染色需求
+    const palette = [
+      0xFFFFA726, 0xFFFF7043, 0xFFEF5350, 0xFFEC407A, // 暖
+      0xFFAB47BC, 0xFF7E57C2, 0xFF5C6BC0, 0xFF29B6F6, // 紫蓝
+      0xFF26C6DA, 0xFF26A69A, 0xFF66BB6A, 0xFF9CCC65, // 青绿
+      0xFFFFEE58, 0xFFBDBDBD, 0xFFFFFFFF, 0xFF90A4AE, // 黄灰白
+    ];
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.darkCard,
+        title: const Text('选择颜色'),
+        content: Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: palette.map((v) {
+            final c = Color(v);
+            final selected = c.value == current.value;
+            return GestureDetector(
+              onTap: () {
+                onPick(c);
+                Navigator.pop(ctx);
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: c,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: selected ? Colors.white : Colors.white24,
+                    width: selected ? 3 : 1,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
   Widget _buildPreviewSection() {
     return Card(
       clipBehavior: Clip.antiAlias,

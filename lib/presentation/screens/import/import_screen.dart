@@ -8,12 +8,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/data/models/world_info.dart';
-import 'package:kirakira/data/repositories/world_info_repository.dart';
+import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/domain/services/url_import_service.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 /// Import service provider
 final importServiceProvider = Provider<ImportService>((ref) {
@@ -122,28 +124,41 @@ class ImportNotifier extends StateNotifier<ImportState> {
     }
   }
 
-  /// Pick character card image from photo gallery (for mobile)
-  Future<void> pickFromGallery() async {
-    try {
-      state = state.copyWith(isLoading: true, error: null);
-      
-      final List<XFile> images = await _imagePicker.pickMultiImage(
-        maxWidth: 4096,
-        maxHeight: 4096,
-      );
-
-      if (images.isNotEmpty) {
-        await loadFiles(images.map((img) => img.path).toList());
-      } else {
-        state = state.copyWith(isLoading: false);
+      /// Pick character card image from photo gallery (for mobile)
+      Future<void> pickFromGallery() async {
+        try {
+          state = state.copyWith(isLoading: true, error: null);
+    
+          // 不加 maxWidth/maxHeight：否则 image_picker 会重编码图片，
+          // 剥离 PNG 里嵌入的角色卡元数据，导致导入失败。
+          final List<XFile> images = await _imagePicker.pickMultiImage();
+    
+          if (images.isEmpty) {
+            state = state.copyWith(isLoading: false);
+            return;
+          }
+    
+          // XFile 可能是 content:// URI，用 readAsBytes 拿原始字节，
+          // 写到临时文件后再走统一的 path 导入流程。
+          final tmpDir = await getTemporaryDirectory();
+          final paths = <String>[];
+          for (final img in images) {
+            final bytes = await img.readAsBytes();
+            var name = img.name;
+            if (!name.toLowerCase().endsWith('.png')) name = '$name.png';
+            final f = File(p.join(tmpDir.path,
+                '${DateTime.now().microsecondsSinceEpoch}_$name'));
+            await f.writeAsBytes(bytes);
+            paths.add(f.path);
+          }
+          await loadFiles(paths);
+        } catch (e) {
+          state = state.copyWith(
+            isLoading: false,
+            error: 'Failed to pick from gallery: $e',
+          );
+        }
       }
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Failed to pick from gallery: $e',
-      );
-    }
-  }
 
   Future<void> loadFiles(List<String> paths) async {
     if (paths.isEmpty) return;
@@ -390,6 +405,14 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
 
       // Clear and go back if any successful
       if (successCount > 0) {
+      // Clear and go back if any successful
+      if (successCount > 0) {
+        // 导入直接写库,但 characterWorldInfosProvider 有缓存,
+        // 不失效编辑页要重启才看得到新世界书,这里强制整个 family 失效。
+        ref.invalidate(characterWorldInfosProvider);
+        ref.read(importStateProvider.notifier).clear();
+        context.pop();
+      }
         ref.read(importStateProvider.notifier).clear();
         context.pop();
       }

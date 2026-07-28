@@ -2,10 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kirakira/data/models/vector_storage.dart';
 import 'package:kirakira/domain/services/vector_storage_service.dart';
+import 'package:kirakira/domain/services/embedding_service.dart';
 
 /// Provider for VectorStorageService
 final vectorStorageServiceProvider = Provider<VectorStorageService>((ref) {
   return VectorStorageService();
+});
+ /// Provider for EmbeddingService（文字→向量引擎）
+final embeddingServiceProvider = Provider<EmbeddingService>((ref) {
+  return EmbeddingService();
 });
 
 /// Provider for vector storage settings
@@ -98,6 +103,18 @@ class VectorStorageSettingsNotifier extends StateNotifier<VectorStorageSettings>
     _saveSettings();
   }
 
+  /// Set embedding API key
+  void setEmbeddingApiKey(String key) {
+    state = state.copyWith(embeddingApiKey: key);
+    _saveSettings();
+  }
+
+  /// Set embedding API URL (endpoint base，如 https://api.openai.com/v1)
+  void setEmbeddingApiUrl(String url) {
+    state = state.copyWith(embeddingApiUrl: url);
+    _saveSettings();
+  }
+
   /// Reset to defaults
   void resetToDefaults() {
     state = const VectorStorageSettings();
@@ -109,14 +126,15 @@ class VectorStorageSettingsNotifier extends StateNotifier<VectorStorageSettings>
 final vectorCollectionsProvider =
     StateNotifierProvider<VectorCollectionsNotifier, List<VectorCollection>>((ref) {
   final service = ref.watch(vectorStorageServiceProvider);
-  return VectorCollectionsNotifier(service);
+  return VectorCollectionsNotifier(service, ref);
 });
 
 /// Notifier for managing collections
 class VectorCollectionsNotifier extends StateNotifier<List<VectorCollection>> {
   final VectorStorageService _service;
+  final Ref _ref;
 
-  VectorCollectionsNotifier(this._service) : super([]) {
+  VectorCollectionsNotifier(this._service, this._ref) : super([]) {
     _loadCollections();
   }
 
@@ -152,16 +170,24 @@ class VectorCollectionsNotifier extends StateNotifier<List<VectorCollection>> {
   }
 
   /// Add document to collection
-  VectorDocument addDocument({
+  /// 添加文档：若未传入向量，自动调用 embedding 引擎生成后入库。
+  Future<VectorDocument> addDocument({
     required String collectionId,
     required String content,
     List<double>? embedding,
     Map<String, dynamic>? metadata,
-  }) {
+  }) async {
+    // 没有现成向量就现场生成（文字 → 向量）
+    var vec = embedding;
+    if (vec == null) {
+      final settings = _ref.read(vectorStorageSettingsProvider);
+      final embedder = _ref.read(embeddingServiceProvider);
+      vec = await embedder.generateEmbedding(content, settings);
+    }
     final doc = _service.addDocument(
       collectionId: collectionId,
       content: content,
-      embedding: embedding,
+      embedding: vec,
       metadata: metadata,
     );
     state = _service.collections;

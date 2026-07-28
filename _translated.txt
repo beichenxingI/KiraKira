@@ -1,0 +1,138 @@
+duplicate ||| 副本
+creating ||| 创建中...
+byCreator ||| 由 {creator} 创建
+embeddedLorebook ||| 内嵌世界书
+postHistoryInstructions ||| 历史后指令
+change ||| 更改
+instructTemplate ||| 指令模板
+llmConnection ||| LLM 连接
+fullControlOverSampling ||| 完全控制采样参数
+notSet ||| 未设置
+enterApiKey ||| 输入你的 API 密钥
+apiEndpointUrl ||| API 端点地址
+connected ||| 已连接
+newGroup ||| 新建群组
+supportsPngCharxJson ||| 支持 PNG、CharX 和 JSON 格式
+charxArchive ||| CharX 压缩包
+basicSampling ||| 基础采样
+temperatureDescription ||| 控制随机性。越高越有创意,越低越专注。
+tailFreeSamplingTfs ||| 无尾采样 (TFS)
+repetitionControl ||| 重复控制
+repetitionPenaltyRange ||| 重复惩罚范围
+off ||| 关闭
+mirostatTauDescription ||| 目标熵/困惑度。
+seed ||| 种子
+seedDescription ||| 用于可复现的随机种子。-1 = 随机。
+solidColors ||| 纯色
+adjustments ||| 调整
+fromUrl ||| 来自 URL
+blurEffect ||| 模糊效果
+blurAmount ||| 模糊程度
+guidanceScale ||| 引导系数
+aboutCfgScale ||| 关于 CFG Scale
+sampleMessage1 ||| 你好!最近怎么样?
+sampleMessage2 ||| 我很好!
+apiEndpoint ||| API 端点
+steps ||| 步数
+sampler ||| 采样器
+imagineCommand ||| /imagine 命令
+generating ||| 生成中...
+none ||| 无
+biasEntries ||| 偏置条目
+noBiasEntries ||| 暂无偏置条目
+textTokenHint ||| 单词、{verbatim} 或 [1234]
+bias ||| 偏置
+moreOptions ||| 更多选项
+noQuickReplies ||| 暂无快捷回复
+buttonLabelHint ||| 例如:是、继续、思考...
+leaveEmptyForContinue ||| 留空表示继续操作
+slashCommandsLabel ||| 斜杠命令
+patternFormat ||| 模式格式
+patternFormatDescription ||| 使用 /pattern/flags 格式(例如 /hello/gi)或纯文本模式。标志:i=忽略大小写,m=多行,s=点匹配全部
+pasteJsonArray ||| 粘贴脚本的 JSON 数组
+newScript ||| 新建脚本
+findPattern ||| 查找模式
+patternOrPlainPattern ||| /pattern/flags 或纯文本模式
+replaceWith ||| 替换为
+useCaptureGroups ||| 使用 \$1、\$2 表示捕获组
+options ||| 选项
+markdownOnly ||| 仅 Markdown
+patternLabel ||| 模式
+replacementLabel ||| 替换内容
+replacementHint ||| $1、$2、'{match}'
+display ||| 显示
+howItWorks ||| 工作原理
+supportedFormatsSprites ||| 支持的格式:PNG、JPG、GIF、WebP
+firstUsed ||| 首次使用
+unknown ||| 未知
+timeline ||| 时间线
+sttProvider ||| 语音识别服务商
+final_ ||| 最终
+aboutStt ||| 关于 STT
+tellMeAStory ||| 给我讲个故事吧!
+background ||| 背景
+surface ||| 表面
+card ||| 卡片
+hexColor ||| 十六进制颜色
+quickEstimate ||| 快速估算
+unique ||| 唯一
+avgLength ||| 平均长度
+longest ||| 最长
+translateAiResponses ||| 翻译 AI 回复
+readAiResponsesAloud ||| 朗读 AI 回复
+ttsProvider ||| 语音合成服务商
+pitch ||| 音调
+volume ||| 音量
+embeddingProvider ||| 嵌入向量服务商
+chunkOverlap ||| 分块重叠
+basic ||| 基础
+systemPromptHint ||| 你是 {char}。你将...
+postHistoryInstructionsHint ||| 以 {char} 的身份继续角色扮演...
+firstMessageHint ||| *走进房间* 你好,{user}!
+greeting ||| 问候语 {index}
+moveUp ||| 上移
+moveDown ||| 下移
+exampleMessagesHint ||| <START>\n{user}: 你好吗?\n{char}: 我很好,谢谢关心!
+tagsHint ||| 奇幻、女性、冒险
+creator ||| 创作者
+modified ||| 修改于: {date}
+sequential ||| 顺序
+random ||| 随机
+allAtOnce ||| 一次全部
+natural ||| 自然
+talkativenessPercent ||| 健谈度: {percent}%
+triggers ||| 触发词: {words}
+mute ||| 静音
+unmute ||| 取消静音
+talkativenessLabel ||| 健谈度: {percent}%
+triggerWords ||| 触发词
+triggerWordsHint ||| 词1、词2、词3
+noTagsYet ||| 暂无标签
+iconEmoji ||| 图标(表情符号)
+noLorebooksYet ||| 暂无世界书
+noEntriesYet ||| 暂无条目
+constant ||| 常驻
+secondaryKeysHint ||| 火、火焰
+noteForThisEntry ||| 此条目的备注
+pleaseEnterAtLeastOneKeyword ||| 请至少输入一个关键词
+streamResponse ||| 流式响应
+sortBy ||| 排序方式
+filterByTags ||| 按标签筛选
+favorites ||| 收藏
+manage ||| 管理
+done ||| 完成
+injectionDepth ||| 注入深度
+branchFromBookmark ||| 从书签分支
+branch ||| 分支
+branchFromHere ||| 从此处分支
+you ||| 你
+assistant ||| 助手
+reasoningCopiedToClipboard ||| 推理内容已复制到剪贴板
+commands ||| 命令
+aliasesLabel ||| 别名: {aliases}
+beforeAuthorNote ||| 作者注释之前
+afterAuthorNote ||| 作者注释之后
+atDepth ||| 深度
+insertionOrder ||| 插入顺序
+lowerOrderInsertsFirst ||| 数值越小越先插入
+requiresSecondaryKey ||| 需同时匹配主关键词和次关键词

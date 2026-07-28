@@ -1,6 +1,6 @@
-﻿
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../data/models/instruct_template.dart';
@@ -9,9 +9,15 @@ import '../../../domain/services/region_service.dart';
 import '../../providers/ai_preset_providers.dart';
 import '../../providers/instruct_providers.dart';
 import '../../providers/settings_providers.dart';
+import '../../providers/fingerprint_providers.dart';
+import 'fingerprint_result_widget.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import '../../providers/llm_configs_provider.dart';
+import 'package:drift/drift.dart' as drift;
+import '../../../data/database/database.dart';
+import 'package:kirakira/presentation/widgets/common/kira_components.dart';
 
 /// Provider for China region detection
 final isChinaRegionProvider = FutureProvider<bool>((ref) async {
@@ -39,6 +45,8 @@ class AIConfigScreen extends ConsumerWidget {
       ),
       body: ListView(
         children: [
+          const QuickSetupCard(),
+          const _ConnectionStatusCard(),
           // Active Preset Banner
           if (activePreset != null)
             Container(
@@ -47,13 +55,13 @@ class AIConfigScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppTheme.primaryColor.withValues(alpha: 0.2),
-                    AppTheme.accentColor.withValues(alpha: 0.1),
+                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                    Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.08),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
                 ),
               ),
               child: Row(
@@ -62,7 +70,7 @@ class AIConfigScreen extends ConsumerWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor,
+                    color: Theme.of(context).colorScheme.primary,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -77,9 +85,9 @@ class AIConfigScreen extends ConsumerWidget {
                       children: [
                         Text(
                           AppLocalizations.of(context)!.activePreset,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppTheme.textMuted,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
                         Text(
@@ -100,44 +108,78 @@ class AIConfigScreen extends ConsumerWidget {
               ),
             ),
 
-          _buildSectionHeader(context, AppLocalizations.of(context)!.presetsAndTemplates),
-          ListTile(
-            leading: const Icon(Icons.auto_awesome),
-            title: Text(AppLocalizations.of(context)!.aiPresets),
-            subtitle: Text(activePreset?.name ?? AppLocalizations.of(context)!.noPresetSelected),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.aiPresets),
-          ),
-          const _InstructTemplateTile(),
-          ListTile(
-            leading: const Icon(Icons.reorder),
-            title: Text(AppLocalizations.of(context)!.promptManager),
-            subtitle: Text(AppLocalizations.of(context)!.orderAndTogglePromptSections),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.promptManager),
-          ),
+          // 一张大卡，三个小区
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            child: KiraCard(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── 预设与模板 ──
+                  KiraSection(
+                    title: AppLocalizations.of(context)!.presetsAndTemplates,
+                    children: [
+                      KiraListTile(
+                        icon: Icons.auto_awesome,
+                        title: AppLocalizations.of(context)!.aiPresets,
+                        subtitle: activePreset?.name ?? AppLocalizations.of(context)!.noPresetSelected,
+                        onTap: () => context.push(AppRoutes.aiPresets),
+                      ),
+                      const _InstructTemplateTile(),
+                      KiraListTile(
+                        icon: Icons.reorder,
+                        title: AppLocalizations.of(context)!.promptManager,
+                        subtitle: AppLocalizations.of(context)!.orderAndTogglePromptSections,
+                        onTap: () => context.push(AppRoutes.promptManager),
+                      ),
+                    ],
+                  ),
 
-          const Divider(height: 32),
-          _buildSectionHeader(context, AppLocalizations.of(context)!.llmConnection),
-          const _LLMProviderTile(),
-          const _ApiKeyTile(),
-          const _ApiUrlTile(),
-          const _ModelTile(),
-          const _ConnectionTestTile(),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
 
-          const Divider(height: 32),
-          _buildSectionHeader(context, AppLocalizations.of(context)!.generationSettings),
-          const _ContextLengthTile(),
-          const _MaxTokensTile(),
-          const _TemperatureTile(),
-          const _TopPTile(),
-          const _StreamingTile(),
-          ListTile(
-            leading: const Icon(Icons.tune),
-            title: Text(AppLocalizations.of(context)!.advancedSamplerSettings),
-            subtitle: Text(AppLocalizations.of(context)!.fullControlOverSampling),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(AppRoutes.advancedSettings),
+                  // ── LLM 连接 ──
+                  KiraSection(
+                    title: AppLocalizations.of(context)!.llmConnection,
+                    children: [
+                      const _ConnectionTestTile(),
+                      KiraListTile(
+                        icon: Icons.fingerprint_rounded,
+                        title: '极客Probe',
+                        subtitle: '模型深度检测',
+                        onTap: () => context.push(AppRoutes.modelDetection),
+                      ),
+                      KiraListTile(
+                        icon: Icons.public,
+                        title: '全局世界书',
+                        subtitle: '对所有角色生效的世界书',
+                        onTap: () => context.push('/world-info?isGlobal=true'),
+                      ),
+                    ],
+                  ),
+
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+
+                  // ── 生成设置 ──
+                  KiraSection(
+                    title: AppLocalizations.of(context)!.generationSettings,
+                    children: [
+                      const _ContextLengthTile(),
+                      const _MaxTokensTile(),
+                      const _TemperatureTile(),
+                      const _TopPTile(),
+                      const _StreamingTile(),
+                      KiraListTile(
+                        icon: Icons.tune,
+                        title: AppLocalizations.of(context)!.advancedSamplerSettings,
+                        subtitle: AppLocalizations.of(context)!.fullControlOverSampling,
+                        onTap: () => context.push(AppRoutes.advancedSettings),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
 
           const SizedBox(height: 32),
@@ -1194,6 +1236,686 @@ class _ModelSelectionSheetState extends State<_ModelSelectionSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+class _ConnectionStatusCard extends ConsumerWidget {
+  const _ConnectionStatusCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final config = ref.watch(llmConfigProvider);
+    final metrics = ref.watch(connectionMetricsProvider);
+
+    final Color dotColor;
+    final String statusText;
+    switch (metrics.status) {
+      case MetricsStatus.success:
+        dotColor = const Color(0xFF34C759);
+        statusText = '已连接';
+        break;
+      case MetricsStatus.measuring:
+        dotColor = const Color(0xFFFF9F0A);
+        statusText = '测试中';
+        break;
+      case MetricsStatus.error:
+        dotColor = const Color(0xFFFF453A);
+        statusText = '连接失败';
+        break;
+      case MetricsStatus.idle:
+        dotColor = const Color(0xFF8E8E93);
+        statusText = '未测试';
+        break;
+    }
+
+    final modelText = (config.model == null || config.model!.isEmpty)
+        ? '未选择模型'
+        : config.model!;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: GestureDetector(
+        onTap: () => context.push(AppRoutes.llmConfigList),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: ShapeDecoration(
+            color: Theme.of(context).cardColor,
+            shape: SmoothRectangleBorder(
+              side: BorderSide(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Theme.of(context).dividerColor.withValues(alpha: 0.5),
+                width: 0.8,
+              ),
+              borderRadius: SmoothBorderRadius(
+                cornerRadius: 24,
+                cornerSmoothing: 1.0,
+              ),
+            ),
+            shadows: Theme.of(context).brightness == Brightness.dark
+                ? const []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 24,
+                      spreadRadius: -4,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    statusText,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                  const Spacer(),
+                  Flexible(
+                    child: Text(
+                      config.provider.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.chevron_right,
+                      size: 20,
+                      color: Theme.of(context).textTheme.bodySmall?.color),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$modelText  ${config.apiUrl}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.color
+                        ?.withValues(alpha: 0.7)),
+              ),
+              const SizedBox(height: 14),
+              Divider(
+                  height: 1,
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  _MetricCell(
+                    label: '首Token',
+                    value: metrics.ttftMs != null ? '${metrics.ttftMs}ms' : '—',
+                  ),
+                  _MetricCell(
+                    label: '速率',
+                    value: metrics.charsPerSec != null
+                        ? '${metrics.charsPerSec!.toStringAsFixed(1)}字/s'
+                        : '—',
+                  ),
+                  _MetricCell(
+                    label: '稳定性',
+                    value: metrics.stabilityStatus == MetricsStatus.measuring
+                        ? '检测中'
+                        : (metrics.stabilityRating ?? '—'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: metrics.status == MetricsStatus.measuring
+                    ? null
+                    : () => ref
+                        .read(connectionMetricsProvider.notifier)
+                        .measure(config),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    metrics.status == MetricsStatus.measuring ? '测试中…' : '测试连接',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: metrics.stabilityStatus == MetricsStatus.measuring
+                    ? null
+                    : () => ref
+                        .read(connectionMetricsProvider.notifier)
+                        .measureStability(config),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.4),
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    metrics.stabilityStatus == MetricsStatus.measuring
+                        ? '深度检测中…'
+                        : '深度检测（3次采样）',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '深度检测会发送 3 次测试消息，消耗少量额度',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).textTheme.bodySmall?.color),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+class _MetricCell extends StatelessWidget {
+  final String label;
+  final String value;
+  const _MetricCell({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).textTheme.bodyLarge?.color),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).textTheme.bodySmall?.color),
+          ),
+        ],
+      ),
+    );
+  }
+}
+/// ══════════════════════════════════════════════════════════
+/// 快速接入卡片
+/// 面向新手：填 API 地址 + 密钥 → 一键拉取模型 → 下拉选择 → 立即可用。
+/// 直接读写 llmConfig（聊天实际使用的配置），每次修改自动持久化，
+/// 无需再去"多方案"里新建预设。高级用户仍可使用下方的预设系统。
+/// ══════════════════════════════════════════════════════════
+class QuickSetupCard extends ConsumerStatefulWidget {
+  const QuickSetupCard({super.key});
+
+  @override
+  ConsumerState<QuickSetupCard> createState() => _QuickSetupCardState();
+}
+
+class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
+  late final TextEditingController _urlController;
+  late final TextEditingController _keyController;
+  bool _obscureKey = true; // API 密钥默认遮罩
+
+  @override
+  void initState() {
+    super.initState();
+    // 用当前已保存的配置初始化输入框
+    final config = ref.read(llmConfigProvider);
+    _urlController = TextEditingController(text: config.apiUrl);
+    _keyController = TextEditingController(text: config.apiKey);
+  }
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    _keyController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final config = ref.watch(llmConfigProvider);
+    final fetchState = ref.watch(modelFetchProvider);
+    final isLoading = fetchState.status == ModelFetchStatus.loading;
+
+    // 监听拉取结果：成功弹出模型选择，失败提示错误
+    ref.listen<ModelFetchState>(modelFetchProvider, (prev, next) {
+      if (next.status == ModelFetchStatus.success && next.models.isNotEmpty) {
+        _showModelPicker(next.models);
+      } else if (next.status == ModelFetchStatus.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('拉取模型失败：${next.errorMessage ?? "请检查地址和密钥"}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    });
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题 + 引导语
+          Row(
+            children: [
+              Icon(Icons.rocket_launch, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              const Text('快速接入',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '填入 API 地址和密钥，点击"拉取模型"即可开始使用。',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+
+          // ── 快速切换 LLM 方案 ──
+          // 读取已保存的多套 API 配置，下拉即可切换当前使用的方案。
+          // 仅当保存了至少一套方案时才显示。
+          Builder(builder: (context) {
+            final llmState = ref.watch(llmConfigsProvider);
+            final configs = llmState.configs;
+            final activeId = llmState.active?.id;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                children: [
+                  if (configs.isNotEmpty)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InputDecorator(
+                            decoration: const InputDecoration(
+                              labelText: '当前方案',
+                              prefixIcon: Icon(Icons.swap_horiz),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                isExpanded: true,
+                                value: configs.any((c) => c.id == activeId)
+                                    ? activeId
+                                    : null,
+                                hint: const Text('选择方案'),
+                                items: configs
+                                    .map((c) => DropdownMenuItem(
+                                          value: c.id,
+                                          child: Text(
+                                            c.name.isEmpty
+                                                ? '未命名方案'
+                                                : c.name,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ))
+                                    .toList(),
+                                onChanged: (id) {
+                                  if (id == null) return;
+                                  ref
+                                      .read(llmConfigsProvider.notifier)
+                                      .setActive(id);
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon:
+                              const Icon(Icons.drive_file_rename_outline),
+                          tooltip: '重命名当前方案',
+                          onPressed: _renameActiveConfig,
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _saveAsNewConfig,
+                      icon: const Icon(Icons.add),
+                      label: const Text('把当前配置保存为新方案'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          // 接口类型选择（大多数第三方中转选"OpenAI 兼容"）
+          _buildProviderSelector(config),
+          const SizedBox(height: 12),
+
+          // API 地址
+          TextField(
+            controller: _urlController,
+            decoration: const InputDecoration(
+              labelText: 'API 地址',
+              hintText: 'https://api.openai.com/v1',
+              prefixIcon: Icon(Icons.link),
+            ),
+            // 失焦即保存
+            onChanged: (v) =>
+                ref.read(llmConfigProvider.notifier).updateApiUrl(v.trim()),
+          ),
+          const SizedBox(height: 12),
+
+          // API 密钥
+          TextField(
+            controller: _keyController,
+            obscureText: _obscureKey,
+            decoration: InputDecoration(
+              labelText: 'API 密钥',
+              hintText: 'sk-...',
+              prefixIcon: const Icon(Icons.key),
+              suffixIcon: IconButton(
+                icon: Icon(
+                    _obscureKey ? Icons.visibility : Icons.visibility_off),
+                onPressed: () => setState(() => _obscureKey = !_obscureKey),
+              ),
+            ),
+            onChanged: (v) =>
+                ref.read(llmConfigProvider.notifier).updateApiKey(v.trim()),
+          ),
+          const SizedBox(height: 12),
+
+          // 当前选中的模型显示
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.memory, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    config.model.isEmpty ? '尚未选择模型' : config.model,
+                    style: TextStyle(
+                      color: config.model.isEmpty
+                          ? theme.textTheme.bodySmall?.color
+                          : null,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 拉取模型按钮（核心动作）
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: isLoading
+                  ? null
+                  : () {
+                      // 先确保输入框内容已写入配置，再拉取
+                      final notifier = ref.read(llmConfigProvider.notifier);
+                      notifier.updateApiUrl(_urlController.text.trim());
+                      notifier.updateApiKey(_keyController.text.trim());
+                      final latest = ref.read(llmConfigProvider);
+                      ref
+                          .read(modelFetchProvider.notifier)
+                          .fetchModels(latest);
+                    },
+              icon: isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download),
+              label: Text(isLoading ? '正在拉取模型…' : '拉取模型并选择'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 接口类型下拉：默认 OpenAI 兼容，覆盖绝大多数第三方中转 API。
+  Widget _buildProviderSelector(LLMConfig config) {
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: '接口类型',
+        prefixIcon: Icon(Icons.hub),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<LLMProvider>(
+          isExpanded: true,
+          value: config.provider,
+          items: const [
+            DropdownMenuItem(
+              value: LLMProvider.openAICompatible,
+              child: Text('OpenAI 兼容（推荐，多数中转选这个）'),
+            ),
+            DropdownMenuItem(
+                value: LLMProvider.openai, child: Text('OpenAI 官方')),
+            DropdownMenuItem(
+                value: LLMProvider.claude, child: Text('Claude')),
+            DropdownMenuItem(
+                value: LLMProvider.gemini, child: Text('Gemini')),
+            DropdownMenuItem(
+                value: LLMProvider.deepSeek, child: Text('DeepSeek')),
+            DropdownMenuItem(value: LLMProvider.qwen, child: Text('通义千问')),
+            DropdownMenuItem(
+                value: LLMProvider.ollama, child: Text('Ollama（本地）')),
+          ],
+          onChanged: (v) {
+            if (v != null) {
+              ref.read(llmConfigProvider.notifier).updateProvider(v);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  /// 弹出底部面板，展示拉取到的模型列表供选择。
+  void _showModelPicker(List<String> models) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final current = ref.read(llmConfigProvider).model;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('选择模型',
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: models.length,
+                  itemBuilder: (_, i) {
+                    final m = models[i];
+                    return ListTile(
+                      title: Text(m),
+                      trailing: m == current
+                          ? const Icon(Icons.check, color: Colors.green)
+                          : null,
+                      onTap: () {
+                        ref.read(llmConfigProvider.notifier).updateModel(m);
+                        Navigator.pop(ctx);
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 把当前填写的配置保存为一套新的 LLM 方案。
+  void _saveAsNewConfig() {
+    final nameController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('保存为新方案'),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: '方案名称',
+            hintText: '例如：我的中转站',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              final config = ref.read(llmConfigProvider);
+              final now = DateTime.now();
+              final id = now.millisecondsSinceEpoch.toString();
+              final companion = LlmConfigsCompanion(
+                id: drift.Value(id),
+                name: drift.Value(name.isEmpty ? '未命名方案' : name),
+                provider: drift.Value(config.provider.name),
+                endpoint: drift.Value(config.apiUrl),
+                apiKey: drift.Value(config.apiKey),
+                model: drift.Value(
+                    config.model.isEmpty ? null : config.model),
+                createdAt: drift.Value(now),
+                modifiedAt: drift.Value(now),
+              );
+              await ref
+                  .read(llmConfigsProvider.notifier)
+                  .upsert(companion);
+              await ref.read(llmConfigsProvider.notifier).setActive(id);
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 给当前选中的方案改名。
+  void _renameActiveConfig() {
+    final state = ref.read(llmConfigsProvider);
+    final active = state.active;
+    if (active == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先选择一个方案')),
+      );
+      return;
+    }
+    final nameController = TextEditingController(text: active.name);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重命名方案'),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: '方案名称'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              final companion = LlmConfigsCompanion(
+                id: drift.Value(active.id),
+                name: drift.Value(name.isEmpty ? '未命名方案' : name),
+                provider: drift.Value(active.provider),
+                endpoint: drift.Value(active.endpoint),
+                apiKey: drift.Value(active.apiKey),
+                model: drift.Value(active.model),
+                createdAt: drift.Value(active.createdAt),
+                modifiedAt: drift.Value(DateTime.now()),
+              );
+              await ref
+                  .read(llmConfigsProvider.notifier)
+                  .upsert(companion);
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('保存'),
+          ),
+        ],
       ),
     );
   }

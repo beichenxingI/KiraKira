@@ -18,9 +18,7 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
+# VS Code
 #.vscode/
 
 # Flutter/Dart/Pub related
@@ -39,22 +37,31 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android 构建生成物（只忽略生成物，不忽略整个 android 目录）
 /android/app/debug
 /android/app/profile
 /android/app/release
-ios
-ios_*
-android
-web
-test
-macos
-linux
-windows
-release
+/android/.gradle/
+/android/local.properties
+
+# iOS 构建生成物
+/ios/Flutter/App.framework
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+/ios/Pods/
+/ios/.symlinks/
+
+# 桌面端构建生成物
+/windows/flutter/ephemeral/
+/linux/flutter/ephemeral/
+/macos/Flutter/ephemeral/
+/macos/Pods/
+
+# ── 签名密钥与敏感文件（严禁提交到版本控制）──
+android/key.properties
+android/app/release.keystore
+android/app/upload-keystore.jks
+*.jks
+*.keystore
+*.pem
 .env
-build_*
-resize_app_store_images.py
-config
-assets_for_discord
-scripts

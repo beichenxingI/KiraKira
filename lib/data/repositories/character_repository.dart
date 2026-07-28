@@ -101,11 +101,10 @@ class CharacterRepository {
     return updatedCharacter;
   }
 
-  /// Create a new character
   Future<models.Character> createCharacter(models.Character character) async {
     final id = character.id.isEmpty ? _uuid.v4() : character.id;
     final now = DateTime.now();
-    
+
     final newCharacter = character.copyWith(
       id: id,
       createdAt: now,
@@ -113,6 +112,7 @@ class CharacterRepository {
     );
 
     await _db.into(_db.characters).insert(_characterToCompanion(newCharacter));
+
     return newCharacter;
   }
 

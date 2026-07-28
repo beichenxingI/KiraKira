@@ -205,12 +205,18 @@ class RegexScript {
       trimStrings: (json['trimStrings'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList() ?? [],
-      placement: (json['placement'] as List<dynamic>?)
-          ?.map((e) => RegexPlacement.values.firstWhere(
-                (p) => p.name == e,
-                orElse: () => RegexPlacement.aiOutput,
-              ))
-          .toList() ?? [RegexPlacement.aiOutput],
+      placement: (() {
+        final parsed = (json['placement'] as List<dynamic>?)
+            ?.map((e) => RegexPlacement.values.firstWhere(
+                  (p) => p.name == e,
+                  orElse: () => RegexPlacement.aiOutput,
+                ))
+            .toList();
+        // 空(null 或空数组)时默认：用户消息 + 角色消息
+        return (parsed == null || parsed.isEmpty)
+            ? const [RegexPlacement.userInput, RegexPlacement.aiOutput]
+            : parsed;
+      })(),
       scriptType: RegexScriptType.values.firstWhere(
         (t) => t.name == json['scriptType'],
         orElse: () => RegexScriptType.global,
@@ -233,6 +239,56 @@ class RegexScript {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : DateTime.now(),
+    );
+  }
+
+  /// Create from SillyTavern regex_scripts format
+  factory RegexScript.fromSillyTavernJson(Map<String, dynamic> json, {String? newId}) {
+    // Map SillyTavern placement values to our enum
+    List<RegexPlacement> parsePlacement(dynamic raw) {
+      // 默认：没有有效 placement 时，对用户消息 + 角色消息生效
+      const fallback = [RegexPlacement.userInput, RegexPlacement.aiOutput];
+      if (raw == null) return fallback;
+      final list = raw is List ? raw : [raw];
+      final parsed = list.map<RegexPlacement>((e) {
+        switch (e.toString()) {
+          case '0': return RegexPlacement.userInput;
+          case '1': return RegexPlacement.aiOutput;
+          case '2': return RegexPlacement.slashCommand;
+          case '3': return RegexPlacement.worldInfo;
+          case '4': return RegexPlacement.reasoning;
+          default:  return RegexPlacement.aiOutput;
+        }
+      }).toList();
+      // 空数组也走默认
+      return parsed.isEmpty ? fallback : parsed;
+    }
+
+    return RegexScript(
+      id: newId ?? (json['id'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString()),
+      scriptName: json['scriptName'] as String? ?? json['script_name'] as String? ?? 'Imported Script',
+      description: json['description'] as String?,
+      disabled: json['disabled'] as bool? ?? false,
+      findRegex: json['findRegex'] as String? ?? json['find_regex'] as String? ?? '',
+      replaceString: json['replaceString'] as String? ?? json['replace_string'] as String? ?? '',
+      trimStrings: (json['trimStrings'] as List<dynamic>? ?? json['trim_strings'] as List<dynamic>?)
+              ?.map((e) => e as String).toList() ?? [],
+      placement: parsePlacement(json['placement']),
+      scriptType: RegexScriptType.global,
+      markdownOnly: json['markdownOnly'] as bool? ?? json['markdown_only'] as bool? ?? false,
+      promptOnly: json['promptOnly'] as bool? ?? json['prompt_only'] as bool? ?? false,
+      runOnEdit: json['runOnEdit'] as bool? ?? json['run_on_edit'] as bool? ?? false,
+      substituteRegex: SubstituteRegex.values.firstWhere(
+        (s) => s.name == json['substituteRegex'],
+        orElse: () => SubstituteRegex.none,
+      ),
+      minDepth: json['minDepth'] as int? ?? json['min_depth'] as int?,
+      maxDepth: json['maxDepth'] as int? ?? json['max_depth'] as int?,
+      order: json['order'] as int? ?? 0,
+      characterId: null,
+      chatId: null,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
   }
 

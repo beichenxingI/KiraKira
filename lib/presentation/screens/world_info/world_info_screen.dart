@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
@@ -156,6 +156,9 @@ class WorldInfoScreen extends ConsumerWidget {
       builder: (context) => _WorldInfoDialog(
         ref: ref,
         title: AppLocalizations.of(context)!.createLorebook,
+        initialCharacterId: characterId,
+        initialIsGlobal: isGlobal,
+        lockToGlobal: isGlobal,
         onSave: (name, description, isGlobal, characterId) async {
           _log('Creating world info: name=$name, isGlobal=$isGlobal, characterId=$characterId');
           await ref.read(worldInfoNotifierProvider.notifier).createWorldInfo(
@@ -595,6 +598,7 @@ class _WorldInfoDialog extends StatefulWidget {
   final String? initialDescription;
   final bool initialIsGlobal;
   final String? initialCharacterId;
+  final bool lockToGlobal;
   final WidgetRef ref;
   final Future<void> Function(String name, String? description, bool isGlobal, String? characterId) onSave;
 
@@ -605,6 +609,7 @@ class _WorldInfoDialog extends StatefulWidget {
     this.initialDescription,
     this.initialIsGlobal = true,
     this.initialCharacterId,
+    this.lockToGlobal = false,
     required this.onSave,
   });
 
@@ -684,7 +689,7 @@ class _WorldInfoDialogState extends State<_WorldInfoDialog> {
               maxLines: 2,
             ),
             const SizedBox(height: 24),
-            
+
             // Scope selection
             Text(
               l10n.scope,
@@ -694,83 +699,102 @@ class _WorldInfoDialogState extends State<_WorldInfoDialog> {
               ),
             ),
             const SizedBox(height: 8),
-            
-            // Global scope option
-            RadioListTile<_WorldInfoScope>(
-              title: Text(l10n.globalScope),
-              subtitle: Text(l10n.applyToAllChats),
-              value: _WorldInfoScope.global,
-              groupValue: _scope,
-              onChanged: (value) => setState(() {
-                _scope = value!;
-                _selectedCharacterId = null;
-              }),
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-            ),
-            
-            // All characters option
-            RadioListTile<_WorldInfoScope>(
-              title: Text(l10n.allCharactersAvailable),
-              subtitle: Text(l10n.availableToAllCharactersNotGlobal),
-              value: _WorldInfoScope.allCharacters,
-              groupValue: _scope,
-              onChanged: (value) => setState(() {
-                _scope = value!;
-                _selectedCharacterId = null;
-              }),
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-            ),
-            
-            // Specific character option
-            RadioListTile<_WorldInfoScope>(
-              title: Text(l10n.specificCharacter),
-              subtitle: Text(l10n.linkToSpecificCharacter),
-              value: _WorldInfoScope.specificCharacter,
-              groupValue: _scope,
-              onChanged: (value) => setState(() {
-                _scope = value!;
-              }),
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-            ),
-            
-            // Character dropdown (when specific character is selected)
-            if (_scope == _WorldInfoScope.specificCharacter)
+
+            // 全局入口：锁定为全局，只显示只读说明
+            if (widget.lockToGlobal)
               Padding(
-                padding: const EdgeInsets.only(left: 16, top: 8),
-                child: charactersAsync.when(
-                  loading: () => const CircularProgressIndicator(),
-                  error: (error, stack) => Text('Error: $error'),
-                  data: (characters) {
-                    if (characters.isEmpty) {
-                      return Text(
-                        l10n.noCharactersAvailable,
-                        style: const TextStyle(color: Colors.grey),
-                      );
-                    }
-                    return DropdownButtonFormField<String>(
-                      value: _selectedCharacterId,
-                      decoration: InputDecoration(
-                        labelText: l10n.selectCharacter,
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      items: characters.map((char) {
-                        return DropdownMenuItem(
-                          value: char.id,
-                          child: Text(char.name),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() => _selectedCharacterId = value);
-                        _log('Selected character: $value');
-                      },
-                    );
-                  },
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.public, size: 20, color: AppTheme.accentColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      l10n.globalScope,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
                 ),
               ),
+
+            // 非锁定：显示完整三个作用域选项
+            if (!widget.lockToGlobal) ...[
+              // Global scope option
+              RadioListTile<_WorldInfoScope>(
+                title: Text(l10n.globalScope),
+                subtitle: Text(l10n.applyToAllChats),
+                value: _WorldInfoScope.global,
+                groupValue: _scope,
+                onChanged: (value) => setState(() {
+                  _scope = value!;
+                  _selectedCharacterId = null;
+                }),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+
+              // All characters option
+              RadioListTile<_WorldInfoScope>(
+                title: Text(l10n.allCharactersAvailable),
+                subtitle: Text(l10n.availableToAllCharactersNotGlobal),
+                value: _WorldInfoScope.allCharacters,
+                groupValue: _scope,
+                onChanged: (value) => setState(() {
+                  _scope = value!;
+                  _selectedCharacterId = null;
+                }),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+
+              // Specific character option
+              RadioListTile<_WorldInfoScope>(
+                title: Text(l10n.specificCharacter),
+                subtitle: Text(l10n.linkToSpecificCharacter),
+                value: _WorldInfoScope.specificCharacter,
+                groupValue: _scope,
+                onChanged: (value) => setState(() {
+                  _scope = value!;
+                }),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              ),
+
+              // Character dropdown (when specific character is selected)
+              if (_scope == _WorldInfoScope.specificCharacter)
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, top: 8),
+                  child: charactersAsync.when(
+                    loading: () => const CircularProgressIndicator(),
+                    error: (error, stack) => Text('Error: $error'),
+                    data: (characters) {
+                      if (characters.isEmpty) {
+                        return Text(
+                          l10n.noCharactersAvailable,
+                          style: const TextStyle(color: Colors.grey),
+                        );
+                      }
+                      return DropdownButtonFormField<String>(
+                        value: _selectedCharacterId,
+                        decoration: InputDecoration(
+                          labelText: l10n.selectCharacter,
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        items: characters.map((char) {
+                          return DropdownMenuItem(
+                            value: char.id,
+                            child: Text(char.name),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() => _selectedCharacterId = value);
+                          _log('Selected character: $value');
+                        },
+                      );
+                    },
+                  ),
+                ),
+            ],
           ],
         ),
       ),
@@ -917,23 +941,23 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.note_add_outlined,
             size: 64,
-            color: AppTheme.textMuted,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
           ),
           const SizedBox(height: 16),
           Text(
             AppLocalizations.of(context)!.noEntriesYet,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
-              color: AppTheme.textSecondary,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             AppLocalizations.of(context)!.addEntriesWithKeywords,
-            style: const TextStyle(color: AppTheme.textMuted),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
@@ -949,6 +973,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
   void _showEntryDialog(BuildContext context, WidgetRef ref, WorldInfoEntry? entry) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => _EntryEditDialog(
         worldInfoId: _worldInfo.id,
         entry: entry,
@@ -1015,7 +1040,7 @@ class _WorldInfoEntryCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: AppTheme.darkCard,
+      color: Theme.of(context).cardColor,
       child: InkWell(
         onTap: onTap,
         onLongPress: () => _copyToClipboard(context),
@@ -1033,7 +1058,7 @@ class _WorldInfoEntryCard extends StatelessWidget {
                       runSpacing: 4,
                       children: entry.keys.map((key) => Chip(
                         label: Text(key, style: const TextStyle(fontSize: 12)),
-                        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                        backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                         padding: EdgeInsets.zero,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       )).toList(),
@@ -1058,8 +1083,8 @@ class _WorldInfoEntryCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   entry.comment,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
                     fontStyle: FontStyle.italic,
                     fontSize: 12,
                   ),
@@ -1449,7 +1474,7 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
         .toList();
     final order = int.tryParse(_orderCtrl.text.trim()) ?? 0;
 
-    if (keys.isEmpty) {
+    if (keys.isEmpty && !_constant) {
       _showSnack('Please enter at least one trigger word');
       return;
     }
@@ -1509,7 +1534,7 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
     final isNew = widget.entry == null;
 
     return Dialog(
-      backgroundColor: const Color(0xFF1E1E2E),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: ConstrainedBox(
@@ -1525,22 +1550,24 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
                 children: [
                   Icon(
                     isNew ? Icons.add_circle_outline : Icons.edit_outlined,
-                    color: AppTheme.primaryColor,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 22,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       isNew ? l10n.createEntry : l10n.editEntry,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: AppTheme.textMuted, size: 20),
+                    icon: Icon(Icons.close,
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        size: 20),
                     onPressed: () => Navigator.pop(context),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -1554,8 +1581,8 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
               const SizedBox(height: 4),
               TextField(
                 controller: _keysCtrl,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                decoration: _inputDec('e.g. sword, dragon, magic'),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14),
+                decoration: _inputDec('例如：剑、龙、魔法'),
               ),
               const SizedBox(height: 12),
 
@@ -1564,8 +1591,8 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
               const SizedBox(height: 4),
               TextField(
                 controller: _secondaryCtrl,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                decoration: _inputDec('Optional secondary triggers'),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14),
+                decoration: _inputDec('可选的次要触发词'),
               ),
               const SizedBox(height: 12),
 
@@ -1575,8 +1602,8 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
               TextField(
                 controller: _contentCtrl,
                 maxLines: 5,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                decoration: _inputDec('Entry content to inject'),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14),
+                decoration: _inputDec('要注入的条目内容'),
               ),
               const SizedBox(height: 12),
 
@@ -1585,8 +1612,8 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
               const SizedBox(height: 4),
               TextField(
                 controller: _commentCtrl,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                decoration: _inputDec('Optional note (not sent to AI)'),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14),
+                decoration: _inputDec('可选备注（不发送给AI）'),
               ),
               const SizedBox(height: 16),
 
@@ -1603,7 +1630,7 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
                         TextField(
                           controller: _orderCtrl,
                           keyboardType: TextInputType.number,
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14),
                           decoration: _inputDec('0'),
                         ),
                       ],
@@ -1619,23 +1646,45 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
                         const SizedBox(height: 4),
                         Container(
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2A2A3E),
+                            color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFF3A3A4E)),
+                            border: Border.all(color: Theme.of(context).dividerColor),
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<WorldInfoPosition>(
                               value: _position,
                               isExpanded: true,
-                              dropdownColor: const Color(0xFF2A2A3E),
-                              style: const TextStyle(color: Colors.white, fontSize: 14),
+                              dropdownColor: Theme.of(context).cardColor,
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14),
                               items: WorldInfoPosition.values.map((p) {
-                                final label = p == WorldInfoPosition.before
-                                    ? l10n.beforeCharacterDefinition
-                                    : p == WorldInfoPosition.after
-                                        ? l10n.afterCharacterDefinition
-                                        : p.name;
+                                final String label;
+                                switch (p) {
+                                  case WorldInfoPosition.before:
+                                    label = '角色定义之前';
+                                    break;
+                                  case WorldInfoPosition.after:
+                                    label = '角色定义之后';
+                                    break;
+                                  case WorldInfoPosition.ANTop:
+                                    label = '作者注释之前';
+                                    break;
+                                  case WorldInfoPosition.ANBottom:
+                                    label = '作者注释之后';
+                                    break;
+                                  case WorldInfoPosition.atDepth:
+                                    label = '指定深度';
+                                    break;
+                                  case WorldInfoPosition.EMTop:
+                                    label = '示例对话之前';
+                                    break;
+                                  case WorldInfoPosition.EMBottom:
+                                    label = '示例对话之后';
+                                    break;
+                                  case WorldInfoPosition.outlet:
+                                    label = '命名插槽';
+                                    break;
+                                }
                                 return DropdownMenuItem(value: p, child: Text(label));
                               }).toList(),
                               onChanged: (v) {
@@ -1669,20 +1718,24 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text(l10n.cancel, style: const TextStyle(color: AppTheme.textMuted)),
+                    child: Text(l10n.cancel,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _isSaving ? null : _save,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: _isSaving
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16, height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Theme.of(context).colorScheme.onPrimary),
                           )
                         : Text(l10n.save),
                   ),
@@ -1698,8 +1751,8 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
   Widget _label(String text) {
     return Text(
       text,
-      style: const TextStyle(
-        color: AppTheme.textSecondary,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
         fontSize: 13,
         fontWeight: FontWeight.w500,
       ),
@@ -1707,22 +1760,26 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
   }
 
   InputDecoration _inputDec(String hint) {
+    final theme = Theme.of(context);
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+      hintStyle: TextStyle(
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+        fontSize: 13,
+      ),
       filled: true,
-      fillColor: const Color(0xFF2A2A3E),
+      fillColor: theme.cardColor,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFF3A3A4E)),
+        borderSide: BorderSide(color: theme.dividerColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFF3A3A4E)),
+        borderSide: BorderSide(color: theme.dividerColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppTheme.primaryColor),
+        borderSide: BorderSide(color: theme.colorScheme.primary),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     );

@@ -46,7 +46,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     
     // Initialize controllers with existing data
     final persona = widget.persona;
@@ -99,9 +99,8 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Basic', icon: Icon(Icons.person)),
-            Tab(text: 'Advanced', icon: Icon(Icons.settings)),
-            Tab(text: 'Connections', icon: Icon(Icons.link)),
+            Tab(text: '角色设定', icon: Icon(Icons.person)),
+            Tab(text: '绑定角色卡', icon: Icon(Icons.link)),
           ],
         ),
       ),
@@ -109,7 +108,6 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
         controller: _tabController,
         children: [
           _buildBasicTab(),
-          _buildAdvancedTab(),
           _buildConnectionsTab(),
         ],
       ),
@@ -126,46 +124,63 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
           Center(child: _buildAvatarPicker()),
           const SizedBox(height: 24),
           
-          // Name
+          // 名字
           TextField(
             controller: _nameController,
             decoration: const InputDecoration(
-              labelText: 'Name',
-              hintText: 'Enter persona name',
+              labelText: '名字',
+              hintText: '给这个人设起个名字',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.badge),
             ),
           ),
           const SizedBox(height: 16),
-          
-          // Description
+
+          // 角色设定
           TextField(
             controller: _descriptionController,
             decoration: const InputDecoration(
-              labelText: 'Description',
-              hintText: 'Describe this persona',
+              labelText: '角色设定',
+              hintText: '描述"你"是谁——AI 会以此认识你',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.description),
-              helperText: 'This describes you to the AI',
             ),
-            maxLines: 5,
+            maxLines: 8,
           ),
-          const SizedBox(height: 16),
-          
-          // Tags
-          _buildTagsSection(),
-          const SizedBox(height: 16),
-          
-          // Creator Notes
-          TextField(
-            controller: _creatorNotesController,
-            decoration: const InputDecoration(
-              labelText: 'Creator Notes',
-              hintText: 'Internal notes (not sent to AI)',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.note),
+          const SizedBox(height: 20),
+
+          // 生效规则说明
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .primary
+                  .withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
             ),
-            maxLines: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: const [
+                    Icon(Icons.info_outline, size: 18),
+                    SizedBox(width: 6),
+                    Text('人设生效规则',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '进入聊天时，按以下优先级决定使用哪个人设：\n'
+                  '1. 你在聊天里手动选择的人设（最优先）\n'
+                  '2. 当前角色卡在"绑定角色卡"里指定的人设\n'
+                  '3. 都没有时，使用默认人设\n\n'
+                  '你可以在"绑定角色卡"页把这个人设关联到一个或多个角色。',
+                  style: TextStyle(fontSize: 13, height: 1.6),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -218,59 +233,77 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
   }
 
   Widget _buildConnectionsTab() {
+    final charactersAsync = ref.watch(characterListProvider);
+    final boundIds = _connections
+        .where((c) => c.characterId != null)
+        .map((c) => c.characterId!)
+        .toSet();
+
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Bind this persona to specific characters or groups',
-                  style: TextStyle(color: AppTheme.textSecondary),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add),
-                tooltip: 'Add Connection',
-                onPressed: _showAddConnectionDialog,
-              ),
-            ],
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .primary
+                  .withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Text(
+              '勾选角色卡，进入对应角色的聊天时将自动使用这个人设'
+              '（除非你在聊天里手动选择了其他人设）。',
+              style: TextStyle(fontSize: 13, height: 1.5),
+            ),
           ),
         ),
         Expanded(
-          child: _connections.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No connections yet',
-                    style: TextStyle(color: AppTheme.textMuted),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _connections.length,
-                  itemBuilder: (context, index) {
-                    final connection = _connections[index];
-                    return Card(
-                      child: ListTile(
-                        leading: Icon(
-                          connection.characterId != null ? Icons.person : Icons.group,
-                          color: AppTheme.primaryColor,
-                        ),
-                        title: Text(
-                          connection.characterId != null
-                              ? 'Character: ${connection.characterId}'
-                              : 'Group: ${connection.groupId}',
-                        ),
-                        subtitle: Text('Lock: ${connection.lockType.name}'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _removeConnection(index),
-                        ),
+          child: charactersAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('加载角色失败：$e')),
+            data: (characters) {
+              if (characters.isEmpty) {
+                return const Center(child: Text('还没有角色卡'));
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: characters.length,
+                itemBuilder: (context, index) {
+                  final ch = characters[index];
+                  final bound = boundIds.contains(ch.id);
+                  final avatarPath = ch.assets?.avatarPath;
+                  final hasAvatar =
+                      avatarPath != null && avatarPath.isNotEmpty;
+                  return Card(
+                    child: CheckboxListTile(
+                      value: bound,
+                      secondary: CircleAvatar(
+                        backgroundImage:
+                            hasAvatar ? FileImage(File(avatarPath)) : null,
+                        child: !hasAvatar
+                            ? Text(ch.name.isNotEmpty ? ch.name[0] : '?')
+                            : null,
                       ),
-                    );
-                  },
-                ),
+                      title: Text(ch.name),
+                      onChanged: (checked) {
+                        setState(() {
+                          if (checked == true) {
+                            _connections
+                                .add(PersonaConnection(characterId: ch.id));
+                          } else {
+                            _connections
+                                .removeWhere((c) => c.characterId == ch.id);
+                          }
+                        });
+                      },
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ),
       ],
     );

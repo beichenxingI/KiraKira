@@ -71,6 +71,7 @@ class AppThemeConfig {
 
     return ThemeData(
       useMaterial3: true,
+      fontFamily: 'LXGWWenKai',
       brightness: isDark ? Brightness.dark : Brightness.light,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: background,
@@ -84,6 +85,35 @@ class AppThemeConfig {
       cardTheme: CardThemeData(
         color: card,
         elevation: 0,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: card,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        titleTextStyle: TextStyle(
+          color: textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+        contentTextStyle: TextStyle(
+          color: textPrimary,
+          fontSize: 14,
+          height: 1.5,
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: card,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: card,
+        elevation: 8,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        showDragHandle: true,
+        dragHandleColor: divider,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -188,31 +218,31 @@ class AppThemeConfig {
 class BuiltInThemes {
   static const defaultDark = AppThemeConfig(
     id: 'default_dark',
-    name: 'Default Dark',
+    name: '星河入梦',
     isDark: true,
-    primaryColor: '#6366F1',
-    accentColor: '#8B5CF6',
-    backgroundColor: '#0F0F0F',
-    surfaceColor: '#1A1A1A',
-    cardColor: '#262626',
-    textPrimaryColor: '#FFFFFF',
-    textSecondaryColor: '#A3A3A3',
-    dividerColor: '#404040',
+    primaryColor: '#F5AEB2',
+    accentColor: '#FECBB6',
+    backgroundColor: '#0B0E1A',
+    surfaceColor: '#12162A',
+    cardColor: '#1A1F38',
+    textPrimaryColor: '#E8E6F0',
+    textSecondaryColor: '#8B90AB',
+    dividerColor: '#252A45',
     isBuiltIn: true,
   );
 
   static const defaultLight = AppThemeConfig(
     id: 'default_light',
-    name: 'Default Light',
+    name: '海天一色',
     isDark: false,
-    primaryColor: '#6366F1',
-    accentColor: '#8B5CF6',
-    backgroundColor: '#FFFFFF',
-    surfaceColor: '#F5F5F5',
+    primaryColor: '#F5AEB2',
+    accentColor: '#FECBB6',
+    backgroundColor: 'F0DDD5',
+    surfaceColor: '#FCEFEA',
     cardColor: '#FFFFFF',
-    textPrimaryColor: '#171717',
-    textSecondaryColor: '#737373',
-    dividerColor: '#E5E5E5',
+    textPrimaryColor: '#4A3B38',
+    textSecondaryColor: '#9A7F7A',
+    dividerColor: '#EAD5CE',
     isBuiltIn: true,
   );
 

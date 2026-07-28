@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/world_info.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
@@ -161,7 +161,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
           TextField(
             controller: _keysController,
             decoration: const InputDecoration(
-              labelText: 'Keywords (comma-separated)',
+              labelText: '关键词（逗号分隔）',
               hintText: 'dragon, magic, sword',
               border: OutlineInputBorder(),
               helperText: 'Entry activates when these keywords are found',
@@ -171,7 +171,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
           TextField(
             controller: _secondaryKeysController,
             decoration: const InputDecoration(
-              labelText: 'Secondary Keys (optional)',
+              labelText: '次要关键词（可选）',
               hintText: 'fire, ice',
               border: OutlineInputBorder(),
               helperText: 'Both primary and secondary must match for selective',
@@ -181,7 +181,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
           TextField(
             controller: _commentController,
             decoration: const InputDecoration(
-              labelText: 'Comment (optional)',
+              labelText: '备注（可选）',
               hintText: 'Note for this entry',
               border: OutlineInputBorder(),
             ),
@@ -190,7 +190,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
           TextField(
             controller: _contentController,
             decoration: const InputDecoration(
-              labelText: 'Content',
+              labelText: '内容',
               hintText: 'Context to inject when matches',
               border: OutlineInputBorder(),
               alignLabelWithHint: true,
@@ -224,13 +224,13 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
           DropdownButtonFormField<WorldInfoPosition>(
             value: _position,
             decoration: const InputDecoration(
-              labelText: 'Position',
+              labelText: '插入位置',
               border: OutlineInputBorder(),
             ),
             items: WorldInfoPosition.values.map((pos) {
               return DropdownMenuItem(
                 value: pos,
-                child: Text(_formatEnumName(pos.name)),
+                child: Text(_positionLabel(pos)),
               );
             }).toList(),
             onChanged: (v) => setState(() => _position = v!),
@@ -239,7 +239,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
           if (_position == WorldInfoPosition.atDepth) ...[
             TextField(
               decoration: const InputDecoration(
-                labelText: 'Depth',
+                labelText: '插入深度',
                 border: OutlineInputBorder(),
                 helperText: 'Depth in chat history',
               ),
@@ -251,7 +251,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
           ],
           TextField(
             decoration: const InputDecoration(
-              labelText: 'Insertion Order',
+              labelText: '插入顺序',
               border: OutlineInputBorder(),
               helperText: 'Lower values insert first',
             ),
@@ -262,7 +262,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
           const SizedBox(height: 16),
           TextField(
             decoration: const InputDecoration(
-              labelText: 'Scan Depth',
+              labelText: '扫描深度',
               border: OutlineInputBorder(),
               helperText: 'How many messages to scan (0 = use default)',
             ),
@@ -274,14 +274,14 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
           DropdownButtonFormField<WorldInfoRole>(
             value: _role,
             decoration: const InputDecoration(
-              labelText: 'Message Role',
+              labelText: '消息角色',
               border: OutlineInputBorder(),
               helperText: 'Role for the injected content',
             ),
             items: WorldInfoRole.values.map((role) {
               return DropdownMenuItem(
                 value: role,
-                child: Text(_formatEnumName(role.name)),
+                child: Text(_roleLabel(role)),
               );
             }).toList(),
             onChanged: (v) => setState(() => _role = v!),
@@ -359,7 +359,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
           TextField(
             controller: _groupController,
             decoration: const InputDecoration(
-              labelText: 'Group Name',
+              labelText: '分组名称',
               border: OutlineInputBorder(),
               helperText: 'Entries with same group are mutually exclusive',
             ),
@@ -373,7 +373,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
           if (_useGroupScoring) ...[
             TextField(
               decoration: const InputDecoration(
-                labelText: 'Group Weight',
+                labelText: '分组权重',
                 border: OutlineInputBorder(),
                 helperText: 'Weight for group selection',
               ),
@@ -384,7 +384,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
             const SizedBox(height: 16),
             TextField(
               decoration: const InputDecoration(
-                labelText: 'Group Override',
+                labelText: '分组优先级',
                 border: OutlineInputBorder(),
                 helperText: 'Priority within group (higher = more priority)',
               ),
@@ -441,13 +441,13 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
             DropdownButtonFormField<WorldInfoCharacterFilterType>(
               value: _characterFilter.type,
               decoration: const InputDecoration(
-                labelText: 'Filter Type',
+                labelText: '角色过滤',
                 border: OutlineInputBorder(),
               ),
               items: WorldInfoCharacterFilterType.values.map((type) {
                 return DropdownMenuItem(
                   value: type,
-                  child: Text(_formatEnumName(type.name)),
+                  child: Text(_filterTypeLabel(type)),
                 );
               }).toList(),
               onChanged: (v) {
@@ -494,7 +494,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
           children: [
             TextField(
               decoration: const InputDecoration(
-                labelText: 'Sticky Duration',
+                labelText: '持续轮数',
                 border: OutlineInputBorder(),
                 helperText: 'Messages to stay active after trigger (0 = not sticky)',
               ),
@@ -509,7 +509,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
             const SizedBox(height: 16),
             TextField(
               decoration: const InputDecoration(
-                labelText: 'Cooldown',
+                labelText: '冷却轮数',
                 border: OutlineInputBorder(),
                 helperText: 'Messages to wait before can trigger again (0 = no cooldown)',
               ),
@@ -524,7 +524,7 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
             const SizedBox(height: 16),
             TextField(
               decoration: const InputDecoration(
-                labelText: 'Delay',
+                labelText: '延迟轮数',
                 border: OutlineInputBorder(),
                 helperText: 'Messages before entry can trigger (0 = no delay)',
               ),
@@ -634,6 +634,48 @@ class _WorldInfoEntryEditorScreenState extends ConsumerState<WorldInfoEntryEdito
     }
   }
 
+  String _positionLabel(WorldInfoPosition pos) {
+    switch (pos) {
+      case WorldInfoPosition.before:
+        return '角色定义之前';
+      case WorldInfoPosition.after:
+        return '角色定义之后';
+      case WorldInfoPosition.ANTop:
+        return '作者注释之前';
+      case WorldInfoPosition.ANBottom:
+        return '作者注释之后';
+      case WorldInfoPosition.atDepth:
+        return '指定深度';
+      case WorldInfoPosition.EMTop:
+        return '示例对话之前';
+      case WorldInfoPosition.EMBottom:
+        return '示例对话之后';
+      case WorldInfoPosition.outlet:
+        return '命名插槽';
+    }
+  }
+
+  String _roleLabel(WorldInfoRole role) {
+    switch (role) {
+      case WorldInfoRole.system:
+        return '系统';
+      case WorldInfoRole.user:
+        return '用户';
+      case WorldInfoRole.assistant:
+        return '角色';
+    }
+  }
+
+  String _filterTypeLabel(WorldInfoCharacterFilterType type) {
+    switch (type) {
+      case WorldInfoCharacterFilterType.none:
+        return '不过滤';
+      case WorldInfoCharacterFilterType.include:
+        return '仅包含指定角色';
+      case WorldInfoCharacterFilterType.exclude:
+        return '排除指定角色';
+    }
+  }
   String _formatEnumName(String name) {
     return name
         .replaceAllMapped(

@@ -26,6 +26,12 @@ class AIPreset {
   // Map of provider name -> {model, apiKey, apiUrl}
   final Map<String, Map<String, dynamic>>? providerSettings;
 
+  // Binding: linked prompt manager preset ID (null = use global active)
+  final String? boundPromptPresetId;
+
+  // Binding: linked global regex script IDs
+  final List<String> boundRegexScriptIds;
+
   const AIPreset({
     required this.id,
     required this.name,
@@ -38,6 +44,8 @@ class AIPreset {
     this.instructTemplateId,
     this.provider,
     this.providerSettings,
+    this.boundPromptPresetId,
+    this.boundRegexScriptIds = const [],
   });
 
   AIPreset copyWith({
@@ -52,6 +60,8 @@ class AIPreset {
     String? instructTemplateId,
     String? provider,
     Map<String, Map<String, dynamic>>? providerSettings,
+    String? boundPromptPresetId,
+    List<String>? boundRegexScriptIds,
   }) {
     return AIPreset(
       id: id ?? this.id,
@@ -65,6 +75,8 @@ class AIPreset {
       instructTemplateId: instructTemplateId ?? this.instructTemplateId,
       provider: provider ?? this.provider,
       providerSettings: providerSettings ?? this.providerSettings,
+      boundPromptPresetId: boundPromptPresetId ?? this.boundPromptPresetId,
+      boundRegexScriptIds: boundRegexScriptIds ?? this.boundRegexScriptIds,
     );
   }
 
@@ -137,6 +149,8 @@ class AIPreset {
         'instructTemplateId': instructTemplateId,
         'provider': provider,
         'providerSettings': providerSettings,
+        'boundPromptPresetId': boundPromptPresetId,
+        'boundRegexScriptIds': boundRegexScriptIds,
       };
 
   factory AIPreset.fromJson(Map<String, dynamic> json) {
@@ -165,6 +179,10 @@ class AIPreset {
           ),
         ),
       ),
+      boundPromptPresetId: json['boundPromptPresetId'] as String?,
+      boundRegexScriptIds: (json['boundRegexScriptIds'] as List<dynamic>?)?.map((e) => e as String)
+              .toList() ??
+          [],
     );
   }
 
@@ -464,8 +482,8 @@ class GenerationPreset {
 class BuiltInAIPresets {
   static final defaultPreset = AIPreset(
     id: 'default',
-    name: 'Default',
-    description: 'Balanced settings for general use',
+    name: '默认（均衡）',
+    description: '通用场景的均衡参数',
     isBuiltIn: true,
     createdAt: DateTime(2024, 1, 1),
     updatedAt: DateTime(2024, 1, 1),
@@ -480,8 +498,8 @@ class BuiltInAIPresets {
 
   static final creative = AIPreset(
     id: 'creative',
-    name: 'Creative',
-    description: 'Higher temperature for more creative responses',
+    name: '创意（高随机）',
+    description: '更高温度，回复更有创意发散',
     isBuiltIn: true,
     createdAt: DateTime(2024, 1, 1),
     updatedAt: DateTime(2024, 1, 1),
@@ -497,8 +515,8 @@ class BuiltInAIPresets {
 
   static final precise = AIPreset(
     id: 'precise',
-    name: 'Precise',
-    description: 'Lower temperature for more focused responses',
+    name: '精确（低随机）',
+    description: '更低温度，回复更聚焦稳定',
     isBuiltIn: true,
     createdAt: DateTime(2024, 1, 1),
     updatedAt: DateTime(2024, 1, 1),
@@ -513,8 +531,8 @@ class BuiltInAIPresets {
 
   static final deterministic = AIPreset(
     id: 'deterministic',
-    name: 'Deterministic',
-    description: 'Very low randomness for consistent outputs',
+    name: '确定性（最低随机）',
+    description: '极低随机性，输出高度一致',
     isBuiltIn: true,
     createdAt: DateTime(2024, 1, 1),
     updatedAt: DateTime(2024, 1, 1),
@@ -530,8 +548,8 @@ class BuiltInAIPresets {
 
   static final longform = AIPreset(
     id: 'longform',
-    name: 'Long Form',
-    description: 'Optimized for longer responses',
+    name: '长文本',
+    description: '为更长的回复优化',
     isBuiltIn: true,
     createdAt: DateTime(2024, 1, 1),
     updatedAt: DateTime(2024, 1, 1),
@@ -547,8 +565,8 @@ class BuiltInAIPresets {
 
   static final mirostat = AIPreset(
     id: 'mirostat',
-    name: 'Mirostat',
-    description: 'Uses Mirostat sampling for adaptive perplexity',
+    name: 'Mirostat（动态采样）',
+    description: '使用 Mirostat 采样自适应困惑度',
     isBuiltIn: true,
     createdAt: DateTime(2024, 1, 1),
     updatedAt: DateTime(2024, 1, 1),

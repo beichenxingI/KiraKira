@@ -13,6 +13,9 @@ import 'package:kirakira/presentation/providers/bookmark_providers.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/domain/services/regex_service.dart';
+import 'package:kirakira/presentation/providers/regex_providers.dart';
+import 'package:kirakira/data/models/regex_script.dart';
 import 'package:kirakira/presentation/screens/chat/chat_layout_mode.dart';
 import 'package:kirakira/presentation/widgets/chat/message_content_widget.dart';
 import 'package:kirakira/presentation/widgets/chat/reasoning_widget.dart';
@@ -23,7 +26,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 
-class MessageBubble extends StatefulWidget {
+class MessageBubble extends ConsumerStatefulWidget {
   final ChatMessage message;
   final int messageIndex;
   final String chatId;
@@ -41,6 +44,8 @@ class MessageBubble extends StatefulWidget {
   final VoidCallback onDeleteAndAfter;
   final VoidCallback onCreateBookmark;
   final VoidCallback? onGenerateImage;
+  final bool allowWebView;
+  final bool simplified;
 
   const MessageBubble({
     super.key,
@@ -53,6 +58,8 @@ class MessageBubble extends StatefulWidget {
     this.hasBackground = false,
     this.bubbleOpacity = 0.8,
     this.layoutMode = 'bubble',
+    this.allowWebView = true,
+    this.simplified = false,
     required this.onSwipe,
     required this.onEdit,
     required this.onDelete,
@@ -64,12 +71,15 @@ class MessageBubble extends StatefulWidget {
   });
 
   @override
-  State<MessageBubble> createState() => MessageBubbleState();
+  ConsumerState<MessageBubble> createState() => MessageBubbleState();
 }
 
-class MessageBubbleState extends State<MessageBubble> {
+class MessageBubbleState extends ConsumerState<MessageBubble> {
   bool _isEditing = false;
+  bool _forceFullRender = false;
   late TextEditingController _editController;
+  String? _cachedContent;
+  String? _cachedProcessed;
 
   @override
   void initState() {
@@ -88,6 +98,9 @@ class MessageBubbleState extends State<MessageBubble> {
     final isUser = widget.message.role == MessageRole.user;
     final hasSwipes = widget.message.swipes.length > 1;
 
+    // 正则处理：拿到所有生效脚本，应用到显示内容
+    final isSimplified = widget.simplified && !_forceFullRender;
+    final displayContent = isSimplified ? widget.message.content : _getCachedProcessedContent();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -106,6 +119,7 @@ class MessageBubbleState extends State<MessageBubble> {
               children: [
                 GestureDetector(
                   onLongPress: () => _showMessageOptions(context),
+                  onTap: isSimplified ? () => setState(() => _forceFullRender = true) : null,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -128,7 +142,7 @@ class MessageBubbleState extends State<MessageBubble> {
                                 const TypingIndicator()
                               else
                                 MessageContentWidget(
-                                  content: widget.message.content,
+                                  content: displayContent,
                                   textColor: isUser
                                       ? Colors.white
                                       : AppTheme.textPrimary,
@@ -137,6 +151,8 @@ class MessageBubbleState extends State<MessageBubble> {
                                       _showMessageOptions(context),
                                   isStreaming: widget.isGenerating,
                                   messageId: widget.message.id,
+                                  allowWebView: widget.allowWebView && !isSimplified,
+                                  initDelay: widget.messageIndex * 300,
                                 ),
                             ],
                           ),
@@ -223,8 +239,8 @@ class MessageBubbleState extends State<MessageBubble> {
                 ? AppTheme.accentColor.withValues(alpha: widget.bubbleOpacity)
                 : AppTheme.accentColor)
             : (widget.hasBackground
-                ? AppTheme.darkCard.withValues(alpha: widget.bubbleOpacity)
-                : AppTheme.darkCard),
+                ? Colors.transparent.withValues(alpha: widget.bubbleOpacity)
+                : Colors.transparent),
         borderRadius: BorderRadius.circular(16),
       );
     }
@@ -548,5 +564,42 @@ class MessageBubbleState extends State<MessageBubble> {
         ),
       ),
     );
+  }
+  String _getCachedProcessedContent() {
+    final current = widget.message.content;
+    if (_cachedContent == current && _cachedProcessed != null) {
+      return _cachedProcessed!;
+    }
+    _cachedContent = current;
+    _cachedProcessed = _getProcessedContent();
+    return _cachedProcessed!;
+  }
+  /// 应用正则脚本到消息内容（只影响显示，不修改原始数据）
+  String _getProcessedContent() {
+    final originalContent = widget.message.content;
+    if (originalContent.isEmpty) return originalContent;
+
+    // 拿到合并后的正则脚本（全局+角色）
+    final scripts = ref.watch(combinedRegexScriptsProvider(widget.character?.id));
+    if (scripts.isEmpty) return originalContent;
+
+    // 确定应用范围
+    final isUser = widget.message.role == MessageRole.user;
+    final placement = isUser ? RegexPlacement.userInput : RegexPlacement.aiOutput;
+
+    // 应用正则（纯渲染层处理，不写回数据库）
+    final processed = RegexService.instance.getRegexedString(
+      originalContent,
+      placement,
+      scripts,
+      characterName: widget.character?.name,
+      userName: null, // 如果有用户名配置可以传进来
+      isMarkdown: false,
+      isPrompt: false,
+      isEdit: false,
+      depth: widget.messageIndex,
+    );
+
+    return processed;
   }
 }

@@ -145,6 +145,107 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
             },
           ),
 
+          // Embedding API 配置（local 模式用本地模型，无需填）
+          if (settings.embeddingProvider != EmbeddingProvider.local) ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              initialValue: settings.embeddingApiUrl ?? '',
+              decoration: const InputDecoration(
+                labelText: 'API 地址',
+                hintText: 'https://api.openai.com/v1',
+                helperText: '留空则用 OpenAI 官方地址；中转站 embedding 定价可能虚高',
+                border: OutlineInputBorder(),
+              ),
+              enabled: settings.enabled,
+              onChanged: (v) => ref
+                  .read(vectorStorageSettingsProvider.notifier)
+                  .setEmbeddingApiUrl(v),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              initialValue: settings.embeddingApiKey ?? '',
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'API 密钥',
+                hintText: 'sk-...',
+                border: OutlineInputBorder(),
+              ),
+              enabled: settings.enabled,
+              onChanged: (v) => ref
+                  .read(vectorStorageSettingsProvider.notifier)
+                  .setEmbeddingApiKey(v),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.offline_bolt,
+                          color: AppTheme.primaryColor, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '本地模型 · 离线免费',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '使用设备本地的 bge-small-zh 模型生成向量，无需 API、'
+                    '不花费任何 token、聊天内容不出设备。首次使用会加载模型（约24MB），稍有延迟。',
+                    style: TextStyle(fontSize: 13, height: 1.5),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    '推荐配置（流畅运行）：\n'
+                    '· 骁龙 8 Gen 1 / 870 及以上\n'
+                    '· 天玑 8100 / 9000 及以上\n'
+                    '· 三星 Exynos 2200 及以上\n'
+                    '配置较低的设备仍可使用，但速度较慢、发热较明显。',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.5,
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.color
+                          ?.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'KiraKira 致力于让每个人都能用上安全、免费的 AI 聊天体验。',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.color
+                          ?.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           const Divider(height: 32),
 
           // Prompt settings
@@ -561,15 +662,22 @@ class _CollectionDetails extends ConsumerWidget {
             child: const Text('取消'),
           ),
           TextButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                ref.read(vectorCollectionsProvider.notifier).addDocument(
-                  collectionId: collectionId,
-                  content: controller.text.trim(),
-                );
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+            onPressed: () async {
+              if (controller.text.trim().isEmpty) return;
+              final messenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(context);
+              try {
+                await ref.read(vectorCollectionsProvider.notifier).addDocument(
+                      collectionId: collectionId,
+                      content: controller.text.trim(),
+                    );
+                navigator.pop();
+                messenger.showSnackBar(
                   const SnackBar(content: Text('文档已添加')),
+                );
+              } catch (e) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text('添加失败（检查Embedding配置）: $e')),
                 );
               }
             },
