@@ -1,4 +1,4 @@
-﻿name: kirakira
+name: kirakira
 description: KiraKira - A shimmering AI companion app
 publish_to: 'none'
 version: 0.4.16+1
@@ -108,3 +108,14 @@ flutter:
     - family: LXGWWenKai
       fonts:
         - asset: assets/fonts/LXGWWenKaiGB-Regular.ttf
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+  macos:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
