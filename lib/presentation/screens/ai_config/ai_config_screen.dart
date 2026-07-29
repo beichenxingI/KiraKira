@@ -1796,6 +1796,7 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
+                  padding: const EdgeInsets.only(bottom: 100),
                   itemCount: models.length,
                   itemBuilder: (_, i) {
                     final m = models[i];
