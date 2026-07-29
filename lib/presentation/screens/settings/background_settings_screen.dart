@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -224,7 +224,6 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.darkCard,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(

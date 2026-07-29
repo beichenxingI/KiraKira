@@ -1,10 +1,92 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:kirakira/data/models/vector_storage.dart';
+import 'package:kirakira/data/database/database.dart' as db;
+import 'package:drift/drift.dart' show Value;
 
 /// Service for vector storage and RAG operations
+/// 混合存储：内存 Map 为运行时数据源（读同步），写操作异步持久化到数据库。
 class VectorStorageService {
+  final db.AppDatabase _db;
+  VectorStorageService(this._db);
+
   /// In-memory storage for collections
   final Map<String, VectorCollection> _collections = {};
+
+  /// 启动时从数据库加载所有集合与文档到内存
+  Future<void> load() async {
+    try {
+      final cols = await _db.select(_db.vectorCollections).get();
+      final docs = await _db.select(_db.vectorDocuments).get();
+      final docsByCol = <String, List<VectorDocument>>{};
+      for (final d in docs) {
+        final rawEmb = jsonDecode(d.embedding) as List<dynamic>;
+        final emb = rawEmb.map((e) => (e as num).toDouble()).toList();
+        docsByCol.putIfAbsent(d.collectionId, () => []).add(VectorDocument(
+              id: d.id,
+              content: d.content,
+              embedding: emb.isEmpty ? null : emb,
+              metadata: jsonDecode(d.metadataJson) as Map<String, dynamic>,
+              createdAt: d.createdAt,
+            ));
+      }
+      _collections.clear();
+      for (final c in cols) {
+        _collections[c.id] = VectorCollection(
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          dimensions: c.dimensions,
+          documents: docsByCol[c.id] ?? [],
+          createdAt: c.createdAt,
+          updatedAt: c.createdAt,
+        );
+      }
+    } catch (e) {
+      // 加载失败保持空内存，不阻断
+    }
+  }
+
+  // ── 持久化辅助（异步，不阻塞调用方）──
+  void _persistCollection(VectorCollection c) {
+    unawaited(_db.into(_db.vectorCollections).insertOnConflictUpdate(
+          db.VectorCollectionsCompanion.insert(
+            id: c.id,
+            name: c.name,
+            description: Value(c.description),
+            dimensions: Value(c.dimensions),
+            createdAt: Value(c.createdAt),
+          ),
+        ));
+  }
+
+  void _persistDocument(String collectionId, VectorDocument d) {
+    unawaited(_db.into(_db.vectorDocuments).insertOnConflictUpdate(
+          db.VectorDocumentsCompanion.insert(
+            id: d.id,
+            collectionId: collectionId,
+            content: d.content,
+            embedding: Value(jsonEncode(d.embedding ?? [])),
+            metadataJson: Value(jsonEncode(d.metadata)),
+            createdAt: Value(d.createdAt),
+          ),
+        ));
+  }
+
+  void _deleteCollectionRows(String collectionId) {
+    unawaited((_db.delete(_db.vectorDocuments)
+          ..where((t) => t.collectionId.equals(collectionId)))
+        .go());
+    unawaited((_db.delete(_db.vectorCollections)
+          ..where((t) => t.id.equals(collectionId)))
+        .go());
+  }
+
+  void _deleteDocumentRow(String documentId) {
+    unawaited((_db.delete(_db.vectorDocuments)
+          ..where((t) => t.id.equals(documentId)))
+        .go());
+  }
 
   /// Get all collections
   List<VectorCollection> get collections => _collections.values.toList();
@@ -24,17 +106,42 @@ class VectorStorageService {
       dimensions: dimensions,
     );
     _collections[collection.id] = collection;
+    _persistCollection(collection);
+    return collection;
+  }
+
+  /// Create a collection with a fixed id (用于按 chatId 绑定)
+  VectorCollection createCollectionWithId({
+    required String id,
+    required String name,
+    String? description,
+    int dimensions = 512,
+  }) {
+    final now = DateTime.now();
+    final collection = VectorCollection(
+      id: id,
+      name: name,
+      description: description,
+      dimensions: dimensions,
+      documents: const [],
+      createdAt: now,
+      updatedAt: now,
+    );
+    _collections[id] = collection;
+    _persistCollection(collection);
     return collection;
   }
 
   /// Update a collection
   void updateCollection(VectorCollection collection) {
     _collections[collection.id] = collection;
+    _persistCollection(collection);
   }
 
   /// Delete a collection
   void deleteCollection(String id) {
     _collections.remove(id);
+    _deleteCollectionRows(id);
   }
 
   /// Add a document to a collection
@@ -59,8 +166,51 @@ class VectorStorageService {
       documents: [...collection.documents, document],
     );
     _collections[collectionId] = updatedCollection;
+    _persistDocument(collectionId, document);
 
     return document;
+  }
+  /// 按指定 id 入库（id 用 messageId）。先删旧再插新 → 同一消息幂等，
+  /// swipe/重生成/编辑多少次，向量库里始终只保留最新一条，不堆积。
+  VectorDocument addDocumentWithId({
+    required String collectionId,
+    required String documentId,
+    required String content,
+    List<double>? embedding,
+    Map<String, dynamic>? metadata,
+  }) {
+    final collection = _collections[collectionId];
+    if (collection == null) {
+      throw Exception('Collection not found: $collectionId');
+    }
+    // 先移除同 id 旧文档（内存）
+    final pruned =
+        collection.documents.where((d) => d.id != documentId).toList();
+    final document = VectorDocument(
+      id: documentId,
+      content: content,
+      embedding: embedding,
+      metadata: metadata ?? {},
+      createdAt: DateTime.now(),
+    );
+    _collections[collectionId] =
+        collection.copyWith(documents: [...pruned, document]);
+    // 库层 insertOnConflictUpdate 会按主键覆盖，无需先删
+    _persistDocument(collectionId, document);
+    return document;
+  }
+
+  /// 按 documentId(=messageId) 删除向量，跨所有集合。删单条消息时用。
+  void removeDocumentById(String documentId) {
+    for (final entry in _collections.entries.toList()) {
+      final col = entry.value;
+      if (col.documents.any((d) => d.id == documentId)) {
+        _collections[entry.key] = col.copyWith(
+          documents: col.documents.where((d) => d.id != documentId).toList(),
+        );
+      }
+    }
+    _deleteDocumentRow(documentId);
   }
 
   /// Add multiple documents to a collection
@@ -93,6 +243,7 @@ class VectorStorageService {
         .toList();
 
     _collections[collectionId] = collection.copyWith(documents: updatedDocuments);
+    _deleteDocumentRow(documentId);
   }
 
   /// Update document embedding
@@ -112,6 +263,8 @@ class VectorStorageService {
     }).toList();
 
     _collections[collectionId] = collection.copyWith(documents: updatedDocuments);
+    final updated = updatedDocuments.firstWhere((d) => d.id == documentId);
+    _persistDocument(collectionId, updated);
   }
 
   /// Search for similar documents
@@ -274,6 +427,10 @@ class VectorStorageService {
     final data = jsonDecode(json) as Map<String, dynamic>;
     final collection = VectorCollection.fromJson(data);
     _collections[collection.id] = collection;
+    _persistCollection(collection);
+    for (final d in collection.documents) {
+      _persistDocument(collection.id, d);
+    }
     return collection;
   }
 
@@ -310,6 +467,8 @@ class VectorStorageService {
   /// Clear all collections
   void clearAll() {
     _collections.clear();
+    unawaited((_db.delete(_db.vectorDocuments)).go());
+    unawaited((_db.delete(_db.vectorCollections)).go());
   }
 
   /// Get help text

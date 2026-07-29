@@ -6466,6 +6466,672 @@ class GlobalStatesCompanion extends UpdateCompanion<GlobalState> {
   }
 }
 
+class $VectorCollectionsTable extends VectorCollections
+    with TableInfo<$VectorCollectionsTable, VectorCollection> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VectorCollectionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _dimensionsMeta =
+      const VerificationMeta('dimensions');
+  @override
+  late final GeneratedColumn<int> dimensions = GeneratedColumn<int>(
+      'dimensions', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(512));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, name, description, dimensions, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'vector_collections';
+  @override
+  VerificationContext validateIntegrity(Insertable<VectorCollection> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('dimensions')) {
+      context.handle(
+          _dimensionsMeta,
+          dimensions.isAcceptableOrUnknown(
+              data['dimensions']!, _dimensionsMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  VectorCollection map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return VectorCollection(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description']),
+      dimensions: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}dimensions'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $VectorCollectionsTable createAlias(String alias) {
+    return $VectorCollectionsTable(attachedDatabase, alias);
+  }
+}
+
+class VectorCollection extends DataClass
+    implements Insertable<VectorCollection> {
+  final String id;
+  final String name;
+  final String? description;
+  final int dimensions;
+  final DateTime createdAt;
+  const VectorCollection(
+      {required this.id,
+      required this.name,
+      this.description,
+      required this.dimensions,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['dimensions'] = Variable<int>(dimensions);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  VectorCollectionsCompanion toCompanion(bool nullToAbsent) {
+    return VectorCollectionsCompanion(
+      id: Value(id),
+      name: Value(name),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      dimensions: Value(dimensions),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory VectorCollection.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return VectorCollection(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String?>(json['description']),
+      dimensions: serializer.fromJson<int>(json['dimensions']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String?>(description),
+      'dimensions': serializer.toJson<int>(dimensions),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  VectorCollection copyWith(
+          {String? id,
+          String? name,
+          Value<String?> description = const Value.absent(),
+          int? dimensions,
+          DateTime? createdAt}) =>
+      VectorCollection(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        description: description.present ? description.value : this.description,
+        dimensions: dimensions ?? this.dimensions,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  VectorCollection copyWithCompanion(VectorCollectionsCompanion data) {
+    return VectorCollection(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      description:
+          data.description.present ? data.description.value : this.description,
+      dimensions:
+          data.dimensions.present ? data.dimensions.value : this.dimensions,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VectorCollection(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('dimensions: $dimensions, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, description, dimensions, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is VectorCollection &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.description == this.description &&
+          other.dimensions == this.dimensions &&
+          other.createdAt == this.createdAt);
+}
+
+class VectorCollectionsCompanion extends UpdateCompanion<VectorCollection> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String?> description;
+  final Value<int> dimensions;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const VectorCollectionsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.dimensions = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  VectorCollectionsCompanion.insert({
+    required String id,
+    required String name,
+    this.description = const Value.absent(),
+    this.dimensions = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        name = Value(name);
+  static Insertable<VectorCollection> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? description,
+    Expression<int>? dimensions,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+      if (dimensions != null) 'dimensions': dimensions,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  VectorCollectionsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? name,
+      Value<String?>? description,
+      Value<int>? dimensions,
+      Value<DateTime>? createdAt,
+      Value<int>? rowid}) {
+    return VectorCollectionsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      dimensions: dimensions ?? this.dimensions,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (dimensions.present) {
+      map['dimensions'] = Variable<int>(dimensions.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VectorCollectionsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('dimensions: $dimensions, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $VectorDocumentsTable extends VectorDocuments
+    with TableInfo<$VectorDocumentsTable, VectorDocument> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VectorDocumentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _collectionIdMeta =
+      const VerificationMeta('collectionId');
+  @override
+  late final GeneratedColumn<String> collectionId = GeneratedColumn<String>(
+      'collection_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _contentMeta =
+      const VerificationMeta('content');
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+      'content', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _embeddingMeta =
+      const VerificationMeta('embedding');
+  @override
+  late final GeneratedColumn<String> embedding = GeneratedColumn<String>(
+      'embedding', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _metadataJsonMeta =
+      const VerificationMeta('metadataJson');
+  @override
+  late final GeneratedColumn<String> metadataJson = GeneratedColumn<String>(
+      'metadata_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, collectionId, content, embedding, metadataJson, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'vector_documents';
+  @override
+  VerificationContext validateIntegrity(Insertable<VectorDocument> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('collection_id')) {
+      context.handle(
+          _collectionIdMeta,
+          collectionId.isAcceptableOrUnknown(
+              data['collection_id']!, _collectionIdMeta));
+    } else if (isInserting) {
+      context.missing(_collectionIdMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(_contentMeta,
+          content.isAcceptableOrUnknown(data['content']!, _contentMeta));
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('embedding')) {
+      context.handle(_embeddingMeta,
+          embedding.isAcceptableOrUnknown(data['embedding']!, _embeddingMeta));
+    }
+    if (data.containsKey('metadata_json')) {
+      context.handle(
+          _metadataJsonMeta,
+          metadataJson.isAcceptableOrUnknown(
+              data['metadata_json']!, _metadataJsonMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  VectorDocument map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return VectorDocument(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      collectionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}collection_id'])!,
+      content: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content'])!,
+      embedding: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}embedding'])!,
+      metadataJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}metadata_json'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $VectorDocumentsTable createAlias(String alias) {
+    return $VectorDocumentsTable(attachedDatabase, alias);
+  }
+}
+
+class VectorDocument extends DataClass implements Insertable<VectorDocument> {
+  final String id;
+  final String collectionId;
+  final String content;
+  final String embedding;
+  final String metadataJson;
+  final DateTime createdAt;
+  const VectorDocument(
+      {required this.id,
+      required this.collectionId,
+      required this.content,
+      required this.embedding,
+      required this.metadataJson,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['collection_id'] = Variable<String>(collectionId);
+    map['content'] = Variable<String>(content);
+    map['embedding'] = Variable<String>(embedding);
+    map['metadata_json'] = Variable<String>(metadataJson);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  VectorDocumentsCompanion toCompanion(bool nullToAbsent) {
+    return VectorDocumentsCompanion(
+      id: Value(id),
+      collectionId: Value(collectionId),
+      content: Value(content),
+      embedding: Value(embedding),
+      metadataJson: Value(metadataJson),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory VectorDocument.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return VectorDocument(
+      id: serializer.fromJson<String>(json['id']),
+      collectionId: serializer.fromJson<String>(json['collectionId']),
+      content: serializer.fromJson<String>(json['content']),
+      embedding: serializer.fromJson<String>(json['embedding']),
+      metadataJson: serializer.fromJson<String>(json['metadataJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'collectionId': serializer.toJson<String>(collectionId),
+      'content': serializer.toJson<String>(content),
+      'embedding': serializer.toJson<String>(embedding),
+      'metadataJson': serializer.toJson<String>(metadataJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  VectorDocument copyWith(
+          {String? id,
+          String? collectionId,
+          String? content,
+          String? embedding,
+          String? metadataJson,
+          DateTime? createdAt}) =>
+      VectorDocument(
+        id: id ?? this.id,
+        collectionId: collectionId ?? this.collectionId,
+        content: content ?? this.content,
+        embedding: embedding ?? this.embedding,
+        metadataJson: metadataJson ?? this.metadataJson,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  VectorDocument copyWithCompanion(VectorDocumentsCompanion data) {
+    return VectorDocument(
+      id: data.id.present ? data.id.value : this.id,
+      collectionId: data.collectionId.present
+          ? data.collectionId.value
+          : this.collectionId,
+      content: data.content.present ? data.content.value : this.content,
+      embedding: data.embedding.present ? data.embedding.value : this.embedding,
+      metadataJson: data.metadataJson.present
+          ? data.metadataJson.value
+          : this.metadataJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VectorDocument(')
+          ..write('id: $id, ')
+          ..write('collectionId: $collectionId, ')
+          ..write('content: $content, ')
+          ..write('embedding: $embedding, ')
+          ..write('metadataJson: $metadataJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, collectionId, content, embedding, metadataJson, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is VectorDocument &&
+          other.id == this.id &&
+          other.collectionId == this.collectionId &&
+          other.content == this.content &&
+          other.embedding == this.embedding &&
+          other.metadataJson == this.metadataJson &&
+          other.createdAt == this.createdAt);
+}
+
+class VectorDocumentsCompanion extends UpdateCompanion<VectorDocument> {
+  final Value<String> id;
+  final Value<String> collectionId;
+  final Value<String> content;
+  final Value<String> embedding;
+  final Value<String> metadataJson;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const VectorDocumentsCompanion({
+    this.id = const Value.absent(),
+    this.collectionId = const Value.absent(),
+    this.content = const Value.absent(),
+    this.embedding = const Value.absent(),
+    this.metadataJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  VectorDocumentsCompanion.insert({
+    required String id,
+    required String collectionId,
+    required String content,
+    this.embedding = const Value.absent(),
+    this.metadataJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        collectionId = Value(collectionId),
+        content = Value(content);
+  static Insertable<VectorDocument> custom({
+    Expression<String>? id,
+    Expression<String>? collectionId,
+    Expression<String>? content,
+    Expression<String>? embedding,
+    Expression<String>? metadataJson,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (collectionId != null) 'collection_id': collectionId,
+      if (content != null) 'content': content,
+      if (embedding != null) 'embedding': embedding,
+      if (metadataJson != null) 'metadata_json': metadataJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  VectorDocumentsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? collectionId,
+      Value<String>? content,
+      Value<String>? embedding,
+      Value<String>? metadataJson,
+      Value<DateTime>? createdAt,
+      Value<int>? rowid}) {
+    return VectorDocumentsCompanion(
+      id: id ?? this.id,
+      collectionId: collectionId ?? this.collectionId,
+      content: content ?? this.content,
+      embedding: embedding ?? this.embedding,
+      metadataJson: metadataJson ?? this.metadataJson,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (collectionId.present) {
+      map['collection_id'] = Variable<String>(collectionId.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (embedding.present) {
+      map['embedding'] = Variable<String>(embedding.value);
+    }
+    if (metadataJson.present) {
+      map['metadata_json'] = Variable<String>(metadataJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VectorDocumentsCompanion(')
+          ..write('id: $id, ')
+          ..write('collectionId: $collectionId, ')
+          ..write('content: $content, ')
+          ..write('embedding: $embedding, ')
+          ..write('metadataJson: $metadataJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6482,6 +7148,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TagsTable tags = $TagsTable(this);
   late final $CharacterTagsTable characterTags = $CharacterTagsTable(this);
   late final $GlobalStatesTable globalStates = $GlobalStatesTable(this);
+  late final $VectorCollectionsTable vectorCollections =
+      $VectorCollectionsTable(this);
+  late final $VectorDocumentsTable vectorDocuments =
+      $VectorDocumentsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6498,7 +7168,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         bookmarks,
         tags,
         characterTags,
-        globalStates
+        globalStates,
+        vectorCollections,
+        vectorDocuments
       ];
 }
 
@@ -10768,6 +11440,372 @@ typedef $$GlobalStatesTableProcessedTableManager = ProcessedTableManager<
     ),
     GlobalState,
     PrefetchHooks Function()>;
+typedef $$VectorCollectionsTableCreateCompanionBuilder
+    = VectorCollectionsCompanion Function({
+  required String id,
+  required String name,
+  Value<String?> description,
+  Value<int> dimensions,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+typedef $$VectorCollectionsTableUpdateCompanionBuilder
+    = VectorCollectionsCompanion Function({
+  Value<String> id,
+  Value<String> name,
+  Value<String?> description,
+  Value<int> dimensions,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+
+class $$VectorCollectionsTableFilterComposer
+    extends Composer<_$AppDatabase, $VectorCollectionsTable> {
+  $$VectorCollectionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get dimensions => $composableBuilder(
+      column: $table.dimensions, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$VectorCollectionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $VectorCollectionsTable> {
+  $$VectorCollectionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get dimensions => $composableBuilder(
+      column: $table.dimensions, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$VectorCollectionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $VectorCollectionsTable> {
+  $$VectorCollectionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<int> get dimensions => $composableBuilder(
+      column: $table.dimensions, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$VectorCollectionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $VectorCollectionsTable,
+    VectorCollection,
+    $$VectorCollectionsTableFilterComposer,
+    $$VectorCollectionsTableOrderingComposer,
+    $$VectorCollectionsTableAnnotationComposer,
+    $$VectorCollectionsTableCreateCompanionBuilder,
+    $$VectorCollectionsTableUpdateCompanionBuilder,
+    (
+      VectorCollection,
+      BaseReferences<_$AppDatabase, $VectorCollectionsTable, VectorCollection>
+    ),
+    VectorCollection,
+    PrefetchHooks Function()> {
+  $$VectorCollectionsTableTableManager(
+      _$AppDatabase db, $VectorCollectionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$VectorCollectionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$VectorCollectionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$VectorCollectionsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String?> description = const Value.absent(),
+            Value<int> dimensions = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              VectorCollectionsCompanion(
+            id: id,
+            name: name,
+            description: description,
+            dimensions: dimensions,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String name,
+            Value<String?> description = const Value.absent(),
+            Value<int> dimensions = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              VectorCollectionsCompanion.insert(
+            id: id,
+            name: name,
+            description: description,
+            dimensions: dimensions,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$VectorCollectionsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $VectorCollectionsTable,
+    VectorCollection,
+    $$VectorCollectionsTableFilterComposer,
+    $$VectorCollectionsTableOrderingComposer,
+    $$VectorCollectionsTableAnnotationComposer,
+    $$VectorCollectionsTableCreateCompanionBuilder,
+    $$VectorCollectionsTableUpdateCompanionBuilder,
+    (
+      VectorCollection,
+      BaseReferences<_$AppDatabase, $VectorCollectionsTable, VectorCollection>
+    ),
+    VectorCollection,
+    PrefetchHooks Function()>;
+typedef $$VectorDocumentsTableCreateCompanionBuilder = VectorDocumentsCompanion
+    Function({
+  required String id,
+  required String collectionId,
+  required String content,
+  Value<String> embedding,
+  Value<String> metadataJson,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+typedef $$VectorDocumentsTableUpdateCompanionBuilder = VectorDocumentsCompanion
+    Function({
+  Value<String> id,
+  Value<String> collectionId,
+  Value<String> content,
+  Value<String> embedding,
+  Value<String> metadataJson,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+
+class $$VectorDocumentsTableFilterComposer
+    extends Composer<_$AppDatabase, $VectorDocumentsTable> {
+  $$VectorDocumentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get collectionId => $composableBuilder(
+      column: $table.collectionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get embedding => $composableBuilder(
+      column: $table.embedding, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get metadataJson => $composableBuilder(
+      column: $table.metadataJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$VectorDocumentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $VectorDocumentsTable> {
+  $$VectorDocumentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get collectionId => $composableBuilder(
+      column: $table.collectionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get embedding => $composableBuilder(
+      column: $table.embedding, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get metadataJson => $composableBuilder(
+      column: $table.metadataJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$VectorDocumentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $VectorDocumentsTable> {
+  $$VectorDocumentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get collectionId => $composableBuilder(
+      column: $table.collectionId, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<String> get embedding =>
+      $composableBuilder(column: $table.embedding, builder: (column) => column);
+
+  GeneratedColumn<String> get metadataJson => $composableBuilder(
+      column: $table.metadataJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$VectorDocumentsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $VectorDocumentsTable,
+    VectorDocument,
+    $$VectorDocumentsTableFilterComposer,
+    $$VectorDocumentsTableOrderingComposer,
+    $$VectorDocumentsTableAnnotationComposer,
+    $$VectorDocumentsTableCreateCompanionBuilder,
+    $$VectorDocumentsTableUpdateCompanionBuilder,
+    (
+      VectorDocument,
+      BaseReferences<_$AppDatabase, $VectorDocumentsTable, VectorDocument>
+    ),
+    VectorDocument,
+    PrefetchHooks Function()> {
+  $$VectorDocumentsTableTableManager(
+      _$AppDatabase db, $VectorDocumentsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$VectorDocumentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$VectorDocumentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$VectorDocumentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> collectionId = const Value.absent(),
+            Value<String> content = const Value.absent(),
+            Value<String> embedding = const Value.absent(),
+            Value<String> metadataJson = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              VectorDocumentsCompanion(
+            id: id,
+            collectionId: collectionId,
+            content: content,
+            embedding: embedding,
+            metadataJson: metadataJson,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String collectionId,
+            required String content,
+            Value<String> embedding = const Value.absent(),
+            Value<String> metadataJson = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              VectorDocumentsCompanion.insert(
+            id: id,
+            collectionId: collectionId,
+            content: content,
+            embedding: embedding,
+            metadataJson: metadataJson,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$VectorDocumentsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $VectorDocumentsTable,
+    VectorDocument,
+    $$VectorDocumentsTableFilterComposer,
+    $$VectorDocumentsTableOrderingComposer,
+    $$VectorDocumentsTableAnnotationComposer,
+    $$VectorDocumentsTableCreateCompanionBuilder,
+    $$VectorDocumentsTableUpdateCompanionBuilder,
+    (
+      VectorDocument,
+      BaseReferences<_$AppDatabase, $VectorDocumentsTable, VectorDocument>
+    ),
+    VectorDocument,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -10795,4 +11833,8 @@ class $AppDatabaseManager {
       $$CharacterTagsTableTableManager(_db, _db.characterTags);
   $$GlobalStatesTableTableManager get globalStates =>
       $$GlobalStatesTableTableManager(_db, _db.globalStates);
+  $$VectorCollectionsTableTableManager get vectorCollections =>
+      $$VectorCollectionsTableTableManager(_db, _db.vectorCollections);
+  $$VectorDocumentsTableTableManager get vectorDocuments =>
+      $$VectorDocumentsTableTableManager(_db, _db.vectorDocuments);
 }

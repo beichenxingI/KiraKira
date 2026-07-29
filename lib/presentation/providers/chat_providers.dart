@@ -199,6 +199,24 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           isLoading: false,
         );
       }
+
+      // ═══ RAG：为本聊天自动准备专属向量集合并激活 ═══
+      try {
+        final vsService = _ref.read(vectorStorageServiceProvider);
+        if (vsService.getCollection(chatId) == null) {
+          vsService.createCollectionWithId(
+            id: chatId,
+            name: chat.title,
+            dimensions: 512,
+          );
+          _ref.read(vectorCollectionsProvider.notifier).refresh();
+        }
+        _ref
+            .read(vectorStorageSettingsProvider.notifier)
+            .setActiveCollection(chatId);
+      } catch (e) {
+        // 集合准备失败不阻断聊天加载
+      }
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProvider error: $e\n$stackTrace');
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -413,6 +431,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     );
 
     await _chatRepository.addMessage(userMessage);
+    _indexMessageToVector(chatId: userMessage.chatId, messageId: userMessage.id, content: userMessage.content);
     state = state.copyWith(
       messages: [...state.messages, userMessage],
       isGenerating: true,
@@ -516,6 +535,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         reasoningSwipes: finalReasoning != null ? [finalReasoning] : null,
       );
       await _chatRepository.addMessage(finalMessage);
+      _indexMessageToVector(chatId: finalMessage.chatId, messageId: finalMessage.id, content: finalMessage.content);
 
       state = state.copyWith(isGenerating: false);
 
@@ -1072,6 +1092,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         swipes: [contentBuffer.toString()],
       );
       await _chatRepository.addMessage(finalMessage);
+      _indexMessageToVector(chatId: finalMessage.chatId, messageId: finalMessage.id, content: finalMessage.content);
       final msgs = List<ChatMessage>.from(state.messages);
       final idx = msgs.indexWhere((m) => m.id == newMessage.id);
       if (idx >= 0) msgs[idx] = finalMessage;
@@ -1214,6 +1235,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         reasoningSwipes: finalReasoning != null ? [finalReasoning] : null,
       );
       await _chatRepository.addMessage(finalMessage);
+      _indexMessageToVector(chatId: finalMessage.chatId, messageId: finalMessage.id, content: finalMessage.content);
 
       state = state.copyWith(isGenerating: false);
 
@@ -2119,6 +2141,46 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     return DateTime.now().millisecondsSinceEpoch.toString() +
         (DateTime.now().microsecond % 1000).toString().padLeft(3, '0');
   }
+  /// RAG：把一条消息 embed 后幂等写入本聊天的向量集合。
+  /// document.id 用 messageId → swipe/重生成/编辑同一消息只保留最新一条。
+  /// 整段容错：embedding 失败只跳过，绝不阻断对话。
+  Future<void> _indexMessageToVector({
+    required String chatId,
+    required String messageId,
+    required String content,
+  }) async {
+    try {
+      final text = content.trim();
+      if (text.isEmpty) return;
+
+      final vsSettings = _ref.read(vectorStorageSettingsProvider);
+      if (!vsSettings.enabled) return; // 用户没开 RAG 就不做，省算力
+
+      final vsService = _ref.read(vectorStorageServiceProvider);
+      // 集合应已由 loadChat 建好；保险起见没有就建
+      if (vsService.getCollection(chatId) == null) {
+        vsService.createCollectionWithId(
+          id: chatId,
+          name: state.chat?.title ?? 'Chat',
+          dimensions: 512,
+        );
+      }
+
+      final embedder = _ref.read(embeddingServiceProvider);
+      final vec = await embedder.generateEmbedding(text, vsSettings);
+
+      vsService.addDocumentWithId(
+        collectionId: chatId,
+        documentId: messageId,
+        content: text,
+        embedding: vec,
+        metadata: {'messageId': messageId},
+      );
+      _ref.read(vectorCollectionsProvider.notifier).refresh();
+    } catch (e) {
+      debugPrint('⚠️ RAG 入库跳过（不影响对话）: $e');
+    }
+  }
 
   /// Check if summarization is needed and generate summary if threshold is reached
   Future<void> _checkAndSummarize(LLMConfig config) async {
@@ -2354,6 +2416,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     );
 
     await _chatRepository.addMessage(userMessage);
+    _indexMessageToVector(chatId: userMessage.chatId, messageId: userMessage.id, content: userMessage.content);
     state = state.copyWith(
       messages: [...state.messages, userMessage],
       error: null,
@@ -2566,6 +2629,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         reasoningSwipes: finalReasoning != null ? [finalReasoning] : null,
       );
       await _chatRepository.addMessage(finalMessage);
+      _indexMessageToVector(chatId: finalMessage.chatId, messageId: finalMessage.id, content: finalMessage.content);
 
       state = state.copyWith(
         isGenerating: false,

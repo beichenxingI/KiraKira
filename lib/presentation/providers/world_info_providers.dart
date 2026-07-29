@@ -134,6 +134,10 @@ class WorldInfoNotifier extends StateNotifier<AsyncValue<List<WorldInfo>>> {
     try {
       final worldInfos = await _repository.getAllWorldInfos();
       state = AsyncValue.data(worldInfos);
+      // 同步失效派生 provider，让角色详情/编辑页跟着刷新（世界书、条目编辑后立即可见）
+      _ref.invalidate(characterWorldInfosProvider);
+      _ref.invalidate(allWorldInfosProvider);
+      _ref.invalidate(globalWorldInfosProvider);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }

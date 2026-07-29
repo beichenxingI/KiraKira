@@ -101,9 +101,6 @@ flutter:
     - assets/models/bge-small-zh/
     - assets/images/
     - assets/icon/
-    - assets/characters/
-    - assets/characters/images/
-    - assets/characters/json/
     - assets/world_info/
     - assets/libs/
   

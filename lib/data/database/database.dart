@@ -214,6 +214,30 @@ class GlobalStates extends Table {
   @override
   Set<Column> get primaryKey => {key};
 }
+/// 向量文档表 · RAG 持久化
+class VectorDocuments extends Table {
+  TextColumn get id => text()();
+  TextColumn get collectionId => text()(); // 归属集合，用 chatId 绑定
+  TextColumn get content => text()(); // 原文楼层内容
+  TextColumn get embedding => text().withDefault(const Constant('[]'))(); // JSON 数组，float 向量
+  TextColumn get metadataJson => text().withDefault(const Constant('{}'))(); // JSON，存 role/messageId 等
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// 向量集合表 · 每个 chat 一个
+class VectorCollections extends Table {
+  TextColumn get id => text()(); // 用 chatId
+  TextColumn get name => text()();
+  TextColumn get description => text().nullable()();
+  IntColumn get dimensions => integer().withDefault(const Constant(512))(); // bge-small-zh 512维
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
 
 /// App database
 @DriftDatabase(tables: [
@@ -229,12 +253,14 @@ class GlobalStates extends Table {
   Tags,
   CharacterTags,
   GlobalStates,
+  VectorCollections,
+  VectorDocuments,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 13;
+    int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration {
@@ -306,6 +332,11 @@ class AppDatabase extends _$AppDatabase {
         if (from < 13) {
           // Add GlobalStates table for settings persistence
           await m.createTable(globalStates);
+        }
+        if (from < 14) {
+          // Add vector storage tables for RAG persistence
+          await m.createTable(vectorCollections);
+          await m.createTable(vectorDocuments);
         }
       },
     );

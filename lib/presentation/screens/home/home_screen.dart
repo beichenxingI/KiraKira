@@ -6,6 +6,7 @@ import 'package:kirakira/data/repositories/character_repository.dart';
 import 'package:kirakira/data/repositories/chat_repository.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
+import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
@@ -344,6 +345,14 @@ class _ChatListTile extends ConsumerWidget {
             onPressed: () async {
               Navigator.pop(dialogContext);
               await ref.read(chatRepositoryProvider).deleteChat(chat.id);
+              // RAG：同步清理内存中的向量集合（库已由 deleteChat 删除）
+              ref.read(vectorStorageServiceProvider).deleteCollection(chat.id);
+              // 刷新集合列表，并在删的正是活跃集合时清空选择，避免下拉框指向幽灵集合
+              ref.read(vectorCollectionsProvider.notifier).refresh();
+              final vsSettings = ref.read(vectorStorageSettingsProvider);
+              if (vsSettings.activeCollectionId == chat.id) {
+                ref.read(vectorStorageSettingsProvider.notifier).setActiveCollection(null);
+              }
               ref.invalidate(allChatsProvider);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

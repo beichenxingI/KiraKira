@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/variables_service.dart';
@@ -169,7 +169,6 @@ class VariablesSettingsScreen extends ConsumerWidget {
     required List<Widget> children,
   }) {
     return Card(
-      color: AppTheme.darkCard,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

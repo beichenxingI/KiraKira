@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../data/models/app_theme_config.dart';
@@ -360,7 +360,6 @@ class _ThemeCard extends StatelessWidget {
             // Name
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              color: AppTheme.darkCard,
               child: Row(
                 children: [
                   Expanded(

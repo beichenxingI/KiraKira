@@ -28,8 +28,6 @@ class InitializationData {
 class InitializationService {
   static bool _initialized = false;
   static InitializationData? _initData;
-  static const String _defaultCharacterCreatedKey = 'default_character_created';
-  static const String _builtInCharactersLoadedKey = 'builtin_characters_v22_loaded';
   static const String _builtInWorldInfosLoadedKey = 'builtin_worldinfos_loaded';
   
   /// Initialize all core services
@@ -55,12 +53,6 @@ class InitializationService {
       dataPath: dataPath,
     );
     
-    // Create default character if first launch
-    await _ensureDefaultCharacter(database);
-    
-    // Load built-in characters
-    await _loadBuiltInCharacters(database, dataPath);
-    
     // Load built-in world infos
     await _loadBuiltInWorldInfos(database);
     
@@ -69,85 +61,6 @@ class InitializationService {
     debugPrint('📁 Data path: $dataPath');
     
     return _initData!;
-  }
-
-  /// Ensure a default character exists on first launch
-  static Future<void> _ensureDefaultCharacter(AppDatabase database) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final defaultCreated = prefs.getBool(_defaultCharacterCreatedKey) ?? false;
-      
-      if (defaultCreated) {
-        debugPrint('📝 Default character already created');
-        return;
-      }
-      
-      // Get data path for repository
-      final appDir = await getApplicationDocumentsDirectory();
-      final dataPath = '${appDir.path}/KiraKira';
-      
-      // Check if any characters exist
-      final repo = CharacterRepository(database, dataPath);
-      final characters = await repo.getAllCharacters();
-      
-      if (characters.isEmpty) {
-        debugPrint('📝 Creating default character...');
-        
-        final now = DateTime.now();
-        final defaultCharacter = models.Character(
-          id: '',
-          name: 'Assistant',
-          description: 'A helpful AI assistant ready to chat with you.',
-          personality: 'Friendly, helpful, knowledgeable, and conversational.',
-          scenario: 'You are chatting with a helpful AI assistant.',
-          firstMessage: 'Hello! I\'m your AI assistant. How can I help you today?',
-          alternateGreetings: [
-            'Hi there! What would you like to talk about?',
-            'Greetings! I\'m here to assist you with anything you need.',
-          ],
-          exampleMessages: '',
-          systemPrompt: 'You are a helpful AI assistant. Be friendly, informative, and engaging in your responses.',
-          postHistoryInstructions: '',
-          creatorNotes: 'This is the default character created on first launch. Feel free to edit or delete it.',
-          tags: ['assistant', 'default'],
-          creator: 'KiraKira',
-          version: '1.0.0',
-          createdAt: now,
-          modifiedAt: now,
-        );
-        
-        await repo.createCharacter(defaultCharacter);
-        debugPrint('✅ Default character created successfully');
-      }
-      
-      // Mark as created
-      await prefs.setBool(_defaultCharacterCreatedKey, true);
-    } catch (e) {
-      debugPrint('⚠️ Failed to create default character: $e');
-    }
-  }
-
-  /// Load built-in characters from assets
-  static Future<void> _loadBuiltInCharacters(AppDatabase database, String dataPath) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final builtInLoaded = prefs.getBool(_builtInCharactersLoadedKey) ?? false;
-      
-      if (builtInLoaded) {
-        debugPrint('📦 Built-in characters already loaded');
-        return;
-      }
-      
-      debugPrint('📦 Loading built-in characters...');
-      final repo = CharacterRepository(database, dataPath);
-      await repo.loadBuiltInCharacters();
-      
-      // Mark as loaded
-      await prefs.setBool(_builtInCharactersLoadedKey, true);
-      debugPrint('✅ Built-in characters loaded successfully');
-    } catch (e) {
-      debugPrint('⚠️ Failed to load built-in characters: $e');
-    }
   }
 
   /// Load built-in world infos from assets

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/translation_service.dart';
 import 'package:kirakira/presentation/providers/translation_providers.dart';
@@ -260,7 +260,6 @@ class TranslationSettingsScreen extends ConsumerWidget {
     required List<Widget> children,
   }) {
     return Card(
-      color: AppTheme.darkCard,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

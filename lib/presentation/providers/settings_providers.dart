@@ -248,6 +248,8 @@ class LLMConfigNotifier extends StateNotifier<LLMConfig> {
         // Use default config on error
       }
     }
+    // 冷启动时用多LLM方案的 active 配置覆盖，保证聊天页与API服务页一致
+    await applyActiveMultiConfig();
   }
 
   Future<void> _saveConfig() async {

@@ -3,10 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kirakira/data/models/vector_storage.dart';
 import 'package:kirakira/domain/services/vector_storage_service.dart';
 import 'package:kirakira/domain/services/embedding_service.dart';
+import 'package:kirakira/core/services/initialization_service.dart';
 
 /// Provider for VectorStorageService
 final vectorStorageServiceProvider = Provider<VectorStorageService>((ref) {
-  return VectorStorageService();
+  final db = ref.watch(databaseProvider);
+  return VectorStorageService(db);
 });
  /// Provider for EmbeddingService（文字→向量引擎）
 final embeddingServiceProvider = Provider<EmbeddingService>((ref) {
@@ -135,10 +137,11 @@ class VectorCollectionsNotifier extends StateNotifier<List<VectorCollection>> {
   final Ref _ref;
 
   VectorCollectionsNotifier(this._service, this._ref) : super([]) {
-    _loadCollections();
+    _init();
   }
 
-  void _loadCollections() {
+  Future<void> _init() async {
+    await _service.load();
     state = _service.collections;
   }
 

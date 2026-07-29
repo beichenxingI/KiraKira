@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -217,7 +217,6 @@ class SpriteSettingsScreen extends ConsumerWidget {
     required List<Widget> children,
   }) {
     return Card(
-      color: AppTheme.darkCard,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -326,7 +325,6 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
       children: [
         // Stats card
         Card(
-          color: AppTheme.darkCard,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(

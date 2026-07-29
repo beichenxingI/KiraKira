@@ -28,6 +28,7 @@ class SettingsScreen extends ConsumerWidget {
         title: Text(l10n.settings),
       ),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 100),
         children: [
           const SizedBox(height: 8),
 

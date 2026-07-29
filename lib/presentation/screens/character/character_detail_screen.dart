@@ -17,6 +17,10 @@ import 'package:kirakira/presentation/screens/import/import_screen.dart' show im
 import 'package:kirakira/data/models/world_info.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/presentation/screens/world_info/world_info_screen.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:uuid/uuid.dart';
+import 'package:path/path.dart' as p;
 
 /// Provider for loading a single character by ID
 final characterDetailProvider = FutureProvider.family<Character?, String>((ref, id) async {
@@ -359,7 +363,10 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
                   shadows: [Shadow(color: Colors.black, blurRadius: 4)],
                 ),
               ),
-              background: _buildAvatarBackground(character),
+              background: GestureDetector(
+                onTap: _showCoverOptions,
+                child: _buildAvatarBackground(character),
+              ),
             ),
             actions: [
 
@@ -538,12 +545,13 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
   }
 
   Widget _buildAvatarBackground(Character character) {
-    if (character.assets?.avatarPath != null) {
+    final coverImage = character.assets?.avatarPath;
+    if (coverImage != null) {
       return Stack(
         fit: StackFit.expand,
         children: [
           CharacterAvatarImage(
-            imagePath: character.assets!.avatarPath!,
+            imagePath: coverImage,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => _defaultBackground(),
           ),
@@ -564,6 +572,102 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
       );
     }
     return _defaultBackground();
+  }
+  void _showCoverOptions() {
+    final l10n = AppLocalizations.of(context)!;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('从相册选择'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickCoverFromGallery();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder_open),
+              title: const Text('从文件选择'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickCoverFromFiles();
+              },
+            ),
+            if (_character.assets?.avatarPath != null)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('移除封面', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _saveCharacter(_character.copyWith(
+                    assets: (_character.assets ?? const CharacterAssets())
+                        .copyWith(coverPath: null),
+                  ));
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickCoverFromGallery() async {
+    try {
+      final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (image != null) await _saveCoverImage(image.path);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.failedToPickImage(e.toString()))),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickCoverFromFiles() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+      if (result != null && result.files.first.path != null) {
+        await _saveCoverImage(result.files.first.path!);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.failedToPickImage(e.toString()))),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveCoverImage(String sourcePath) async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final coversDir = Directory(p.join(appDir.path, 'KiraKira', 'covers'));
+      await coversDir.create(recursive: true);
+
+      final newFileName = '${const Uuid().v4()}${p.extension(sourcePath)}';
+      final newPath = p.join(coversDir.path, newFileName);
+      await File(sourcePath).copy(newPath);
+
+      await _saveCharacter(_character.copyWith(
+        assets: (_character.assets ?? const CharacterAssets())
+            .copyWith(avatarPath: newPath),
+      ));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.failedToSaveAvatar(e.toString()))),
+        );
+      }
+    }
   }
 
   Widget _defaultBackground() {

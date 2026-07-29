@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
@@ -469,7 +469,6 @@ class ImageGenSettingsScreen extends ConsumerWidget {
     required List<Widget> children,
   }) {
     return Card(
-      color: AppTheme.darkCard,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -783,7 +782,6 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
                                     return Container(
                                       width: 200,
                                       height: 200,
-                                      color: AppTheme.darkCard,
                                       child: const Center(
                                         child: Icon(Icons.broken_image, color: AppTheme.textMuted),
                                       ),

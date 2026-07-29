@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/tts_service.dart';
 import 'package:kirakira/presentation/providers/tts_providers.dart';
@@ -311,7 +311,6 @@ class TTSSettingsScreen extends ConsumerWidget {
     required List<Widget> children,
   }) {
     return Card(
-      color: AppTheme.darkCard,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

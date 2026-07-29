@@ -141,7 +141,6 @@ class AppTheme {
   }
   
   static ThemeData get lightTheme {
-    // Light theme for users who prefer it
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
@@ -149,15 +148,111 @@ class AppTheme {
         primary: primaryColor,
         secondary: secondaryColor,
         tertiary: accentColor,
-        surface: Colors.white,
-        onSurface: Colors.grey[900]!,
+        surface: const Color(0xFFF5F5FF),
+        onSurface: const Color(0xFF1A1A2E),
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurfaceVariant: const Color(0xFF5A5A7A),
       ),
-      scaffoldBackgroundColor: Colors.grey[50],
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.grey[900],
+      scaffoldBackgroundColor: const Color(0xFFEEEEF8),
+      cardColor: Colors.white,
+      dividerColor: const Color(0xFFDDDDEE),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFFF5F5FF),
+        foregroundColor: Color(0xFF1A1A2E),
         elevation: 0,
         centerTitle: true,
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      listTileTheme: const ListTileThemeData(
+        textColor: Color(0xFF1A1A2E),
+        iconColor: Color(0xFF5A5A7A),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFDDDDEE)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFDDDDEE)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: primaryColor, width: 2),
+        ),
+        hintStyle: const TextStyle(color: Color(0xFF9090AA)),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Color(0xFFF5F5FF),
+        selectedItemColor: primaryColor,
+        unselectedItemColor: Color(0xFF9090AA),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: const Color(0xFFF5F5FF),
+        indicatorColor: primaryColor.withValues(alpha: 0.15),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(color: primaryColor, fontSize: 12);
+          }
+          return const TextStyle(color: Color(0xFF9090AA), fontSize: 12);
+        }),
+      ),
+      textTheme: const TextTheme(
+        headlineLarge: TextStyle(
+          color: Color(0xFF1A1A2E),
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+        ),
+        headlineMedium: TextStyle(
+          color: Color(0xFF1A1A2E),
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+        ),
+        titleLarge: TextStyle(
+          color: Color(0xFF1A1A2E),
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+        titleMedium: TextStyle(
+          color: Color(0xFF1A1A2E),
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+        bodyLarge: TextStyle(
+          color: Color(0xFF1A1A2E),
+          fontSize: 16,
+        ),
+        bodyMedium: TextStyle(
+          color: Color(0xFF5A5A7A),
+          fontSize: 14,
+        ),
+        bodySmall: TextStyle(
+          color: Color(0xFF9090AA),
+          fontSize: 12,
+        ),
       ),
     );
   }

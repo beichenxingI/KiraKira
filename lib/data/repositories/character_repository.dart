@@ -179,66 +179,6 @@ class CharacterRepository {
     final count = await _db.select(_db.characters).get();
     return count.length;
   }
-
-  /// Load built-in characters from PNG assets (with embedded character data)
-  Future<void> loadBuiltInCharacters() async {
-    try {
-      final builtInCharacterFiles = [
-        'assets/characters/images/image_generation_assistant.png',
-        'assets/characters/images/xiaohongshu_copywriter.png',
-        'assets/characters/images/coding_assistant.png',
-        'assets/characters/images/cultivation_survival_game.png',
-        'assets/characters/images/marvel_crisis_manager.png',
-        'assets/characters/images/hyrule_adventure_quest.png',
-      ];
-
-      for (final assetPath in builtInCharacterFiles) {
-        try {
-          // Load PNG bytes from assets
-          final byteData = await rootBundle.load(assetPath);
-          final bytes = byteData.buffer.asUint8List();
-          
-          // Extract character data from PNG tEXt chunk
-          final base64Data = _extractPngTextChunk(bytes, 'chara');
-          if (base64Data == null) {
-            debugPrint('No character data found in $assetPath');
-            continue;
-          }
-          
-          // Decode base64 and parse JSON (V2/V3 character card format)
-          final jsonString = utf8.decode(base64Decode(base64Data));
-          final json = jsonDecode(jsonString) as Map<String, dynamic>;
-          
-          // Extract character ID from embedded data (V2/V3 format has it in data.id)
-          final data = json['data'] as Map<String, dynamic>? ?? json;
-          final characterId = data['id'] as String? ?? _uuid.v4();
-          
-          final existing = await getCharacter(characterId);
-          if (existing != null) {
-            // Character already exists, skip
-            continue;
-          }
-
-          // Parse character card (V2/V3 format) - same logic as importFromJson
-          final character = _parseCharacterCard(json, characterId);
-          
-          // Save avatar image
-          final avatarPath = await _saveBuiltInAvatar(characterId, bytes);
-          final characterWithAvatar = character.copyWith(
-            assets: models.CharacterAssets(avatarPath: avatarPath),
-          );
-          
-          await createCharacter(characterWithAvatar);
-          
-          debugPrint('Loaded built-in character: ${character.name}');
-        } catch (e) {
-          debugPrint('Failed to load built-in character from $assetPath: $e');
-        }
-      }
-    } catch (e) {
-      debugPrint('Failed to load built-in characters: $e');
-    }
-  }
   
   /// Parse character card from V1/V2/V3 format JSON
   models.Character _parseCharacterCard(Map<String, dynamic> json, String characterId) {
@@ -331,63 +271,6 @@ class CharacterRepository {
       modifiedAt: DateTime.now(),
     );
   }
-  
-  /// Extract text chunk from PNG bytes
-  String? _extractPngTextChunk(Uint8List bytes, String keyword) {
-    // PNG signature is 8 bytes
-    if (bytes.length < 8) return null;
-    
-    int offset = 8; // Skip PNG signature
-    
-    while (offset < bytes.length - 8) {
-      // Read chunk length (4 bytes, big-endian)
-      final length = (bytes[offset] << 24) | 
-                    (bytes[offset + 1] << 16) | 
-                    (bytes[offset + 2] << 8) | 
-                    bytes[offset + 3];
-      offset += 4;
-      
-      // Read chunk type (4 bytes)
-      final type = String.fromCharCodes(bytes.sublist(offset, offset + 4));
-      offset += 4;
-      
-      if (type == 'tEXt') {
-        // Read keyword until null byte
-        final dataStart = offset;
-        final dataEnd = offset + length;
-        
-        int keywordEnd = dataStart;
-        while (keywordEnd < dataEnd && bytes[keywordEnd] != 0) {
-          keywordEnd++;
-        }
-        
-        final chunkKeyword = String.fromCharCodes(bytes.sublist(dataStart, keywordEnd));
-        
-        if (chunkKeyword == keyword && keywordEnd + 1 < dataEnd) {
-          // Return the text value after the null separator
-          return String.fromCharCodes(bytes.sublist(keywordEnd + 1, dataEnd));
-        }
-      }
-      
-      // Skip data + CRC
-      offset += length + 4;
-    }
-    
-    return null;
-  }
-  
-  /// Save built-in avatar to data directory
-  Future<String> _saveBuiltInAvatar(String characterId, Uint8List imageData) async {
-    final avatarDir = Directory(p.join(_dataPath, 'avatars'));
-    if (!await avatarDir.exists()) {
-      await avatarDir.create(recursive: true);
-    }
-    
-    final avatarPath = p.join(avatarDir.path, '$characterId.png');
-    await File(avatarPath).writeAsBytes(imageData);
-    
-    return avatarPath;
-  }
 
   /// Import character from JSON data
   Future<models.Character> importFromJson(Map<String, dynamic> json) async {
@@ -436,15 +319,30 @@ class CharacterRepository {
       tags: _parseJsonList(row.tags),
       creator: row.creator,
       version: row.characterVersion,
-      assets: row.avatarPath != null
-          ? models.CharacterAssets(avatarPath: row.avatarPath)
-          : null,
+      assets: _parseAssets(row.assetsJson, row.avatarPath),
       characterBook: _parseCharacterBook(row.characterBookJson),
       extensions: _parseJsonMap(row.extensionsJson),
       isFavorite: row.isFavorite,
       createdAt: row.createdAt,
       modifiedAt: row.modifiedAt,
     );
+  }
+  models.CharacterAssets? _parseAssets(String assetsJson, String? avatarPath) {
+    try {
+      final map = jsonDecode(assetsJson) as Map<String, dynamic>;
+      if (map.isNotEmpty) {
+        final assets = models.CharacterAssets.fromJson(map);
+        // 兼容：老数据 assetsJson 为空但有独立 avatarPath 列
+        if (assets.avatarPath == null && avatarPath != null) {
+          return assets.copyWith(avatarPath: avatarPath);
+        }
+        return assets;
+      }
+    } catch (_) {}
+    // 回退：老角色卡只有 avatarPath 列
+    return avatarPath != null
+        ? models.CharacterAssets(avatarPath: avatarPath)
+        : null;
   }
 
   CharactersCompanion _characterToCompanion(models.Character character) {
@@ -464,6 +362,7 @@ class CharacterRepository {
       creator: Value(character.creator),
       characterVersion: Value(character.version),
       avatarPath: Value(character.assets?.avatarPath),
+      assetsJson: Value(character.assets != null ? jsonEncode(character.assets!.toJson()) : '{}'),
       characterBookJson: Value(_serializeCharacterBook(character.characterBook)),
       extensionsJson: Value(jsonEncode(character.extensions)),
       isFavorite: Value(character.isFavorite),

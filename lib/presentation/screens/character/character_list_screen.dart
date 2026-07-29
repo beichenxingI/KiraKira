@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -101,7 +101,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     // 选格式（默认 PNG）
     final format = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: AppTheme.darkSurface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -298,7 +298,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     final charactersAsync = ref.watch(characterListProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a2e), // 不透明底，避免透出 shell 的聊天壁纸
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 不透明底，避免透出 shell 的聊天壁纸
       appBar: _selectionMode
           ? AppBar(
               leading: IconButton(
@@ -420,25 +420,25 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     final l10n = AppLocalizations.of(context);
     showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF1E1E2E),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 100),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               width: 40, height: 4,
               decoration: BoxDecoration(
-                color: AppTheme.textMuted,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 20),
             ListTile(
-              leading: const Icon(Icons.file_download_outlined, color: AppTheme.primaryColor),
+              leading: Icon(Icons.file_download_outlined, color: Theme.of(context).colorScheme.primary),
               title: Text(l10n.importCharacter),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               onTap: () {
@@ -448,7 +448,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
             ),
             const SizedBox(height: 8),
             ListTile(
-              leading: const Icon(Icons.folder_zip_outlined, color: AppTheme.primaryColor),
+              leading: Icon(Icons.folder_zip_outlined, color: Theme.of(context).colorScheme.primary),
               title: const Text('从ZIP批量导入'),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               onTap: () {
@@ -458,7 +458,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
             ),
             const SizedBox(height: 8),
             ListTile(
-              leading: const Icon(Icons.add, color: AppTheme.primaryColor),
+              leading: Icon(Icons.add, color: Theme.of(context).colorScheme.primary),
               title: Text(l10n.createCharacter),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               onTap: () {
@@ -530,7 +530,7 @@ class _CharacterGridView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       cacheExtent: 1200,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -611,20 +611,20 @@ class _EmptyState extends StatelessWidget {
           Icon(
             Icons.people_outline,
             size: 80,
-            color: AppTheme.textMuted,
+            color: Theme.of(context).colorScheme.onSurfaceVariant
           ),
           const SizedBox(height: 16),
           Text(
             l10n.noCharactersYet,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppTheme.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant
                 ),
           ),
           const SizedBox(height: 8),
           Text(
             l10n.importCharacter,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textMuted,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant
                 ),
           ),
           const SizedBox(height: 24),

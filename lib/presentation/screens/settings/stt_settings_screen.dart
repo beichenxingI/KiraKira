@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/stt_service.dart';
 import 'package:kirakira/presentation/providers/stt_providers.dart';
@@ -217,7 +217,6 @@ class STTSettingsScreen extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppTheme.darkCard,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: result.isFinal
@@ -309,7 +308,6 @@ class STTSettingsScreen extends ConsumerWidget {
     required List<Widget> children,
   }) {
     return Card(
-      color: AppTheme.darkCard,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

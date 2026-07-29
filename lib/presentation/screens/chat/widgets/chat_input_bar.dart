@@ -36,9 +36,7 @@ class ChatInputBar extends StatelessWidget {
             decoration: InputDecoration(
               hintText: hintText ?? '输入消息...',
               filled: true,
-              fillColor: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF1E1E2E)
-                  : Colors.grey.shade200,
+              fillColor: Theme.of(context).cardColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
                 borderSide: BorderSide.none,

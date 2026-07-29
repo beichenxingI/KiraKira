@@ -104,6 +104,9 @@ class ChatRepository {
   Future<void> deleteChat(String id) async {
     // Delete all messages first
     await (_db.delete(_db.messages)..where((t) => t.chatId.equals(id))).go();
+    // RAG：级联删除本聊天的向量集合与所有文档（集合 id == chatId）
+    await (_db.delete(_db.vectorDocuments)..where((t) => t.collectionId.equals(id))).go();
+    await (_db.delete(_db.vectorCollections)..where((t) => t.id.equals(id))).go();
     // Delete the chat
     await (_db.delete(_db.chats)..where((t) => t.id.equals(id))).go();
   }
@@ -169,6 +172,8 @@ class ChatRepository {
   /// Delete a message
   Future<void> deleteMessage(String id) async {
     await (_db.delete(_db.messages)..where((t) => t.id.equals(id))).go();
+    // RAG：级联删除该消息对应的向量（document.id == messageId）
+    await (_db.delete(_db.vectorDocuments)..where((t) => t.id.equals(id))).go();
   }
 
   /// Get message count for a chat

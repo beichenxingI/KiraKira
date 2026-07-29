@@ -477,7 +477,9 @@ class _CollectionsSection extends StatelessWidget {
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: activeCollectionId,
+                value: collections.any((c) => c.id == activeCollectionId)
+                    ? activeCollectionId
+                    : null,
                 decoration: const InputDecoration(
                   labelText: '活跃集合',
                   border: OutlineInputBorder(),
@@ -524,7 +526,8 @@ class _CollectionsSection extends StatelessWidget {
             ),
           ],
         ),
-        if (activeCollectionId != null) ...[
+        if (activeCollectionId != null &&
+            collections.any((c) => c.id == activeCollectionId)) ...[
           const SizedBox(height: 8),
           _CollectionDetails(
             collectionId: activeCollectionId!,

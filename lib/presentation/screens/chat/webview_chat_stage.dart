@@ -384,9 +384,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
               child: Container(
                 height: 48 + MediaQuery.of(context).padding.top,
                 decoration: BoxDecoration(
-                  // 去掉实时高斯模糊，改高不透明纯色底：
-                  // 和 GlassContainer 同一套思路，Raster 开销砍掉，视觉几乎无差
-                  color: activeGlassPalette.glassTint.withValues(alpha: 0.82),
+                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.82),
                   borderRadius: const BorderRadius.vertical(
                     bottom: Radius.circular(20),
                   ),
@@ -878,7 +876,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     _controller?.pause();
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
@@ -1014,7 +1012,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     _controller?.pause();
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),

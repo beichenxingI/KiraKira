@@ -53,7 +53,7 @@ class _NativeTavernAppState extends ConsumerState<NativeTavernApp> {
     return MaterialApp.router(
       title: 'NativeTavern',
       debugShowCheckedModeBanner: false,
-      theme: activeTheme.toThemeData(),
+      theme: activeTheme.copyWith(isDark: false).toThemeData(),
       darkTheme: activeTheme.toThemeData(),
       themeMode: activeTheme.isDark ? ThemeMode.dark : ThemeMode.light,
       routerConfig: router,

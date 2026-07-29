@@ -145,22 +145,26 @@ class Character {
 class CharacterAssets {
   final String? avatarPath;
   final String? avatarUrl;
+  final String? coverPath;
   final Map<String, String>? expressionPack;
 
   const CharacterAssets({
     this.avatarPath,
     this.avatarUrl,
+    this.coverPath,
     this.expressionPack,
   });
 
   CharacterAssets copyWith({
     String? avatarPath,
     String? avatarUrl,
+    String? coverPath,
     Map<String, String>? expressionPack,
   }) {
     return CharacterAssets(
       avatarPath: avatarPath ?? this.avatarPath,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      coverPath: coverPath ?? this.coverPath,
       expressionPack: expressionPack ?? this.expressionPack,
     );
   }
@@ -168,12 +172,14 @@ class CharacterAssets {
   Map<String, dynamic> toJson() => {
         'avatarPath': avatarPath,
         'avatarUrl': avatarUrl,
+        'coverPath': coverPath,
         'expressionPack': expressionPack,
       };
 
   factory CharacterAssets.fromJson(Map<String, dynamic> json) => CharacterAssets(
         avatarPath: json['avatarPath'] as String?,
         avatarUrl: json['avatarUrl'] as String?,
+        coverPath: json['coverPath'] as String?,
         expressionPack: (json['expressionPack'] as Map<String, dynamic>?)?.cast<String, String>(),
       );
 }

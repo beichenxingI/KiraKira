@@ -1,4 +1,6 @@
-# NativeTavern
+# KiraKira
+
+⚠️ Beta 版本，功能仍在完善中，部分功能可能与描述存在差异。
 
 <p align="center">
   <a href="README.md">简体中文</a> | <a href="README.en.md">English</a>
@@ -340,6 +342,7 @@ AGPL-3.0 - 详见 [LICENSE](LICENSE)。
 
 ## 致谢
 
+- [NativeTavern](https://github.com/miaoxworld/NativeTavern) - 本项目基于 NativeTavern 开发，感谢 miaoxworld 的开创性工作
 - [SillyTavern](https://github.com/SillyTavern/SillyTavern) - 原始 Web 项目
 - [Flutter](https://flutter.dev) - 跨平台 UI 框架
 - [Riverpod](https://riverpod.dev) - 状态管理

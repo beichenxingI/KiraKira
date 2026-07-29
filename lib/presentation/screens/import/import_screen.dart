@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -125,40 +125,27 @@ class ImportNotifier extends StateNotifier<ImportState> {
   }
 
       /// Pick character card image from photo gallery (for mobile)
-      Future<void> pickFromGallery() async {
-        try {
-          state = state.copyWith(isLoading: true, error: null);
-    
-          // 不加 maxWidth/maxHeight：否则 image_picker 会重编码图片，
-          // 剥离 PNG 里嵌入的角色卡元数据，导致导入失败。
-          final List<XFile> images = await _imagePicker.pickMultiImage();
-    
-          if (images.isEmpty) {
-            state = state.copyWith(isLoading: false);
-            return;
-          }
-    
-          // XFile 可能是 content:// URI，用 readAsBytes 拿原始字节，
-          // 写到临时文件后再走统一的 path 导入流程。
-          final tmpDir = await getTemporaryDirectory();
-          final paths = <String>[];
-          for (final img in images) {
-            final bytes = await img.readAsBytes();
-            var name = img.name;
-            if (!name.toLowerCase().endsWith('.png')) name = '$name.png';
-            final f = File(p.join(tmpDir.path,
-                '${DateTime.now().microsecondsSinceEpoch}_$name'));
-            await f.writeAsBytes(bytes);
-            paths.add(f.path);
-          }
-          await loadFiles(paths);
-        } catch (e) {
-          state = state.copyWith(
-            isLoading: false,
-            error: 'Failed to pick from gallery: $e',
-          );
-        }
+  Future<void> pickFromGallery() async {
+    try {
+      // 不用 Photo Picker（Android 13+ 会剥离 PNG 元数据）
+      // 改走 FilePicker 文件管理器，拿原始字节
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png'],
+        allowMultiple: true,
+      );
+      if (result != null && result.files.isNotEmpty) {
+        await loadFiles(
+          result.files.where((f) => f.path != null).map((f) => f.path!).toList(),
+        );
       }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to pick from gallery: $e',
+      );
+    }
+  }
 
   Future<void> loadFiles(List<String> paths) async {
     if (paths.isEmpty) return;
@@ -526,10 +513,10 @@ class _FilePickerViewState extends State<_FilePickerView> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(48),
                 decoration: BoxDecoration(
-                  color: AppTheme.darkCard,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppTheme.darkDivider,
+                    color: Theme.of(context).dividerColor,
                     width: 2,
                   ),
                 ),
@@ -538,10 +525,10 @@ class _FilePickerViewState extends State<_FilePickerView> {
                     if (widget.isLoading)
                       const CircularProgressIndicator()
                     else ...[
-                      const Icon(
+                      Icon(
                         Icons.file_upload_outlined,
                         size: 64,
-                        color: AppTheme.textMuted,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -552,7 +539,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                       Text(
                         '支持批量导入 • PNG, CharX, JSON 格式',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textMuted,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                             ),
                       ),
                       const SizedBox(height: 24),
@@ -592,10 +579,10 @@ class _FilePickerViewState extends State<_FilePickerView> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppTheme.darkCard,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppTheme.darkDivider,
+                    color: Theme.of(context).dividerColor,
                     width: 2,
                   ),
                 ),
@@ -605,7 +592,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                       onTap: () => setState(() => _showUrlInput = !_showUrlInput),
                       child: Row(
                         children: [
-                          const Icon(Icons.link, size: 24, color: AppTheme.accentColor),
+                          Icon(Icons.link, size: 24, color: Theme.of(context).colorScheme.tertiary),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -615,7 +602,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                           ),
                           Icon(
                             _showUrlInput ? Icons.expand_less : Icons.expand_more,
-                            color: AppTheme.textMuted,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                           ),
                         ],
                       ),
@@ -626,7 +613,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                         controller: _urlController,
                         decoration: InputDecoration(
                           hintText: '输入角色卡链接...',
-                          hintStyle: const TextStyle(color: AppTheme.textMuted),
+                          hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
                           prefixIcon: const Icon(Icons.link, size: 20),
                           suffixIcon: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -655,7 +642,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                       Text(
                         '支持的社区（点击访问）：',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textMuted,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                             ),
                       ),
                       const SizedBox(height: 8),
@@ -676,7 +663,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                       Text(
                         '也支持公开的 PNG / JSON 链接',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textMuted,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                             ),
                       ),
                     ],
@@ -722,7 +709,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
         Text(
           AppLocalizations.of(context)!.supportedFormats,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: AppTheme.accentColor,
+                color: Theme.of(context).colorScheme.tertiary,
               ),
         ),
         const SizedBox(height: 12),
@@ -769,7 +756,7 @@ class _FormatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: AppTheme.textMuted),
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -782,7 +769,7 @@ class _FormatTile extends StatelessWidget {
               Text(
                 description,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textMuted,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                     ),
               ),
             ],
@@ -810,18 +797,18 @@ class _CommunityChip extends StatelessWidget {
       avatar: Icon(
         isPrimary ? Icons.star : Icons.open_in_new,
         size: 14,
-        color: isPrimary ? AppTheme.accentColor : AppTheme.textMuted,
+        color: isPrimary ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
       ),
       label: Text(
         name,
         style: TextStyle(
           fontSize: 12,
-          color: isPrimary ? AppTheme.accentColor : null,
+          color: isPrimary ? Theme.of(context).colorScheme.tertiary : null,
           fontWeight: isPrimary ? FontWeight.bold : null,
         ),
       ),
       side: isPrimary
-          ? const BorderSide(color: AppTheme.accentColor, width: 1)
+          ? BorderSide(color: Theme.of(context).colorScheme.tertiary, width: 1)
           : null,
       onPressed: () async {
         final uri = Uri.parse(url);
@@ -860,7 +847,7 @@ class _BatchImportResults extends StatelessWidget {
         // Progress header
         Container(
           padding: const EdgeInsets.all(16),
-          color: AppTheme.darkCard,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           child: Column(
             children: [
               if (isLoading) ...[
@@ -890,7 +877,7 @@ class _BatchImportResults extends StatelessWidget {
                       icon: Icons.folder,
                       label: '总计',
                       count: totalFiles,
-                      color: AppTheme.accentColor,
+                      color: Theme.of(context).colorScheme.tertiary,
                     ),
                   ],
                 ),
@@ -957,7 +944,7 @@ class _StatChip extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textMuted,
+                color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
         ),
       ],
@@ -997,13 +984,13 @@ class _ImportResultCard extends StatelessWidget {
                   if (result.urlSource != null)
                     Row(
                       children: [
-                        const Icon(Icons.link, size: 12, color: AppTheme.textMuted),
+                        Icon(Icons.link, size: 12, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             result.fileName,
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.textMuted,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                                 ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -1015,7 +1002,7 @@ class _ImportResultCard extends StatelessWidget {
                     Text(
                       result.fileName,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.textMuted,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                           ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1026,12 +1013,12 @@ class _ImportResultCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.auto_stories, size: 14, color: AppTheme.accentColor),
+                        Icon(Icons.auto_stories, size: 14, color: Theme.of(context).colorScheme.tertiary),
                         const SizedBox(width: 4),
                         Text(
                           '${result.character!.characterBook!.entries.length} 条世界书',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.accentColor,
+                                color: Theme.of(context).colorScheme.tertiary,
                               ),
                         ),
                       ],
@@ -1101,7 +1088,7 @@ class _CharacterPreview extends StatelessWidget {
                     width: 100,
                     height: 100,
                     decoration: BoxDecoration(
-                      color: AppTheme.darkDivider,
+                      color: Theme.of(context).dividerColor,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: character.assets?.avatarPath != null
@@ -1112,11 +1099,11 @@ class _CharacterPreview extends StatelessWidget {
                               fit: BoxFit.cover,
                             ),
                           )
-                        : const Center(
+                        : Center(
                             child: Icon(
                               Icons.person,
                               size: 48,
-                              color: AppTheme.textMuted,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                             ),
                           ),
                   ),
@@ -1135,7 +1122,7 @@ class _CharacterPreview extends StatelessWidget {
                           Text(
                             'by ${character.creator}',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppTheme.textMuted,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                                 ),
                           ),
                         ],
@@ -1144,7 +1131,7 @@ class _CharacterPreview extends StatelessWidget {
                           Text(
                             'Version: ${character.version}',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.textMuted,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                                 ),
                           ),
                         ],
@@ -1169,7 +1156,7 @@ class _CharacterPreview extends StatelessWidget {
                     Text(
                       AppLocalizations.of(context)!.tags,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: AppTheme.accentColor,
+                            color: Theme.of(context).colorScheme.tertiary,
                           ),
                     ),
                     const SizedBox(height: 8),
@@ -1229,12 +1216,12 @@ class _CharacterPreview extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.format_list_bulleted, size: 20, color: AppTheme.accentColor),
+                        Icon(Icons.format_list_bulleted, size: 20, color: Theme.of(context).colorScheme.tertiary),
                         const SizedBox(width: 8),
                         Text(
                           AppLocalizations.of(context)!.alternateGreetingsCount(character.alternateGreetings.length),
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                color: AppTheme.accentColor,
+                                color: Theme.of(context).colorScheme.tertiary,
                               ),
                         ),
                       ],
@@ -1245,7 +1232,7 @@ class _CharacterPreview extends StatelessWidget {
                       child: Text(
                         '${e.key + 1}. ${e.value.length > 100 ? '${e.value.substring(0, 100)}...' : e.value}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textMuted,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                             ),
                       ),
                     )),
@@ -1265,12 +1252,12 @@ class _CharacterPreview extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.auto_stories, size: 20, color: AppTheme.accentColor),
+                        Icon(Icons.auto_stories, size: 20, color: Theme.of(context).colorScheme.tertiary),
                         const SizedBox(width: 8),
                         Text(
                           AppLocalizations.of(context)!.embeddedLorebookEntries(character.characterBook!.entries.length),
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                color: AppTheme.accentColor,
+                                color: Theme.of(context).colorScheme.tertiary,
                               ),
                         ),
                       ],
@@ -1280,7 +1267,7 @@ class _CharacterPreview extends StatelessWidget {
                       Text(
                         character.characterBook!.name!,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textMuted,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                             ),
                       ),
                     ],
@@ -1288,7 +1275,7 @@ class _CharacterPreview extends StatelessWidget {
                     Text(
                       'Keywords: ${character.characterBook!.entries.expand((e) => e.keys).take(10).join(", ")}${character.characterBook!.entries.expand((e) => e.keys).length > 10 ? "..." : ""}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.textMuted,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                           ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -1355,12 +1342,12 @@ class _ExpandableSectionState extends State<_ExpandableSection> {
                   Text(
                     widget.title,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: AppTheme.accentColor,
+                          color: Theme.of(context).colorScheme.tertiary,
                         ),
                   ),
                   Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,
-                    color: AppTheme.textMuted,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                   ),
                 ],
               ),
@@ -1379,7 +1366,7 @@ class _ExpandableSectionState extends State<_ExpandableSection> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textMuted,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                       ),
                 ),
               ],
