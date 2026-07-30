@@ -243,6 +243,18 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           _bridge.send(BridgeType.appendToken, {'id': last.id, 'token': delta});
         } else if (last.content != prevLast.content) {
           _pushMessages();
+        } else {
+          // 中间消息的 swipe 结构/索引变化（reroll 插占位、swipe 切换）→ 刷新同步 webview。
+          // 只看 swipes 数量与 index，不看 content：流式中间的 content 变化不在此刷，
+          // 交给生成结束时那次全量刷新，避免 reroll 每个 token 全量重建导致卡顿。
+          for (var i = 0; i < nextMsgs.length; i++) {
+            if (i >= prevMsgs.length) break;
+            if (nextMsgs[i].swipes.length != prevMsgs[i].swipes.length ||
+                nextMsgs[i].currentSwipeIndex != prevMsgs[i].currentSwipeIndex) {
+              _pushMessages();
+              break;
+            }
+          }
         }
       }
 

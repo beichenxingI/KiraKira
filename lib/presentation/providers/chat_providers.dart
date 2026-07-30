@@ -886,24 +886,34 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final message = state.messages[messageIndex];
     if (message.role != MessageRole.assistant) return;
 
-    state = state.copyWith(isGenerating: true, error: null);
+    // 先追加一条空占位 swipe，让用户看到"思考中"，知道 reroll 正在进行
+    final placeholderSwipes = List<String>.from(message.swipes)..add('');
+    final placeholderMessage = message.copyWith(
+      content: '',
+      swipes: placeholderSwipes,
+      currentSwipeIndex: placeholderSwipes.length - 1,
+    );
+    final placeholderMessages = List<ChatMessage>.from(state.messages);
+    placeholderMessages[messageIndex] = placeholderMessage;
+    state = state.copyWith(
+      messages: placeholderMessages,
+      isGenerating: true,
+      error: null,
+    );
 
     try {
-      // Build context up to (but not including) this message
       final context = await _buildContextUpTo(messageIndex);
 
       String finalContent;
       String? finalReasoning;
 
       if (config.streamEnabled) {
-        // Streaming mode
         final contentBuffer = StringBuffer();
         final reasoningBuffer = StringBuffer();
         final int myToken = ++_generationToken;
         final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
-          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
           if (myToken != _generationToken || state.chat?.id != myChatId) {
             return;
           }
@@ -916,82 +926,100 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
             contentBuffer.write(chunk.content);
           }
 
-          final newSwipes = List<String>.from(message.swipes);
-          // Check if we're still adding to the same swipe or creating new
-          if (newSwipes.length == message.swipes.length) {
-            newSwipes.add(contentBuffer.toString());
-          } else {
-            newSwipes[newSwipes.length - 1] = contentBuffer.toString();
-          }
+          // 从当前 state 取最新消息（含占位 swipe），只更新最后那条 swipe
+          final current = state.messages[messageIndex];
+          final streamSwipes = List<String>.from(current.swipes);
+          streamSwipes[streamSwipes.length - 1] = contentBuffer.toString();
 
-          // Handle reasoning swipes
-          final newReasoningSwipes =
-              List<String>.from(message.reasoningSwipes ?? []);
-          while (newReasoningSwipes.length < newSwipes.length - 1) {
-            newReasoningSwipes.add('');
+          final streamReasoningSwipes =
+              List<String>.from(current.reasoningSwipes ?? []);
+          while (streamReasoningSwipes.length < streamSwipes.length - 1) {
+            streamReasoningSwipes.add('');
           }
           if (reasoningBuffer.isNotEmpty) {
-            if (newReasoningSwipes.length < newSwipes.length) {
-              newReasoningSwipes.add(reasoningBuffer.toString());
+            if (streamReasoningSwipes.length < streamSwipes.length) {
+              streamReasoningSwipes.add(reasoningBuffer.toString());
             } else {
-              newReasoningSwipes[newSwipes.length - 1] =
+              streamReasoningSwipes[streamSwipes.length - 1] =
                   reasoningBuffer.toString();
             }
           }
 
-          final updatedMessage = message.copyWith(
+          final streamMessage = current.copyWith(
             content: contentBuffer.toString(),
-            swipes: newSwipes,
-            currentSwipeIndex: newSwipes.length - 1,
+            swipes: streamSwipes,
+            currentSwipeIndex: streamSwipes.length - 1,
             reasoning:
                 reasoningBuffer.isNotEmpty ? reasoningBuffer.toString() : null,
             reasoningSwipes:
-                newReasoningSwipes.isNotEmpty ? newReasoningSwipes : null,
+                streamReasoningSwipes.isNotEmpty ? streamReasoningSwipes : null,
           );
-
-          final updatedMessages = List<ChatMessage>.from(state.messages);
-          updatedMessages[messageIndex] = updatedMessage;
-          state = state.copyWith(messages: updatedMessages);
+          final streamMessages = List<ChatMessage>.from(state.messages);
+          streamMessages[messageIndex] = streamMessage;
+          state = state.copyWith(messages: streamMessages);
         }
         finalContent = contentBuffer.toString();
         finalReasoning =
             reasoningBuffer.isNotEmpty ? reasoningBuffer.toString() : null;
       } else {
-        // Non-streaming mode with reasoning support
         final response =
             await _llmService.generateWithReasoning(context, config);
         finalContent = response.content;
         finalReasoning = response.reasoning;
       }
 
-      // Save the updated message
-      final newSwipes = List<String>.from(message.swipes);
-      newSwipes.add(finalContent);
+      // 取流式结束后的最新 state，把最后一条 swipe 定稿并存库
+      final latestMessage = state.messages[messageIndex];
+      final finalSwipes = List<String>.from(latestMessage.swipes);
+      finalSwipes[finalSwipes.length - 1] = finalContent;
 
-      // Handle reasoning swipes for final message
-      final newReasoningSwipes =
-          List<String>.from(message.reasoningSwipes ?? []);
-      while (newReasoningSwipes.length < newSwipes.length - 1) {
-        newReasoningSwipes.add('');
+      final finalReasoningSwipes =
+          List<String>.from(latestMessage.reasoningSwipes ?? []);
+      while (finalReasoningSwipes.length < finalSwipes.length - 1) {
+        finalReasoningSwipes.add('');
       }
       if (finalReasoning != null && finalReasoning.isNotEmpty) {
-        newReasoningSwipes.add(finalReasoning);
+        if (finalReasoningSwipes.length < finalSwipes.length) {
+          finalReasoningSwipes.add(finalReasoning);
+        } else {
+          finalReasoningSwipes[finalSwipes.length - 1] = finalReasoning;
+        }
       }
 
-      final finalMessage = message.copyWith(
+      final finalMessage = latestMessage.copyWith(
         content: finalContent,
-        swipes: newSwipes,
-        currentSwipeIndex: newSwipes.length - 1,
+        swipes: finalSwipes,
+        currentSwipeIndex: finalSwipes.length - 1,
         reasoning: finalReasoning,
         reasoningSwipes:
-            newReasoningSwipes.isNotEmpty ? newReasoningSwipes : null,
+            finalReasoningSwipes.isNotEmpty ? finalReasoningSwipes : null,
       );
       await _chatRepository.updateMessage(finalMessage);
 
-      state = state.copyWith(isGenerating: false);
+      state = state.copyWith(
+        messages: List<ChatMessage>.from(state.messages)
+          ..[messageIndex] = finalMessage,
+        isGenerating: false,
+      );
     } catch (e, stackTrace) {
-      debugPrint('❌ ChatProvider swipeGenerate error: $e\n$stackTrace');
-      state = state.copyWith(isGenerating: false, error: e.toString());
+      debugPrint('❌ ChatProvider regenerateMessage error: $e\n$stackTrace');
+      // 取消或失败时，若最后一条 swipe 是空占位就移除，避免留空壳
+      final msgs = List<ChatMessage>.from(state.messages);
+      final current = msgs[messageIndex];
+      if (current.swipes.length > 1 && current.swipes.last.trim().isEmpty) {
+        final cleanSwipes =
+            current.swipes.sublist(0, current.swipes.length - 1);
+        msgs[messageIndex] = current.copyWith(
+          content: cleanSwipes.last,
+          swipes: cleanSwipes,
+          currentSwipeIndex: cleanSwipes.length - 1,
+        );
+      }
+      state = state.copyWith(
+        messages: msgs,
+        isGenerating: false,
+        error: e.toString(),
+      );
     }
   }
 
