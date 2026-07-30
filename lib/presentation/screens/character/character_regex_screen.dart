@@ -180,7 +180,7 @@ class _CharacterRegexScreenState extends ConsumerState<CharacterRegexScreen> {
               ),
             )
           : ReorderableListView.builder(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
               itemCount: scripts.length,
               onReorder: (oldIndex, newIndex) {
                 // ReorderableListView 的 newIndex 逻辑：拖到后面时 newIndex 会比实际位置大 1
