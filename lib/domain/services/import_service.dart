@@ -7,6 +7,8 @@ import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/domain/services/png_character_card_parser.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
 import 'package:path/path.dart' as p;
+import 'package:kirakira/data/models/world_info.dart';
+import 'package:kirakira/data/repositories/world_info_repository.dart';
 
 /// Service for importing and exporting character cards
 class ImportService {
@@ -607,5 +609,48 @@ class ImportService {
       0x49, 0x45, 0x4E, 0x44, // IEND
       0xAE, 0x42, 0x60, 0x82, // CRC
     ]);
+  }
+}
+
+/// 把角色卡内嵌的 characterBook 提取为独立 WorldInfo（关联该角色）。
+/// 单个导入与 zip 批量导入共用，避免逻辑重复。
+Future<void> importEmbeddedLorebook(
+  WorldInfoRepository worldInfoRepo,
+  String characterId,
+  CharacterBook characterBook,
+  String characterName,
+) async {
+  final worldInfoName = characterBook.name ?? '$characterName Lorebook';
+  final worldInfo = await worldInfoRepo.createWorldInfo(
+    name: worldInfoName,
+    description:
+        characterBook.description ?? 'Embedded lorebook from $characterName',
+    isGlobal: false,
+    characterId: characterId,
+  );
+
+  for (final entry in characterBook.entries) {
+    WorldInfoPosition position;
+    switch (entry.position) {
+      case 0:
+        position = WorldInfoPosition.before;
+        break;
+      case 1:
+        position = WorldInfoPosition.after;
+        break;
+      default:
+        position = WorldInfoPosition.after;
+    }
+
+    await worldInfoRepo.addEntry(
+      worldInfoId: worldInfo.id,
+      keys: entry.keys,
+      content: entry.content,
+      secondaryKeys:
+          entry.secondaryKeys.isNotEmpty ? entry.secondaryKeys : null,
+      comment: entry.name.isNotEmpty ? entry.name : entry.comment,
+      position: position,
+      depth: 4,
+    );
   }
 }

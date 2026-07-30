@@ -413,43 +413,12 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     CharacterBook characterBook,
     String characterName,
   ) async {
-    final worldInfoRepo = ref.read(worldInfoRepositoryProvider);
-    
-    // Create a WorldInfo entry linked to this character
-    final worldInfoName = characterBook.name ?? '$characterName Lorebook';
-    final worldInfo = await worldInfoRepo.createWorldInfo(
-      name: worldInfoName,
-      description: characterBook.description ?? 'Embedded lorebook from $characterName',
-      isGlobal: false,
-      characterId: characterId,
+    await importEmbeddedLorebook(
+      ref.read(worldInfoRepositoryProvider),
+      characterId,
+      characterBook,
+      characterName,
     );
-    
-    // Convert and add all CharacterBookEntry as WorldInfoEntry
-    for (final entry in characterBook.entries) {
-      // Map CharacterBookEntry position to WorldInfoPosition
-      // In character card spec: 0 = before char defs, 1 = after char defs
-      WorldInfoPosition position;
-      switch (entry.position) {
-        case 0:
-          position = WorldInfoPosition.before;  // Before Character Definition
-          break;
-        case 1:
-          position = WorldInfoPosition.after;   // After Character Definition
-          break;
-        default:
-          position = WorldInfoPosition.after;
-      }
-      
-      await worldInfoRepo.addEntry(
-        worldInfoId: worldInfo.id,
-        keys: entry.keys,
-        content: entry.content,
-        secondaryKeys: entry.secondaryKeys.isNotEmpty ? entry.secondaryKeys : null,
-        comment: entry.name.isNotEmpty ? entry.name : entry.comment,
-        position: position,
-        depth: 4, // Default depth
-      );
-    }
   }
 }
 

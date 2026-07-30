@@ -21,6 +21,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as p;
+import 'package:kirakira/core/utils/path_utils.dart';
 
 /// Provider for loading a single character by ID
 final characterDetailProvider = FutureProvider.family<Character?, String>((ref, id) async {
@@ -174,11 +175,13 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
     try {
       final importService = ref.read(importServiceProvider);
 
-      // 读取头像字节（有就用，没有让 service 内部兜底占位图）
+      // 读取头像字节：avatarPath 存的是相对路径，需转绝对路径（与 UI 显示一致），
+      // 否则 File(相对路径).exists() 恒为 false，导致导出丢封面
       Uint8List? avatarData;
-      final avatarPath = character.assets?.avatarPath;
-      if (avatarPath != null) {
-        final f = File(avatarPath);
+      final rawAvatarPath = character.assets?.avatarPath;
+      if (rawAvatarPath != null) {
+        final absPath = await PathUtils.toAbsolutePath(rawAvatarPath);
+        final f = File(absPath);
         if (await f.exists()) {
           avatarData = await f.readAsBytes();
         }

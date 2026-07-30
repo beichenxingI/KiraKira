@@ -19,6 +19,10 @@ import 'package:kirakira/presentation/screens/import/import_screen.dart' show im
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
+import 'package:kirakira/presentation/providers/world_info_providers.dart';
+import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/domain/services/import_service.dart';
+import 'package:kirakira/core/utils/path_utils.dart';
 
 /// Character list screen
 class CharacterListScreen extends ConsumerStatefulWidget {
@@ -144,11 +148,12 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
       final usedNames = <String>{};
 
       for (final c in selected) {
-        // 读头像
+        // 读头像：avatarPath 存的是相对路径，导出前需转绝对路径（与 UI 显示一致）
         Uint8List? avatarData;
-        final avatarPath = c.assets?.avatarPath;
-        if (avatarPath != null) {
-          final f = File(avatarPath);
+        final rawAvatarPath = c.assets?.avatarPath;
+        if (rawAvatarPath != null) {
+          final absPath = await PathUtils.toAbsolutePath(rawAvatarPath);
+          final f = File(absPath);
           if (await f.exists()) avatarData = await f.readAsBytes();
         }
 
@@ -240,6 +245,8 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     int ok = 0, fail = 0;
     try {
       final importService = ref.read(importServiceProvider);
+      final repo = ref.read(characterRepositoryProvider);
+      final worldInfoRepo = ref.read(worldInfoRepositoryProvider);
       final archive = ZipDecoder().decodeBytes(zipBytes);
       final tmpDir = await getTemporaryDirectory();
 
@@ -248,24 +255,31 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
         final name = entry.name.split('/').last;
         final ext = name.split('.').last.toLowerCase();
         try {
+          Character c;
           switch (ext) {
             case 'png':
-              await importService.importFromPngBytes(
+              c = await importService.importFromPngBytes(
                   Uint8List.fromList(entry.content as List<int>));
               break;
             case 'json':
-              await importService.importFromJson(
+              c = await importService.importFromJson(
                   utf8.decode(entry.content as List<int>));
               break;
             case 'charx':
-              // charx 走文件路径：先落临时文件
               final f = File(p.join(tmpDir.path,
                   '${DateTime.now().microsecondsSinceEpoch}_$name'));
               await f.writeAsBytes(entry.content as List<int>);
-              await importService.importFromCharX(f.path);
+              c = await importService.importFromCharX(f.path);
               break;
             default:
               continue; // 非角色卡文件跳过
+          }
+          // 入库（正则随 extensions 一起进库）
+          final created = await repo.createCharacter(c);
+          // 提取内嵌世界书为独立 WorldInfo（复用单个导入逻辑）
+          if (c.characterBook != null && c.characterBook!.entries.isNotEmpty) {
+            await importEmbeddedLorebook(
+                worldInfoRepo, created.id, c.characterBook!, created.name);
           }
           ok++;
         } catch (e) {
