@@ -6,6 +6,7 @@ import 'package:kirakira/data/models/regex_script.dart';
 import 'package:kirakira/domain/services/regex_service.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
+import 'dart:async';
 
 const _uuid = Uuid();
 
@@ -22,7 +23,11 @@ final globalRegexScriptsProvider = StateNotifierProvider<GlobalRegexScriptsNotif
 /// Notifier for managing global regex scripts
 class GlobalRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
   static const _storageKey = 'global_regex_scripts';
-  
+
+  final Completer<void> _readyCompleter = Completer<void>();
+  /// 首次加载完成（成功或失败）后 complete，供渲染前 await，确保正则就绪
+  Future<void> get ready => _readyCompleter.future;
+
   GlobalRegexScriptsNotifier() : super([]) {
     _loadScripts();
   }
@@ -39,6 +44,8 @@ class GlobalRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
       }
     } catch (e) {
       print('Error loading regex scripts: $e');
+    } finally {
+      if (!_readyCompleter.isCompleted) _readyCompleter.complete();
     }
   }
 
@@ -162,11 +169,12 @@ final characterRegexScriptsProvider = StateNotifierProvider.family<CharacterRege
   return CharacterRegexScriptsNotifier(characterId, ref);
 });
 
-/// Notifier for managing character-specific regex scripts
-/// 数据内嵌于 character.extensions['regex_scripts']，跟随角色卡存储
 class CharacterRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
   final String characterId;
   final Ref _ref;
+
+  final Completer<void> _readyCompleter = Completer<void>();
+  Future<void> get ready => _readyCompleter.future;
 
   CharacterRegexScriptsNotifier(this.characterId, this._ref) : super([]) {
     _loadScripts();
@@ -186,6 +194,8 @@ class CharacterRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
       }
     } catch (e) {
       print('Error loading character regex scripts: $e');
+    } finally {
+      if (!_readyCompleter.isCompleted) _readyCompleter.complete();
     }
   }
 
@@ -254,6 +264,17 @@ final combinedRegexScriptsProvider = Provider.family<List<RegexScript>, String?>
     ..sort((a, b) => a.order.compareTo(b.order));
   
   return combined;
+});
+
+/// 等待「全局正则 + 指定角色正则」都首次加载完成。
+/// 渲染前 await，确保开场白等首屏消息用到的是就绪后的正则，一次渲染即正确。
+final regexScriptsReadyProvider =
+    Provider.family<Future<void>, String?>((ref, characterId) {
+  final globalReady = ref.read(globalRegexScriptsProvider.notifier).ready;
+  if (characterId == null) return globalReady;
+  final charReady =
+      ref.read(characterRegexScriptsProvider(characterId).notifier).ready;
+  return Future.wait([globalReady, charReady]);
 });
 
 /// Provider for regex settings

@@ -2160,6 +2160,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       int startFrom, List<ChatMessage> messages) async {
     final chatState = ref.read(activeChatProvider);
     final character = chatState.character;
+    await ref.read(regexScriptsReadyProvider(character?.id));
     final scripts = ref.read(combinedRegexScriptsProvider(character?.id));
 
     int lastAiIndex = -1;
@@ -2196,6 +2197,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     debugPrint('[图片诊断] _pushMessages 开始执行');
     final chatState = ref.read(activeChatProvider);
     final character = chatState.character;
+    await ref.read(regexScriptsReadyProvider(character?.id));
     final scripts = ref.read(combinedRegexScriptsProvider(character?.id));
     final messages = chatState.messages;
 
