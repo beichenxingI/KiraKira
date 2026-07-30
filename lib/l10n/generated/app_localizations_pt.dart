@@ -3529,10 +3529,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get lowerOrderInsertsFirst => '数值越小越先插入';
 
   @override
-  String get alwaysIncludeInPrompt => '提示';
+  String get alwaysIncludeInPrompt => '常驻';
 
   @override
-  String get requiresSecondaryKey => '需同时匹配主关键词和次关键词';
+  String get requiresSecondaryKey => '需次关键词';
 
   @override
   String get bubbleOpacity => '透明度';

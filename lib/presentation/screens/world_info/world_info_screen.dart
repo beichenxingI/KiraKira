@@ -1787,11 +1787,11 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
 
   Widget _switchRow(String label, bool value, ValueChanged<bool> onChanged) {
     return Expanded(
-      child: Row(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            width: 32,
+            width: 40,
             height: 24,
             child: Switch(
               value: value,
@@ -1799,13 +1799,11 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              label,
-              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-              overflow: TextOverflow.ellipsis,
-            ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
           ),
         ],
       ),

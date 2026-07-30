@@ -6673,13 +6673,13 @@ abstract class AppLocalizations {
   /// No description provided for @alwaysIncludeInPrompt.
   ///
   /// In zh, this message translates to:
-  /// **'提示'**
+  /// **'常驻'**
   String get alwaysIncludeInPrompt;
 
   /// No description provided for @requiresSecondaryKey.
   ///
   /// In zh, this message translates to:
-  /// **'需同时匹配主关键词和次关键词'**
+  /// **'需次关键词'**
   String get requiresSecondaryKey;
 
   /// No description provided for @bubbleOpacity.

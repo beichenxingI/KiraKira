@@ -1090,8 +1090,8 @@
   "afterSystemPrompt": "提示",
   "insertionOrder": "插入顺序",
   "lowerOrderInsertsFirst": "数值越小越先插入",
-  "alwaysIncludeInPrompt": "提示",
-  "requiresSecondaryKey": "需同时匹配主关键词和次关键词",
+  "alwaysIncludeInPrompt": "常驻",
+  "requiresSecondaryKey": "需次关键词",
   "bubbleOpacity": "透明度",
   "bubbleOpacityHelp": "消息"
 }
