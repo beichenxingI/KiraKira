@@ -1525,6 +1525,15 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final config = ref.watch(llmConfigProvider);
+    // 配置异步加载完成 / 切换方案后，同步刷新输入框，避免显示旧的默认值
+    ref.listen<LLMConfig>(llmConfigProvider, (prev, next) {
+      if (_urlController.text != next.apiUrl) {
+        _urlController.text = next.apiUrl;
+      }
+      if (_keyController.text != next.apiKey) {
+        _keyController.text = next.apiKey;
+      }
+    });
     final fetchState = ref.watch(modelFetchProvider);
     final isLoading = fetchState.status == ModelFetchStatus.loading;
 
@@ -1679,29 +1688,53 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
           ),
           const SizedBox(height: 12),
 
-          // 当前选中的模型显示
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
+          // 当前选中的模型显示（可点击快捷切换）
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
               borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.memory, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    config.model.isEmpty ? '尚未选择模型' : config.model,
-                    style: TextStyle(
-                      color: config.model.isEmpty
-                          ? theme.textTheme.bodySmall?.color
-                          : null,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+              onTap: () {
+                final models = ref.read(modelFetchProvider).models;
+                if (models.isNotEmpty) {
+                  // 已有拉取结果，直接弹出选择
+                  _showModelPicker(models);
+                } else {
+                  // 尚未拉取，先确保配置写入再拉取
+                  final notifier = ref.read(llmConfigProvider.notifier);
+                  notifier.updateApiUrl(_urlController.text.trim());
+                  notifier.updateApiKey(_keyController.text.trim());
+                  ref
+                      .read(modelFetchProvider.notifier)
+                      .fetchModels(ref.read(llmConfigProvider));
+                }
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
+                child: Row(
+                  children: [
+                    const Icon(Icons.memory, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        config.model.isEmpty ? '尚未选择模型（点击选择）' : config.model,
+                        style: TextStyle(
+                          color: config.model.isEmpty
+                              ? theme.textTheme.bodySmall?.color
+                              : null,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(Icons.unfold_more, size: 18,
+                        color: theme.textTheme.bodySmall?.color),
+                  ],
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -1730,6 +1763,45 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
                     )
                   : const Icon(Icons.download),
               label: Text(isLoading ? '正在拉取模型…' : '拉取模型并选择'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // 保底：自动拉取失败时，手动重新拉取模型列表
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: isLoading
+                  ? null
+                  : () {
+                      final notifier = ref.read(llmConfigProvider.notifier);
+                      notifier.updateApiUrl(_urlController.text.trim());
+                      notifier.updateApiKey(_keyController.text.trim());
+                      ref
+                          .read(modelFetchProvider.notifier)
+                          .fetchModels(ref.read(llmConfigProvider));
+                    },
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('刷新模型列表'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // 确认并启用：强制写入当前输入内容 + 明确反馈，消除"是否已生效"的不确定感
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () {
+                final notifier = ref.read(llmConfigProvider.notifier);
+                notifier.updateApiUrl(_urlController.text.trim());
+                notifier.updateApiKey(_keyController.text.trim());
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('✓ 配置已保存并启用'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.check_circle_outline, size: 18),
+              label: const Text('确认并启用'),
             ),
           ),
         ],

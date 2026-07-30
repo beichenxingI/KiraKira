@@ -816,8 +816,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    activeLlmConfig?.model?.isNotEmpty == true
-                        ? activeLlmConfig!.model!.toString()
+                    ref.watch(llmConfigProvider).model.isNotEmpty
+                        ? ref.watch(llmConfigProvider).model
                         : (activeLlmConfig?.name?.toString() ?? '未选择模型'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

@@ -331,6 +331,21 @@ class LLMConfigNotifier extends StateNotifier<LLMConfig> {
     state = state.copyWith(model: model);
     _saveConfig();
     _saveCurrentProviderConfig(); // Also save to per-provider config for persistence
+    _persistModelToActiveConfig(model); // 同步 model 到 DB 激活方案，避免冷启动被旧值覆盖
+  }
+  /// 只把 model 一列回写到 DB 中 isDefault=true 的方案行，
+  /// 保证冷启动时 applyActiveMultiConfig 读到的是最新选择的模型。
+  /// 注意：只 update model 一列，绝不触碰 apiKey/endpoint，避免误伤其他字段。
+  Future<void> _persistModelToActiveConfig(String model) async {
+    final active = await (_db.select(_db.llmConfigs)
+          ..where((t) => t.isDefault.equals(true)))
+        .getSingleOrNull();
+    if (active == null) return; // 无激活方案（纯单配置模式），无需回写
+    await (_db.update(_db.llmConfigs)
+          ..where((t) => t.isDefault.equals(true)))
+        .write(LlmConfigsCompanion(
+      model: drift.Value(model.isEmpty ? null : model),
+    ));
   }
 
   void updateMaxTokens(int maxTokens) {
