@@ -220,21 +220,28 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       final prevMsgs = prev?.messages ?? const [];
       final nextMsgs = next.messages;
 
+      // 纯末尾追加（发消息 / 新增AI占位）：prev 是 next 前缀，只在末尾多出几条
+      // → 只追加新增 DOM，不清空整页，消除闪白抖动
+      final isPureAppend = prevMsgs.isNotEmpty &&
+          nextMsgs.length > prevMsgs.length &&
+          _isPrefix(prevMsgs, nextMsgs);
+
       // 结构变化（增删消息 / 换聊天）→ 全量重渲染
       final sameStructure = prevMsgs.length == nextMsgs.length &&
           (nextMsgs.isEmpty || prevMsgs.last.id == nextMsgs.last.id);
-      if (!sameStructure) {
+
+      if (isPureAppend) {
+        _appendNewMessages(prevMsgs.length, nextMsgs);
+      } else if (!sameStructure) {
         _pushMessages();
       } else if (nextMsgs.isNotEmpty) {
         final last = nextMsgs.last;
         final prevLast = prevMsgs.last;
         if (last.content.length > prevLast.content.length &&
             last.content.startsWith(prevLast.content)) {
-          // 内容在末尾增长（流式）→ 只追加新增片段
           final delta = last.content.substring(prevLast.content.length);
           _bridge.send(BridgeType.appendToken, {'id': last.id, 'token': delta});
         } else if (last.content != prevLast.content) {
-          // 内容被改写（非追加）→ 全量
           _pushMessages();
         }
       }
@@ -2140,6 +2147,35 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       'isLatestAi': i == lastAiIndex,
     };
   }
+  /// prev 是否为 next 的前缀（前 N 条 id 完全一致）
+  bool _isPrefix(List<ChatMessage> prev, List<ChatMessage> next) {
+    for (var i = 0; i < prev.length; i++) {
+      if (prev[i].id != next[i].id) return false;
+    }
+    return true;
+  }
+
+  /// 只序列化并追加"末尾新增的那几条"，不清空整页，避免闪白/抖动
+  Future<void> _appendNewMessages(
+      int startFrom, List<ChatMessage> messages) async {
+    final chatState = ref.read(activeChatProvider);
+    final character = chatState.character;
+    final scripts = ref.read(combinedRegexScriptsProvider(character?.id));
+
+    int lastAiIndex = -1;
+    for (var i = 0; i < messages.length; i++) {
+      if (messages[i].role != MessageRole.user) lastAiIndex = i;
+    }
+
+    final list = <Map<String, dynamic>>[];
+    for (var i = startFrom; i < messages.length; i++) {
+      list.add(_serializeMessage(messages[i], i, lastAiIndex, character, scripts));
+    }
+    if (list.isEmpty) return;
+    final b64 = base64Encode(utf8.encode(jsonEncode(list)));
+    // 不带 initial / prepend → setMessages 走"追加渲染"分支
+    _bridge.send(BridgeType.setMessages, {'data': b64});
+  }
 
   /// 把消息的图片附件读成 base64，拼成 <img> 内联到气泡 HTML。
   /// 结果缓存在 _attachmentB64Cache，_pushMessages 多次调用只读一次磁盘。
@@ -2939,7 +2975,7 @@ window.addEventListener('message', function(e) {
         }
       }
 
-      if (options && options.initial) {
+      if (options && !options.prepend) {
         scrollToBottomWhenStable();
       }
     } catch(e) {
@@ -2989,12 +3025,36 @@ window.addEventListener('message', function(e) {
   }
 
   function scrollToBottomWhenStable() {
-    var last = document.getElementById('root').lastElementChild;
-    if (last) {
-      last.scrollIntoView({behavior: 'instant', block: 'end'});
-    } else {
-      window.scrollTo(0, document.body.scrollHeight);
+    var root = document.getElementById('root');
+
+    // 立即滚到当前底部
+    function snapBottom() {
+      if (!__stickBottom) return; // 用户翻历史时不打扰
+      var last = root.lastElementChild;
+      if (last) {
+        last.scrollIntoView({behavior: 'instant', block: 'end'});
+      } else {
+        window.scrollTo(0, document.body.scrollHeight);
+      }
     }
+
+    snapBottom();
+
+    // 异步内容（iframe 卡片 / 图片）加载完会改变文档高度，
+    // 每个加载完成后补滚一次，避免撑开后视口相对上移（发送后"上跳"）
+    var media = root.querySelectorAll('iframe, img');
+    for (var i = 0; i < media.length; i++) {
+      var el = media[i];
+      // 已加载完的 img 直接跳过；未完成的挂 load 监听
+      if (el.tagName === 'IMG' && el.complete) continue;
+      el.addEventListener('load', snapBottom, {once: true});
+      el.addEventListener('error', snapBottom, {once: true});
+    }
+
+    // 兜底：布局稳定需要几帧，延迟再补滚两次（仍受 __stickBottom 约束）
+    requestAnimationFrame(snapBottom);
+    setTimeout(snapBottom, 120);
+    setTimeout(snapBottom, 400);
   }
   // 智能滚动跟随：记录用户是否贴在底部
   var __stickBottom = true;
