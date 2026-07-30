@@ -3044,12 +3044,17 @@ window.addEventListener('message', function(e) {
     // 立即滚到当前底部
     function snapBottom() {
       if (!__stickBottom) return; // 用户翻历史时不打扰
+      __programScroll++; // 开闸：标记接下来是程序触发的滚动
       var last = root.lastElementChild;
       if (last) {
         last.scrollIntoView({behavior: 'instant', block: 'end'});
       } else {
         window.scrollTo(0, document.body.scrollHeight);
       }
+      // 下一帧关闸，容忍这次程序滚动引发的 scroll 事件
+      requestAnimationFrame(function () {
+        if (__programScroll > 0) __programScroll--;
+      });
     }
 
     snapBottom();
@@ -3072,10 +3077,12 @@ window.addEventListener('message', function(e) {
   }
   // 智能滚动跟随：记录用户是否贴在底部
   var __stickBottom = true;
+  var __programScroll = 0; // 程序滚动闸门：>0 时忽略 scroll 事件，避免程序滚动把自己判成"离底"
   window.addEventListener('scroll', function () {
+    if (__programScroll > 0) return; // 程序触发的滚动，不更新 stickBottom
     var nearBottom = (window.innerHeight + window.scrollY) >=
         (document.body.scrollHeight - 40);
-    __stickBottom = nearBottom;
+    __stickBottom = nearBottom; // 只有真·用户滚动才更新
   });
 
   // 流式增量追加：只往这条消息的文本节点末尾加字，不重排整页
