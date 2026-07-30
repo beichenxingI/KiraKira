@@ -133,7 +133,18 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   Future<void> cancelGeneration() async {
     _isCancelling = true;
     _generationToken++; // 令牌失效：任何在跑的循环立即作废
-    state = state.copyWith(isGenerating: false);
+    // 循环会因令牌失效直接 return，跳过收尾清理，故在此删掉纯空壳。
+    // 判据同失败处理：最后一条是 assistant 且内容为空 = 没收到任何内容的思考中气泡。
+    // 半截回复 content 非空 → 保留不删。
+    final msgs = List<ChatMessage>.from(state.messages);
+    if (msgs.isNotEmpty &&
+        msgs.last.role == MessageRole.assistant &&
+        msgs.last.content.trim().isEmpty) {
+      msgs.removeLast();
+      state = state.copyWith(messages: msgs, isGenerating: false);
+    } else {
+      state = state.copyWith(isGenerating: false);
+    }
     Future.delayed(const Duration(milliseconds: 500), () {
       _isCancelling = false;
     });
@@ -691,12 +702,15 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         // Streaming mode
         final contentBuffer = StringBuffer();
         final reasoningBuffer = StringBuffer();
+        final int myToken = ++_generationToken;
+        final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
-          // Check if generation was cancelled
-          if (_isCancelling) {
-            break;
+          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          if (myToken != _generationToken || state.chat?.id != myChatId) {
+            return;
           }
+          if (_isCancelling) break;
 
           if (chunk.isReasoningChunk && chunk.reasoning != null) {
             reasoningBuffer.write(chunk.reasoning);
@@ -885,12 +899,15 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         // Streaming mode
         final contentBuffer = StringBuffer();
         final reasoningBuffer = StringBuffer();
+        final int myToken = ++_generationToken;
+        final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
-          // Check if generation was cancelled
-          if (_isCancelling) {
-            break;
+          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          if (myToken != _generationToken || state.chat?.id != myChatId) {
+            return;
           }
+          if (_isCancelling) break;
 
           if (chunk.isReasoningChunk && chunk.reasoning != null) {
             reasoningBuffer.write(chunk.reasoning);
@@ -2574,12 +2591,15 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         // Stream the response with reasoning support
         final contentBuffer = StringBuffer();
         final reasoningBuffer = StringBuffer();
+        final int myToken = ++_generationToken;
+        final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
-          // Check if generation was cancelled
-          if (_isCancelling) {
-            break;
+          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          if (myToken != _generationToken || state.chat?.id != myChatId) {
+            return;
           }
+          if (_isCancelling) break;
 
           if (chunk.isReasoningChunk && chunk.reasoning != null) {
             reasoningBuffer.write(chunk.reasoning);
