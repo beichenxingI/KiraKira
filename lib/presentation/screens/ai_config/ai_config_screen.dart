@@ -46,7 +46,6 @@ class AIConfigScreen extends ConsumerWidget {
       body: ListView(
         children: [
           const QuickSetupCard(),
-          const _ConnectionStatusCard(),
           // Active Preset Banner
           if (activePreset != null)
             Container(
@@ -1259,31 +1258,6 @@ class _ConnectionStatusCard extends ConsumerWidget {
         onTap: () => context.push(AppRoutes.llmConfigList),
         child: Container(
           padding: const EdgeInsets.all(18),
-          decoration: ShapeDecoration(
-            color: Theme.of(context).cardColor,
-            shape: SmoothRectangleBorder(
-              side: BorderSide(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : Theme.of(context).dividerColor.withValues(alpha: 0.5),
-                width: 0.8,
-              ),
-              borderRadius: SmoothBorderRadius(
-                cornerRadius: 24,
-                cornerSmoothing: 1.0,
-              ),
-            ),
-            shadows: Theme.of(context).brightness == Brightness.dark
-                ? const []
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 24,
-                      spreadRadius: -4,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1784,6 +1758,8 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
               label: const Text('确认并启用'),
             ),
           ),
+          const SizedBox(height: 16),
+          const _ConnectionStatusCard(),
         ],
       ),
     );
