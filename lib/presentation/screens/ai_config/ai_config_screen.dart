@@ -108,78 +108,58 @@ class AIConfigScreen extends ConsumerWidget {
               ),
             ),
 
-          // 一张大卡，三个小区
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            child: KiraCard(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── 预设与模板 ──
-                  KiraSection(
-                    title: AppLocalizations.of(context)!.presetsAndTemplates,
-                    children: [
-                      KiraListTile(
-                        icon: Icons.auto_awesome,
-                        title: AppLocalizations.of(context)!.aiPresets,
-                        subtitle: activePreset?.name ?? AppLocalizations.of(context)!.noPresetSelected,
-                        onTap: () => context.push(AppRoutes.aiPresets),
-                      ),
-                      const _InstructTemplateTile(),
-                      KiraListTile(
-                        icon: Icons.reorder,
-                        title: AppLocalizations.of(context)!.promptManager,
-                        subtitle: AppLocalizations.of(context)!.orderAndTogglePromptSections,
-                        onTap: () => context.push(AppRoutes.promptManager),
-                      ),
-                    ],
-                  ),
-
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-
-                  // ── LLM 连接 ──
-                  KiraSection(
-                    title: AppLocalizations.of(context)!.llmConnection,
-                    children: [
-                      const _ConnectionTestTile(),
-                      KiraListTile(
-                        icon: Icons.fingerprint_rounded,
-                        title: '极客Probe',
-                        subtitle: '模型深度检测',
-                        onTap: () => context.push(AppRoutes.modelDetection),
-                      ),
-                      KiraListTile(
-                        icon: Icons.public,
-                        title: '全局世界书',
-                        subtitle: '对所有角色生效的世界书',
-                        onTap: () => context.push('/world-info?isGlobal=true'),
-                      ),
-                    ],
-                  ),
-
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-
-                  // ── 生成设置 ──
-                  KiraSection(
-                    title: AppLocalizations.of(context)!.generationSettings,
-                    children: [
-                      const _ContextLengthTile(),
-                      const _MaxTokensTile(),
-                      const _TemperatureTile(),
-                      const _TopPTile(),
-                      const _StreamingTile(),
-                      KiraListTile(
-                        icon: Icons.tune,
-                        title: AppLocalizations.of(context)!.advancedSamplerSettings,
-                        subtitle: AppLocalizations.of(context)!.fullControlOverSampling,
-                        onTap: () => context.push(AppRoutes.advancedSettings),
-                      ),
-                    ],
-                  ),
-                ],
+          // 三个分组卡片平铺（去掉外层大卡，恢复懒加载 + 减嵌套）
+          KiraSection(
+            title: AppLocalizations.of(context)!.presetsAndTemplates,
+            children: [
+              KiraListTile(
+                icon: Icons.auto_awesome,
+                title: AppLocalizations.of(context)!.aiPresets,
+                subtitle: activePreset?.name ?? AppLocalizations.of(context)!.noPresetSelected,
+                onTap: () => context.push(AppRoutes.aiPresets),
               ),
-            ),
+              const _InstructTemplateTile(),
+              KiraListTile(
+                icon: Icons.reorder,
+                title: AppLocalizations.of(context)!.promptManager,
+                subtitle: AppLocalizations.of(context)!.orderAndTogglePromptSections,
+                onTap: () => context.push(AppRoutes.promptManager),
+              ),
+            ],
+          ),
+          KiraSection(
+            title: AppLocalizations.of(context)!.llmConnection,
+            children: [
+              const _ConnectionTestTile(),
+              KiraListTile(
+                icon: Icons.fingerprint_rounded,
+                title: '极客Probe',
+                subtitle: '模型深度检测',
+                onTap: () => context.push(AppRoutes.modelDetection),
+              ),
+              KiraListTile(
+                icon: Icons.public,
+                title: '全局世界书',
+                subtitle: '对所有角色生效的世界书',
+                onTap: () => context.push('/world-info?isGlobal=true'),
+              ),
+            ],
+          ),
+          KiraSection(
+            title: AppLocalizations.of(context)!.generationSettings,
+            children: [
+              const _ContextLengthTile(),
+              const _MaxTokensTile(),
+              const _TemperatureTile(),
+              const _TopPTile(),
+              const _StreamingTile(),
+              KiraListTile(
+                icon: Icons.tune,
+                title: AppLocalizations.of(context)!.advancedSamplerSettings,
+                subtitle: AppLocalizations.of(context)!.fullControlOverSampling,
+                onTap: () => context.push(AppRoutes.advancedSettings),
+              ),
+            ],
           ),
 
           const SizedBox(height: 32),

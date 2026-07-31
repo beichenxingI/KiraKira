@@ -53,16 +53,23 @@ class KiraCard extends StatelessWidget {
         ),
         boxShadow: shadows,
       ),
-      clipBehavior: Clip.antiAlias,
+      // 去掉 clipBehavior: Clip.antiAlias — child不会超出圆角,无需裁剪,省saveLayer
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: padding ?? const EdgeInsets.all(16),
-            child: child,
-          ),
-        ),
+        borderRadius: BorderRadius.circular(20),
+        child: onTap != null
+            ? InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: onTap,
+                child: Padding(
+                  padding: padding ?? const EdgeInsets.all(16),
+                  child: child,
+                ),
+              )
+            : Padding(
+                padding: padding ?? const EdgeInsets.all(16),
+                child: child,
+              ),
       ),
     );
   }
@@ -109,9 +116,14 @@ class KiraSection extends StatelessWidget {
               ],
             ),
           ),
-          KiraCard(
-            padding: EdgeInsets.zero,
-            child: Column(children: children),
+          Column(
+            children: children.map((child) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: KiraCard(
+                padding: EdgeInsets.zero,
+                child: child,
+              ),
+            )).toList(),
           ),
         ],
       ),
