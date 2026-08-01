@@ -65,6 +65,7 @@ class BridgeType {
   static const String cardHeight = 'cardHeight'; // iframe 卡片高度上报
   static const String log = 'log'; // WebView 侧调试日志
   static const String action = 'action'; // 气泡操作按钮点击
+  static const String modelSelected = 'modelSelected'; // WebView回传:用户选中的模型
 
   // Flutter → WebView（出站，对应 JS 侧 dispatch 的 handler 名）
   static const String setMessages = 'setMessages';
@@ -74,6 +75,8 @@ class BridgeType {
   static const String removeMessage = 'removeMessage';
   static const String scrollToFloor = 'scrollToFloor'; // 跳转到指定楼层
   static const String setImage = 'setImage'; // 单独推送图片base64，避免撑爆setMessages
+  static const String showModelSheet = 'showModelSheet'; // 弹出模型选择HTML层(带模型数据)
+  static const String hideModelSheet = 'hideModelSheet'; // 关闭模型选择HTML层
   // 世界书 API（入站请求-响应）
   static const String wiGetLorebooks = 'th_wiGetLorebooks';
   static const String wiGetEntries = 'th_wiGetEntries';

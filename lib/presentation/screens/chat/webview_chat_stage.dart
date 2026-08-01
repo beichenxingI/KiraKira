@@ -386,6 +386,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                   },
                   onLoadStop: (c, url) async {
                     await _injectCompatLibs(c); // 注入第三方库到外层window
+                    _bridge.on(BridgeType.modelSelected, (payload) {
+                      final model = payload['model'] as String?;
+                      if (model != null && model.isNotEmpty) {
+                        ref.read(llmConfigProvider.notifier).updateModel(model);
+                      }
+                    });
                     await Future.delayed(const Duration(milliseconds: 350));
                     if (!mounted) return;
                     await _pushMessages();
@@ -849,7 +855,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       // flexibleSpace 在此 AppBar 中不渲染,已放弃,毛玻璃改由 body 顶部独立层实现
       title: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => _showModelSwitcher(context),
+        onTap: () => _openModelSheet(),
         child: Row(
           children: [
             _buildAvatar(character),
@@ -1065,6 +1071,22 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     ).whenComplete(() => _controller?.resume());
   }
 
+  Future<void> _openModelSheet() async {
+    final config = ref.read(llmConfigProvider);
+    await ref.read(modelFetchProvider.notifier).fetchModels(config);
+    if (!mounted) return;
+    final state = ref.read(modelFetchProvider);
+    if (state.status == ModelFetchStatus.error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(state.errorMessage ?? '获取模型失败')),
+      );
+      return;
+    }
+    _bridge.send(BridgeType.showModelSheet, {
+      'models': state.models,
+      'current': config.model,
+    });
+  }
   void _showModelSwitcher(BuildContext context) {
     _controller?.pause();
     showModalBottomSheet<void>(
@@ -2375,6 +2397,23 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     --quote-q-color: ${_colorToCss(ref.watch(quoteColorStateProvider).primaryA)};
     --quote-p-color: ${_colorToCss(ref.watch(quoteColorStateProvider).primaryB)};
   }
+  * { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+  .model-sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);
+    display:none;z-index:9999;align-items:flex-end;}
+  .model-sheet-overlay.show{display:flex;}
+  .model-sheet-panel{width:100%;max-height:70vh;background:#14161C;
+    border-radius:18px 18px 0 0;padding:16px;box-sizing:border-box;
+    display:flex;flex-direction:column;transform:translateY(100%);
+    transition:transform .25s ease;}
+  .model-sheet-overlay.show .model-sheet-panel{transform:translateY(0);}
+  .model-sheet-header{font-size:15px;font-weight:600;color:#F5F7FA;margin-bottom:10px;}
+  .model-search{background:#20242C;border:none;border-radius:8px;padding:10px 12px;
+    color:#F5F7FA;font-size:14px;margin-bottom:10px;outline:none;}
+  .model-list{overflow-y:auto;flex:1;}
+  .model-item{padding:12px 14px;margin-bottom:8px;border-radius:12px;
+    background:rgba(255,255,255,.05);color:#F5F7FA;font-size:14px;cursor:pointer;
+    border:1px solid rgba(255,255,255,.08);}
+  .model-item.selected{background:rgba(121,199,255,.12);border-color:rgba(121,199,255,.4);}
   html { height: 100%; }
   html, body { margin:0; padding:0; background:transparent; min-height: 100%; }
   body {
@@ -2524,8 +2563,58 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
 </head>
 <body>
 <div id="root"></div>
+<div id="model-sheet" class="model-sheet-overlay">
+  <div class="model-sheet-panel">
+    <div class="model-sheet-header">选择模型</div>
+    <input id="model-search" class="model-search" placeholder="搜索模型…" />
+    <div id="model-list" class="model-list"></div>
+  </div>
+</div>
 <script>
 $kChatBridgeJs
+  var __allModels = [];
+  var __currentModel = '';
+  function __renderModelList(filter) {
+    var list = document.getElementById('model-list');
+    if (!list) return;
+    var q = (filter || '').toLowerCase();
+    list.innerHTML = '';
+    __allModels.filter(function(m){ return m.toLowerCase().indexOf(q) >= 0; })
+      .forEach(function(m){
+        var el = document.createElement('div');
+        el.className = 'model-item' + (m === __currentModel ? ' selected' : '');
+        el.textContent = m;
+        el.onclick = function(){
+          sendToFlutter('modelSelected', { model: m });
+          __closeModelSheet();
+        };
+        list.appendChild(el);
+      });
+  }
+  function __closeModelSheet(){
+    var ov = document.getElementById('model-sheet');
+    if(!ov) return;
+    ov.classList.remove('show');
+    setTimeout(function(){ ov.style.display = 'none'; }, 260);
+  }
+  registerBridgeHandler('showModelSheet', function(p){
+    __allModels = p.models || [];
+    __currentModel = p.current || '';
+    var s = document.getElementById('model-search');
+    if (s) { s.value = ''; s.oninput = function(){ __renderModelList(s.value); }; }
+    __renderModelList('');
+    var ov = document.getElementById('model-sheet');
+    if (ov) {
+      ov.style.display = 'flex';
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){ ov.classList.add('show'); });
+      });
+      ov.onclick = function(e){ if(e.target === ov) __closeModelSheet(); };
+    }
+  });
+  registerBridgeHandler('hideModelSheet', function(){
+    __closeModelSheet();
+  });
 
   function decodeB64Utf8(b64) {
     var binary = atob(b64);
