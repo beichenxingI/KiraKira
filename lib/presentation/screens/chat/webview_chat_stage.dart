@@ -434,9 +434,29 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         IgnorePointer(
           child: FadeTransition(
             opacity: _maskAnim,
-            child: const ColoredBox(
-              color: Colors.black,
-              child: SizedBox.expand(),
+            child: Container(
+              color: activeGlassPalette.pageBackground,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.auto_awesome,
+                      size: 44,
+                      color: activeGlassPalette.accent,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      '加载中…',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: activeGlassPalette.primaryText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
