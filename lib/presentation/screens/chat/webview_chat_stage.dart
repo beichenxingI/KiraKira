@@ -67,6 +67,7 @@ class WebViewChatStage extends ConsumerStatefulWidget {
 
 class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with TickerProviderStateMixin, WidgetsBindingObserver {
   InAppWebViewController? _controller;
+  bool _webViewMounted = false; // 延迟挂载:入场后才创建WebView,避免动画期被重活饿死
   final TextEditingController _inputController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   final List<ChatAttachment> _pendingAttachments = [];
@@ -172,9 +173,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     _maskController.value = 1.0;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      await _loadCompatLibs(); // 预加载兼容库（首次读取，之后走缓存）
+      await _loadCompatLibs();
       if (!mounted) return;
       ref.read(activeChatProvider.notifier).loadChat(widget.chatId);
+      // 延迟挂载 WebView:让入场这段时间保持纯 Flutter(无 WebView 重活),动画/遮罩流畅
+      await Future.delayed(const Duration(milliseconds: 350));
+      if (!mounted) return;
+      setState(() => _webViewMounted = true);
     });
   }
   @override
@@ -293,7 +298,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         await _controller?.pause();
-        await _maskController.forward();
+        // 遮罩瞬间盖满(不用 forward 淡入——半透明×WebView 合成会卡)
+        _maskController.value = 1.0;
+        // 先把 WebView 从树上卸载,消除 pop 切页时的残影闪烁
+        if (mounted) setState(() => _webViewMounted = false);
+        // 等一帧,确保 WebView 真正移除、遮罩已盖稳
+        await Future.delayed(const Duration(milliseconds: 32));
         if (mounted) context.pop();
       },
       child: Stack(
@@ -319,7 +329,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     // 不被浮层遮住。固定值（不含面板/附件），避免动态变化触发 WebView resize。
                     bottom: 64 + MediaQuery.of(context).padding.bottom,
                   ),
-                  child: InAppWebView(
+                  child: _webViewMounted
+                      ? InAppWebView(
                   key: _webViewKey,
                   gestureRecognizers: {
                     Factory<VerticalDragGestureRecognizer>(
@@ -380,7 +391,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     await Future.delayed(const Duration(milliseconds: 500));
                     if (mounted) _maskController.reverse();
                   },
-                ),
+                )
+                      : const SizedBox.shrink(),
                 ),
                 ),
               // 底部浮层：功能面板 + 输入栏，bottom 锚定。
