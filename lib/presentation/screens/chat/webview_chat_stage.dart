@@ -392,6 +392,30 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                         ref.read(llmConfigProvider.notifier).updateModel(model);
                       }
                     });
+                    _bridge.on(BridgeType.switchConfig, (payload) async {
+                      final id = payload['configId'] as String?;
+                      if (id == null) return;
+                      await ref.read(llmConfigsProvider.notifier).setActive(id);
+                      ref.read(modelFetchProvider.notifier).reset();
+                      final cfg = ref.read(llmConfigProvider);
+                      await ref
+                          .read(modelFetchProvider.notifier)
+                          .fetchModels(cfg);
+                      if (!mounted) return;
+                      final st = ref.read(modelFetchProvider);
+                      final cs = ref.read(llmConfigsProvider);
+                      _bridge.send(BridgeType.showModelSheet, {
+                        'models': st.models,
+                        'current': cfg.model,
+                        'configs': cs.configs
+                            .map((c) => {
+                                  'id': c.id,
+                                  'name': c.name,
+                                  'active': c.isDefault
+                                })
+                            .toList(),
+                      });
+                    });
                     await Future.delayed(const Duration(milliseconds: 350));
                     if (!mounted) return;
                     await _pushMessages();
@@ -1082,9 +1106,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       );
       return;
     }
+    final configsState = ref.read(llmConfigsProvider);
     _bridge.send(BridgeType.showModelSheet, {
       'models': state.models,
       'current': config.model,
+      'configs': configsState.configs
+          .map((c) => {'id': c.id, 'name': c.name, 'active': c.isDefault})
+          .toList(),
     });
   }
   void _showModelSwitcher(BuildContext context) {
@@ -2407,6 +2435,18 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     transition:transform .25s ease;}
   .model-sheet-overlay.show .model-sheet-panel{transform:translateY(0);}
   .model-sheet-header{font-size:15px;font-weight:600;color:#F5F7FA;margin-bottom:10px;}
+  .config-switcher{margin-bottom:10px;}
+  .config-current{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 12px;background:#20242C;border-radius:8px;color:#F5F7FA;
+    font-size:13px;cursor:pointer;}
+  .config-current .arrow{transition:transform .2s;font-size:12px;color:#8A8A8A;}
+  .config-switcher.open .config-current .arrow{transform:rotate(180deg);}
+  .config-list{max-height:0;overflow:hidden;transition:max-height .25s ease;}
+  .config-switcher.open .config-list{max-height:200px;overflow-y:auto;margin-top:6px;}
+  .config-item{padding:10px 12px;margin-bottom:6px;border-radius:8px;
+    background:rgba(255,255,255,.05);color:#F5F7FA;font-size:13px;cursor:pointer;
+    border:1px solid rgba(255,255,255,.08);}
+  .config-item.active{background:rgba(121,199,255,.12);border-color:rgba(121,199,255,.4);}
   .model-search{background:#20242C;border:none;border-radius:8px;padding:10px 12px;
     color:#F5F7FA;font-size:14px;margin-bottom:10px;outline:none;}
   .model-list{overflow-y:auto;flex:1;}
@@ -2567,6 +2607,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   <div class="model-sheet-panel">
     <div class="model-sheet-header">选择模型</div>
     <input id="model-search" class="model-search" placeholder="搜索模型…" />
+    <div id="config-switcher" class="config-switcher" style="display:none;">
+      <div class="config-current" id="config-current">
+        <span id="config-current-name">方案</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="config-list" id="config-list"></div>
+    </div>
     <div id="model-list" class="model-list"></div>
   </div>
 </div>
@@ -2597,9 +2644,38 @@ $kChatBridgeJs
     ov.classList.remove('show');
     setTimeout(function(){ ov.style.display = 'none'; }, 260);
   }
+  var __configs = [];
+  function __renderConfigs(){
+    var sw = document.getElementById('config-switcher');
+    var listEl = document.getElementById('config-list');
+    var nameEl = document.getElementById('config-current-name');
+    if(!sw || !listEl || !nameEl) return;
+    // 只有一个方案(或没有)时,不显示方案切换
+    if(__configs.length <= 1){ sw.style.display = 'none'; return; }
+    sw.style.display = 'block';
+    var activeCfg = __configs.filter(function(c){ return c.active; })[0];
+    nameEl.textContent = activeCfg ? activeCfg.name : '方案';
+    listEl.innerHTML = '';
+    __configs.forEach(function(c){
+      var el = document.createElement('div');
+      el.className = 'config-item' + (c.active ? ' active' : '');
+      el.textContent = c.name;
+      el.onclick = function(){
+        if(c.active){ sw.classList.remove('open'); return; } // 点当前方案只收起
+        sendToFlutter('switchConfig', { configId: c.id });
+        sw.classList.remove('open');
+      };
+      listEl.appendChild(el);
+    });
+    // 点"当前方案"行展开/收起
+    var cur = document.getElementById('config-current');
+    if(cur){ cur.onclick = function(){ sw.classList.toggle('open'); }; }
+  }
   registerBridgeHandler('showModelSheet', function(p){
     __allModels = p.models || [];
     __currentModel = p.current || '';
+    __configs = p.configs || [];
+    __renderConfigs();
     var s = document.getElementById('model-search');
     if (s) { s.value = ''; s.oninput = function(){ __renderModelList(s.value); }; }
     __renderModelList('');

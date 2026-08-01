@@ -66,6 +66,7 @@ class BridgeType {
   static const String log = 'log'; // WebView 侧调试日志
   static const String action = 'action'; // 气泡操作按钮点击
   static const String modelSelected = 'modelSelected'; // WebView回传:用户选中的模型
+  static const String switchConfig = 'switchConfig'; // WebView回传:切换API方案
 
   // Flutter → WebView（出站，对应 JS 侧 dispatch 的 handler 名）
   static const String setMessages = 'setMessages';
