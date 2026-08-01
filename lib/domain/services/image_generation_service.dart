@@ -769,6 +769,13 @@ class ImageGenerationService {
     
     return images;
   }
+  /// 从消息内容提取生图提示词:优先 <image>...</image> 标签,无标签返回 null
+  static String? extractImagePrompt(String content) {
+    final match = RegExp(r'<image>([\s\S]*?)</image>', caseSensitive: false)
+        .firstMatch(content);
+    final tag = match?.group(1)?.trim();
+    return (tag != null && tag.isNotEmpty) ? tag : null;
+  }
 
   /// Generate images based on current provider
   Future<ImageGenResult?> generate(ImageGenRequest request) async {

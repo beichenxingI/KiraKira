@@ -36,6 +36,11 @@ import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 /// Current active chat ID
 final activeChatIdProvider = StateProvider<String?>((ref) => null);
 
+/// isolate 中读文件并编码 base64，避免大图阻塞主线程
+String _encodeFileToB64(String path) {
+  return base64Encode(File(path).readAsBytesSync());
+}
+
 /// Active chat state
 class ActiveChatState {
   final Chat? chat;
@@ -584,9 +589,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       final chatId = msg.chatId;
 
       // 提取 <image>...</image> 标签内容
-      final match = RegExp(r'<image>([\s\S]*?)</image>', caseSensitive: false)
-          .firstMatch(msg.content);
-      String? prompt = match?.group(1)?.trim();
+      String? prompt = ImageGenerationService.extractImagePrompt(msg.content);
       debugPrint('[自动生图] 提取标签: ${prompt ?? "(无标签)"}');
 
       if (prompt == null || prompt.isEmpty) {
@@ -1319,8 +1322,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final messages = <Map<String, dynamic>>[];
 
     // 自动生图：非关闭时，注入配图指令，教 AI 输出 <image> 视觉标签
-    final autoMode = _ref.read(imageGenSettingsProvider).autoImageMode;
-    if (autoMode != AutoImageMode.off) {
+    final imgSettings = _ref.read(imageGenSettingsProvider);
+    if (imgSettings.autoImageMode != AutoImageMode.off && imgSettings.enabled) {
       messages.add({
         'role': 'system',
         'content':
@@ -2156,13 +2159,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       });
     }
 
-    // Add image attachments as base64
+    // Add image attachments as base64（isolate 中读文件+编码，避免主线程卡顿）
     for (final attachment in msg.attachments) {
       try {
-        final file = File(attachment.path);
-        if (file.existsSync()) {
-          final bytes = await file.readAsBytes();
-          final base64Data = base64Encode(bytes);
+        if (File(attachment.path).existsSync()) {
+          final base64Data = await compute(_encodeFileToB64, attachment.path);
           final mimeType = attachment.mimeType ?? 'image/jpeg';
           contentParts.add({
             'type': 'image_url',

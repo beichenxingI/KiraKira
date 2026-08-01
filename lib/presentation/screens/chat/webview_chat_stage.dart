@@ -1583,7 +1583,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
 
     final result = await ImageGenerationDialog.show(
       context,
-      basePrompt: message.content,
+      basePrompt: ImageGenerationService.extractImagePrompt(message.content)
+          ?? message.content,
       characterName: character?.name,
       mode: message.role == MessageRole.assistant
           ? ImageGenMode.lastMessage
@@ -1784,7 +1785,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           );
     // 剥离自动生图的 <image> 标签，只影响显示，不动已存原文
     rawContent = rawContent
-        .replaceAll(RegExp(r'<image>[sS]*?</image>', caseSensitive: false), '')
+        .replaceAll(RegExp(r'<image>[\s\S]*?</image>', caseSensitive: false), '')
         .trim();
     final codeBlockMatch = RegExp(
       r'^```[a-zA-Z]*\n([\s\S]*?)```\s*$',
