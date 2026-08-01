@@ -309,6 +309,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       child: Stack(
       children: [
         Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: activeGlassPalette.pageBackground,
       extendBodyBehindAppBar: true,
       appBar: _buildGlassAppBar(character, activeLlmConfig),
@@ -399,7 +400,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
               // 面板展开往上盖住 WebView 内容，WebView 尺寸恒定、永不 resize —— 彻底消除展开/收起顿卡。
               Align(
                 alignment: Alignment.bottomCenter,
-                child: _buildInputBar(isGenerating),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  child: _buildInputBar(isGenerating),
+                ),
               ),
             ],
         ),
