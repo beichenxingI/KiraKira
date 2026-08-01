@@ -111,19 +111,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     onLog: (m) => debugPrint('[bridge] $m'),
   );
   bool _wasGenerating = false;
-  bool _showPanel = false;
   late final AnimationController _maskController = AnimationController(
     vsync: this, duration: const Duration(milliseconds: 550));
   late final Animation<double> _maskAnim = CurvedAnimation(parent: _maskController, curve: Curves.easeInOut);
-
-  late final AnimationController _panelAnim = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 220));
-  late final Animation<Offset> _panelSlide = Tween<Offset>(
-      begin: const Offset(0, 1), end: Offset.zero)
-      .animate(CurvedAnimation(parent: _panelAnim, curve: Curves.easeOutCubic));
-  late final Animation<double> _panelRotation = Tween<double>(begin: 0, end: 1)
-      .animate(CurvedAnimation(parent: _panelAnim, curve: Curves.easeOutCubic));
-  final TextEditingController _floorJumpController = TextEditingController();
 
   // 第三方库缓存（jQuery/lodash/toastr），全类共享，只读一次
   static String? _jqueryB64;
@@ -167,10 +157,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       KiraLogger().info('兼容库', '库注入失败: $e');
     }
   }
-  @override
+
   double _keyboardHeight = 0;
   bool _keyboardVisible = false;
   bool _funcPanelOpen = false;
+
+   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
@@ -202,12 +194,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _maskController.dispose();
-    _panelAnim.dispose();
     _inputController.dispose();
     _inputFocus.dispose();
     _bridge.dispose();
     super.dispose();
-    _floorJumpController.dispose();
   }
 
   @override
@@ -1017,142 +1007,6 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     );
   }
 
-  void _showModelSheet(BuildContext context, db.LlmConfig cfg) {
-    _controller?.pause();
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (sheetContext) {
-        return Consumer(
-          builder: (ctx, ref, _) {
-            final fetchState = ref.watch(modelFetchProvider);
-            ref.listen<ModelFetchState>(modelFetchProvider, (_, __) {});
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (fetchState.status == ModelFetchStatus.idle) {
-                final currentConfig = ref.read(llmConfigProvider);
-                ref.read(modelFetchProvider.notifier).fetchModels(currentConfig);
-              }
-            });
-            return SafeArea(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(ctx).size.height * 0.7,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 12, 8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '选择模型 · ${cfg.name}',
-                              style: const TextStyle(
-                                  fontSize: 15, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.refresh, size: 20),
-                            onPressed: () {
-                              final currentConfig = ref.read(llmConfigProvider);
-                              ref
-                                  .read(modelFetchProvider.notifier)
-                                  .fetchModels(currentConfig);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (fetchState.status == ModelFetchStatus.loading)
-                      const Padding(
-                        padding: EdgeInsets.all(24),
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    else if (fetchState.status == ModelFetchStatus.error)
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          fetchState.errorMessage ?? '获取模型列表失败',
-                          style: const TextStyle(color: Colors.redAccent),
-                        ),
-                      )
-                    else
-                      Flexible(
-                        child: ListView(
-                          shrinkWrap: true,
-                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                          children: fetchState.models.map<Widget>((model) {
-                            final isSelected =
-                                ref.watch(llmConfigProvider).model == model;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(
-                                    GlassDesign.cardRadius),
-                                onTap: () {
-                                  ref
-                                      .read(llmConfigProvider.notifier)
-                                      .updateModel(model);
-                                  Navigator.pop(sheetContext);
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? activeGlassPalette.accent
-                                            .withValues(alpha: 0.12)
-                                        : GlassDesign.controlFill,
-                                    borderRadius: BorderRadius.circular(
-                                        GlassDesign.cardRadius),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? activeGlassPalette.accent
-                                              .withValues(alpha: 0.4)
-                                          : GlassDesign.highlightBorder,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        isSelected
-                                            ? Icons.check_circle
-                                            : Icons.circle_outlined,
-                                        color: isSelected
-                                            ? activeGlassPalette.accent
-                                            : Colors.white38,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          model,
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    ).whenComplete(() => _controller?.resume());
-  }
-
   Future<void> _openModelSheet() async {
     final config = ref.read(llmConfigProvider);
     await ref.read(modelFetchProvider.notifier).fetchModels(config);
@@ -1173,124 +1027,6 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           .toList(),
     });
   }
-  void _showModelSwitcher(BuildContext context) {
-    _controller?.pause();
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (sheetContext) {
-        return Consumer(
-          builder: (ctx, ref, _) {
-            final state = ref.watch(llmConfigsProvider);
-            return SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(20, 18, 20, 12),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '切换 API 方案',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                  Flexible(
-                    child: ListView(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                      children: state.configs.map<Widget>((cfg) {
-                        final isActive = cfg.isDefault;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(
-                                GlassDesign.cardRadius),
-                            onTap: () async {
-                              Navigator.pop(sheetContext);
-                              await ref
-                                  .read(llmConfigsProvider.notifier)
-                                  .setActive(cfg.id);
-                              ref
-                                  .read(modelFetchProvider.notifier)
-                                  .reset();
-                              if (context.mounted) {
-                                _showModelSheet(context, cfg);
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: isActive
-                                    ? activeGlassPalette.accent
-                                        .withValues(alpha: 0.12)
-                                    : GlassDesign.controlFill,
-                                borderRadius: BorderRadius.circular(
-                                    GlassDesign.cardRadius),
-                                border: Border.all(
-                                  color: isActive
-                                      ? activeGlassPalette.accent
-                                          .withValues(alpha: 0.4)
-                                      : GlassDesign.highlightBorder,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    isActive
-                                        ? Icons.check_circle
-                                        : Icons.circle_outlined,
-                                    color: isActive
-                                        ? activeGlassPalette.accent
-                                        : Colors.white38,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          cfg.name,
-                                          style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w500),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          '${cfg.provider}  ${cfg.model?.isNotEmpty == true ? cfg.model! : "no model"}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: activeGlassPalette
-                                                .secondaryText,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    ).whenComplete(() => _controller?.resume());
-  }
 
   // ── 底部输入栏 ──────────────────────────────────────────────────────────────
 
@@ -1300,8 +1036,6 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 功能面板：嵌入式，展开时挤压 WebView
-          _buildFunctionPanel(),
           // 待发图片预览条：纯 Flutter，不碰 WebView
           if (_pendingAttachments.isNotEmpty)
             Container(
@@ -1445,234 +1179,6 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         ],
       ),
     );
-  }
-
-  // ── 功能面板 ────────────────────────────────────────────────────────────────
-
-  Widget _buildFunctionPanel() {
-    return AnimatedBuilder(
-      animation: _panelAnim,
-      builder: (context, child) {
-        // 完全收起时不占位：WebView 不被撑开，也不逐帧挤压
-        if (_panelAnim.isDismissed) return const SizedBox.shrink();
-        // 只用 ScaleTransition：纯 transform 几何变换，不涉及 alpha 混合。
-        // 去掉 FadeTransition —— opacity 动画会让面板全程半透明，每帧要和 WebView 混合合成。
-        return SlideTransition(
-          position: _panelSlide,
-          child: child,
-        );
-      },
-      // RepaintBoundary：面板子树先光栅化缓存成一张纹理，
-      // 缩放动画只变换这张现成纹理（像缩放蓝块一样便宜），
-      // 不再每帧重绘 TextField/按钮/指示器整棵子树 —— 这是"按键跟着动画重画"的顿卡根因。
-      child: RepaintBoundary(
-        child: Container(
-            margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            decoration: BoxDecoration(
-              // 纯不透明色：无 blur、无透明度计算，合成零额外开销。
-              // 菜单是覆盖操作，本就该完全挡住背后 WebView。
-              color: const Color(0xFF1B1F28), // 深色实底，和整体玻璃风格接近
-              borderRadius: BorderRadius.circular(GlassDesign.panelRadius),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.08),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 上下文绿条
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: ContextUsageIndicator(),
-                ),
-          // 跳转楼层
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 38,
-                    child: TextField(
-                      controller: _floorJumpController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 13, color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: '输入楼层号跳转…',
-                        hintStyle: const TextStyle(
-                            fontSize: 13, color: Colors.white38),
-                        filled: true,
-                        fillColor: Colors.white.withOpacity(0.05),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 0),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      onSubmitted: (_) => _jumpToFloor(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: _jumpToFloor,
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF7C4DFF).withOpacity(0.85),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Text('跳转',
-                        style: TextStyle(fontSize: 13, color: Colors.white)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _panelGroupLabel('对话'),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _panelItem(Icons.image_outlined, '图片', () {
-                setState(() => _showPanel = false);
-                _pickImages();
-              }),
-              _panelItem(Icons.ios_share, '导出', () {
-                setState(() => _showPanel = false);
-                _exportChatRecord();
-              }),
-              _panelItem(Icons.download_outlined, '导入', () {
-                setState(() => _showPanel = false);
-                _importChatRecord();
-              }),
-              _panelItem(Icons.delete_sweep_outlined, '清空', () {
-                setState(() => _showPanel = false);
-                _confirmClearChat();
-              }),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _panelGroupLabel('设置'),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _panelItem(Icons.brush_outlined, '生图', () {
-                setState(() => _showPanel = false);
-                _controller?.pause();
-                _navigateTo('/image-gen-settings');
-              }),
-              _panelItem(Icons.record_voice_over_outlined, '语音', () {
-                setState(() => _showPanel = false);
-                _controller?.pause();
-                _navigateTo('/tts-settings');
-              }),
-              _panelItem(Icons.memory_outlined, '记忆', () {
-                setState(() => _showPanel = false);
-                _controller?.pause();
-                _navigateTo('/vector-storage-settings');
-              }),
-              _panelItem(Icons.data_object, '变量', () {
-                setState(() => _showPanel = false);
-                _controller?.pause();
-                _navigateTo('/variables-settings');
-              }),
-              _panelItem(Icons.find_replace, '正则', () {
-                setState(() => _showPanel = false);
-                final charId = ref.read(activeChatProvider).character?.id;
-                if (charId == null) {
-                  _snack('当前聊天没有关联角色');
-                } else {
-                  _navigateTo('/characters/$charId/regex');
-                }
-              }),
-              _panelItem(Icons.public, '世界书', () {
-                setState(() => _showPanel = false);
-                final charId = ref.read(activeChatProvider).character?.id;
-                if (charId == null) {
-                  _snack('当前聊天没有关联角色');
-                } else {
-                  _navigateTo('/world-info?characterId=$charId');
-                }
-              }),
-              _panelItem(Icons.wallpaper_outlined, '气泡', () {
-                setState(() => _showPanel = false);
-                _navigateTo('/background-settings');
-              }),
-            ],
-          ),
-              ],
-            ),
-        ),
-      ),
-    );
-  }
-
-  Widget _panelGroupLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6, left: 2),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 11,
-          color: Colors.white38,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.8,
-        ),
-      ),
-    );
-  }
-
-  Widget _panelItem(IconData icon, String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(GlassDesign.cardRadius),
-      child: Container(
-        width: 72,
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: GlassDesign.controlFill,
-          borderRadius: BorderRadius.circular(GlassDesign.cardRadius),
-          border: Border.all(color: GlassDesign.highlightBorder),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 20, color: activeGlassPalette.accent),
-            const SizedBox(height: 5),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: activeGlassPalette.secondaryText,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  void _jumpToFloor() {
-    final text = _floorJumpController.text.trim();
-    final floor = int.tryParse(text);
-    if (floor == null || floor < 1) {
-      _snack('请输入有效的楼层号');
-      return;
-    }
-    final total = ref.read(activeChatProvider).messages.length;
-    if (floor > total) {
-      _snack('楼层号超出范围（共 $total 楼）');
-      return;
-    }
-    _bridge.send(BridgeType.scrollToFloor, {'floor': floor});
-    _floorJumpController.clear();
-    setState(() => _showPanel = false);
   }
 
   void _snack(String msg) {
