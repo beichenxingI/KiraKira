@@ -42,6 +42,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
+import 'package:kirakira/presentation/providers/context_usage_providers.dart';
 
 /// compute 用的顶层函数：在独立 isolate 读文件并返回 base64 字符串。
 String _readFileAsB64(String path) {
@@ -167,6 +168,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
   @override
+  double _keyboardHeight = 0;
+  bool _keyboardVisible = false;
+  bool _funcPanelOpen = false;
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
@@ -181,6 +185,18 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       if (!mounted) return;
       setState(() => _webViewMounted = true);
     });
+  }
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    if (!mounted) return;
+    final view = View.of(context);
+    final bottom = view.viewInsets.bottom / view.devicePixelRatio;
+    final visible = bottom > 0;
+    if (visible && bottom > _keyboardHeight) _keyboardHeight = bottom; // 缓存键盘高度
+    if (visible != _keyboardVisible) {
+      setState(() => _keyboardVisible = visible); // 仅在显↔隐跳变时重建一次
+    }
   }
   @override
   void dispose() {
@@ -416,6 +432,48 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                             .toList(),
                       });
                     });
+                    _bridge.on(BridgeType.panelClosed, (payload) {
+                      if (mounted) setState(() => _funcPanelOpen = false);
+                    });
+                    _bridge.on(BridgeType.panelAction, (payload) async {
+                      final action = payload['action'] as String? ?? '';
+                      switch (action) {
+                        case 'jumpFloor':
+                          final f = int.tryParse(
+                              payload['floor']?.toString() ?? '');
+                          if (f == null || f < 1) {
+                            _snack('请输入有效的楼层号');
+                            break;
+                          }
+                          final total =
+                              ref.read(activeChatProvider).messages.length;
+                          if (f > total) {
+                            _snack('楼层号超出范围（共 $total 楼）');
+                            break;
+                          }
+                          _bridge.send(BridgeType.scrollToFloor, {'floor': f});
+                          break;
+                        case 'pickImages':
+                          _pickImages();
+                          break;
+                        case 'exportChat':
+                          _exportChatRecord();
+                          break;
+                        case 'importChat':
+                          _importChatRecord();
+                          break;
+                        case 'clearChat':
+                          _confirmClearChat();
+                          break;
+                        case 'noChar':
+                          _snack('当前聊天没有关联角色');
+                          break;
+                        case 'navigateTo':
+                          final route = payload['route'] as String? ?? '';
+                          if (route.isNotEmpty) await _navigateTo(route);
+                          break;
+                      }
+                    });
                     await Future.delayed(const Duration(milliseconds: 350));
                     if (!mounted) return;
                     await _pushMessages();
@@ -432,7 +490,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                 alignment: Alignment.bottomCenter,
                 child: Padding(
                   padding: EdgeInsets.only(
-                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                    bottom: _keyboardVisible ? _keyboardHeight : 0,
                   ),
                   child: _buildInputBar(isGenerating),
                 ),
@@ -1303,25 +1361,30 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
               children: [
                 IconButton(
                   onPressed: () {
-                    final next = !_showPanel;
-                    setState(() => _showPanel = next);
-                    if (next) {
-                      _panelAnim.forward();
-                      _controller?.pause();
-                    } else {
-                      _panelAnim.reverse();
-                      _controller?.resume();
+                    if (_funcPanelOpen) {
+                      _bridge.send(BridgeType.closeFunctionPanel, {});
+                      setState(() => _funcPanelOpen = false);
+                      return;
                     }
+                    final usage = ref.read(contextUsageProvider);
+                    final charId =
+                        ref.read(activeChatProvider).character?.id ?? '';
+                    _bridge.send(BridgeType.openFunctionPanel, {
+                      'contextUsed': usage?.totalTokens ?? 0,
+                      'contextMax': usage?.maxContext ?? 0,
+                      'contextPct': usage?.usagePercentage ?? 0,
+                      'contextLevel': usage?.level.name ?? 'low',
+                      'charId': charId,
+                      'components': (usage?.components ?? [])
+                          .map((c) => {'name': c.name, 'tokens': c.tokenCount})
+                          .toList(),
+                    });
+                    setState(() => _funcPanelOpen = true);
                   },
-                  icon: RotationTransition(
-                    turns: _panelRotation,
-                    child: Icon(_showPanel
-                        ? Icons.close_rounded
-                        : Icons.add_rounded),
-                  ),
-                  color: _showPanel
-                      ? activeGlassPalette.accent
-                      : activeGlassPalette.secondaryText,
+                  icon: Icon(_funcPanelOpen
+                      ? Icons.close_rounded
+                      : Icons.add_rounded),
+                  color: activeGlassPalette.secondaryText,
                 ),
                 Expanded(
                   child: TextField(
@@ -2599,6 +2662,48 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     100% { transform: rotate(360deg); }   /* 后 3/4 停住 → 转一下、停一下 */
   }
   .thinking .star { animation: think-spin 1.8s ease-in-out infinite; }
+  .func-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;
+    z-index:9998;align-items:flex-end;}
+  .func-panel{width:100%;background:#12141C;border-radius:18px 18px 0 0;
+    padding:16px;box-sizing:border-box;max-height:75vh;overflow-y:auto;
+    transform-origin:left bottom;transform:scale(.08);opacity:0;
+    transition:transform .42s cubic-bezier(0.34,1.56,0.64,1),opacity .22s ease;}
+  .func-overlay.show .func-panel{transform:scale(1);opacity:1;}
+  .func-context{margin-bottom:12px;color:#7FD98A;font-size:13px;cursor:pointer;
+    background:rgba(127,217,138,.08);border-radius:10px;padding:8px 12px;}
+  .func-context-head{display:flex;align-items:center;justify-content:space-between;}
+  .func-context-arrow{font-size:10px;color:#7FD98A;transition:transform .2s;}
+  .func-context.open .func-context-arrow{transform:rotate(180deg);}
+  .func-context-detail{max-height:0;overflow:hidden;transition:max-height .28s ease;}
+  .func-context.open .func-context-detail{max-height:240px;overflow-y:auto;margin-top:8px;}
+  .func-ctx-row{display:flex;justify-content:space-between;padding:6px 4px;
+    font-size:12px;color:#C8CDD6;border-bottom:1px solid rgba(255,255,255,.05);}
+  .func-ctx-tok{color:#8A8A8A;}
+  .func-floor-row{display:flex;gap:8px;margin-bottom:14px;}
+  .func-floor-input{flex:1;background:#20242C;border:none;border-radius:10px;
+    padding:10px 12px;color:#F5F7FA;font-size:14px;outline:none;}
+  .func-btn-jump{background:#7C4DFF;color:#fff;border-radius:10px;
+    padding:10px 18px;font-size:14px;cursor:pointer;display:flex;align-items:center;}
+  .func-group-label{color:#8A8A8A;font-size:11px;font-weight:600;
+    letter-spacing:.8px;margin:8px 0 8px;}
+  .func-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;}
+  .func-item{width:72px;height:70px;background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.08);border-radius:14px;color:#C8CDD6;
+    font-size:12px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:7px;cursor:pointer;
+    opacity:0;transform:translateY(10px) scale(.8);
+    transition:opacity .3s ease,transform .32s cubic-bezier(0.34,1.56,0.64,1),background .15s;}
+  .func-overlay.show .func-item{opacity:1;transform:translateY(0) scale(1);}
+  .func-overlay.show .func-grid .func-item:nth-child(1){transition-delay:.14s;}
+  .func-overlay.show .func-grid .func-item:nth-child(2){transition-delay:.19s;}
+  .func-overlay.show .func-grid .func-item:nth-child(3){transition-delay:.24s;}
+  .func-overlay.show .func-grid .func-item:nth-child(4){transition-delay:.29s;}
+  .func-overlay.show .func-grid .func-item:nth-child(5){transition-delay:.34s;}
+  .func-overlay.show .func-grid .func-item:nth-child(6){transition-delay:.39s;}
+  .func-overlay.show .func-grid .func-item:nth-child(7){transition-delay:.44s;}
+  .func-item:active{background:rgba(124,77,255,.22);}
+  .func-icon{width:26px;height:26px;stroke:#5B9EF5;fill:none;stroke-width:2;
+    stroke-linecap:round;stroke-linejoin:round;}
 </style>
 </head>
 <body>
@@ -2615,6 +2720,38 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       <div class="config-list" id="config-list"></div>
     </div>
     <div id="model-list" class="model-list"></div>
+  </div>
+</div>
+<div id="func-overlay" class="func-overlay">
+  <div id="func-panel" class="func-panel">
+    <div class="func-context" id="func-context">
+      <div class="func-context-head">
+        <span id="func-context-label"></span>
+        <span class="func-context-arrow">▼</span>
+      </div>
+      <div class="func-context-detail" id="func-context-detail"></div>
+    </div>
+    <div class="func-floor-row">
+      <input id="func-floor-input" class="func-floor-input" type="number" placeholder="输入楼层号跳转…"/>
+      <div class="func-btn-jump func-action" data-action="jumpFloor">跳转</div>
+    </div>
+    <div class="func-group-label">对话</div>
+    <div class="func-grid">
+      <div class="func-item func-action" data-action="pickImages"><svg class="func-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><span>图片</span></div>
+      <div class="func-item func-action" data-action="exportChat"><svg class="func-icon" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg><span>导出</span></div>
+      <div class="func-item func-action" data-action="importChat"><svg class="func-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>导入</span></div>
+      <div class="func-item func-action" data-action="clearChat"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>清空</span></div>
+    </div>
+    <div class="func-group-label">设置</div>
+    <div class="func-grid">
+      <div class="func-item func-action" data-action="navigateTo" data-route="/image-gen-settings"><svg class="func-icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span>生图</span></div>
+      <div class="func-item func-action" data-action="navigateTo" data-route="/tts-settings"><svg class="func-icon" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span>语音</span></div>
+      <div class="func-item func-action" data-action="navigateTo" data-route="/vector-storage-settings"><svg class="func-icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg><span>记忆</span></div>
+      <div class="func-item func-action" data-action="navigateTo" data-route="/variables-settings"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>变量</span></div>
+      <div class="func-item func-action" data-action="navigateToChar" data-route-tpl="/characters/{charId}/regex"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span>正则</span></div>
+      <div class="func-item func-action" data-action="navigateToChar" data-route-tpl="/world-info?characterId={charId}"><svg class="func-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span>世界书</span></div>
+      <div class="func-item func-action" data-action="navigateTo" data-route="/background-settings"><svg class="func-icon" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg><span>气泡</span></div>
+    </div>
   </div>
 </div>
 <script>
@@ -2691,6 +2828,70 @@ $kChatBridgeJs
   registerBridgeHandler('hideModelSheet', function(){
     __closeModelSheet();
   });
+  window.__funcCharId = '';
+  function __closeFuncPanel(){
+    var ov = document.getElementById('func-overlay');
+    if(!ov) return;
+    ov.classList.remove('show');
+    setTimeout(function(){ ov.style.display = 'none'; }, 300);
+    sendToFlutter('panelClosed', {});
+  }
+  function __handleFuncAction(el){
+    var action = el.getAttribute('data-action');
+    if(action === 'jumpFloor'){
+      var inp = document.getElementById('func-floor-input');
+      var v = inp ? inp.value.trim() : '';
+      if(v){ sendToFlutter('panelAction', {action:'jumpFloor', floor:v}); }
+      __closeFuncPanel(); return;
+    }
+    if(action === 'navigateToChar'){
+      if(!window.__funcCharId){
+        sendToFlutter('panelAction', {action:'noChar'});
+        __closeFuncPanel(); return;
+      }
+      var tpl = el.getAttribute('data-route-tpl') || '';
+      sendToFlutter('panelAction', {action:'navigateTo', route: tpl.replace('{charId}', window.__funcCharId)});
+      __closeFuncPanel(); return;
+    }
+    if(action === 'navigateTo'){
+      sendToFlutter('panelAction', {action:'navigateTo', route: el.getAttribute('data-route') || ''});
+      __closeFuncPanel(); return;
+    }
+    sendToFlutter('panelAction', {action: action});
+    __closeFuncPanel();
+  }
+  registerBridgeHandler('openFunctionPanel', function(p){
+    var ov = document.getElementById('func-overlay');
+    if(!ov) return;
+    window.__funcCharId = p.charId || '';
+    var label = document.getElementById('func-context-label');
+    if(label){ label.textContent = (p.contextUsed||0) + ' / ' + (p.contextMax||0) + ' (' + Math.round(p.contextPct||0) + '%)'; }
+    var detail = document.getElementById('func-context-detail');
+    if(detail){
+      var comps = p.components || [];
+      detail.innerHTML = '';
+      comps.forEach(function(c){
+        var row = document.createElement('div');
+        row.className = 'func-ctx-row';
+        var n = document.createElement('span'); n.textContent = c.name || '';
+        var t = document.createElement('span'); t.className = 'func-ctx-tok'; t.textContent = (c.tokens||0) + ' tokens';
+        row.appendChild(n); row.appendChild(t);
+        detail.appendChild(row);
+      });
+    }
+    var ctx = document.getElementById('func-context');
+    if(ctx){ ctx.classList.remove('open'); ctx.onclick = function(){ ctx.classList.toggle('open'); }; }
+    var items = ov.querySelectorAll('.func-action');
+    for(var i=0;i<items.length;i++){
+      (function(el){ el.onclick = function(){ __handleFuncAction(el); }; })(items[i]);
+    }
+    ov.onclick = function(e){ if(e.target === ov) __closeFuncPanel(); };
+      ov.style.display = 'flex';
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){ ov.classList.add('show'); });
+      });
+  });
+  registerBridgeHandler('closeFunctionPanel', function(){ __closeFuncPanel(); });
 
   function decodeB64Utf8(b64) {
     var binary = atob(b64);

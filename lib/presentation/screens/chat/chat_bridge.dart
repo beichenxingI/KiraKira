@@ -67,6 +67,7 @@ class BridgeType {
   static const String action = 'action'; // 气泡操作按钮点击
   static const String modelSelected = 'modelSelected'; // WebView回传:用户选中的模型
   static const String switchConfig = 'switchConfig'; // WebView回传:切换API方案
+  static const String panelAction = 'panelAction'; // WebView回传:功能面板按钮点击
 
   // Flutter → WebView（出站，对应 JS 侧 dispatch 的 handler 名）
   static const String setMessages = 'setMessages';
@@ -78,6 +79,9 @@ class BridgeType {
   static const String setImage = 'setImage'; // 单独推送图片base64，避免撑爆setMessages
   static const String showModelSheet = 'showModelSheet'; // 弹出模型选择HTML层(带模型数据)
   static const String hideModelSheet = 'hideModelSheet'; // 关闭模型选择HTML层
+  static const String openFunctionPanel = 'openFunctionPanel'; // 打开功能面板(带上下文数据)
+  static const String closeFunctionPanel = 'closeFunctionPanel'; // 关闭功能面板
+  static const String panelClosed = 'panelClosed'; // WebView回传:面板已关闭(同步状态)
   // 世界书 API（入站请求-响应）
   static const String wiGetLorebooks = 'th_wiGetLorebooks';
   static const String wiGetEntries = 'th_wiGetEntries';
