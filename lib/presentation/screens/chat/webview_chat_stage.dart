@@ -2133,6 +2133,22 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     background: rgba(255,255,255,.06);
     object-fit: cover;
   }
+  .att-generating {
+    max-width: 200px; width: 100%;
+    border-radius: 14px;
+    background: rgba(255,255,255,.06);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px;
+  }
+  .att-spinner {
+    width: 28px; height: 28px;
+    border: 3px solid rgba(255,255,255,.2);
+    border-top-color: #7C4DFF;
+    border-radius: 50%;
+    animation: att-spin 0.8s linear infinite;
+  }
+  @keyframes att-spin { to { transform: rotate(360deg); } }
+  .att-gen-label { font-size: 13px; color: #9A9A9A; }
   iframe.card-frame {
     width: 100%; border: none; display: block;
     background: transparent; height: 300px; border-radius: 18px;
@@ -3123,6 +3139,44 @@ window.addEventListener('message', function(e) {
       }
     } catch(e) {
       parent.postMessage({__thLog:true, text:'[setImage] 失败: ' + e}, '*');
+    }
+  });
+  registerBridgeHandler('setGenerating', function(p) {
+    try {
+      // 定位目标消息气泡（wrap 带 data-id）
+      var wrap = document.querySelector('[data-id="' + p.msgId + '"]');
+      if (!wrap) return;
+      // 找该气泡的附件区，没有就建一个
+      var box = wrap.querySelector('.att-wrap');
+      if (!box) {
+        box = document.createElement('div');
+        box.className = 'att-wrap';
+        var msg = wrap.querySelector('.msg') || wrap;
+        msg.appendChild(box);
+      }
+      // 已存在同 genId 的占位则不重复插
+      if (box.querySelector('[data-gen-id="' + p.genId + '"]')) return;
+      var ph = document.createElement('div');
+      ph.className = 'att-generating';
+      ph.setAttribute('data-gen-id', p.genId);
+      ph.style.aspectRatio = (p.w || 1) + '/' + (p.h || 1);
+      ph.innerHTML = '<div class="att-spinner"></div>'
+                   + '<div class="att-gen-label">生成中…</div>';
+      box.appendChild(ph);
+      void document.body.offsetHeight;
+      window.dispatchEvent(new Event('resize'));
+    } catch(e) {
+      parent.postMessage({__thLog:true, text:'[setGenerating] 失败: ' + e}, '*');
+    }
+  });
+  registerBridgeHandler('clearGenerating', function(p) {
+    try {
+      var ph = document.querySelector('[data-gen-id="' + p.genId + '"]');
+      if (ph && ph.parentNode) ph.parentNode.removeChild(ph);
+      void document.body.offsetHeight;
+      window.dispatchEvent(new Event('resize'));
+    } catch(e) {
+      parent.postMessage({__thLog:true, text:'[clearGenerating] 失败: ' + e}, '*');
     }
   });
 </script>
