@@ -1399,20 +1399,20 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   }
 
   Future<void> _pickImages() async {
-    // 和 _navigateTo 一样：先暂停 WebView 并盖遮罩，返回后再恢复，
-    // 否则 InAppWebView 的 PlatformView 命中区会在返回后失效导致无法滑动。
-    await _controller?.pause();
-    _maskController.value = 1.0;
-    if (!mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ChatImagesScreen(
-        chatId: widget.chatId,
-        onSend: (file) => _sendImageFile(file),
-      ),
-    ));
-    if (!mounted) return;
-    _maskController.reverse();            // 返回时黑幕淡出（此时不卡，好看）
-    await _controller?.resume();
+    try {
+      final files = await _imagePicker.pickMultiImage();
+      if (files.isEmpty) return;
+      for (final xfile in files) {
+        await _addAttachmentFromXFile(xfile);
+      }
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('选择图片失败: $e')),
+        );
+      }
+    }
   }
 
   /// 把相册页选中的图片加入待发附件（不立即发送），
@@ -1545,6 +1545,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   void _handleAction(Map<String, dynamic> payload) {
     final id = payload['id'] as String? ?? '';
     final action = payload['action'] as String? ?? '';
+    // 图片全屏查看：早于 id/生成中 拦截，看图不受这些限制
+    if (action == 'viewImage') {
+      final attPath = payload['attPath'] as String? ?? '';
+      if (attPath.isNotEmpty) _showFullImage(attPath);
+      return;
+    }
     if (id.isEmpty) return;
     // 生成中禁止操作气泡按钮，避免与正在进行的生成冲突
     if (ref.read(activeChatProvider).isGenerating) return;
@@ -1552,9 +1558,6 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     final config = ref.read(llmConfigProvider);
 
     switch (action) {
-      case 'openImages':
-        _pickImages(); // 复用带 pause/resume 保护的相册页打开逻辑
-        break;
       case 'tts':
         debugPrint('[tts] 预留 TTS 接口，消息 $id');
         break;
@@ -1595,6 +1598,15 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         _showImageGenerationDialog(id);
         break;
     }
+  }
+
+  void _showFullImage(String encodedPath) {
+    final path = Uri.decodeComponent(encodedPath);
+    Navigator.of(context).push(PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.black87,
+      pageBuilder: (_, __, ___) => _FullImageViewer(path: path),
+    ));
   }
   /// 为指定消息生成配图：弹出生图对话框，生成后作为附件挂到该消息。
   void _showImageGenerationDialog(String messageId) async {
@@ -3055,6 +3067,16 @@ window.addEventListener('message', function(e) {
     var tgt = e.target;
     if (!tgt || !tgt.closest) return;
 
+    // 气泡图片：点击全屏查看（缩放/关闭在 Flutter 侧）
+    var att = tgt.closest('.att-img');
+    if (att) {
+      sendToFlutter('action', {
+        id: att.getAttribute('data-id') || '',
+        action: 'viewImage',
+        attPath: att.getAttribute('data-att-path') || ''
+      });
+      return;
+    }
     // 展开
     var toggle = tgt.closest('.tools-toggle');
     if (toggle) {
@@ -3231,6 +3253,36 @@ class _BreathingStarState extends State<_BreathingStar>
         CurvedAnimation(parent: _c, curve: Curves.easeInOut),
       ),
       child: const Text('✨', style: TextStyle(fontSize: 16)),
+    );
+  }
+}
+
+/// 全屏图片查看器：黑底 + 双指缩放 + 点击关闭回聊天
+class _FullImageViewer extends StatelessWidget {
+  final String path;
+  const _FullImageViewer({required this.path});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: GestureDetector(
+        onTap: () => Navigator.of(context).pop(),
+        child: SizedBox.expand(
+          child: InteractiveViewer(
+            minScale: 0.8,
+            maxScale: 5.0,
+            child: Center(
+              child: Image.file(
+                File(path),
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.broken_image, color: Colors.white54, size: 64),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
