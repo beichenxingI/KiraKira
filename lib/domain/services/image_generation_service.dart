@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
@@ -1408,12 +1409,14 @@ class ImageGenerationService {
   }
 
   /// Generate image using Local Dream (local NPU/CPU SD engine)
-  /// 通信: HTTP 127.0.0.1:8081, POST /generate, SSE 流式响应
+  /// 通信: HTTP 127.0.0.1:8081, POST /generate, 行流式 JSON(NDJSON,非SSE)
+  /// 响应逐行: {type:progress,progress:0~1} / {type:complete,image,width,height,seed,format} / {type:error,message}
+  /// 参考: localdream-flutter background_generation_service._generateViaLocalBackend
   Future<ImageGenResult?> _generateLocalDream(ImageGenRequest request) async {
     final endpoint = _settings.effectiveEndpoint;
 
     // 健康检查：GET / 确认服务在线
-    onProgress?.call(0.05);
+    onProgress?.call(0.02);
     try {
       final health = await _dio.get(
         '$endpoint/',
@@ -1426,12 +1429,90 @@ class ImageGenerationService {
         throw Exception('Local Dream 未响应 (${health.statusCode})');
       }
     } catch (e) {
-      throw Exception('Local Dream 服务离线，请先启动 Local Dream 应用。($e)');
+      throw Exception('Local Dream 服务离线，请先启动 Local Dream 应用。');
     }
 
-    // TODO 阶段III: SSE 流式请求 POST /generate + data: 行解析
-    // TODO 阶段IV: complete 事件的裸 RGB base64 → image 库转 PNG
-    throw UnimplementedError('Local Dream SSE 生成待阶段III实现');
+    // 构造请求体（照 Local Dream 作者 _generateViaLocalBackend 的 body 字段）
+    final body = <String, dynamic>{
+      'prompt': request.prompt,
+      'negative_prompt':
+          request.negativePrompt ?? _settings.defaultNegativePrompt ?? '',
+      'width': request.width,
+      'height': request.height,
+      'steps': request.steps,
+      'cfg': request.cfgScale,
+      'scheduler': request.sampler,
+      if (request.seed != null) 'seed': request.seed,
+    };
+
+    // 用 HttpClient 做行流式（作者亲注：Dio 不支持逐行流）
+    final client = HttpClient();
+    Uint8List? resultBytes;
+    int resultWidth = request.width;
+    int resultHeight = request.height;
+    int? resultSeed;
+    String resultFormat = 'raw';
+
+    try {
+      final uri = Uri.parse('$endpoint/generate');
+      final httpReq = await client.postUrl(uri);
+      httpReq.headers.contentType = ContentType.json;
+      httpReq.write(jsonEncode(body));
+      final response = await httpReq.close();
+
+      if (response.statusCode != 200) {
+        throw Exception('Local Dream 返回 HTTP ${response.statusCode}');
+      }
+
+      await for (final line in response
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
+        if (line.isEmpty) continue;
+        Map<String, dynamic> msg;
+        try {
+          msg = jsonDecode(line) as Map<String, dynamic>;
+        } on FormatException {
+          continue; // 跳过无法解析的行
+        }
+        final type = msg['type'] as String?;
+        switch (type) {
+          case 'progress':
+            final p = (msg['progress'] as num?)?.toDouble() ?? 0.0;
+            onProgress?.call(p);
+            break;
+          case 'complete':
+            final b64 = msg['image'] as String? ?? '';
+            if (b64.isEmpty) throw Exception('Local Dream 未返回图片数据');
+            resultBytes = base64Decode(b64);
+            resultWidth = (msg['width'] as num?)?.toInt() ?? request.width;
+            resultHeight = (msg['height'] as num?)?.toInt() ?? request.height;
+            resultSeed = (msg['seed'] as num?)?.toInt();
+            resultFormat = (msg['format'] as String?) ?? 'raw';
+            break;
+          case 'error':
+            throw Exception(
+                (msg['message'] as String?) ?? 'Local Dream 生成错误');
+        }
+      }
+    } finally {
+      client.close();
+    }
+
+    if (resultBytes == null) {
+      throw Exception('Local Dream 未返回完整结果');
+    }
+
+    onProgress?.call(1.0);
+
+    // TODO 阶段IV: resultFormat == 'raw' 时，裸 RGB(resultWidth×resultHeight) → PNG
+    // 现在直接返回原始字节，raw 暂时无法显示，阶段IV转换后可见
+    return ImageGenResult(
+      images: [resultBytes],
+      prompt: request.prompt,
+      seed: resultSeed ?? DateTime.now().millisecondsSinceEpoch,
+      format: resultFormat,
+      metadata: {'provider': 'local_dream', 'raw_format': resultFormat},
+    );
   }
 
   /// Generate image using ComfyUI (placeholder)
