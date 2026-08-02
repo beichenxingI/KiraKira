@@ -1875,19 +1875,22 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     _bridge.send(BridgeType.setMessages, {'data': b64});
   }
 
-  /// 把消息的图片附件读成 base64，拼成 <img> 内联到气泡 HTML。
-  /// 结果缓存在 _attachmentB64Cache，_pushMessages 多次调用只读一次磁盘。
-  /// WebView 不渲染真实图片（统一走独立图片界面），仅显示占位标记。
   String _buildAttachmentsHtml(ChatMessage m) {
     if (m.attachments.isEmpty) return '';
-    final count = m.attachments.length;
-    // 套用 act-btn + data-id + data-act，自动接入现有点击监听，
-    // 点击发 action=openImages 给 Flutter，跳转独立相册页（不塞真图进 WebView）。
-    return '<div class="act-btn" data-id="${m.id}" data-act="openImages" '
-        'style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;'
-        'margin-top:6px;padding:4px 10px;border-radius:12px;'
-        'background:rgba(124,77,255,.15);color:#7C4DFF;font-size:13px;">'
-        '🖼 查看图片${count > 1 ? ' ($count)' : ''}</div>';
+    final buf = StringBuffer('<div class="att-wrap">');
+    for (final att in m.attachments) {
+      final encPath = Uri.encodeComponent(att.path);
+      // 有宽高用真实比例，无（旧图）默认 1:1
+      final w = att.width ?? 1;
+      final h = att.height ?? 1;
+      buf.write(
+        '<img class="att-img" data-att-path="$encPath" '
+        'style="aspect-ratio:$w/$h;" '
+        'data-id="${m.id}" data-act="openImages" />',
+      );
+    }
+    buf.write('</div>');
+    return buf.toString();
   }
 
   Future<void> _pushMessages() async {
@@ -1960,8 +1963,6 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   /// 把所有消息的图片附件逐张 base64 推给 WebView，按 data-att-path 匹配占位 img。
   /// 每张独立发送，setMessages payload 不再因图片膨胀，大图也不会撑爆传输。
   Future<void> _pushImages(List<ChatMessage> messages) async {
-    return; // 图片已改为独立 Flutter 界面管理，WebView 不再接收图片。
-    // ignore: dead_code
     for (final m in messages) {
       if (m.attachments.isEmpty) continue;
       for (final att in m.attachments) {
@@ -1970,8 +1971,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           if (b64 == null) {
             final file = File(att.path);
             if (!file.existsSync()) continue;
-            b64 = base64Encode(await file.readAsBytes());
-            _attachmentB64Cache[att.path] = b64;
+            final encoded = await compute(_readFileAsB64, att.path);
+            _attachmentB64Cache[att.path] = encoded;
+            b64 = encoded;
           }
           _bridge.send(BridgeType.setImage, {
             'path': Uri.encodeComponent(att.path),
@@ -2112,6 +2114,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     padding-left: 10px; margin-bottom: 8px;
   }
   img { max-width: 100%; height: auto; border-radius: 14px; }
+  .att-wrap { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .att-img {
+    max-width: 200px; width: 100%; height: auto;
+    border-radius: 14px; display: block; cursor: pointer;
+    background: rgba(255,255,255,.06);
+    object-fit: cover;
+  }
   iframe.card-frame {
     width: 100%; border: none; display: block;
     background: transparent; height: 300px; border-radius: 18px;
