@@ -43,10 +43,25 @@ import 'package:path/path.dart' as p;
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
 import 'package:kirakira/presentation/providers/context_usage_providers.dart';
+import 'package:image/image.dart' as img;
 
 /// compute 用的顶层函数：在独立 isolate 读文件并返回 base64 字符串。
 String _readFileAsB64(String path) {
   return base64Encode(File(path).readAsBytesSync());
+}
+/// compute 用的顶层函数：isolate 中只读图片头部拿宽高，不解码整图（内存安全）。
+/// 返回 {'w': 宽, 'h': 高}，失败返回 null。
+Map<String, int>? _probeImageSize(String path) {
+  try {
+    final bytes = File(path).readAsBytesSync();
+    final decoder = img.findDecoderForData(bytes);
+    if (decoder == null) return null;
+    final info = decoder.startDecode(bytes);
+    if (info == null) return null;
+    return {'w': info.width, 'h': info.height};
+  } catch (_) {
+    return null;
+  }
 }
 // ─────────────────────────────────────────────────────────────────────────────
 //  KiraKira · 新聊天页
@@ -1407,11 +1422,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       final stat = await file.stat();
       const uuid = Uuid();
       final ext = p.extension(file.path);
+      final size = await compute(_probeImageSize, file.path);
       _pendingAttachments.add(ChatAttachment(
         id: uuid.v4(),
         path: file.path,
         mimeType: _getMimeType(ext),
         sizeBytes: stat.size,
+        width: size?['w'],
+        height: size?['h'],
       ));
       if (mounted) {
         setState(() {}); // 刷新输入框上方的待发预览
@@ -1445,11 +1463,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       await File(newPath).writeAsBytes(bytes);
       final fileInfo = await File(newPath).stat();
 
+      final size = await compute(_probeImageSize, newPath);
       _pendingAttachments.add(ChatAttachment(
         id: uuid.v4(),
         path: newPath,
         mimeType: _getMimeType(extension),
         sizeBytes: fileInfo.size,
+        width: size?['w'],
+        height: size?['h'],
       ));
     } catch (e) {
       if (mounted) {
@@ -1477,11 +1498,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       await File(newPath).writeAsBytes(bytes);
       final fileInfo = await File(newPath).stat();
 
+      final size = await compute(_probeImageSize, newPath);
       final attachment = ChatAttachment(
         id: uuid.v4(),
         path: newPath,
         mimeType: _getMimeType(extension),
         sizeBytes: fileInfo.size,
+        width: size?['w'],
+        height: size?['h'],
       );
       _pendingAttachments.add(attachment);
       // 预热缓存：在后台 isolate 读文件转 base64，发送时直接用，不阻塞主线程
@@ -1609,11 +1633,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           final filePath = p.join(imagesDir.path, fileName);
           await File(filePath).writeAsBytes(imageBytes);
 
+          final size = await compute(_probeImageSize, filePath);
           final attachment = ChatAttachment(
             id: imageId,
             path: filePath,
             mimeType: 'image/${result.format}',
             sizeBytes: imageBytes.length,
+            width: size?['w'],
+            height: size?['h'],
           );
           await ref
               .read(activeChatProvider.notifier)
