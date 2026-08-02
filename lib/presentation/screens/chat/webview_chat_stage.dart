@@ -290,6 +290,16 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         _pushMessages();
       }
       _wasGenerating = gen;
+      // 自动生图完成：消息 attachments 变化 → 刷新让新图显示。
+      // 自动生图是异步的，完成时 isGenerating 早已 false，上面的分支都不刷。
+      if (prevMsgs.length == nextMsgs.length) {
+        for (var i = 0; i < nextMsgs.length; i++) {
+          if (nextMsgs[i].attachments.length != prevMsgs[i].attachments.length) {
+            _pushMessages();
+            break;
+          }
+        }
+      }
 
       // 错误提示：空回复/生成失败，统一弹 SnackBar。
       // 之前 error 默默设进 state 但 UI 从不消费，让人以为卡住。

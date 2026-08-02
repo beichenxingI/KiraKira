@@ -647,9 +647,21 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         if (result != null && result.images.isNotEmpty) {
           for (var i = 0; i < result.images.length; i++) {
             final name = 'ai_auto_${msg.id}_$i.${result.format}';
-            await File(p.join(dir.path, name)).writeAsBytes(result.images[i]);
+            final filePath = p.join(dir.path, name);
+            await File(filePath).writeAsBytes(result.images[i]);
+            // 修断层：把生成的图加进消息 attachments，触发气泡显示
+            await addAttachmentToMessage(
+              msg.id,
+              ChatAttachment(
+                id: 'ai_auto_${msg.id}_$i',
+                path: filePath,
+                mimeType: 'image/${result.format}',
+                width: settings.defaultWidth,
+                height: settings.defaultHeight,
+              ),
+            );
           }
-          debugPrint('[自动生图] 消息 ${msg.id} 生成 ${result.images.length} 张');
+          debugPrint('[自动生图] 消息 ${msg.id} 生成 ${result.images.length} 张，已加入 attachments');
         }
       } finally {
         state = state.copyWith(isGeneratingImage: false); // 无论成败都熄灭✨
