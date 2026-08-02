@@ -15,6 +15,8 @@ enum ImageGenProvider {
   // Local SD backends
   automatic1111('automatic1111', 'Automatic1111', 'http://localhost:7860'),
   comfyui('comfyui', 'ComfyUI', 'http://127.0.0.1:8188'),
+
+  localDream('local_dream', 'Local Dream (手机本地生图)', 'http://127.0.0.1:8081'),
   ;
 
   final String id;
@@ -38,11 +40,11 @@ enum ImageGenProvider {
     gemini,
     novelai,
   ].contains(this);
-  
-  /// Check if this provider uses local endpoint
+
   bool get isLocalProvider => [
     automatic1111,
     comfyui,
+    localDream,
   ].contains(this);
   
   /// Get default model for this provider
@@ -58,6 +60,7 @@ enum ImageGenProvider {
         return 'nai-diffusion-4-5-curated';
       case automatic1111:
       case comfyui:
+      case localDream:
         return '';
     }
   }
@@ -101,6 +104,7 @@ enum ImageGenProvider {
         ];
       case automatic1111:
       case comfyui:
+      case localDream:
         return []; // Models are fetched from the local server
     }
   }
@@ -803,6 +807,8 @@ class ImageGenerationService {
           return await _generateAutomatic1111(request);
         case ImageGenProvider.comfyui:
           return await _generateComfyUI(request);
+        case ImageGenProvider.localDream:
+          return await _generateLocalDream(request);
       }
     } catch (e, stack) {
       debugPrint('Image generation error: $e\n$stack');
@@ -1399,6 +1405,33 @@ class ImageGenerationService {
       format: 'png',
       metadata: {'provider': 'automatic1111'},
     );
+  }
+
+  /// Generate image using Local Dream (local NPU/CPU SD engine)
+  /// 通信: HTTP 127.0.0.1:8081, POST /generate, SSE 流式响应
+  Future<ImageGenResult?> _generateLocalDream(ImageGenRequest request) async {
+    final endpoint = _settings.effectiveEndpoint;
+
+    // 健康检查：GET / 确认服务在线
+    onProgress?.call(0.05);
+    try {
+      final health = await _dio.get(
+        '$endpoint/',
+        options: Options(
+          receiveTimeout: const Duration(seconds: 3),
+          sendTimeout: const Duration(seconds: 3),
+        ),
+      );
+      if (health.statusCode != 200) {
+        throw Exception('Local Dream 未响应 (${health.statusCode})');
+      }
+    } catch (e) {
+      throw Exception('Local Dream 服务离线，请先启动 Local Dream 应用。($e)');
+    }
+
+    // TODO 阶段III: SSE 流式请求 POST /generate + data: 行解析
+    // TODO 阶段IV: complete 事件的裸 RGB base64 → image 库转 PNG
+    throw UnimplementedError('Local Dream SSE 生成待阶段III实现');
   }
 
   /// Generate image using ComfyUI (placeholder)
