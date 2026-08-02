@@ -318,6 +318,36 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         );
       }
     });
+    // 自动生图占位符：msgId 变化 → 显示/移除"生成中"占位
+    ref.listen(activeChatProvider.select((s) => s.generatingImageMsgId),
+        (prev, next) {
+      if (next != null) {
+        _bridge.send(BridgeType.setGenerating,
+            {'msgId': next, 'genId': 'auto_$next', 'w': 1, 'h': 1});
+      } else if (prev != null) {
+        _bridge.send(BridgeType.clearGenerating, {'genId': 'auto_$prev'});
+      }
+    });
+    // 自动生图进度 → 更新占位符百分比
+    ref.listen(activeChatProvider.select((s) => s.imageGenProgress),
+        (prev, next) {
+      final msgId = ref.read(activeChatProvider).generatingImageMsgId;
+      if (msgId != null) {
+        _bridge.send(BridgeType.setGenerateProgress,
+            {'genId': 'auto_$msgId', 'progress': next});
+      }
+    });
+    // 自动生图失败 → 一次性提醒
+    ref.listen(activeChatProvider.select((s) => s.imageGenError),
+        (prev, next) {
+      if (next != null && next.isNotEmpty && next != prev) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(next),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    });
 
     final character = ref.watch(activeChatProvider.select((s) => s.character));
     final activeLlmConfig = ref.watch(llmConfigsProvider).active;
@@ -1612,10 +1642,27 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
 
   void _showFullImage(String encodedPath) {
     final path = Uri.decodeComponent(encodedPath);
+    // 从文件名解析 msgId：ai_auto_{msgId}_{i}.png
+    String? msgId;
+    final m = RegExp(r'ai_auto_(\d+)_').firstMatch(p.basename(path));
+    if (m != null) msgId = m.group(1);
+    debugPrint('[全屏图] path=$path');
+    debugPrint('[全屏图] 解析msgId=$msgId, basename=${p.basename(path)}');
     Navigator.of(context).push(PageRouteBuilder(
       opaque: false,
       barrierColor: Colors.black87,
-      pageBuilder: (_, __, ___) => _FullImageViewer(path: path),
+      pageBuilder: (_, __, ___) => _FullImageViewer(
+        path: path,
+        onRegenerate: msgId == null
+            ? null
+            : () {
+                Navigator.of(context).pop(); // 关全屏
+                final config = ref.read(llmConfigProvider);
+                ref
+                    .read(activeChatProvider.notifier)
+                    .regenerateAutoImage(msgId!, config);
+              },
+      ),
     ));
   }
   /// 为指定消息生成配图：弹出生图对话框，生成后作为附件挂到该消息。
@@ -3171,13 +3218,21 @@ window.addEventListener('message', function(e) {
       ph.setAttribute('data-gen-id', p.genId);
       ph.style.aspectRatio = (p.w || 1) + '/' + (p.h || 1);
       ph.innerHTML = '<div class="att-spinner"></div>'
-                   + '<div class="att-gen-label">生成中…</div>';
+                   + '<div class="att-gen-label">生成中… <span class="att-gen-pct">0%</span></div>';
       box.appendChild(ph);
       void document.body.offsetHeight;
       window.dispatchEvent(new Event('resize'));
     } catch(e) {
       parent.postMessage({__thLog:true, text:'[setGenerating] 失败: ' + e}, '*');
     }
+  });
+  registerBridgeHandler('setGenerateProgress', function(p) {
+    try {
+      var ph = document.querySelector('[data-gen-id="' + p.genId + '"]');
+      if (!ph) return;
+      var pct = ph.querySelector('.att-gen-pct');
+      if (pct) pct.textContent = Math.round((p.progress || 0) * 100) + '%';
+    } catch(e) {}
   });
   registerBridgeHandler('clearGenerating', function(p) {
     try {
@@ -3321,31 +3376,47 @@ class _BreathingStarState extends State<_BreathingStar>
   }
 }
 
-/// 全屏图片查看器：黑底 + 双指缩放 + 点击关闭回聊天
 class _FullImageViewer extends StatelessWidget {
   final String path;
-  const _FullImageViewer({required this.path});
+  final VoidCallback? onRegenerate; // 为 null 时不显示重新生成按钮
+  const _FullImageViewer({required this.path, this.onRegenerate});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: GestureDetector(
-        onTap: () => Navigator.of(context).pop(),
-        child: SizedBox.expand(
-          child: InteractiveViewer(
-            minScale: 0.8,
-            maxScale: 5.0,
-            child: Center(
-              child: Image.file(
-                File(path),
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Icon(
-                  Icons.broken_image, color: Colors.white54, size: 64),
+      body: Stack(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: SizedBox.expand(
+              child: InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 5.0,
+                child: Center(
+                  child: Image.file(
+                    File(path),
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                        Icons.broken_image, color: Colors.white54, size: 64),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+          if (onRegenerate != null)
+            Positioned(
+              right: 20,
+              bottom: 40,
+              child: FloatingActionButton.extended(
+                onPressed: onRegenerate,
+                backgroundColor: Colors.black54,
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                label: const Text('重新生成',
+                    style: TextStyle(color: Colors.white)),
+              ),
+            ),
+        ],
       ),
     );
   }

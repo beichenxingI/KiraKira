@@ -52,6 +52,9 @@ class ActiveChatState {
   final bool isLoading;
   final bool isGenerating;
   final bool isGeneratingImage; // 自动生图进行中（用于呼吸✨提示）
+  final String? generatingImageMsgId; // 正在自动生图的消息id
+  final double imageGenProgress; // 自动生图进度 0~1
+  final String? imageGenError; // 自动生图失败信息（一次性提醒）
   final String? error;
   final String?
       currentResponderId; // Which character is currently responding (group chat)
@@ -65,6 +68,9 @@ class ActiveChatState {
     this.isLoading = false,
     this.isGenerating = false,
     this.isGeneratingImage = false,
+    this.generatingImageMsgId,
+    this.imageGenProgress = 0,
+    this.imageGenError,
     this.error,
     this.currentResponderId,
   });
@@ -82,6 +88,10 @@ class ActiveChatState {
     bool? isLoading,
     bool? isGenerating,
     bool? isGeneratingImage,
+    String? generatingImageMsgId,
+    bool clearGeneratingImageMsgId = false,
+    double? imageGenProgress,
+    String? imageGenError,
     String? error,
     String? currentResponderId,
     bool clearCurrentResponder = false,
@@ -95,6 +105,11 @@ class ActiveChatState {
       isLoading: isLoading ?? this.isLoading,
       isGenerating: isGenerating ?? this.isGenerating,
       isGeneratingImage: isGeneratingImage ?? this.isGeneratingImage,
+      generatingImageMsgId: clearGeneratingImageMsgId
+          ? null
+          : (generatingImageMsgId ?? this.generatingImageMsgId),
+      imageGenProgress: imageGenProgress ?? this.imageGenProgress,
+      imageGenError: imageGenError, // 一次性，不传即清空
       error: error,
       currentResponderId: clearCurrentResponder
           ? null
@@ -629,10 +644,18 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           .any((f) => p.basename(f.path).startsWith('ai_auto_${msg.id}_'));
       if (already) return; // 已生过图，跳过
 
-      // 调用生图服务（期间点亮呼吸✨）
-      state = state.copyWith(isGeneratingImage: true);
+      // 调用生图服务（占位符转圈 + 呼吸✨）
+      state = state.copyWith(
+        isGeneratingImage: true,
+        generatingImageMsgId: msg.id,
+        imageGenProgress: 0,
+      );
+      final service = _ref.read(imageGenServiceProvider);
+      // SSE 进度回调 → 更新占位符进度
+      service.onProgress = (p) {
+        state = state.copyWith(imageGenProgress: p);
+      };
       try {
-        final service = _ref.read(imageGenServiceProvider);
         final result = await service.generate(ImageGenRequest(
           prompt: prompt,
           width: settings.defaultWidth,
@@ -664,10 +687,16 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           debugPrint('[自动生图] 消息 ${msg.id} 生成 ${result.images.length} 张，已加入 attachments');
         }
       } finally {
-        state = state.copyWith(isGeneratingImage: false); // 无论成败都熄灭✨
+        service.onProgress = null; // 解绑，避免影响手动生图
+        state = state.copyWith(
+          isGeneratingImage: false,
+          clearGeneratingImageMsgId: true,
+        );
       }
     } catch (e) {
-      debugPrint('[自动生图] 失败: $e'); // 静默失败，不影响对话
+      debugPrint('[自动生图] 失败: $e');
+      state = state.copyWith(
+          imageGenError: '配图生成失败，请检查 Local Dream 是否已加载模型');
     }
   }
 
@@ -1317,13 +1346,106 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       final base = await getApplicationDocumentsDirectory();
       final dir = Directory(p.join(base.path, 'chat_images', msg.chatId));
       if (!await dir.exists()) return;
+      final ts = DateTime.now().millisecondsSinceEpoch;
       for (final f in dir.listSync().whereType<File>()) {
-        if (p.basename(f.path).startsWith('ai_auto_${msg.id}_')) {
-          await f.delete();
+        final name = p.basename(f.path);
+        if (name.startsWith('ai_auto_${msg.id}_')) {
+          await f.rename(p.join(dir.path, 'ai_auto_old_${ts}_$name'));
         }
       }
     } catch (e) {
       debugPrint('[自动生图] 清理旧图失败: $e');
+    }
+  }
+  /// 重新生成某条消息的自动配图：先生成成功，才替换旧图；失败则旧图纹丝不动。
+  Future<void> regenerateAutoImage(String messageId, LLMConfig config) async {
+    final idx = state.messages.indexWhere((m) => m.id == messageId);
+    if (idx < 0) return;
+    final msg = state.messages[idx];
+
+    // 提取原 <image> 标签 prompt（不改提示词，就用原来的）
+    final prompt = ImageGenerationService.extractImagePrompt(msg.content);
+    if (prompt == null || prompt.isEmpty) {
+      state = state.copyWith(imageGenError: '未找到图像标签，无法重新生成');
+      return;
+    }
+
+    final settings = _ref.read(imageGenSettingsProvider);
+    final service = _ref.read(imageGenServiceProvider);
+
+    // 占位符转圈（复用块1的状态）
+    state = state.copyWith(
+      isGeneratingImage: true,
+      generatingImageMsgId: msg.id,
+      imageGenProgress: 0,
+    );
+    service.onProgress = (p) {
+      state = state.copyWith(imageGenProgress: p);
+    };
+
+    try {
+      // 1. 先生成到内存，旧图完全不动
+      final result = await service.generate(ImageGenRequest(
+        prompt: prompt,
+        width: settings.defaultWidth,
+        height: settings.defaultHeight,
+        steps: settings.defaultSteps,
+        cfgScale: settings.defaultCfgScale,
+        sampler: settings.defaultSampler,
+        model: settings.model,
+        negativePrompt: settings.defaultNegativePrompt,
+      ));
+      if (result == null || result.images.isEmpty) {
+        throw Exception('未返回图片');
+      }
+
+      // 2. 生成成功了，才开始替换 —— 到这一步失败风险已过
+      final base = await getApplicationDocumentsDirectory();
+      final dir = Directory(p.join(base.path, 'chat_images', msg.chatId));
+      if (!await dir.exists()) await dir.create(recursive: true);
+
+      // 2a. 旧图重命名保留（会话相册仍可见），并让防重生失效
+      await _clearAutoImages(msg);
+
+      // 2b. 从 attachments 移除旧的 ai_auto 图
+      final kept = msg.attachments
+          .where((a) => !a.id.startsWith('ai_auto_${msg.id}_'))
+          .toList();
+      final cleared = msg.copyWith(attachments: kept);
+      await _chatRepository.updateMessage(cleared);
+      final msgs = List<ChatMessage>.from(state.messages);
+      msgs[idx] = cleared;
+      state = state.copyWith(messages: msgs);
+
+      // 2c. 写新图 + 挂新 attachment（照 674-685 的模式）
+      // 用时间戳让新图路径唯一，避开 base64 缓存(同名会命中旧图缓存导致不刷新)
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      for (var i = 0; i < result.images.length; i++) {
+        final name = 'ai_auto_${msg.id}_${ts}_$i.${result.format}';
+        final filePath = p.join(dir.path, name);
+        await File(filePath).writeAsBytes(result.images[i]);
+        await addAttachmentToMessage(
+          msg.id,
+          ChatAttachment(
+            id: 'ai_auto_${msg.id}_${ts}_$i',
+            path: filePath,
+            mimeType: 'image/${result.format}',
+            width: settings.defaultWidth,
+            height: settings.defaultHeight,
+          ),
+        );
+      }
+      debugPrint('[重新生成] 消息 ${msg.id} 完成，旧图已保留');
+    } catch (e) {
+      // 3. 失败：旧图/旧 attachments 全程未动，气泡原图仍在
+      debugPrint('[重新生成] 失败: $e');
+      state = state.copyWith(imageGenError: '重新生成失败，已保留原图');
+    } finally {
+      service.onProgress = null;
+      state = state.copyWith(
+        isGeneratingImage: false,
+        clearGeneratingImageMsgId: true,
+      );
     }
   }
 
