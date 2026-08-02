@@ -4,7 +4,21 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:archive/archive.dart';
+import 'package:image/image.dart' as img;
 
+/// 裸 RGB(top-down, w×h×3, 无 padding) → PNG 字节。
+/// 放 isolate 跑(compute),避免大图编码阻塞主线程。
+/// Local Dream 后端返回的 raw 即此:RGB 顺序、每像素3字节、第0行为图顶。
+Uint8List _rawRgbToPng((Uint8List, int, int) args) {
+  final image = img.Image.fromBytes(
+    width: args.$2,
+    height: args.$3,
+    bytes: args.$1.buffer,
+    numChannels: 3,
+    order: img.ChannelOrder.rgb,
+  );
+  return Uint8List.fromList(img.encodePng(image));
+}
 /// Image Generation Provider types (channels, not models)
 enum ImageGenProvider {
   // Cloud providers
@@ -1413,23 +1427,32 @@ class ImageGenerationService {
   /// 响应逐行: {type:progress,progress:0~1} / {type:complete,image,width,height,seed,format} / {type:error,message}
   /// 参考: localdream-flutter background_generation_service._generateViaLocalBackend
   Future<ImageGenResult?> _generateLocalDream(ImageGenRequest request) async {
-    final endpoint = _settings.effectiveEndpoint;
+    final rawEndpoint = _settings.effectiveEndpoint;
+    // 去掉尾部斜杠,避免拼成 //generate 导致 404
+    final endpoint = rawEndpoint.endsWith('/')
+        ? rawEndpoint.substring(0, rawEndpoint.length - 1)
+        : rawEndpoint;
 
-    // 健康检查：GET / 确认服务在线
+    // 健康检查：能连上即视为在线。后端根路径 / 不返回 200(只有 /generate、
+    // /tokenize),所以不校验状态码，只要不是连接层失败(拒绝/超时)就算在线。
     onProgress?.call(0.02);
     try {
-      final health = await _dio.get(
+      await _dio.get(
         '$endpoint/',
         options: Options(
+          validateStatus: (_) => true, // 任何状态码都算"连上了"
           receiveTimeout: const Duration(seconds: 3),
           sendTimeout: const Duration(seconds: 3),
         ),
       );
-      if (health.statusCode != 200) {
-        throw Exception('Local Dream 未响应 (${health.statusCode})');
+      // 走到这里 = 拿到了 HTTP 响应(哪怕 404/405)= 服务在监听
+    } on DioException catch (e) {
+      // 只有连接被拒/超时才是真离线
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout) {
+        throw Exception('Local Dream 服务离线，请先在 Local Dream 中加载模型。');
       }
-    } catch (e) {
-      throw Exception('Local Dream 服务离线，请先启动 Local Dream 应用。');
+      // 其他 DioException(收到了响应但异常)视为在线,继续
     }
 
     // 构造请求体（照 Local Dream 作者 _generateViaLocalBackend 的 body 字段）
@@ -1467,18 +1490,23 @@ class ImageGenerationService {
       await for (final line in response
           .transform(utf8.decoder)
           .transform(const LineSplitter())) {
-        if (line.isEmpty) continue;
+        // SSE 格式:每个事件含 "event: xxx" 行 + "data: {json}" 行 + 空行。
+        // 只处理 data: 行,剥前缀后解析 JSON。
+        if (!line.startsWith('data:')) continue;
+        final jsonStr = line.substring(5).trim();
+        if (jsonStr.isEmpty) continue;
         Map<String, dynamic> msg;
         try {
-          msg = jsonDecode(line) as Map<String, dynamic>;
+          msg = jsonDecode(jsonStr) as Map<String, dynamic>;
         } on FormatException {
           continue; // 跳过无法解析的行
         }
         final type = msg['type'] as String?;
         switch (type) {
           case 'progress':
-            final p = (msg['progress'] as num?)?.toDouble() ?? 0.0;
-            onProgress?.call(p);
+            final step = (msg['step'] as num?)?.toDouble() ?? 0.0;
+            final total = (msg['total_steps'] as num?)?.toDouble() ?? 0.0;
+            if (total > 0) onProgress?.call((step / total).clamp(0.0, 1.0));
             break;
           case 'complete':
             final b64 = msg['image'] as String? ?? '';
@@ -1487,7 +1515,9 @@ class ImageGenerationService {
             resultWidth = (msg['width'] as num?)?.toInt() ?? request.width;
             resultHeight = (msg['height'] as num?)?.toInt() ?? request.height;
             resultSeed = (msg['seed'] as num?)?.toInt();
-            resultFormat = (msg['format'] as String?) ?? 'raw';
+            // 官方 complete 事件:image 是裸 RGB,channels=3,无 format 字段。
+            // 保持 'raw',交给阶段IV转 PNG。
+            resultFormat = 'raw';
             break;
           case 'error':
             throw Exception(
@@ -1502,10 +1532,16 @@ class ImageGenerationService {
       throw Exception('Local Dream 未返回完整结果');
     }
 
-    onProgress?.call(1.0);
+    // 阶段IV: raw(RGB,top-down,w×h×3,无padding)→ PNG,isolate编码防卡顿
+    if (resultFormat == 'raw') {
+      resultBytes = await compute(
+        _rawRgbToPng,
+        (resultBytes!, resultWidth, resultHeight),
+      );
+      resultFormat = 'png';
+    }
 
-    // TODO 阶段IV: resultFormat == 'raw' 时，裸 RGB(resultWidth×resultHeight) → PNG
-    // 现在直接返回原始字节，raw 暂时无法显示，阶段IV转换后可见
+    onProgress?.call(1.0);
     return ImageGenResult(
       images: [resultBytes],
       prompt: request.prompt,
