@@ -624,56 +624,121 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     final config = ref.read(llmConfigProvider);
     final notifier = ref.read(activeChatProvider.notifier);
 
-    // 按管道分段：| 只有在后面紧跟已知斜杠命令时才是分隔符。
-    // 否则它是消息正文里的普通字符(中文文案常用 | 做分隔)，被误切后拼回上一段，
-    // 避免消息从正文的 | 处被截断(只发出第一段)。
-    final rawParts = command.split('|');
+    // ── 管道分段(宽容三态，兼容 STscript 标准 + 社区裸写) ──────────────
+    //  1) 双引号 "..." 内的 | 不切分(ST标准)
+    //  2) 转义 \| 视为字面 |(ST标准，去掉反斜杠)
+    //  3) 裸 | :后跟已知命令才切，否则视为正文里的普通字符
     final segments = <String>[];
-    for (final part in rawParts) {
-      final t = part.trimLeft();
-      final isCommand = t.startsWith('/send') ||
-          t.startsWith('/sys') ||
-          t.startsWith('/trigger') ||
-          t.startsWith('/cut');
-      if (isCommand || segments.isEmpty) {
-        segments.add(part);
-      } else {
-        // 不是命令开头 → 是上一段正文里被误切的 | ，拼回去(补回被切掉的 |)
-        segments[segments.length - 1] = '${segments.last}|$part';
+    final buf = StringBuffer();
+    var inQuote = false;
+    for (var i = 0; i < command.length; i++) {
+      final ch = command[i];
+      // 转义竖线 \| → 字面 |
+      if (ch == '\\' && i + 1 < command.length && command[i + 1] == '|') {
+        buf.write('|');
+        i++;
+        continue;
       }
+      // 引号开关
+      if (ch == '"') {
+        inQuote = !inQuote;
+        buf.write(ch);
+        continue;
+      }
+      // 裸竖线：引号外才判断
+      if (ch == '|' && !inQuote) {
+        final rest = command.substring(i + 1).trimLeft();
+        final isCmd = rest.startsWith('/send') ||
+            rest.startsWith('/sys') ||
+            rest.startsWith('/trigger') ||
+            rest.startsWith('/gen') ||
+            rest.startsWith('/continue') ||
+            rest.startsWith('/regenerate') ||
+            rest.startsWith('/regen') ||
+            rest.startsWith('/swipe') ||
+            rest.startsWith('/setinput') ||
+            rest.startsWith('/cut');
+        if (isCmd) {
+          segments.add(buf.toString());
+          buf.clear();
+          continue;
+        }
+        // 不是命令 → 正文里的普通 |，保留
+        buf.write('|');
+        continue;
+      }
+      buf.write(ch);
     }
-    String? pendingText; // 待发送的消息文本
+    if (buf.isNotEmpty || segments.isEmpty) segments.add(buf.toString());
+
+    // ── 命令执行 ────────────────────────────────────────────────────────
+    String? pendingText;
     var wantTrigger = false;
+    var wantContinue = false;
+    var wantRegenerate = false;
+    final unsupported = <String>[];
 
     for (final rawSeg in segments) {
       final seg = rawSeg.trim();
       if (seg.isEmpty) continue;
 
+      // 提取命令后正文的内联函数
+      String arg() {
+        final sp = seg.indexOf(' ');
+        return sp >= 0 ? seg.substring(sp + 1).trim() : '';
+      }
+
       if (seg.startsWith('/send') || seg.startsWith('/sys')) {
-        // 取命令后的正文
-        final firstSpace = seg.indexOf(' ');
-        final text = firstSpace >= 0 ? seg.substring(firstSpace + 1).trim() : '';
+        // /sys 暂无独立系统消息通道，退化为普通发送
+        final text = arg();
         if (text.isNotEmpty) {
-          pendingText = (pendingText == null) ? text : '$pendingText\n$text';
+          pendingText = pendingText == null ? text : '$pendingText\n$text';
         }
-      } else if (seg.startsWith('/trigger')) {
+      } else if (seg.startsWith('/sendas')) {
+        // 暂无"以指定身份发送"底层能力，退化为普通发送
+        final text = arg();
+        if (text.isNotEmpty) {
+          pendingText = pendingText == null ? text : '$pendingText\n$text';
+        }
+        KiraLogger().info('助手API', '/sendas 暂按普通发送处理（V2.1 补齐）');
+      } else if (seg.startsWith('/trigger') || seg.startsWith('/gen')) {
         wantTrigger = true;
+      } else if (seg.startsWith('/regenerate') || seg.startsWith('/regen')) {
+        wantRegenerate = true;
+      } else if (seg.startsWith('/continue')) {
+        wantContinue = true;
+      } else if (seg.startsWith('/swipe')) {
+        // 需要目标消息 ID，卡片路径暂无上下文
+        unsupported.add('/swipe');
+      } else if (seg.startsWith('/setinput')) {
+        // 填输入框属 UI 层，webview 与输入框跨 widget，V2.1 支持
+        unsupported.add('/setinput');
       } else if (seg.startsWith('/cut')) {
-        // 稳妥起见：不删除用户消息，仅记录
         KiraLogger().info('助手API', '/cut 已忽略（保护数据）');
       } else {
-        KiraLogger().info('助手API', '未实现的命令，已忽略: $seg');
+        unsupported.add(seg.split(' ').first);
       }
     }
 
-    // 有待发文本：sendMessage 会自动触发生成，一步到位
+    // ── 不支持的命令：友好提示，不静默 ──────────────────────────────────
+    if (unsupported.isNotEmpty && mounted) {
+      final cmds = unsupported.toSet().join('、');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('这张卡使用了暂不支持的命令（$cmds），部分功能可能无法使用'),
+        duration: const Duration(seconds: 3),
+      ));
+    }
+
+    // ── 执行顺序：发送 > continue > regenerate/trigger ────────────────
     if (pendingText != null && pendingText.trim().isNotEmpty) {
       await notifier.sendMessage(pendingText, config);
       return {'ok': true, 'sent': true};
     }
-
-    // 无文本但要求 /trigger：单独触发一次生成（重发最后的AI回复）
-    if (wantTrigger) {
+    if (wantContinue) {
+      await notifier.continueGeneration(config);
+      return {'ok': true, 'continued': true};
+    }
+    if (wantRegenerate || wantTrigger) {
       await notifier.regenerateLastMessage(config);
       return {'ok': true, 'triggered': true};
     }
