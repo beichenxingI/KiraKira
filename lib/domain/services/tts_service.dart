@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 /// TTS Provider types
 enum TTSProvider {
@@ -169,6 +170,7 @@ class CharacterVoiceSettings {
 /// TTS Service for text-to-speech functionality
 class TTSService {
   bool _isInitialized = false;
+  FlutterTts? _flutterTts;
   bool _isSpeaking = false;
   final List<String> _queue = [];
   TTSSettings _settings = const TTSSettings();
@@ -191,15 +193,59 @@ class TTSService {
   /// Initialize the TTS service
   Future<void> initialize() async {
     if (_isInitialized) return;
-
     try {
-      // For system TTS, we would use flutter_tts package
-      // For now, we'll set up the structure and add actual implementation later
-      _availableVoices = _getDefaultVoices();
+      final tts = FlutterTts();
+      _flutterTts = tts;
+      await tts.setLanguage('zh-CN'); // 默认中文
+      await tts.awaitSpeakCompletion(true); // speak() 等到读完再返回
+      // 播放结束回调
+      tts.setCompletionHandler(() {
+        _isSpeaking = false;
+        onComplete?.call();
+      });
+      tts.setCancelHandler(() {
+        _isSpeaking = false;
+        onCancel?.call();
+      });
+      tts.setErrorHandler((msg) {
+        _isSpeaking = false;
+        onError?.call('TTS error: $msg');
+      });
+      // 拉取系统真实可用语音
+      await _loadSystemVoices();
       _isInitialized = true;
     } catch (e) {
       onError?.call('Failed to initialize TTS: $e');
     }
+  }
+
+  /// 从系统拉取真实可用的语音列表（替换原来的英文假数据）
+  Future<void> _loadSystemVoices() async {
+    try {
+      final raw = await _flutterTts?.getVoices;
+      if (raw is List) {
+        final voices = <TTSVoice>[];
+        for (final v in raw) {
+          if (v is Map) {
+            final name = (v['name'] ?? '').toString();
+            final locale = (v['locale'] ?? '').toString();
+            if (name.isEmpty) continue;
+            voices.add(TTSVoice(
+              id: name, // 系统 voice 用 name 作为 id
+              name: locale.isNotEmpty ? '$name ($locale)' : name,
+              language: locale,
+              provider: TTSProvider.system,
+            ));
+          }
+        }
+        if (voices.isNotEmpty) {
+          _availableVoices = voices;
+          return;
+        }
+      }
+    } catch (_) {}
+    // 拉取失败兜底：至少给个默认项
+    _availableVoices = _getDefaultVoices();
   }
 
   /// Get default system voices (placeholder)
@@ -288,26 +334,35 @@ class TTSService {
 
   /// Actually speak the text
   Future<void> _speakText(String text, {String? characterId}) async {
+    final tts = _flutterTts;
+    if (tts == null) return;
     _isSpeaking = true;
     onStart?.call();
-
     try {
-      // Get voice settings (character-specific or default)
       final charVoice = characterId != null ? _characterVoices[characterId] : null;
       final voiceId = charVoice?.voiceId ?? _settings.voiceId;
       final rate = charVoice?.rate ?? _settings.rate;
       final pitch = charVoice?.pitch ?? _settings.pitch;
       final volume = charVoice?.volume ?? _settings.volume;
 
-      // Here we would call the actual TTS implementation
-      // For now, simulate with a delay
-      debugPrint('TTS: Speaking "$text" with voice=$voiceId, rate=$rate, pitch=$pitch, volume=$volume');
-      
-      // Simulate speech duration based on text length
-      final duration = Duration(milliseconds: text.length * 50);
-      await Future.delayed(duration);
-
-      onComplete?.call();
+      // flutter_tts: rate 范围 0~1（0.5=正常），这里把 UI 的 0.5~2.0 映射一下
+      await tts.setSpeechRate((rate / 2.0).clamp(0.0, 1.0));
+      await tts.setPitch(pitch.clamp(0.5, 2.0));
+      await tts.setVolume(volume.clamp(0.0, 1.0));
+      if (voiceId != null && voiceId.isNotEmpty) {
+        // 用选定语音（name+locale）
+        final v = _availableVoices.firstWhere(
+          (e) => e.id == voiceId,
+          orElse: () => _availableVoices.isNotEmpty
+              ? _availableVoices.first
+              : const TTSVoice(id: '', name: '', provider: TTSProvider.system),
+        );
+        if (v.id.isNotEmpty) {
+          await tts.setVoice({'name': v.id, 'locale': v.language ?? 'zh-CN'});
+        }
+      }
+      // awaitSpeakCompletion(true) 下，这里会等到读完（或 completionHandler 触发）
+      await tts.speak(text);
     } catch (e) {
       onError?.call('TTS error: $e');
     } finally {
@@ -318,6 +373,7 @@ class TTSService {
   /// Stop speaking
   Future<void> stop() async {
     _queue.clear();
+    await _flutterTts?.stop();
     if (_isSpeaking) {
       _isSpeaking = false;
       onCancel?.call();
@@ -340,40 +396,34 @@ class TTSService {
   String _cleanTextForTTS(String text) {
     var cleaned = text;
 
-    // Remove markdown formatting
-    cleaned = cleaned.replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1'); // Bold
-    cleaned = cleaned.replaceAll(RegExp(r'\*([^*]+)\*'), r'$1'); // Italic
-    cleaned = cleaned.replaceAll(RegExp(r'__([^_]+)__'), r'$1'); // Underline
-    cleaned = cleaned.replaceAll(RegExp(r'~~([^~]+)~~'), r'$1'); // Strikethrough
-    cleaned = cleaned.replaceAll(RegExp(r'`([^`]+)`'), r'$1'); // Code
-    cleaned = cleaned.replaceAll(RegExp(r'```[^`]*```'), ''); // Code blocks
-
-    // Remove links but keep text
-    cleaned = cleaned.replaceAll(RegExp(r'\[([^\]]+)\]\([^)]+\)'), r'$1');
-
-    // Remove HTML tags
+    // 先删整段不该读的（顺序重要：先删块，再处理行内）
+    // 代码块 ```...```（跨行）
+    cleaned = cleaned.replaceAll(RegExp(r'```[\s\S]*?```'), '');
+    // 生图标签 <image>...</image>（自动生图的视觉提示词，绝不能读）
+    cleaned = cleaned.replaceAll(
+        RegExp(r'<image>[\s\S]*?</image>', caseSensitive: false), '');
+    // HTML 标签
     cleaned = cleaned.replaceAll(RegExp(r'<[^>]+>'), '');
 
-    // Remove action markers but keep content
-    cleaned = cleaned.replaceAll(RegExp(r'\*([^*]+)\*'), r'$1');
+    // 行内标记：去符号留内容 —— 必须用 replaceAllMapped，
+    // replaceAll 不支持 $1 捕获组（原代码 bug：把内容替换成了字面 "$1"）
+    cleaned = cleaned.replaceAllMapped(
+        RegExp(r'\*\*([^*]+)\*\*'), (m) => m.group(1)!); // 粗体
+    cleaned = cleaned.replaceAllMapped(
+        RegExp(r'__([^_]+)__'), (m) => m.group(1)!); // 下划线
+    cleaned = cleaned.replaceAllMapped(
+        RegExp(r'~~([^~]+)~~'), (m) => m.group(1)!); // 删除线
+    cleaned = cleaned.replaceAllMapped(
+        RegExp(r'\*([^*]+)\*'), (m) => m.group(1)!); // 斜体
+    cleaned = cleaned.replaceAllMapped(
+        RegExp(r'`([^`]+)`'), (m) => m.group(1)!); // 行内代码
+    // 链接 [文字](url) → 文字
+    cleaned = cleaned.replaceAllMapped(
+        RegExp(r'\[([^\]]+)\]\([^)]+\)'), (m) => m.group(1)!);
 
-    // Remove multiple spaces
-    cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ');
-
-    // Remove leading/trailing whitespace
-    cleaned = cleaned.trim();
-
+    // 折叠空白 + 去首尾
+    cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
     return cleaned;
-  }
-
-  /// Preview voice with sample text
-  Future<void> previewVoice(String voiceId, {String? sampleText}) async {
-    final text = sampleText ?? 'Hello! This is a preview of the selected voice.';
-    final originalVoice = _settings.voiceId;
-    
-    _settings = _settings.copyWith(voiceId: voiceId);
-    await _speakText(text);
-    _settings = _settings.copyWith(voiceId: originalVoice);
   }
 
   /// Dispose the service

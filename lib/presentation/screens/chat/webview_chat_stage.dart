@@ -44,6 +44,7 @@ import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart
 import 'package:kirakira/core/utils/path_utils.dart';
 import 'package:kirakira/presentation/providers/context_usage_providers.dart';
 import 'package:image/image.dart' as img;
+import 'package:kirakira/presentation/providers/tts_providers.dart';
 
 /// compute 用的顶层函数：在独立 isolate 读文件并返回 base64 字符串。
 String _readFileAsB64(String path) {
@@ -1599,7 +1600,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
 
     switch (action) {
       case 'tts':
-        debugPrint('[tts] 预留 TTS 接口，消息 $id');
+        _speakMessage(id);
+        break;
         break;
       case 'continue':
         _confirmAndRun(
@@ -1640,6 +1642,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
 
+  void _speakMessage(String id) {
+    final msgs = ref.read(activeChatProvider).messages;
+    final idx = msgs.indexWhere((m) => m.id == id);
+    if (idx < 0) return;
+    final speak = ref.read(ttsSpeakProvider);
+    speak(msgs[idx].content); // TTSService 内部会 _cleanTextForTTS 清洗
+  }
   void _showFullImage(String encodedPath) {
     final path = Uri.decodeComponent(encodedPath);
     // 从文件名解析 msgId：ai_auto_{msgId}_{i}.png
