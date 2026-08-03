@@ -116,105 +116,56 @@ class TTSSettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 16),
 
-          // Voice selection
-          _buildSection(
+          // ── 三音色：正文/对话/旁白 各自独立配置 ──
+          _buildVoiceStyleSection(
             context,
-            title: AppLocalizations.of(context)!.voice,
-            children: [
-              voicesAsync.when(
-                data: (voices) => ListTile(
-                  title: Text(AppLocalizations.of(context)!.voice),
-                  subtitle: Text(
-                    voices.firstWhere(
-                      (v) => v.id == settings.voiceId,
-                      orElse: () => voices.first,
-                    ).name,
-                  ),
-                  trailing: DropdownButton<String>(
-                    value: settings.voiceId ?? voices.first.id,
-                    onChanged: settings.enabled
-                        ? (value) {
-                            ref.read(ttsSettingsProvider.notifier).setVoiceId(value);
-                          }
-                        : null,
-                    items: voices.map((voice) {
-                      return DropdownMenuItem(
-                        value: voice.id,
-                        child: Text(voice.name),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                loading: () => const ListTile(
-                  title: Text('语音'),
-                  subtitle: Text('正在加载语音...'),
-                  trailing: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-                error: (_, __) => const ListTile(
-                  title: Text('语音'),
-                  subtitle: Text('加载语音失败'),
-                  trailing: Icon(Icons.error, color: Colors.red),
-                ),
-              ),
-            ],
+            ref,
+            title: '正文声音（叙述）',
+            label: '正文',
+            globalEnabled: settings.enabled,
+            style: settings.narrationVoice,
+            voicesAsync: voicesAsync,
+            onChanged: (s) =>
+                ref.read(ttsSettingsProvider.notifier).setNarrationVoice(s),
           ),
 
           const SizedBox(height: 16),
 
-          // Voice parameters
+          _buildVoiceStyleSection(
+            context,
+            ref,
+            title: '对话声音（引号内）',
+            label: '对话',
+            globalEnabled: settings.enabled,
+            style: settings.dialogueVoice,
+            voicesAsync: voicesAsync,
+            onChanged: (s) =>
+                ref.read(ttsSettingsProvider.notifier).setDialogueVoice(s),
+          ),
+
+          const SizedBox(height: 16),
+
+          _buildVoiceStyleSection(
+            context,
+            ref,
+            title: '旁白声音（括号内）',
+            label: '旁白',
+            globalEnabled: settings.enabled,
+            style: settings.asideVoice,
+            voicesAsync: voicesAsync,
+            onChanged: (s) =>
+                ref.read(ttsSettingsProvider.notifier).setAsideVoice(s),
+          ),
+
+          const SizedBox(height: 16),
+
+          // 全局音量（三音色共用）
           _buildSection(
             context,
-            title: AppLocalizations.of(context)!.voiceSettings,
+            title: '音量',
             children: [
-              // Rate slider
               ListTile(
-                title: Text(AppLocalizations.of(context)!.speed),
-                subtitle: Slider(
-                  value: settings.rate,
-                  min: 0.5,
-                  max: 2.0,
-                  divisions: 15,
-                  label: '${settings.rate.toStringAsFixed(1)}x',
-                  onChanged: settings.enabled
-                      ? (value) {
-                          ref.read(ttsSettingsProvider.notifier).setRate(value);
-                        }
-                      : null,
-                ),
-                trailing: Text(
-                  '${settings.rate.toStringAsFixed(1)}x',
-                  style: const TextStyle(color: AppTheme.textSecondary),
-                ),
-              ),
-
-              // Pitch slider
-              ListTile(
-                title: Text(AppLocalizations.of(context)!.pitch),
-                subtitle: Slider(
-                  value: settings.pitch,
-                  min: 0.5,
-                  max: 2.0,
-                  divisions: 15,
-                  label: '${settings.pitch.toStringAsFixed(1)}x',
-                  onChanged: settings.enabled
-                      ? (value) {
-                          ref.read(ttsSettingsProvider.notifier).setPitch(value);
-                        }
-                      : null,
-                ),
-                trailing: Text(
-                  '${settings.pitch.toStringAsFixed(1)}x',
-                  style: const TextStyle(color: AppTheme.textSecondary),
-                ),
-              ),
-
-              // Volume slider
-              ListTile(
-                title: Text(AppLocalizations.of(context)!.volume),
+                title: const Text('音量'),
                 subtitle: Slider(
                   value: settings.volume,
                   min: 0.0,
@@ -255,8 +206,8 @@ class TTSSettingsScreen extends ConsumerWidget {
                           await ref.read(ttsStopProvider)();
                         } else {
                           await ref.read(ttsSpeakProvider)(
-                            'Hello! This is a test of the text-to-speech system. '
-                            'The quick brown fox jumps over the lazy dog.',
+                            '她轻轻推开门（心里有些紧张），'
+                            '“你终于来了。”她轻声说道。',
                           );
                         }
                       }
@@ -302,6 +253,94 @@ class TTSSettingsScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+  /// 单个音色配置区（正文/对话/旁白复用）
+  Widget _buildVoiceStyleSection(
+    BuildContext context,
+    WidgetRef ref, {
+    required String title,
+    required String label,
+    required bool globalEnabled,
+    required VoiceStyle style,
+    required AsyncValue<List<TTSVoice>> voicesAsync,
+    required ValueChanged<VoiceStyle> onChanged,
+  }) {
+    final active = globalEnabled && style.enabled;
+    return _buildSection(
+      context,
+      title: title,
+      children: [
+        SwitchListTile(
+          title: Text('朗读$label'),
+          value: style.enabled,
+          onChanged: globalEnabled
+              ? (v) => onChanged(style.copyWith(enabled: v))
+              : null,
+        ),
+        // 音色下拉
+        voicesAsync.when(
+          data: (voices) {
+            if (voices.isEmpty) {
+              return const ListTile(
+                  title: Text('音色'), subtitle: Text('无可用语音'));
+            }
+            final current = (style.voiceId != null &&
+                    voices.any((v) => v.id == style.voiceId))
+                ? style.voiceId
+                : voices.first.id;
+            return ListTile(
+              title: const Text('音色'),
+              trailing: DropdownButton<String>(
+                value: current,
+                onChanged: active
+                    ? (value) => onChanged(style.copyWith(voiceId: value))
+                    : null,
+                items: voices
+                    .map((v) => DropdownMenuItem(
+                        value: v.id, child: Text(v.name)))
+                    .toList(),
+              ),
+            );
+          },
+          loading: () => const ListTile(
+              title: Text('音色'), subtitle: Text('正在加载语音...')),
+          error: (_, __) => const ListTile(
+              title: Text('音色'), subtitle: Text('加载语音失败')),
+        ),
+        // 语速
+        ListTile(
+          title: const Text('语速'),
+          subtitle: Slider(
+            value: style.rate,
+            min: 0.5,
+            max: 2.0,
+            divisions: 15,
+            label: '${style.rate.toStringAsFixed(1)}x',
+            onChanged: active
+                ? (value) => onChanged(style.copyWith(rate: value))
+                : null,
+          ),
+          trailing: Text('${style.rate.toStringAsFixed(1)}x',
+              style: const TextStyle(color: AppTheme.textSecondary)),
+        ),
+        // 音调
+        ListTile(
+          title: const Text('音调'),
+          subtitle: Slider(
+            value: style.pitch,
+            min: 0.5,
+            max: 2.0,
+            divisions: 15,
+            label: '${style.pitch.toStringAsFixed(1)}x',
+            onChanged: active
+                ? (value) => onChanged(style.copyWith(pitch: value))
+                : null,
+          ),
+          trailing: Text('${style.pitch.toStringAsFixed(1)}x',
+              style: const TextStyle(color: AppTheme.textSecondary)),
+        ),
+      ],
     );
   }
 

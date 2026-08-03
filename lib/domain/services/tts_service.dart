@@ -56,6 +56,47 @@ class TTSVoice {
 }
 
 /// TTS Settings
+/// 单个声音的配置（正文/对话/旁白各一份）
+class VoiceStyle {
+  final bool enabled;   // 该类文本是否朗读
+  final String? voiceId;
+  final double rate;
+  final double pitch;
+
+  const VoiceStyle({
+    this.enabled = true,
+    this.voiceId,
+    this.rate = 1.0,
+    this.pitch = 1.0,
+  });
+
+  VoiceStyle copyWith({
+    bool? enabled,
+    String? voiceId,
+    double? rate,
+    double? pitch,
+  }) =>
+      VoiceStyle(
+        enabled: enabled ?? this.enabled,
+        voiceId: voiceId ?? this.voiceId,
+        rate: rate ?? this.rate,
+        pitch: pitch ?? this.pitch,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        'voiceId': voiceId,
+        'rate': rate,
+        'pitch': pitch,
+      };
+
+  factory VoiceStyle.fromJson(Map<String, dynamic> json) => VoiceStyle(
+        enabled: json['enabled'] as bool? ?? true,
+        voiceId: json['voiceId'] as String?,
+        rate: (json['rate'] as num?)?.toDouble() ?? 1.0,
+        pitch: (json['pitch'] as num?)?.toDouble() ?? 1.0,
+      );
+}
 class TTSSettings {
   final bool enabled;
   final TTSProvider provider;
@@ -67,6 +108,10 @@ class TTSSettings {
   final bool queueMessages;
   final String? apiKey;
   final String? apiEndpoint;
+  // 三音色：正文/对话/旁白，各自独立开关+音色+语速+音调
+  final VoiceStyle narrationVoice; // 正文（叙述）
+  final VoiceStyle dialogueVoice;  // 对话（引号内）
+  final VoiceStyle asideVoice;     // 旁白（括号内）
 
   const TTSSettings({
     this.enabled = false,
@@ -79,6 +124,9 @@ class TTSSettings {
     this.queueMessages = true,
     this.apiKey,
     this.apiEndpoint,
+    this.narrationVoice = const VoiceStyle(),
+    this.dialogueVoice = const VoiceStyle(),
+    this.asideVoice = const VoiceStyle(),
   });
 
   TTSSettings copyWith({
@@ -92,6 +140,9 @@ class TTSSettings {
     bool? queueMessages,
     String? apiKey,
     String? apiEndpoint,
+    VoiceStyle? narrationVoice,
+    VoiceStyle? dialogueVoice,
+    VoiceStyle? asideVoice,
   }) {
     return TTSSettings(
       enabled: enabled ?? this.enabled,
@@ -104,6 +155,9 @@ class TTSSettings {
       queueMessages: queueMessages ?? this.queueMessages,
       apiKey: apiKey ?? this.apiKey,
       apiEndpoint: apiEndpoint ?? this.apiEndpoint,
+      narrationVoice: narrationVoice ?? this.narrationVoice,
+      dialogueVoice: dialogueVoice ?? this.dialogueVoice,
+      asideVoice: asideVoice ?? this.asideVoice,
     );
   }
 
@@ -118,6 +172,9 @@ class TTSSettings {
         'queueMessages': queueMessages,
         'apiKey': apiKey,
         'apiEndpoint': apiEndpoint,
+        'narrationVoice': narrationVoice.toJson(),
+        'dialogueVoice': dialogueVoice.toJson(),
+        'asideVoice': asideVoice.toJson(),
       };
 
   factory TTSSettings.fromJson(Map<String, dynamic> json) => TTSSettings(
@@ -131,6 +188,15 @@ class TTSSettings {
         queueMessages: json['queueMessages'] as bool? ?? true,
         apiKey: json['apiKey'] as String?,
         apiEndpoint: json['apiEndpoint'] as String?,
+        narrationVoice: json['narrationVoice'] != null
+            ? VoiceStyle.fromJson(json['narrationVoice'] as Map<String, dynamic>)
+            : const VoiceStyle(),
+        dialogueVoice: json['dialogueVoice'] != null
+            ? VoiceStyle.fromJson(json['dialogueVoice'] as Map<String, dynamic>)
+            : const VoiceStyle(),
+        asideVoice: json['asideVoice'] != null
+            ? VoiceStyle.fromJson(json['asideVoice'] as Map<String, dynamic>)
+            : const VoiceStyle(),
       );
 }
 
@@ -168,11 +234,21 @@ class CharacterVoiceSettings {
 }
 
 /// TTS Service for text-to-speech functionality
+/// 三音色片段类型
+enum _TtsType { narration, dialogue, aside }
+
+class _TtsSegment {
+  final _TtsType type;
+  final String text;
+  _TtsSegment(this.type, this.text);
+}
 class TTSService {
   bool _isInitialized = false;
   FlutterTts? _flutterTts;
   bool _isSpeaking = false;
   final List<String> _queue = [];
+  bool _cancelled = false;  // 停止时置真，打断三音色循环
+  bool _inSequence = false; // 三音色串行播放中，让单段完成回调闭嘴
   TTSSettings _settings = const TTSSettings();
   final Map<String, CharacterVoiceSettings> _characterVoices = {};
 
@@ -200,6 +276,7 @@ class TTSService {
       await tts.awaitSpeakCompletion(true); // speak() 等到读完再返回
       // 播放结束回调
       tts.setCompletionHandler(() {
+        if (_inSequence) return; // 序列中：进度由循环管理，忽略单段完成
         _isSpeaking = false;
         onComplete?.call();
       });
@@ -225,13 +302,16 @@ class TTSService {
       final raw = await _flutterTts?.getVoices;
       if (raw is List) {
         final voices = <TTSVoice>[];
+        final seen = <String>{}; // 去重：防止重复 id 撑爆 DropdownButton
         for (final v in raw) {
           if (v is Map) {
             final name = (v['name'] ?? '').toString();
             final locale = (v['locale'] ?? '').toString();
             if (name.isEmpty) continue;
+            final uid = '$name|$locale'; // 唯一 id = name+locale
+            if (!seen.add(uid)) continue; // 已存在则跳过
             voices.add(TTSVoice(
-              id: name, // 系统 voice 用 name 作为 id
+              id: uid,
               name: locale.isNotEmpty ? '$name ($locale)' : name,
               language: locale,
               provider: TTSProvider.system,
@@ -324,6 +404,123 @@ class TTSService {
     }
   }
 
+  /// 三音色朗读：按 对话(引号)/旁白(括号)/正文 切分，逐段串行"换装"播放。
+  /// 同一引擎，每段读前重设 voice/rate/pitch —— 串行+换装，三声音互不干扰。
+  Future<void> speakByStyle(String text) async {
+    if (!_isInitialized || !_settings.enabled) return;
+    final cleaned = _cleanTextForTTS(text);
+    if (cleaned.isEmpty) return;
+
+    await stop();          // 打断上一次
+    _cancelled = false;
+    final tts = _flutterTts;
+    if (tts == null) return;
+
+    _inSequence = true;
+    _isSpeaking = true;
+    onStart?.call();
+    try {
+      final segments = _splitByType(cleaned);
+      for (final seg in segments) {
+        final style = _styleFor(seg.type);
+        if (_cancelled) break;
+        if (!style.enabled) continue; // 该类关闭 → 跳过不读
+        if (!_hasReadable(seg.text)) continue; // 纯标点会卡住引擎，跳过
+
+        // 换装：每段读前按类型重设（三声音的关键）
+        await tts.setSpeechRate((style.rate / 2.0).clamp(0.0, 1.0));
+        await tts.setPitch(style.pitch.clamp(0.5, 2.0));
+        await tts.setVolume(_settings.volume.clamp(0.0, 1.0));
+        final vid = style.voiceId;
+        if (vid != null && vid.isNotEmpty) {
+          final v = _availableVoices.firstWhere(
+            (e) => e.id == vid,
+            orElse: () => const TTSVoice(
+                id: '', name: '', provider: TTSProvider.system),
+          );
+          if (v.id.isNotEmpty) {
+            await tts.setVoice({
+              'name': v.id.split('|').first,
+              'locale': v.language != null && v.language!.isNotEmpty
+                  ? v.language!
+                  : 'zh-CN',
+            });
+          }
+        }
+        if (_cancelled) break;
+        await tts.speak(seg.text).timeout(
+          Duration(seconds: 5 + seg.text.length ~/ 3),
+          onTimeout: () {
+            debugPrint('[TTS] speak超时跳过: "${seg.text}"'); // 保留：卡死兜底提示
+          },
+        );
+      }
+    } catch (e, s) {
+      debugPrint('[TTS异常] $e\n$s');
+      onError?.call('TTS error: $e');
+    } finally {
+      _inSequence = false;
+      _isSpeaking = false;
+      if (!_cancelled) onComplete?.call();
+    }
+  }
+
+  VoiceStyle _styleFor(_TtsType type) {
+    switch (type) {
+      case _TtsType.dialogue:
+        return _settings.dialogueVoice;
+      case _TtsType.aside:
+        return _settings.asideVoice;
+      case _TtsType.narration:
+        return _settings.narrationVoice;
+    }
+  }
+
+  /// 把文本按 对话(引号)/旁白(括号)/正文 切成有序片段。
+  /// 复用渲染层的引号/括号正则思路，按出现顺序扫描，不处理嵌套。
+  List<_TtsSegment> _splitByType(String text) {
+    final pattern = RegExp(
+      r'(“[^”\r\n]*”|「[^」\r\n]*」|『[^』\r\n]*』|《[^》\r\n]*》|"[^"\r\n]*")' // 组1：对话
+      r'|([（(][^（）()]*[）)])', // 组2：旁白
+      dotAll: true,
+    );
+    final segments = <_TtsSegment>[];
+    var last = 0;
+    for (final m in pattern.allMatches(text)) {
+      if (m.start > last) {
+        final narr = text.substring(last, m.start).trim();
+        if (narr.isNotEmpty) {
+          segments.add(_TtsSegment(_TtsType.narration, narr));
+        }
+      }
+      if (m.group(1) != null) {
+        final inner = _stripWrappers(m.group(1)!).trim();
+        if (inner.isNotEmpty) {
+          segments.add(_TtsSegment(_TtsType.dialogue, inner));
+        }
+      } else if (m.group(2) != null) {
+        final inner = _stripWrappers(m.group(2)!).trim();
+        if (inner.isNotEmpty) {
+          segments.add(_TtsSegment(_TtsType.aside, inner));
+        }
+      }
+      last = m.end;
+    }
+    if (last < text.length) {
+      final narr = text.substring(last).trim();
+      if (narr.isNotEmpty) segments.add(_TtsSegment(_TtsType.narration, narr));
+    }
+    return segments;
+  }
+
+  /// 去掉首尾包裹符号（引号/括号），不朗读符号本身
+  /// 是否含可朗读内容（至少一个字母/数字/文字）。
+  /// 纯标点会让 TTS 引擎不触发完成回调，导致 await 永久挂起。
+  bool _hasReadable(String s) =>
+      RegExp(r'[\p{L}\p{N}]', unicode: true).hasMatch(s);
+  String _stripWrappers(String s) =>
+      s.length < 2 ? s : s.substring(1, s.length - 1);
+
   /// Process the speech queue
   Future<void> _processQueue({String? characterId}) async {
     while (_queue.isNotEmpty) {
@@ -372,6 +569,7 @@ class TTSService {
 
   /// Stop speaking
   Future<void> stop() async {
+    _cancelled = true; // 打断三音色循环
     _queue.clear();
     await _flutterTts?.stop();
     if (_isSpeaking) {

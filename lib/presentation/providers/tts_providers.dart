@@ -99,6 +99,21 @@ class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
     _saveSettings();
   }
 
+  // ── 三音色 setter：正文/对话/旁白 ──
+  void setNarrationVoice(VoiceStyle style) {
+    state = state.copyWith(narrationVoice: style);
+    _saveSettings();
+  }
+
+  void setDialogueVoice(VoiceStyle style) {
+    state = state.copyWith(dialogueVoice: style);
+    _saveSettings();
+  }
+
+  void setAsideVoice(VoiceStyle style) {
+    state = state.copyWith(asideVoice: style);
+    _saveSettings();
+  }
   void reset() {
     state = const TTSSettings();
     _saveSettings();
@@ -233,7 +248,7 @@ final ttsSpeakProvider = Provider<Future<void> Function(String, {String? charact
       ref.read(ttsSpeakingProvider.notifier).state = false;
     };
     
-    await service.speak(text, characterId: characterId);
+    await service.speakByStyle(text);
   };
 });
 
