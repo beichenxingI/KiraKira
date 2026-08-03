@@ -2554,7 +2554,7 @@ function injectBridge(html, id) {
       if(_needToastr&&_libs.toastrJs){if(_libs.toastrCss){_libScript+="<style>"+decodeB64Utf8(_libs.toastrCss)+"<\\/style>";}_libScript+="<script>"+decodeB64Utf8(_libs.toastrJs)+"<\\/script>";}
     }catch(e){parent.postMessage({__thLog:true,text:"[兼容库] 内联失败: "+e},"*");}
   var patch = _libScript + '<style>' +
-      'html,body{min-height:0 !important;overflow:visible !important;}' +
+      'html,body{overflow:visible !important;}' +
       '</style>' +
       '<script>(function(){' +
       'var _s={};try{localStorage.getItem("__t");}catch(e){' +
@@ -2606,9 +2606,23 @@ function injectBridge(html, id) {
       '})();' +
       'var _id=' + JSON.stringify(id) + ';' +
       'var _debTimer=null,_forceTimer=null,_lastH=0;' +
+      // lowestElement 测高(照抄 iframe-resizer v4.4.1)：量"最低内容元素的 bottom"，
+      // 不量 body/视口高度，从根上断开 vh 正反馈(不再被 iframe 当前高度反推)。
+      'function _gcsBottom(el){' +
+      'try{return parseInt(getComputedStyle(el).marginBottom,10)||0;}catch(e){return 0;}' +
+      '}' +
+      'function _lowestBottom(){' +
+      'var els=document.querySelectorAll("body *");var maxV=0;' +
+      'for(var i=0;i<els.length;i++){' +
+      'var v=els[i].getBoundingClientRect().bottom+_gcsBottom(els[i]);' +
+      'if(v>maxV){maxV=v;}' +
+      '}' +
+      'return maxV;' +
+      '}' +
       'function report(){' +
       'var b=document.body;' +
-      'var h=b?Math.ceil(b.getBoundingClientRect().height):0;' +
+      'var bodyOffset=b?(b.offsetHeight+(parseInt(getComputedStyle(b).marginTop,10)||0)+(parseInt(getComputedStyle(b).marginBottom,10)||0)):0;' +
+      'var h=Math.ceil(Math.max(bodyOffset||document.documentElement.offsetHeight,_lowestBottom()))||0;' +
       'if(!h){h=document.documentElement.scrollHeight||0;}' +
       'if(h>0&&Math.abs(h-_lastH)>4){_lastH=h;parent.postMessage({__cardHeight:true,id:_id,height:h},"*");}' +
       '}' +
@@ -2733,7 +2747,9 @@ window.addEventListener('message', function(e) {
     if (d && d.__cardHeight) {
       var f = document.querySelector('iframe[data-frame-id="' + d.id + '"]');
       if (f && d.height > 0) {
-        f.style.height = (d.height + 4) + 'px';
+        // 整页 vh 卡(body:min-height:100vh + flex 居中)需要"视口高度"的舞台才能正确布局，
+        // 否则 flex 居中在被压缩的空间里错位(按钮偏移等)。给视口高度地板，内容更高则用内容高。
+        f.style.height = Math.max(d.height + 4, window.innerHeight) + 'px';
         f.setAttribute('data-last-height', (d.height + 4) + 'px');
       }
     }
