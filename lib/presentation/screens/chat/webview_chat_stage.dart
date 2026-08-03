@@ -1900,20 +1900,36 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       rawContent = codeBlockMatch.group(1) ?? rawContent;
     }
     final processed = rawContent;
+    // 若消息是"旁白文字 + 完整 HTML 文档"的混合体，以文档起点(<!DOCTYPE/<html)为界切开：
+    // 旁白走 markdown 气泡，文档单独进 iframe，避免旁白被拖进 iframe 与卡片抢 flex 空间(挤成窄条)。
+    final docStart =
+        RegExp(r'<!DOCTYPE|<html', caseSensitive: false).firstMatch(processed);
+    String proseHtml = '';
+    String bodyForRender = processed;
+    if (docStart != null && docStart.start > 0) {
+      final prose = processed.substring(0, docStart.start).trim();
+      if (prose.isNotEmpty) {
+        proseHtml = _highlightQuotes(md.markdownToHtml(
+            prose,
+            extensionSet: md.ExtensionSet.gitHubWeb));
+      }
+      bodyForRender = processed.substring(docStart.start); // 只把文档部分交给下游
+    }
     final looksLikeHtml = RegExp(
       r'<style|<script|<!DOCTYPE|<html|<head|<body',
       caseSensitive: false,
-    ).hasMatch(processed);
+    ).hasMatch(bodyForRender);
     final rendered = looksLikeHtml
-        ? processed
+        ? _normalizeCodeQuotes(bodyForRender)
         : _highlightQuotes(md.markdownToHtml(
-            processed,
+            bodyForRender,
             extensionSet: md.ExtensionSet.gitHubWeb,
           ));
     final attachmentsHtml = _buildAttachmentsHtml(m);
     return {
       'id': m.id,
       'role': m.role.name,
+      'prose': proseHtml, // 文档前的旁白文字，渲染层放在 iframe 之上
       'html': rendered + attachmentsHtml,
       'reasoning': m.currentReasoning ?? '',
       'swipeCount': m.swipes.length,
@@ -2069,6 +2085,16 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
 
   /// 给引号/括号包裹的对话内容加高亮span（符号连同内容一起染色）
   /// 引号类 → quote-q（主色A暖橙），括号类 → quote-p（主色B碧蓝）
+  /// 把代码位置的弯引号(智能引号)归一化为直引号。仅用于进 iframe 的 HTML 卡片：
+  /// 卡片作者/AI 常用中文弯引号，会破坏 JS 字符串定界(name:'x')与
+  /// HTML/SVG 属性定界(viewBox="0")，导致 SyntaxError / 属性截断 → 卡片崩溃。
+  /// 借鉴 RisuAI 渲染前归一化(仅阶段1)。正文走 markdown 气泡不经此处，
+  /// 弯引号原样保留、_highlightQuotes 染色不受影响。
+  /// 保留书名号《》与角引号「」『』(正文排版符，非代码定界符)。
+  String _normalizeCodeQuotes(String html) => html
+      .replaceAll(RegExp('[\u2018\u2019\u201A\u201B]'), "'")
+      .replaceAll(RegExp('[\u201C\u201D\u201E\u201F\uFF02]'), '"')
+      .replaceAll(RegExp('\u2026+'), '...');
   String _highlightQuotes(String html) {
     // 引号/方括号/书名号类：每种符号各自配对，符号+内容整体染
     final quotePattern = RegExp(
@@ -2982,6 +3008,13 @@ window.addEventListener('message', function(e) {
           nameEl.textContent = nm || '';
           header.appendChild(nameEl);
           group.appendChild(header);
+        }
+        // 文档前的旁白文字，作为独立气泡渲染在 iframe 之上
+        if (m.prose && m.prose.trim() !== '') {
+          var pr = document.createElement('div');
+          pr.className = 'msg ' + m.role;
+          pr.innerHTML = m.prose;
+          group.appendChild(pr);
         }
 
         var wrap = document.createElement('div');
