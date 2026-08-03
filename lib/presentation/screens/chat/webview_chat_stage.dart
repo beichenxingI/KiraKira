@@ -624,8 +624,24 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     final config = ref.read(llmConfigProvider);
     final notifier = ref.read(activeChatProvider.notifier);
 
-    // 按管道分段
-    final segments = command.split('|');
+    // 按管道分段：| 只有在后面紧跟已知斜杠命令时才是分隔符。
+    // 否则它是消息正文里的普通字符(中文文案常用 | 做分隔)，被误切后拼回上一段，
+    // 避免消息从正文的 | 处被截断(只发出第一段)。
+    final rawParts = command.split('|');
+    final segments = <String>[];
+    for (final part in rawParts) {
+      final t = part.trimLeft();
+      final isCommand = t.startsWith('/send') ||
+          t.startsWith('/sys') ||
+          t.startsWith('/trigger') ||
+          t.startsWith('/cut');
+      if (isCommand || segments.isEmpty) {
+        segments.add(part);
+      } else {
+        // 不是命令开头 → 是上一段正文里被误切的 | ，拼回去(补回被切掉的 |)
+        segments[segments.length - 1] = '${segments.last}|$part';
+      }
+    }
     String? pendingText; // 待发送的消息文本
     var wantTrigger = false;
 
