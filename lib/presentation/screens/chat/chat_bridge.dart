@@ -79,6 +79,7 @@ class BridgeType {
   static const String setImage = 'setImage'; // 单独推送图片base64，避免撑爆setMessages
   static const String setGenerating = 'setGenerating'; // 插入"生成中"占位(请求比例)
   static const String clearGenerating = 'clearGenerating'; // 移除"生成中"占位
+  static const String setGenerateProgress = 'setGenerateProgress'; // 更新占位符进度
   static const String showModelSheet = 'showModelSheet'; // 弹出模型选择HTML层(带模型数据)
   static const String hideModelSheet = 'hideModelSheet'; // 关闭模型选择HTML层
   static const String openFunctionPanel = 'openFunctionPanel'; // 打开功能面板(带上下文数据)
