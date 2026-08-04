@@ -2438,6 +2438,50 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
   }
 
+  /// 手动全量总结：忽略阈值与现有总结，基于全部消息重新生成一份，覆盖旧总结。
+  /// 返回 null 表示成功，否则返回错误信息。用于自动总结失败/效果差时的保底手刹。
+  Future<String?> manualSummarize() async {
+    final chat = state.chat;
+    if (chat == null) return '当前没有可总结的对话';
+
+    if (state.messages.isEmpty) return '没有可总结的消息';
+
+    final config = _ref.read(llmConfigProvider);
+
+    // 放开输出限制，避免总结被 maxTokens 截断
+    final summaryConfig = config.copyWith(maxTokens: 16384);
+
+    try {
+      final character = state.character;
+      final activePersonaId = _ref.read(activePersonaIdProvider);
+      Persona? persona;
+      if (activePersonaId != null) {
+        persona = await _personaRepository.getPersona(activePersonaId);
+      }
+      persona ??= await _personaRepository.getDefaultPersona();
+
+      // 全量：总结全部消息，且不基于旧总结（existingSummaries 传空 = 全新生成）
+      final summary = await _summarizationService.generateSummary(
+        messages: state.messages,
+        existingSummaries: const [],
+        config: summaryConfig,
+        characterName: character?.name,
+        userName: persona?.name?.isNotEmpty == true ? persona!.name : 'User',
+      );
+
+      // 替换（而非追加）：手动总结推倒重来，只保留这一份
+      final updatedChat = chat.copyWith(summaries: [summary]);
+      await _chatRepository.updateChat(updatedChat);
+      state = state.copyWith(chat: updatedChat);
+
+      debugPrint('✅ 手动总结完成，已替换为全新总结');
+      return null;
+    } catch (e) {
+      debugPrint('❌ 手动总结失败: $e');
+      return '总结失败：$e';
+    }
+  }
+
   /// Clear the current chat
   void clearChat() {
     state = const ActiveChatState();

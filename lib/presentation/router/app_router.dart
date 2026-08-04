@@ -115,6 +115,25 @@ class _NavObserver extends NavigatorObserver {
     KiraLogger().route('REPLACE:  -> ');
   }
 }
+/// tab 页转场：交叉淡入 + 轻微上浮，250ms，顺滑不拖沓。
+CustomTransitionPage<void> _buildTabPage(LocalKey key, Widget child) {
+  return CustomTransitionPage<void>(
+    key: key,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 250),
+    reverseTransitionDuration: const Duration(milliseconds: 250),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: child,
+      );
+    },
+  );
+}
 
 /// App router provider
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -138,37 +157,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.chats,
             name: 'chats',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: HomeScreen(),
-            ),
+            pageBuilder: (context, state) => _buildTabPage(state.pageKey, const HomeScreen()),
           ),
           GoRoute(
             path: AppRoutes.home,
             name: 'home',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: MainPage(),
-            ),
+            pageBuilder: (context, state) => _buildTabPage(state.pageKey, const MainPage()),
           ),
           GoRoute(
             path: AppRoutes.characters,
             name: 'characters',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: CharacterListScreen(),
-            ),
+            pageBuilder: (context, state) => _buildTabPage(state.pageKey, const CharacterListScreen()),
           ),
           GoRoute(
             path: AppRoutes.aiConfig,
             name: 'aiConfig',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: AIConfigScreen(),
-            ),
+            pageBuilder: (context, state) => _buildTabPage(state.pageKey, const AIConfigScreen()),
           ),
           GoRoute(
             path: AppRoutes.settings,
             name: 'settings',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: SettingsScreen(),
-            ),
+            pageBuilder: (context, state) => _buildTabPage(state.pageKey, const SettingsScreen()),
           ),
         ],
       ),

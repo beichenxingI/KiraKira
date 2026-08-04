@@ -1285,12 +1285,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String greetingNumber(Object number) {
-    return '数字';
+    return '开场白';
   }
 
   @override
   String alternateGreetingsCount(Object count) {
-    return '计数';
+    return '备用开场白';
   }
 
   @override

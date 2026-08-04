@@ -2551,13 +2551,13 @@ abstract class AppLocalizations {
   /// No description provided for @greetingNumber.
   ///
   /// In zh, this message translates to:
-  /// **'数字'**
+  /// **'开场白'**
   String greetingNumber(Object number);
 
   /// No description provided for @alternateGreetingsCount.
   ///
   /// In zh, this message translates to:
-  /// **'计数'**
+  /// **'备用开场白'**
   String alternateGreetingsCount(Object count);
 
   /// No description provided for @embeddedLorebook.

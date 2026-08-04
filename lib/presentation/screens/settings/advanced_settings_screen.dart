@@ -185,6 +185,11 @@ class AdvancedSettingsScreen extends ConsumerWidget {
               onChanged: (v) => ref.read(llmConfigProvider.notifier).updateAutoSummarizeThreshold(v),
             ),
 
+          if (config.autoSummarizeEnabled)
+            _buildSummaryModelTile(context, ref, config.summaryModel),
+          if (config.autoSummarizeEnabled)
+            _buildSummaryPromptTile(context, ref, config.summaryPrompt),
+
           const Divider(height: 32),
           _buildSectionHeader(context, l10n.generationControl),
           _buildIntInputTile(
@@ -415,6 +420,115 @@ class AdvancedSettingsScreen extends ConsumerWidget {
       ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => _showStopSequencesDialog(context, ref, sequences),
+    );
+  }
+
+  Widget _buildSummaryModelTile(BuildContext context, WidgetRef ref, String model) {
+    return ListTile(
+      title: const Text('总结模型'),
+      subtitle: Text(
+        model.isEmpty ? '沿用主聊天模型' : model,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _showSummaryModelDialog(context, ref, model),
+    );
+  }
+
+  void _showSummaryModelDialog(BuildContext context, WidgetRef ref, String current) {
+    final controller = TextEditingController(text: current);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('总结模型'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '指定用于自动总结的模型（可填便宜的小模型省成本）。留空则沿用主聊天模型。',
+              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: '例如 gpt-4o-mini',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(llmConfigProvider.notifier).updateSummaryModel(controller.text.trim());
+              Navigator.pop(context);
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryPromptTile(BuildContext context, WidgetRef ref, String prompt) {
+    return ListTile(
+      title: const Text('自定义总结提示词'),
+      subtitle: Text(
+        prompt.isEmpty ? '使用默认中文提示词' : prompt,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _showSummaryPromptDialog(context, ref, prompt),
+    );
+  }
+
+  void _showSummaryPromptDialog(BuildContext context, WidgetRef ref, String current) {
+    final controller = TextEditingController(text: current);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('自定义总结提示词'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '自定义总结时的指令。留空则使用内置中文提示词（保留剧情、关系、时间线、状态等）。',
+              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: '例如：用中文总结，重点保留好感度与时间线……',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(llmConfigProvider.notifier).updateSummaryPrompt(controller.text.trim());
+              Navigator.pop(context);
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
     );
   }
 

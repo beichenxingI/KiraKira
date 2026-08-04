@@ -454,6 +454,16 @@ class LLMConfigNotifier extends StateNotifier<LLMConfig> {
     _saveConfig();
   }
 
+  void updateSummaryModel(String model) {
+    state = state.copyWith(summaryModel: model);
+    _saveConfig();
+  }
+
+  void updateSummaryPrompt(String prompt) {
+    state = state.copyWith(summaryPrompt: prompt);
+    _saveConfig();
+  }
+
   void resetToDefaults() {
     state = _defaultConfig();
     _saveConfig();

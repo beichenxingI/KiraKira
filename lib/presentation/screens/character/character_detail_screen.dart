@@ -944,197 +944,39 @@ class _AlternateGreetingsCardState extends State<_AlternateGreetingsCard> {
   }
 
   void _addGreeting(BuildContext context) {
-    final controller = TextEditingController();
-    bool saving = false;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setModal) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Theme.of(ctx).dividerColor,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '新增备用开场白',
-                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                          color: Theme.of(ctx).colorScheme.primary,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: controller,
-                    maxLines: null,
-                    minLines: 4,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.all(12),
-                    ),
-                    style: Theme.of(ctx).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: saving ? null : () => Navigator.pop(ctx),
-                        child: const Text('取消'),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: saving
-                            ? null
-                            : () async {
-                                final text = controller.text.trim();
-                                if (text.isEmpty) return;
-                                setModal(() => saving = true);
-                                try {
-                                  await widget.onAddGreeting!(text);
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                } finally {
-                                  if (ctx.mounted) setModal(() => saving = false);
-                                }
-                              },
-                        child: saving
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('保存'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    ).whenComplete(() => controller.dispose());
+      builder: (_) => _GreetingEditSheet(
+        title: '新增备用开场白',
+        initialText: '',
+        onSubmit: (text) async {
+          if (widget.onAddGreeting != null) await widget.onAddGreeting!(text);
+        },
+      ),
+    );
   }
   void _editGreeting(BuildContext context, int index, String current) {
-    final controller = TextEditingController(text: current);
-    bool saving = false;
-
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      // 键盘弹起时面板上移，不被遮住
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setModal) {
-            final l10n = AppLocalizations.of(ctx);
-            return Padding(
-              // 底部留出键盘高度
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 顶部把手
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Theme.of(ctx).dividerColor,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    l10n.greetingNumber(index + 1),
-                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                          color: Theme.of(ctx).colorScheme.primary,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: controller,
-                    maxLines: null,
-                    minLines: 4,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.all(12),
-                    ),
-                    style: Theme.of(ctx).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: saving ? null : () => Navigator.pop(ctx),
-                        child: const Text('取消'),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: saving
-                            ? null
-                            : () async {
-                                setModal(() => saving = true);
-                                try {
-                                  await widget.onSaveGreeting!(index, controller.text.trim());
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                } finally {
-                                  if (ctx.mounted) setModal(() => saving = false);
-                                }
-                              },
-                        child: saving
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('保存'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    ).whenComplete(() => controller.dispose());
+      builder: (_) => _GreetingEditSheet(
+        title: l10n.greetingNumber(index + 1),
+        initialText: current,
+        onSubmit: (text) async {
+          if (widget.onSaveGreeting != null) {
+            await widget.onSaveGreeting!(index, text);
+          }
+        },
+      ),
+    );
   }
 
   @override
@@ -1311,6 +1153,132 @@ class _CharacterBookCard extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+/// 备用开场白编辑/新增的底部弹窗内容(独立 StatefulWidget，
+/// 自己持有 controller 并在 dispose 清理，避免依赖在 teardown 时未清导致的
+/// _dependents.isEmpty 断言红屏)。
+class _GreetingEditSheet extends StatefulWidget {
+  final String title;
+  final String initialText;
+  final Future<void> Function(String value) onSubmit;
+
+  const _GreetingEditSheet({
+    required this.title,
+    required this.initialText,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_GreetingEditSheet> createState() => _GreetingEditSheetState();
+}
+
+class _GreetingEditSheetState extends State<_GreetingEditSheet> {
+  late final TextEditingController _controller;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      await widget.onSubmit(text);
+      if (mounted) Navigator.of(context).pop();
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.dividerColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              widget.title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: SingleChildScrollView(
+                child: TextField(
+                  controller: _controller,
+                  maxLines: null,
+                  minLines: 4,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _saving ? null : () => Navigator.of(context).pop(),
+                  child: const Text('取消'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: _saving ? null : _submit,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('保存'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

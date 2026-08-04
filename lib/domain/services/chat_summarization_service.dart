@@ -92,6 +92,7 @@ class ChatSummarizationService {
       existingSummaries: existingSummaries,
       characterName: characterName ?? 'Assistant',
       userName: userName ?? 'User',
+      customPrompt: config.summaryPrompt,
     );
     
     debugPrint('📝 Summary prompt length: ${prompt.length} chars');
@@ -121,18 +122,26 @@ class ChatSummarizationService {
     required List<ChatSummary> existingSummaries,
     required String characterName,
     required String userName,
+    String customPrompt = '',
   }) {
     final buffer = StringBuffer();
     
-    buffer.writeln('You are tasked with summarizing a conversation history.');
-    buffer.writeln('Create a concise but comprehensive summary that captures:');
-    buffer.writeln('- Key events and plot developments');
-    buffer.writeln('- Important character interactions and relationships');
-    buffer.writeln('- Significant facts, decisions, and outcomes');
-    buffer.writeln('- Current situation and context');
-    buffer.writeln();
-    buffer.writeln('Write the summary in third person, past tense.');
-    buffer.writeln('Keep the summary focused and factual.');
+    if (customPrompt.isNotEmpty) {
+      buffer.writeln(customPrompt);
+    } else {
+      buffer.writeln('你是一个专业的角色扮演对话整理助手，请用中文总结下面这段对话历史。');
+      buffer.writeln('生成简洁但不遗漏关键信息的总结，重点保留：');
+      buffer.writeln('- 剧情的关键进展与转折');
+      buffer.writeln('- 角色之间的关系变化与情感线');
+      buffer.writeln('- 重要的设定与世界观细节');
+      buffer.writeln('- 时间线与时间推进（第几天、时段、关键时间节点）');
+      buffer.writeln('- 角色状态与数值变化（好感度、心情、持有物品等，若对话中有出现）');
+      buffer.writeln('- 角色做出的关键决定及其后果');
+      buffer.writeln('- 当前所处的情境与状态');
+      buffer.writeln();
+      buffer.writeln('以第三人称、过去时客观叙述，不要遗漏对后续剧情有影响的细节。');
+      buffer.writeln('必须用中文输出，即使原对话包含其他语言。');
+    }
     buffer.writeln();
     
     // Include existing summaries if any
@@ -154,10 +163,9 @@ class ChatSummarizationService {
     
     buffer.writeln();
     if (existingSummaries.isNotEmpty) {
-      buffer.writeln('Please update the previous summary with the new conversation.');
-      buffer.writeln('Combine them into a single coherent summary.');
+      buffer.writeln('请将之前的总结与上面这段新对话合并，整合成一份连贯的中文总结。');
     } else {
-      buffer.writeln('Please provide a summary of this conversation:');
+      buffer.writeln('请用中文总结以上对话：');
     }
     buffer.writeln();
     buffer.writeln('SUMMARY:');
@@ -174,8 +182,9 @@ class ChatSummarizationService {
     
     // Create a config with modified settings for summarization
     final summaryConfig = config.copyWith(
-      temperature: 0.3, // Lower temperature for more focused summaries
-      maxTokens: 1024, // Limit summary length
+      temperature: 0.3, // 降低温度让总结更稳定聚焦
+      maxTokens: 9216, // 给总结足够空间保留细节
+      model: config.summaryModel.isNotEmpty ? config.summaryModel : config.model, // 有自定义总结模型就用它，否则沿用主模型
     );
     
     // Build messages for summarization

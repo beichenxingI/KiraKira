@@ -512,6 +512,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                         case 'clearChat':
                           _confirmClearChat();
                           break;
+                        case 'manualSummarize':
+                          _confirmManualSummarize();
+                          break;
                         case 'noChar':
                           _snack('当前聊天没有关联角色');
                           break;
@@ -1379,6 +1382,35 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
 
+  Future<void> _confirmManualSummarize() async {
+    await _controller?.pause();
+    bool? ok;
+    try {
+      ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('手动总结上下文'),
+          content: const Text('将基于当前全部历史重新生成一份总结，覆盖已有总结。适合自动总结失败或效果不佳时使用。可能耗时并消耗较多 token，确定吗？'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('开始总结')),
+          ],
+        ),
+      );
+    } finally {
+      await _controller?.resume();
+    }
+    if (ok == true) {
+      _snack('正在总结上下文…');
+      final err = await ref.read(activeChatProvider.notifier).manualSummarize();
+      _snack(err ?? '总结完成');
+    }
+  }
+
   Future<void> _exportChatRecord() async {
     final chatState = ref.read(activeChatProvider);
     if (chatState.chat == null || chatState.character == null) {
@@ -2000,18 +2032,34 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     final processed = rawContent;
     // 若消息是"旁白文字 + 完整 HTML 文档"的混合体，以文档起点(<!DOCTYPE/<html)为界切开：
     // 旁白走 markdown 气泡，文档单独进 iframe，避免旁白被拖进 iframe 与卡片抢 flex 空间(挤成窄条)。
-    final docStart =
-        RegExp(r'<!DOCTYPE|<html', caseSensitive: false).firstMatch(processed);
+    // 优先识别 ```html 围栏：围栏前的文字走 markdown 当 prose，围栏内 HTML 走 iframe
+    final htmlFenceMatch = RegExp(
+      r'```html\s*\n([\s\S]*?)```',
+      caseSensitive: false,
+    ).firstMatch(processed);
     String proseHtml = '';
     String bodyForRender = processed;
-    if (docStart != null && docStart.start > 0) {
-      final prose = processed.substring(0, docStart.start).trim();
-      if (prose.isNotEmpty) {
+    if (htmlFenceMatch != null) {
+      final before = processed.substring(0, htmlFenceMatch.start).trim();
+      if (before.isNotEmpty) {
         proseHtml = _highlightQuotes(md.markdownToHtml(
-            prose,
+            before,
             extensionSet: md.ExtensionSet.gitHubWeb));
       }
-      bodyForRender = processed.substring(docStart.start); // 只把文档部分交给下游
+      bodyForRender = htmlFenceMatch.group(1) ?? ''; // 围栏内的纯 HTML
+    } else {
+      // 无 ```html 围栏：走原有 <!DOCTYPE/<html 文档切分逻辑
+      final docStart = RegExp(r'<!DOCTYPE|<html', caseSensitive: false)
+          .firstMatch(processed);
+      if (docStart != null && docStart.start > 0) {
+        final prose = processed.substring(0, docStart.start).trim();
+        if (prose.isNotEmpty) {
+          proseHtml = _highlightQuotes(md.markdownToHtml(
+              prose,
+              extensionSet: md.ExtensionSet.gitHubWeb));
+        }
+        bodyForRender = processed.substring(docStart.start);
+      }
     }
     final looksLikeHtml = RegExp(
       r'<style|<script|<!DOCTYPE|<html|<head|<body',
@@ -2270,8 +2318,16 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     word-wrap: break-word; overflow-wrap: break-word;
     box-shadow: 0 2px 12px rgba(0,0,0,0.15);
   }
-  .msg-group.user { text-align: right; }
-  .msg-group.assistant { text-align: left; }
+  .msg {
+    display: inline-block; max-width: 78%;
+    margin: 14px 0; padding: 16px 18px; border-radius: 22px;
+    word-wrap: break-word; overflow-wrap: break-word;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    color: #EAEAEA;
+  }
+   .msg-group.user { text-align: right; }
+   .msg-group.user .msg { text-align: left; }
+   .msg-group.assistant { text-align: left; }
   .msg.user {
     background: rgba(40,42,50,0.72);
     border: 1px solid rgba(255,255,255,0.10);
@@ -2354,12 +2410,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   .msg-group.user .msg-tools { justify-content: flex-end; }
   /* 折叠态：一个极简小胶囊（三个点） */
   .tools-toggle {
-    background: rgba(255,255,255,0.06); color: #9A9A9A; border: none;
+    background: rgba(0,0,0,0.35); color: #B39DFF; border: 1px solid rgba(124,77,255,0.35);
     border-radius: 12px; padding: 3px 12px; font-size: 14px; line-height: 1;
     letter-spacing: 2px; cursor: pointer;
     transition: background .15s ease; -webkit-tap-highlight-color: transparent;
   }
-  .tools-toggle:active { background: rgba(255,255,255,0.14); }
+  .tools-toggle:active { background: rgba(124,77,255,0.25); }
   /* 展开的按钮排：常驻 flex，靠 max-height + opacity 做平滑弹缩（display 不能过渡）。 */
   .tools-expanded {
     display: flex; align-items: center; flex-wrap: wrap; gap: 5px; width: 100%;
@@ -2502,6 +2558,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       <div class="func-item func-action" data-action="exportChat"><svg class="func-icon" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg><span>导出</span></div>
       <div class="func-item func-action" data-action="importChat"><svg class="func-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>导入</span></div>
       <div class="func-item func-action" data-action="clearChat"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>清空</span></div>
+      <div class="func-item func-action" data-action="manualSummarize"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/><path d="M6 12h12"/></svg><span>总结</span></div>
     </div>
     <div class="func-group-label">设置</div>
     <div class="func-grid">

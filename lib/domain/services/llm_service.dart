@@ -82,6 +82,8 @@ class LLMConfig {
   // Auto-summarization settings
   final bool autoSummarizeEnabled;
   final double autoSummarizeThreshold;
+  final String summaryModel;   // 空 = 沿用主模型
+  final String summaryPrompt;  // 空 = 用内置中文提示词
 
   const LLMConfig({
     required this.provider,
@@ -111,6 +113,8 @@ class LLMConfig {
     // Auto-summarization defaults
     this.autoSummarizeEnabled = true,
     this.autoSummarizeThreshold = 0.8,
+    this.summaryModel = '',
+    this.summaryPrompt = '',
   });
 
   LLMConfig copyWith({
@@ -139,6 +143,8 @@ class LLMConfig {
     int? seed,
     bool? autoSummarizeEnabled,
     double? autoSummarizeThreshold,
+    String? summaryModel,
+    String? summaryPrompt,
   }) {
     return LLMConfig(
       provider: provider ?? this.provider,
@@ -166,6 +172,8 @@ class LLMConfig {
       seed: seed ?? this.seed,
       autoSummarizeEnabled: autoSummarizeEnabled ?? this.autoSummarizeEnabled,
       autoSummarizeThreshold: autoSummarizeThreshold ?? this.autoSummarizeThreshold,
+      summaryModel: summaryModel ?? this.summaryModel,
+      summaryPrompt: summaryPrompt ?? this.summaryPrompt,
     );
   }
 
@@ -195,6 +203,8 @@ class LLMConfig {
         'seed': seed,
         'autoSummarizeEnabled': autoSummarizeEnabled,
         'autoSummarizeThreshold': autoSummarizeThreshold,
+        'summaryModel': summaryModel,
+        'summaryPrompt': summaryPrompt,
       };
 
   factory LLMConfig.fromJson(Map<String, dynamic> json) => LLMConfig(
@@ -226,6 +236,8 @@ class LLMConfig {
         seed: json['seed'] as int? ?? -1,
         autoSummarizeEnabled: json['autoSummarizeEnabled'] as bool? ?? true,
         autoSummarizeThreshold: (json['autoSummarizeThreshold'] as num?)?.toDouble() ?? 0.8,
+        summaryModel: json['summaryModel'] as String? ?? '',
+        summaryPrompt: json['summaryPrompt'] as String? ?? '',
       );
 }
 

@@ -1590,6 +1590,13 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
                           tooltip: '重命名当前方案',
                           onPressed: _renameActiveConfig,
                         ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          tooltip: '删除当前方案',
+                          onPressed: activeId == null
+                              ? null
+                              : () => _confirmDeleteActiveConfig(activeId),
+                        ),
                       ],
                     ),
                   const SizedBox(height: 8),
@@ -1943,6 +1950,43 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
               if (ctx.mounted) Navigator.pop(ctx);
             },
             child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteActiveConfig(String id) {
+    final state = ref.read(llmConfigsProvider);
+    final active = state.active;
+    if (active == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先选择一个方案')),
+      );
+      return;
+    }
+    final name = active.name.isEmpty ? '未命名方案' : active.name;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除方案'),
+        content: Text('将删除方案「$name」，此操作不可恢复。确定吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              await ref.read(llmConfigsProvider.notifier).delete(id);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('已删除方案「$name」')),
+                );
+              }
+            },
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

@@ -488,7 +488,7 @@ class BuiltInAIPresets {
     createdAt: DateTime(2024, 1, 1),
     updatedAt: DateTime(2024, 1, 1),
     generationSettings: const GenerationPreset(
-      temperature: 1.0,
+      temperature: 0.8,
       topP: 0.95,
       topK: 40,
       maxTokens: 8192,        // Max output tokens
@@ -504,9 +504,9 @@ class BuiltInAIPresets {
     createdAt: DateTime(2024, 1, 1),
     updatedAt: DateTime(2024, 1, 1),
     generationSettings: const GenerationPreset(
-      temperature: 1.3,
+      temperature: 1.1,
       topP: 0.98,
-      topK: 100,
+      topK: 60,
       minP: 0.05,
       maxTokens: 8192,       // Allow longer creative outputs
       contextLength: 1000000,
@@ -554,10 +554,10 @@ class BuiltInAIPresets {
     createdAt: DateTime(2024, 1, 1),
     updatedAt: DateTime(2024, 1, 1),
     generationSettings: const GenerationPreset(
-      temperature: 0.9,
+      temperature: 0.85,
       topP: 0.95,
       topK: 40,
-      maxTokens: 8192,       // Allow much longer outputs
+      maxTokens: 16384,      // 更大的输出空间，配合长文提示词
       contextLength: 1000000,  // Larger context for long form
       repetitionPenalty: 1.15,
     ),
