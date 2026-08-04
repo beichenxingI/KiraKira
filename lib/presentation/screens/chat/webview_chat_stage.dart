@@ -434,6 +434,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     // 酒馆助手 API：读取当前会话消息（请求-响应）
                     _bridge.onRequest('th_getMessages', _handleGetMessages);
                     _bridge.onRequest('th_triggerSlash', _handleTriggerSlash);
+                    _bridge.onRequest('th_setInput', _handleSetInput);
                     _bridge.onRequest('th_setMessage', _handleSetMessage);
                     _bridge.onRequest('th_getVars', _handleGetVariables);
                     _bridge.onRequest('th_setVars', _handleSetVariables);
@@ -610,6 +611,16 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     return '${name.substring(0, 5)}…';
   }
 
+ Future<dynamic> _handleSetInput(Map<String, dynamic> payload) async {
+   final text = (payload['text'] as String?) ?? '';
+   if (text.isNotEmpty && mounted) {
+     _inputController.text = text;
+     _inputController.selection = TextSelection.fromPosition(
+       TextPosition(offset: _inputController.text.length),
+     );
+   }
+   return {'ok': true};
+ }
   /// 酒馆助手 triggerSlash：精简版 STscript 执行器。
   /// 支持管道 `|` 串联，覆盖开局类卡片高频命令：
   ///   /send <text> · /sys <text>  → 发一条消息并触发 AI 生成
@@ -711,8 +722,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         // 需要目标消息 ID，卡片路径暂无上下文
         unsupported.add('/swipe');
       } else if (seg.startsWith('/setinput')) {
-        // 填输入框属 UI 层，webview 与输入框跨 widget，V2.1 支持
-        unsupported.add('/setinput');
+        // 填入输入框(不发送)——卡片提供草稿，用户自己决定发不发
+        final text = arg();
+        if (text.isNotEmpty && mounted) {
+          _inputController.text = text;
+          _inputController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _inputController.text.length),
+          );
+        }
       } else if (seg.startsWith('/cut')) {
         KiraLogger().info('助手API', '/cut 已忽略（保护数据）');
       } else {
@@ -2771,6 +2788,7 @@ function injectBridge(html, id) {
       '_TH.createChatMessages=function(msgs,option){return __thCall("createChatMessages",[msgs,option||{}]);};' +
       '_TH.deleteChatMessages=function(ids,option){return __thCall("deleteChatMessages",[ids,option||{}]);};' +
       '_TH.triggerSlash=function(cmd){return __thCall("triggerSlash",[cmd]);};' +
+      '_TH.setInput=function(t){return __thCall("setInput",[t]);};' +
       '_TH.__lastMsgId=0;' +
       '_TH.getCurrentMessageId=function(){return _TH.__lastMsgId;};' +
       '_TH.getVariables=function(option){return __thCall("getVariables",[option||{}]);};' +
@@ -2805,6 +2823,13 @@ function injectBridge(html, id) {
       // 全部裸挂到 window
       'for(var _k in _TH){if(_TH.hasOwnProperty(_k)){window[_k]=_TH[_k];}}' +
       'window.TavernHelper=_TH;' +
+      '(function(){try{' +
+      'if(!navigator.clipboard){Object.defineProperty(navigator,"clipboard",{configurable:true,value:{}});}' +
+      'if(!navigator.clipboard.writeText){navigator.clipboard.writeText=function(t){' +
+      'try{if(window.setInput){window.setInput(String(t));}}catch(e){}' +
+      'return Promise.resolve();};}' +
+      'if(!navigator.clipboard.readText){navigator.clipboard.readText=function(){return Promise.resolve("");};}' +
+      '}catch(e){parent.postMessage({__thLog:true,text:"[polyfill] clipboard 失败: "+e},"*");}})();' +
       // ── SillyTavern.getContext() 骨架 ──────────────────
       'var _ctx={' +
       // 已实现能力：接真实事件总线
@@ -2883,6 +2908,7 @@ window.addEventListener('message', function(e) {
       getChatMessages: 'th_getMessages',
       setChatMessage:  'th_setMessage',
       triggerSlash:    'th_triggerSlash',
+      setInput: 'th_setInput',
       getVariables:    'th_getVars',
       setVariables:    'th_setVars',
       getLorebookEntries:    'th_wiGetEntries',
@@ -2906,6 +2932,8 @@ window.addEventListener('message', function(e) {
         swipe_id: args[2] && args[2].swipe_id, refresh: (args[2] && args[2].refresh) || false };
     } else if (method === 'triggerSlash') {
       payload = { command: args[0] };
+    } else if (method === 'setInput') {
+      payload = { text: args[0] };
     } else if (method === 'getVariables') {
       payload = { option: args[0] || {} };
     } else if (method === 'setVariables') {
