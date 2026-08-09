@@ -877,6 +877,21 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     updatedMessages[messageIndex] = updatedMessage;
     state = state.copyWith(messages: updatedMessages);
   }
+  /// 更新单条消息的 per-swipe 变量（MVU setChatMessages 落点）
+  Future<void> updateMessageSwipesData(
+      String messageId, List<Map<String, dynamic>> swipesData) async {
+    final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex < 0) return;
+
+    final updatedMessage =
+        state.messages[messageIndex].copyWith(swipesData: swipesData);
+
+    await _chatRepository.updateMessage(updatedMessage);
+
+    final updatedMessages = List<ChatMessage>.from(state.messages);
+    updatedMessages[messageIndex] = updatedMessage;
+    state = state.copyWith(messages: updatedMessages);
+  }
 
   /// Delete a message
   Future<void> deleteMessage(String messageId) async {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:kirakira/presentation/screens/chat/tavern_helper_facade.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
 import 'package:kirakira/presentation/providers/regex_providers.dart';
 import 'package:kirakira/domain/services/regex_service.dart';
@@ -137,6 +138,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   static String? _toastrJsB64;
   static String? _toastrCssB64;
   static bool _libsLoaded = false;
+  static String? _mvuBundleB64;
+  static bool _mvuLoaded = false;
 
   /// 加载并缓存第三方库（base64 编码，供内联注入）。只在首次调用时真正读取。
   static Future<void> _loadCompatLibs() async {
@@ -156,6 +159,17 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       KiraLogger().info('兼容库', '第三方库加载失败: $e');
     }
   }
+  /// 加载并缓存 MVU bundle(base64),供引擎房内联。
+  static Future<void> _loadMvuBundle() async {
+    if (_mvuLoaded) return;
+    try {
+      final bundle = await rootBundle.loadString('assets/libs/mvu_bundle.js');
+      _mvuBundleB64 = base64Encode(utf8.encode(bundle));
+      _mvuLoaded = true;
+    } catch (e) {
+      KiraLogger().info('MVU', 'bundle 加载失败: $e');
+    }
+  }
 
   /// 把已缓存的第三方库（base64）注入到外层 WebView 的 window.__KIRA_LIBS。
   /// 页面加载后调用一次，供 injectBridge 按需内联进 iframe。
@@ -173,6 +187,45 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       KiraLogger().info('兼容库', '库注入失败: $e');
     }
   }
+  /// 把当前角色名/用户名注入到外层 WebView 的 window.__KIRA_MACRO_VALUES。
+  /// 供 injectBridge 内联的 substitudeMacros 同步读取。
+  Future<void> _injectMacroValues(InAppWebViewController c) async {
+    final activeChat = ref.read(activeChatProvider);
+    final charName = activeChat.character?.name ?? 'Assistant';
+    final userName = ref.read(activePersonaProvider).valueOrNull?.name ?? 'User';
+    final js = 'window.__KIRA_MACRO_VALUES={'
+        'user:${jsonEncode(userName)},'
+        'char:${jsonEncode(charName)}'
+        '};'
+        'window.__KIRA_CHAT_ID=${jsonEncode(widget.chatId)};';
+    try {
+      await c.evaluateJavascript(source: js);
+    } catch (e) {
+      KiraLogger().info('宏值注入', '注入失败: \$e');
+    }
+  }
+  /// 把共享 TavernHelper 门面注入到外层 window.__ENGINE_FACADE_JS,
+  /// 供 createEngineRoom 建引擎房 iframe 时内联。
+  Future<void> _injectEngineFacade(InAppWebViewController c) async {
+    final facade = buildTavernHelperFacadeJs(frameId: 'engine-room');
+    final js = 'window.__ENGINE_FACADE_JS=${jsonEncode(facade)};';
+    try {
+      await c.evaluateJavascript(source: js);
+    } catch (e) {
+      KiraLogger().info('引擎房', '门面注入失败: $e');
+    }
+  }
+  /// 把 MVU bundle(base64)注入外层 window.__KIRA_MVU_BUNDLE,
+  /// 供 createEngineRoom 建引擎房时内联为 ES module。
+  Future<void> _injectMvuBundle(InAppWebViewController c) async {
+    if (!_mvuLoaded || _mvuBundleB64 == null) return;
+    final js = 'window.__KIRA_MVU_BUNDLE="${_mvuBundleB64!}";';
+    try {
+      await c.evaluateJavascript(source: js);
+    } catch (e) {
+      KiraLogger().info('MVU', 'bundle 注入失败: $e');
+    }
+  }
 
   double _keyboardHeight = 0;
   bool _keyboardVisible = false;
@@ -186,6 +239,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       await _loadCompatLibs();
+      await _loadMvuBundle();
       if (!mounted) return;
       ref.read(activeChatProvider.notifier).loadChat(widget.chatId);
       // 延迟挂载 WebView:让入场这段时间保持纯 Flutter(无 WebView 重活),动画/遮罩流畅
@@ -208,6 +262,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   }
   @override
   void dispose() {
+    _controller?.evaluateJavascript(
+        source: 'if(window.resetEngineRoom){var h=document.getElementById("__engineRoomHost");if(h)h.innerHTML="";}');
     WidgetsBinding.instance.removeObserver(this);
     _maskController.dispose();
     _inputController.dispose();
@@ -287,8 +343,22 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
 
       // 生成结束的瞬间：全量刷新一次，把流式的纯文本正确渲染成 Markdown/HTML 卡片
       final gen = next.isGenerating;
+      // 点火：用户发消息 → isGenerating false→true，用户消息已入 state
+      // → 通知引擎房 MVU initCheck（带 msgs 填充 __chatMessages / SillyTavern.chat）
+      if (!_wasGenerating && gen) {
+        final msgsJson = jsonEncode(_serializeMessagesForMvu());
+        _controller?.evaluateJavascript(
+            source: 'if(window.__emitToEngine)window.__emitToEngine("generation_started",[],$msgsJson);');
+      }
       if (_wasGenerating && !gen) {
         _pushMessages();
+        // 点火：AI 回复完成 → 通知引擎房 MVU 解析新回复、更新变量
+        if (nextMsgs.isNotEmpty) {
+          final lastIdx = nextMsgs.length - 1;
+          final msgsJson = jsonEncode(_serializeMessagesForMvu());
+          _controller?.evaluateJavascript(
+              source: 'if(window.__emitToEngine)window.__emitToEngine("message_received",[$lastIdx],$msgsJson);');
+        }
       }
       _wasGenerating = gen;
       // 自动生图完成：消息 attachments 变化 → 刷新让新图显示。
@@ -319,6 +389,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         );
       }
     });
+
+    ref.listen(activeChatIdProvider, (prev, next) {
+      if (prev != next && next != null && _webViewMounted) {
+        _controller?.evaluateJavascript(
+            source: 'if(window.resetEngineRoom)window.resetEngineRoom();');
+      }
+    });
+
     // 自动生图占位符：msgId 变化 → 显示/移除"生成中"占位
     ref.listen(activeChatProvider.select((s) => s.generatingImageMsgId),
         (prev, next) {
@@ -429,7 +507,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.attach(c);
                     _bridge.on(BridgeType.action, _handleAction);
                     _bridge.on(BridgeType.log, (payload) {
-                      debugPrint('[卡片日志] ${payload['text']}');
+                      final t = payload['text']?.toString() ?? '';
+                      debugPrint('[卡片日志] $t');
                     });
                     // 酒馆助手 API：读取当前会话消息（请求-响应）
                     _bridge.onRequest('th_getMessages', _handleGetMessages);
@@ -437,6 +516,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest('th_setInput', _handleSetInput);
                     _bridge.onRequest('th_setMessage', _handleSetMessage);
                     _bridge.onRequest('th_getVars', _handleGetVariables);
+    _bridge.onRequest('th_wiGetEnabledList', (payload) async {
+      final char = ref.read(activeChatProvider).character;
+      final book = char?.characterBook;
+      debugPrint('[世界书探针] char=${char?.name} book=${book?.name} entries=${book?.entries.length}');
+      if (book == null || book.entries.isEmpty) return <String>[];
+      return <String>[book.name ?? 'character_book'];
+    });
+                    _bridge.onRequest('th_setMessages', _handleSetMessages);
                     _bridge.onRequest('th_setVars', _handleSetVariables);
                     // 世界书 API
                     _bridge.onRequest('th_wiGetLorebooks', _handleWiGetLorebooks);
@@ -446,9 +533,21 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest('th_wiCreateEntries', _handleWiCreateEntries);
                     _bridge.onRequest('th_wiDeleteEntries', _handleWiDeleteEntries);
                     _bridge.onRequest('th_wiGetCharLorebooks', _handleWiGetCharLorebooks);
+                    _bridge.onRequest('th_wiGetLorebookSettings', _handleWiGetLorebookSettings);
+                    _bridge.onRequest('th_wiSetLorebookSettings', _handleWiSetLorebookSettings);
                   },
                   onLoadStop: (c, url) async {
                     await _injectCompatLibs(c); // 注入第三方库到外层window
+                    await _injectMacroValues(c); // 注入宏替换用的角色名/用户名
+                    await _injectEngineFacade(c); // 注入引擎房共享门面
+                    await _injectMvuBundle(c); // 注入 MVU bundle 供引擎房内联
+                    await c.evaluateJavascript(
+                        source: 'if(window.createEngineRoom)window.createEngineRoom();');
+    // 保险丝：2 秒后若 JS 的 ready 信号仍未到（老 WebView），强制放行
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      _bridge.markReadyIfMissing();
+    });
                     _bridge.on(BridgeType.modelSelected, (payload) {
                       final model = payload['model'] as String?;
                       if (model != null && model.isNotEmpty) {
@@ -527,6 +626,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     await Future.delayed(const Duration(milliseconds: 350));
                     if (!mounted) return;
                     await _pushMessages();
+                    // 开场白就绪后主动填充 __chatMessages 并触发 chat_changed，
+                    // 让 MVU initCheck 重跑一次（这次 SillyTavern.chat 非空）
+                    final initMsgsJson = jsonEncode(_serializeMessagesForMvu());
+                    _controller?.evaluateJavascript(
+                        source: 'if(window.__emitToEngine)window.__emitToEngine("chat_changed",[],$initMsgsJson);');
+                    await Future.delayed(const Duration(milliseconds: 500));
                     await Future.delayed(const Duration(milliseconds: 500));
                     if (mounted) _maskController.reverse();
                   },
@@ -765,6 +870,65 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
 
     return {'ok': true};
   }
+  /// 给 MVU 用的消息序列化：格式对齐 _handleGetMessages，
+  /// message 用原文(不走 _serializeMessage 的显示美化，保住 _.set 指令)。
+  List<Map<String, dynamic>> _serializeMessagesForMvu() {
+    final activeChat = ref.read(activeChatProvider);
+    final messages = activeChat.messages;
+    final defaultCharName = activeChat.character?.name ?? 'Assistant';
+    final result = <Map<String, dynamic>>[];
+    for (var i = 0; i < messages.length; i++) {
+      final m = messages[i];
+      final swipes = m.swipes;
+      final swipeId = m.currentSwipeIndex;
+      final currentContent =
+          (swipes.isNotEmpty && swipeId >= 0 && swipeId < swipes.length)
+              ? swipes[swipeId]
+              : m.content;
+      final name = switch (m.role) {
+        MessageRole.user => 'User',
+        MessageRole.assistant => m.characterName ?? defaultCharName,
+        MessageRole.system => 'System',
+      };
+// 空卡兜底：给第 0 条消息种一个空的 MvuData 基座。
+// MVU 的 getLastValidVariable→isMvuData 要求本子里同时有 stat_data 和 schema，
+// 否则 update_variables.ts:1438 会因缺 stat_data 直接 return，
+// 导致 AI 回复里的 _.set 指令被丢弃。空卡没有世界书/开场白 initvar，
+// 这个空基座让 AI 驱动的变量更新能从零开始。
+final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
+    ? <Map<String, dynamic>>[
+        <String, dynamic>{
+          'stat_data': <String, dynamic>{},
+          'schema': <String, dynamic>{},
+          'initialized_lorebooks': <String, dynamic>{},
+          'delta_data': <String, dynamic>{},
+          'display_data': <String, dynamic>{},
+        }
+      ]
+    : m.swipesData;
+      result.add(<String, dynamic>{
+        'message_id': i,
+        'name': name,
+        'role': m.role.name,
+        'is_hidden': false,
+        'message': currentContent,
+        'data': <String, dynamic>{},
+        'extra': <String, dynamic>{},
+        'id': m.id,
+        'index': i,
+        'is_user': m.role == MessageRole.user,
+        'content': m.content,
+        'swipe_id': swipeId,
+        'swipes': swipes,          // ← 新增这一行：开场白文本版本数组，MVU的143行读它找<initvar>
+          'variables': effectiveSwipesData,
+          'swipes_data': effectiveSwipesData,
+        });
+      }
+    for (final r in result) {
+      debugPrint('[镜像探针] mid=${r['message_id']} variables=${jsonEncode(r['variables'])}');
+    }
+    return result;
+    }
   /// 酒馆助手 getChatMessages 的 Flutter 侧实现。
   /// 读取当前会话消息，映射成与 TavernHelper 对齐的格式返回。
   /// 数据源唯一：ActiveChatNotifier.state.messages（避免串台）。
@@ -776,6 +940,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         false;
     KiraLogger().info('助手API', 'th_getMessages 被调用 start=$start swipe=$includeSwipe');
 
+    debugPrint('[镜像探针] _serializeMessagesForMvu 被调用');
     final activeChat = ref.read(activeChatProvider);
     final messages = activeChat.messages;
     // name 推导：assistant/system 优先用消息缓存的角色名，其次用当前角色名
@@ -812,18 +977,21 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         'is_user': m.role == MessageRole.user,
         'content': m.content,
         'swipe_id': swipeId,
+        'variables': m.swipesData,
       };
       if (includeSwipe) {
         // 对齐 ChatMessageSwiped 规格
         map['swipes'] = swipes;
-        map['swipes_data'] =
-            List.generate(swipes.length, (_) => <String, dynamic>{});
+        map['swipes_data'] = m.swipesData;
         map['swipes_info'] =
             List.generate(swipes.length, (_) => <String, dynamic>{});
       }
       result.add(map);
     }
-    KiraLogger().info('助手API', 'th_getMessages 返回 ${result.length} 条');
+    for (final r in result) {
+      final sd = r['swipes_data'];
+      debugPrint('[读侧探针] getMsg mid=${r['message_id']} role=${r['is_user']} sdLen=${sd is List ? sd.length : -1}');
+    }
     return result;
   }
 
@@ -839,7 +1007,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       return service.getAllGlobalVariables();
     }
     // 默认 chat 局部变量
-    return service.getAllLocalVariables(widget.chatId);
+    final result = service.getAllLocalVariables(widget.chatId);
+    debugPrint('[getVars探针] type=$type 返回 stat_data=${jsonEncode((result as Map?)?['stat_data'])}');
+    return result;
   }
 
   /// 酒馆助手 setVariables：按 scope 写入变量表并持久化。
@@ -850,6 +1020,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     final type = (option['type'] as String?) ?? 'chat';
     final service = VariablesService.instance;
     KiraLogger().info('助手API', 'th_setVars 被调用 type=$type keys=${vars.keys.toList()}');
+    debugPrint('[setVars探针] option=${jsonEncode(option)}');
 
     if (type == 'global') {
       for (final entry in vars.entries) {
@@ -857,12 +1028,49 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       }
       return service.getAllGlobalVariables();
     }
+    // MVU 消息级持久化：type=='message' 时把整份 MvuData 写进对应消息的 swipesData 并落库。
+    if (type == 'message') {
+      final messageId = option['message_id'] as int?;
+      final notifier = ref.read(activeChatProvider.notifier);
+      final messages = ref.read(activeChatProvider).messages;
+      if (messageId != null && messageId >= 0 && messageId < messages.length) {
+        final target = messages[messageId];
+        final swipeId = target.currentSwipeIndex < 0 ? 0 : target.currentSwipeIndex;
+        // 拷贝现有 swipesData，补齐长度，把这份 vars 放到当前 swipe 槽位
+        final newSwipesData =
+            List<Map<String, dynamic>>.from(target.swipesData);
+        while (newSwipesData.length <= swipeId) {
+          newSwipesData.add(<String, dynamic>{});
+        }
+        newSwipesData[swipeId] = Map<String, dynamic>.from(vars);
+        await notifier.updateMessageSwipesData(target.id, newSwipesData);
+        debugPrint('[setVars修复] 已写入 mid=$messageId swipe=$swipeId keys=${vars.keys.toList()}');
+        debugPrint('[setVars校验] mid=$messageId 实际role=${target.role} 内容前20=${target.content.length > 20 ? target.content.substring(0, 20) : target.content}');
+        // 同步引擎房镜像（带 messageId）
+        _syncVarsToEngine('message', vars, messageId: messageId, lastMsgId: messageId);
+        return vars;
+      }
+      // message_id 缺失/越界：兜底走 chat 分支
+      debugPrint('[setVars修复] message_id 无效($messageId)，回退 chat 分支');
+    }
     // 默认 chat 局部变量：写内存 + 落盘持久化
     for (final entry in vars.entries) {
       service.setLocalVariable(widget.chatId, entry.key, entry.value);
     }
     await service.saveLocalVariablesToPrefs(widget.chatId);
-    return service.getAllLocalVariables(widget.chatId);
+    final readBack = service.getAllLocalVariables(widget.chatId);
+    // 反向同步:落库后把最新 chat 变量推回引擎房镜像
+    _syncVarsToEngine('chat', readBack);
+    return readBack;
+  }
+  /// 反向同步:把变量表推进引擎房镜像。
+  void _syncVarsToEngine(String type, Map<String, dynamic> data, {int? messageId, int? lastMsgId}) {
+    final dataJson = jsonEncode(data);
+    final midArg = messageId?.toString() ?? 'null';
+    final lastArg = lastMsgId?.toString() ?? 'null';
+    _controller?.evaluateJavascript(
+        source: 'if(window.__syncVarsToEngine)window.__syncVarsToEngine('
+            '"$type",$dataJson,$midArg,$lastArg);');
   }
 
   // ── 世界书 API handlers ─────────────────────────────
@@ -904,31 +1112,50 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     return {'ok': true, 'name': book.name, 'id': book.id};
   }
 
-  /// 取某本世界书的所有条目。payload: {name} 或 {id}
+  /// 取角色内嵌世界书(character_book)的所有条目。payload: {name}
   Future<dynamic> _handleWiGetEntries(Map<String, dynamic> payload) async {
-    final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
-    final name = payload['name'] as String?;
-    final id = payload['id'] as String?;
-    models.WorldInfo? book;
-    if (id != null) {
-      book = await repo.getWorldInfoById(id);
-    } else if (name != null) {
-      final all = await repo.getAllWorldInfos();
-      final matches = all.where((b) => b.name == name);
-      book = matches.isEmpty ? null : matches.first;
-    }
+    final book = ref.read(activeChatProvider).character?.characterBook;
     if (book == null) return [];
-    final entries = await repo.getEntriesForWorldInfo(book.id);
-    return entries.map(_wiEntryToJson).toList();
+    final name = payload['name'] as String?;
+    // 519 返回的名字会原样传回来，对不上就不返
+    if (name != null && (book.name ?? 'character_book') != name) return [];
+    return book.entries.map(_charBookEntryToMvu).toList();
+  }
+  Future<dynamic> _handleWiGetLorebookSettings(Map<String, dynamic> payload) async {
+    // MVU 从这里拿 selected_global_lorebooks 当作全局启用世界书
+    // 先返空列表，保证 MVU 不报错、能继续跑
+    return {'selected_global_lorebooks': <String>[], 'overflow_alert': false};
   }
 
-  /// 角色绑定的世界书名列表。
+  Future<dynamic> _handleWiSetLorebookSettings(Map<String, dynamic> payload) async {
+    return {'ok': true};
+  }
+  /// 内嵌世界书条目 → 卡片侧(SillyTavern风格)JSON，字段对齐 _wiEntryToJson。
+  /// MVU 读 comment(筛 [initvar]) 和 content(抽 <initvar> 块)。
+  Map<String, dynamic> _charBookEntryToMvu(CharacterBookEntry e) => {
+        'uid': e.id,
+        'keys': e.keys,
+        'secondary_keys': e.secondaryKeys,
+        'content': e.content,
+        'comment': e.comment,
+        'enabled': e.enabled,
+        'constant': e.constant,
+        'selective': e.selective,
+        'order': e.insertionOrder,
+        'position': e.position,
+      };
+
+  /// 角色绑定的世界书。MVU 期望 {primary, additional:[...]} 结构。
   Future<dynamic> _handleWiGetCharLorebooks(Map<String, dynamic> payload) async {
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
     final charId = ref.read(activeChatProvider).character?.id;
-    if (charId == null) return [];
+    if (charId == null) return {'primary': null, 'additional': <String>[]};
     final books = await repo.getWorldInfosForCharacter(charId);
-    return books.map((b) => {'id': b.id, 'name': b.name}).toList();
+    final names = books.map((b) => b.name).whereType<String>().toList();
+    return {
+      'primary': names.isNotEmpty ? names.first : null,
+      'additional': names.length > 1 ? names.sublist(1) : <String>[],
+    };
   }
 
   /// 更新条目（按 uid 找到已有条目改内容/关键词）。payload: {worldId/name, entries:[...]}
@@ -956,6 +1183,37 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       updated++;
     }
     return {'ok': true, 'updated': updated};
+  }
+  /// 酒馆助手 setChatMessages（复数）：MVU 用它把 per-swipe 变量种进消息。
+  /// 每项 {message_id, swipes_data:[...]}，把 swipes_data 写进 ChatMessage.swipesData。
+  Future<dynamic> _handleSetMessages(Map<String, dynamic> payload) async {
+    debugPrint('[持久化探针] _handleSetMessages 被调用');
+    final msgs = (payload['msgs'] as List?) ?? const [];
+    debugPrint('[持久化探针] 原始payload=${jsonEncode(payload)}');
+    final messages = ref.read(activeChatProvider).messages;
+    final notifier = ref.read(activeChatProvider.notifier);
+    for (final raw in msgs) {
+      if (raw is Map) {
+        debugPrint('[持久化探针] msg键=${raw.keys.toList()} '
+            'variables=${jsonEncode(raw['variables'])} '
+            'swipe_id=${raw['swipe_id']} '
+            'data=${jsonEncode(raw['data'])}');
+      }
+      if (raw is! Map) continue;
+      final mid = raw['message_id'] as int?;
+      if (mid == null || mid < 0 || mid >= messages.length) continue;
+      final swipesData = (raw['swipes_data'] as List?)
+              ?.map((e) => (e as Map).cast<String, dynamic>())
+              .toList() ??
+          const <Map<String, dynamic>>[];
+      if (swipesData.isEmpty) {
+        debugPrint('[持久化探针] mid=$mid swipes_data为空，跳过（保护已写变量，不覆盖）');
+        continue;
+      }
+      await notifier.updateMessageSwipesData(messages[mid].id, swipesData);
+    }
+    if (mounted) await _pushMessages();
+    return {'ok': true};
   }
 
   /// 新建条目。payload: {worldId/name, entries:[{keys, content, ...}]}
@@ -1564,6 +1822,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     setState(() => _pendingAttachments.clear());
     _inputFocus.unfocus();
     // 图片不进 WebView（统一由独立图片界面管理），带不带图都走普通发送。
+    // 触发 MVU initCheck（generation_started 在生成前点火）
+    _controller?.evaluateJavascript(
+        source: 'if(window.__emitToEngine)window.__emitToEngine("generation_started",[],${jsonEncode(_serializeMessagesForMvu())});');
     await ref
         .read(activeChatProvider.notifier)
         .sendMessage(content, config, attachments: attachments);
@@ -2097,7 +2358,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       int startFrom, List<ChatMessage> messages) async {
     final chatState = ref.read(activeChatProvider);
     final character = chatState.character;
-    await ref.read(regexScriptsReadyProvider(character?.id));
+    dynamic persona;
+    try {
+      persona = await ref.read(activePersonaProvider.future)
+          .timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('[卡点] activePersona 超时/出错: $e');
+      persona = null;
+    }
     final scripts = ref.read(combinedRegexScriptsProvider(character?.id));
 
     int lastAiIndex = -1;
@@ -2137,7 +2405,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     debugPrint('[图片诊断] _pushMessages 开始执行');
     final chatState = ref.read(activeChatProvider);
     final character = chatState.character;
-    await ref.read(regexScriptsReadyProvider(character?.id));
+    var persona = await ref.read(activePersonaProvider.future)
+        .timeout(const Duration(seconds: 3))
+        .catchError((e) {
+      debugPrint('[卡点] activePersona 超时/出错: $e');
+      return null;
+    });
     final scripts = ref.read(combinedRegexScriptsProvider(character?.id));
     final messages = chatState.messages;
 
@@ -2160,9 +2433,22 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     final initialB64 = base64Encode(utf8.encode(initialJson));
     debugPrint('[图片诊断] _pushMessages 发送 setMessages, 条数=${initialList.length}');
     // 头像+名字：全局各一份，随首屏一次性下发（不进每条消息，避免膨胀拖卡）
-    final persona = await ref.read(activePersonaProvider.future);
-    final charUri = await _avatarToDataUri(character?.assets?.avatarPath, false);
-    final userUri = await _avatarToDataUri(persona?.avatarPath, true);
+    try {
+      persona = await ref.read(activePersonaProvider.future)
+          .timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('[卡点] activePersona2 超时/出错: $e');
+    }
+    String? charUri;
+    String? userUri;
+    try {
+      charUri = await _avatarToDataUri(character?.assets?.avatarPath, false)
+          .timeout(const Duration(seconds: 3));
+      userUri = await _avatarToDataUri(persona?.avatarPath, true)
+          .timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('[卡点] 头像转换 超时/出错: $e');
+    }
     _bridge.send(BridgeType.setMessages, {
       'data': initialB64,
       'initial': true,
@@ -2267,6 +2553,33 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
 <!DOCTYPE html>
 <html>
 <head>
+<script>
+// ── 老 WebView 兼容 polyfill（早于一切业务脚本执行）──
+if (!Object.hasOwn) {
+  Object.hasOwn = function(o, p){ return Object.prototype.hasOwnProperty.call(o, p); };
+}
+if (typeof structuredClone !== 'function') {
+  window.structuredClone = function(v){ return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); };
+}
+if (!Array.prototype.findLast) {
+  Array.prototype.findLast = function(cb, t){ for (var i=this.length-1;i>=0;i--){ if(cb.call(t,this[i],i,this)) return this[i]; } return undefined; };
+}
+if (!Array.prototype.findLastIndex) {
+  Array.prototype.findLastIndex = function(cb, t){ for (var i=this.length-1;i>=0;i--){ if(cb.call(t,this[i],i,this)) return i; } return -1; };
+}
+if (!String.prototype.replaceAll) {
+  String.prototype.replaceAll = function(s, r){
+    if (Object.prototype.toString.call(s) === '[object RegExp]') return this.replace(s, r);
+    return this.split(s).join(r);
+  };
+}
+if (!Array.prototype.at) {
+  Array.prototype.at = function(n){ n = Math.trunc(n) || 0; if (n < 0) n += this.length; return (n < 0 || n >= this.length) ? undefined : this[n]; };
+}
+if (!String.prototype.at) {
+  String.prototype.at = function(n){ n = Math.trunc(n) || 0; if (n < 0) n += this.length; return (n < 0 || n >= this.length) ? undefined : this[n]; };
+}
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
@@ -2525,6 +2838,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
 </head>
 <body>
 <div id="root"></div>
+<div id="__engineRoomHost" style="display:none;width:0;height:0;overflow:hidden;"></div>
 <div id="model-sheet" class="model-sheet-overlay">
   <div class="model-sheet-panel">
     <div class="model-sheet-header">选择模型</div>
@@ -2725,6 +3039,7 @@ $kChatBridgeJs
 
 function injectBridge(html, id) {
     var _libs=(typeof window.__KIRA_LIBS!=="undefined")?window.__KIRA_LIBS:{};
+    var _macros=(typeof window.__KIRA_MACRO_VALUES!=="undefined")?window.__KIRA_MACRO_VALUES:{user:"User",char:"Assistant"};
     var _libScript="";
     try{
       var _needJq=(html.indexOf("\$(")>=0)||(html.indexOf("jQuery")>=0);
@@ -2837,6 +3152,9 @@ function injectBridge(html, id) {
       'var p=__thPending[d.rid];if(!p)return;delete __thPending[d.rid];' +
       'if(d.ok)p.resolve(d.result);else p.reject(new Error(d.error||"th failed"));' +
       '});' +
+      // ⚠️ 死代码：以下 _TH.getXxxLorebook 等注入已迁移到 tavern_helper_facade.dart，
+      //    引擎房实际加载的是那份（见 _injectEngineFacade / buildTavernHelperFacadeJs）。
+      //    这里保留未删，改动无效，勿在此处修改世界书 API。待清理。
       // 第一梯队 API：裸挂 window + TavernHelper 命名空间（规格要求两者都可用）
       'var _TH={};' +
       '_TH.getChatMessages=function(range,option){return __thCall("getChatMessages",[range,option||{}]);};' +
@@ -2852,14 +3170,50 @@ function injectBridge(html, id) {
       '_TH.setVariables=function(vars,option){return __thCall("setVariables",[vars,option||{}]);};' +
       '_TH.replaceVariables=function(vars,option){return __thCall("replaceVariables",[vars,option||{}]);};' +
       '_TH.getAllVariables=function(){return __thCall("getAllVariables",[]);};' +
-      '_TH.getTavernHelperVersion=function(){return "kirakira-compat-1.0";};' +
+      '_TH.getTavernHelperVersion=function(){return "4.9.1";};' +
+      // ── MVU 启动依赖:关卡三(唯一脚本)/关卡七(generate空桩) ──
+      '_TH.getScriptId=function(){return "kirakira-mvu-0";};' +
+      'window.getScriptId=_TH.getScriptId;' +
+      '_TH.registerAsUniqueScript=function(id){' +
+      'return {unregister:function(){},getPreferredScriptId:function(){return "kirakira-mvu-0";},' +
+      'listenPreferenceState:function(cb){try{cb("kirakira-mvu-0");}catch(e){}return {stop:function(){}};}};' +
+      '};' +
+      'window.registerAsUniqueScript=_TH.registerAsUniqueScript;' +
+      '_TH.generate=function(cfg){parent.postMessage({__thLog:true,text:"[stub] generate 空桩"},"*");return Promise.resolve("");};' +
+      'window.generate=_TH.generate;' +
+      '_TH.generateRaw=function(cfg){return Promise.resolve("");};' +
+      'window.generateRaw=_TH.generateRaw;' +
+      // 把外层的真实角色名/用户名烤进 iframe(照 __KIRA_LIBS 套路)
+      'window.__KIRA_MACRO_VALUES=' + JSON.stringify(_macros) + ';' +
+      // substitudeMacros：同步宏替换，读 Dart 预注入的 __KIRA_MACRO_VALUES
+      '_TH.substitudeMacros=function(t){' +
+      'if(typeof t!=="string")return t;' +
+      'var v=window.__KIRA_MACRO_VALUES||{user:"User",char:"Assistant"};' +
+      'return t.replace(/\\{\\{user\\}\\}/gi,v.user)' +
+      '.replace(/\\{\\{char\\}\\}/gi,v.char)' +
+      '.replace(/<user>/gi,v.user)' +
+      '.replace(/<char>/gi,v.char);' +
+      '};' +
+      'window.substitudeMacros=_TH.substitudeMacros;' +
       '_TH.getLorebookEntries=function(name){return __thCall("getLorebookEntries",[name]);};' +
       '_TH.setLorebookEntries=function(name,entries){return __thCall("setLorebookEntries",[name,entries||[]]);};' +
       '_TH.createLorebookEntry=function(name,entry){return __thCall("createLorebookEntry",[name,entry||{}]);};' +
       '_TH.deleteLorebookEntries=function(name,uids){return __thCall("deleteLorebookEntries",[name,uids||[]]);};' +
       '_TH.getCharacterLorebooks=function(){return __thCall("getCharacterLorebooks",[]);};' +
+      '_TH.getLorebookSettings=function(){return __thCall("getLorebookSettings",[]);};' +
+      '_TH.setLorebookSettings=function(s){return __thCall("setLorebookSettings",[s||{}]);};' +
+      'window.getLorebookSettings=_TH.getLorebookSettings;' +
+      'window.setLorebookSettings=_TH.setLorebookSettings;' +
+      '_TH.getCharLorebooks=_TH.getCharacterLorebooks;' +
+      'window.getCharLorebooks=_TH.getCharacterLorebooks;' +
       '_TH.getLorebooks=function(){return __thCall("getLorebooks",[]);};' +
       '_TH.createLorebook=function(name){return __thCall("createLorebook",[name]);};' +
+      '_TH.getEnabledLorebookList=function(){return __thCall("getEnabledLorebookList",[]);};' +
+      'window.getEnabledLorebookList=_TH.getEnabledLorebookList;' +
+      'window.getLorebookEntries=_TH.getLorebookEntries;' +
+      'window.getCharacterLorebooks=_TH.getCharacterLorebooks;' +
+      'window.getLorebooks=_TH.getLorebooks;' +
+      'window.setLorebookEntries=_TH.setLorebookEntries;' +
       // ── 事件总线（iframe 本地实现） ──────────────────
       '_TH.__events={};' +
       '_TH.__eventOn=function(type,listener){(_TH.__events[type]=_TH.__events[type]||[]).push(listener);return {stop:function(){_TH.__eventRemove(type,listener);}};};' +
@@ -2911,7 +3265,7 @@ function injectBridge(html, id) {
       'chatMetadata:{},' +
       'extensionSettings:{},' +
       'name1:"You",' +
-      'name2:"",' +
+      'name2:((window.__KIRA_MACRO_VALUES&&window.__KIRA_MACRO_VALUES.char)||""),' +
       // 安全占位：常被调用的方法给 noop，避免 undefined 调用崩溃
       'saveChat:function(){return Promise.resolve();},' +
       'saveMetadata:function(){return Promise.resolve();},' +
@@ -2920,6 +3274,7 @@ function injectBridge(html, id) {
       'renderExtensionTemplateAsync:function(){return Promise.resolve("");}' +
       '};' +
       'window.SillyTavern={getContext:function(){return _ctx;}};' +
+      'try{Object.defineProperty(window.SillyTavern,"chat",{configurable:true,get:function(){return window.__chatMessages||[];}});}catch(e){window.SillyTavern.chat=window.__chatMessages||[];}' +
       'window.getContext=function(){return _ctx;};' +
       '})();<\\/script>';
     if (/<head>/i.test(html)) return html.replace(/<head>/i, '<head>' + patch);
@@ -2943,6 +3298,41 @@ window.addEventListener('message', function(e) {
       }
     }
   });
+  // ── 外层 → 引擎房 iframe 的点火中继 ──
+  window.__emitToEngine = function(type, args, msgs) {
+    try {
+      var host = document.getElementById('__engineRoomHost');
+      var f = host && host.querySelector('iframe[data-frame-id="engine-room"]');
+      if (f && f.contentWindow) {
+        f.contentWindow.postMessage({__thEvent:true, type:type, args:args||[], __msgs:msgs||null}, '*');
+        return true;
+      }
+      sendToFlutter('log', { text: '[点火] 引擎房 iframe 未就绪, 丢弃事件 ' + type });
+      return false;
+    } catch(e) {
+      sendToFlutter('log', { text: '[点火] __emitToEngine 失败: ' + e });
+      return false;
+    }
+  };
+// ── 外层 → 引擎房:推真实变量进镜像(反向同步) ──
+  window.__syncVarsToEngine = function(type, data, messageId, lastMsgId) {
+    try {
+      var host = document.getElementById('__engineRoomHost');
+      var f = host && host.querySelector('iframe[data-frame-id="engine-room"]');
+      if (f && f.contentWindow) {
+        f.contentWindow.postMessage({
+          __varSync: true, type: type, data: data,
+          message_id: messageId, lastMsgId: lastMsgId
+        }, '*');
+        return true;
+      }
+      sendToFlutter('log', { text: '[变量同步] 引擎房未就绪, 丢弃 ' + type });
+      return false;
+    } catch(e) {
+      sendToFlutter('log', { text: '[变量同步] __syncVarsToEngine 失败: ' + e });
+      return false;
+    }
+  };
 
   // ── 酒馆助手 API：顶层中转 ────────────────────────────────────────
   // 收 iframe 的 __thRequest → 走桥的请求-响应到 Flutter →
@@ -2969,10 +3359,14 @@ window.addEventListener('message', function(e) {
       getVariables:    'th_getVars',
       setVariables:    'th_setVars',
       getLorebookEntries:    'th_wiGetEntries',
+      getEnabledLorebookList: 'th_wiGetEnabledList',
       setLorebookEntries:    'th_wiSetEntries',
       createLorebookEntry:   'th_wiCreateEntries',
       deleteLorebookEntries: 'th_wiDeleteEntries',
+      setChatMessages:       'th_setMessages',
       getCharacterLorebooks: 'th_wiGetCharLorebooks',
+      getLorebookSettings: 'th_wiGetLorebookSettings',
+      setLorebookSettings: 'th_wiSetLorebookSettings',
       getLorebooks:          'th_wiGetLorebooks',
       createLorebook:        'th_wiCreateBook'
     };
@@ -3007,6 +3401,9 @@ window.addEventListener('message', function(e) {
       payload = {};
     } else if (method === 'getLorebooks') {
       payload = {};
+    } else if (method === 'setChatMessages') {
+      payload = { msgs: args[0] || [], option: args[1] || {} };
+      console.log('[写侧探针] setChatMessages 被调 msgs条数=' + (args[0] ? args[0].length : 0));
     } else if (method === 'createLorebook') {
       payload = { name: args[0] };
     }
@@ -3014,6 +3411,9 @@ window.addEventListener('message', function(e) {
     __sendRequest(type, payload)
       .then(function(res) {
         sendToFlutter('log', { text: '[TH中转] ' + method + ' 成功返回' });
+        if (method === 'setVariables' && res && res.stat_data) {
+          sendToFlutter('log', { text: '[TH中转] setVars落盘后回读 stat_data=' + JSON.stringify(res.stat_data) });
+        }
         reply(true, res, null);
       })
       .catch(function(err) {
@@ -3468,6 +3868,71 @@ window.addEventListener('message', function(e) {
       parent.postMessage({__thLog:true, text:'[clearGenerating] 失败: ' + e}, '*');
     }
   });
+  function createEngineRoom() {
+    try {
+      var host = document.getElementById('__engineRoomHost');
+      if (!host) { parent.postMessage({__thLog:true,text:'[引擎房] host 容器缺失'},'*'); return; }
+      if (host.querySelector('iframe')) { return; } // 已建,不重复
+      var facadeJs = window.__ENGINE_FACADE_JS || '';
+      if (!facadeJs) { parent.postMessage({__thLog:true,text:'[引擎房] 门面未注入'},'*'); return; }
+      var macros = window.__KIRA_MACRO_VALUES || {user:'User',char:'Assistant'};
+      var doc = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
+      var doc = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
+        + (window.__KIRA_LIBS && window.__KIRA_LIBS.lodash ? '<script>' + decodeB64Utf8(window.__KIRA_LIBS.lodash) + '<\\/script>' : '')
+        + (window.__KIRA_LIBS && window.__KIRA_LIBS.jquery ? '<script>' + decodeB64Utf8(window.__KIRA_LIBS.jquery) + '<\\/script>' : '')
+        + (window.__KIRA_LIBS && window.__KIRA_LIBS.toastrJs ? '<script>' + decodeB64Utf8(window.__KIRA_LIBS.toastrJs) + '<\\/script>' : '')
+        + '<script>window.__KIRA_MACRO_VALUES=' + JSON.stringify(macros) + ';<\\/script>'
+        + '<script>window.__KIRA_CHAT_ID=' + JSON.stringify(window.__KIRA_CHAT_ID||'') + ';<\\/script>'
+        + '<script>' + facadeJs + '<\\/script>'
+        + '<script>setTimeout(function(){try{'
+        + 'if(window.TavernHelper&&window.TavernHelper.eventEmit){'
+        + 'window.TavernHelper.eventEmit("chat_changed");'
+        + 'parent.postMessage({__thLog:true,text:"[引擎房] 自触发 chat_changed"},"*");'
+        + '}}catch(e){parent.postMessage({__thLog:true,text:"[引擎房] chat_changed 失败: "+e},"*");}},300);<\\/script>'
+        + '</body></html>';
+      var frame = document.createElement('iframe');
+      frame.setAttribute('data-frame-id','engine-room');
+      frame.style.width='0';frame.style.height='0';frame.style.border='0';
+      try {
+        var blob = new Blob([doc], {type:'text/html; charset=utf-8'});
+        var url = URL.createObjectURL(blob);
+        frame.src = url;
+                frame.addEventListener('load', function onL(){
+          frame.removeEventListener('load',onL);
+          URL.revokeObjectURL(url);
+          try {
+            var mv = window.__KIRA_MVU_BUNDLE;
+            if (mv && frame.contentDocument) {
+              var by = Uint8Array.from(atob(mv), function(c){ return c.charCodeAt(0); });
+              var bl = new Blob([by], {type:'text/javascript'});
+              var ms = frame.contentDocument.createElement('script');
+              ms.type = 'module';
+              ms.src = URL.createObjectURL(bl);
+              frame.contentDocument.head.appendChild(ms);
+              parent.postMessage({__thLog:true,text:'[引擎房] MVU 模块已注入'},'*');
+            }
+          } catch(e) {
+            parent.postMessage({__thLog:true,text:'[引擎房] MVU 注入失败: '+e},'*');
+          }
+        });
+      } catch(e) {
+        frame.srcdoc = doc;
+      }
+      host.appendChild(frame);
+      parent.postMessage({__thLog:true,text:'[引擎房] iframe 已创建'},'*');
+    } catch(e) {
+      parent.postMessage({__thLog:true,text:'[引擎房] 创建失败: '+e},'*');
+    }
+  }
+  window.createEngineRoom = createEngineRoom;
+  function resetEngineRoom() {
+    try {
+      var host = document.getElementById('__engineRoomHost');
+      if (host) host.innerHTML = '';  // 拆旧
+    } catch(e) {}
+    createEngineRoom();               // 建新
+  }
+  window.resetEngineRoom = resetEngineRoom;
 </script>
 </body>
 </html>

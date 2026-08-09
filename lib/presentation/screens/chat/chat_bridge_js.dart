@@ -42,6 +42,7 @@ const String kChatBridgeJs = r'''
         sendToFlutter('log', { text: 'no JS handler for "' + msg.type + '"' });
       }
     } catch (e) {
+      console.error('[dispatch错误] type=' + (jsonStr ? jsonStr.slice(0, 80) : '?') + ' err=' + e + (e && e.stack ? '\n' + e.stack : ''));
       sendToFlutter('log', { text: 'dispatch error: ' + e });
     }
   };

@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:intl/intl.dart';
+import 'package:kirakira/domain/services/variables_service.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/data/models/chat.dart';
 import 'package:kirakira/data/models/persona.dart';
@@ -28,6 +29,7 @@ class MacroService {
     result = _processUserMacros(result);
     result = _processChatMacros(result);
     result = _processSpecialMacros(result);
+    result = _processVariableMacros(result);
     
     return result;
   }
@@ -430,6 +432,72 @@ class MacroService {
       context.idleDuration.toString(),
     );
     
+    return result;
+  }
+  /// Process variable macros: {{getvar}}, {{setvar}}, {{getglobalvar}}, {{setglobalvar}}
+  /// 与 SillyTavern 对齐的变量宏，读写局部(per-chat)与全局变量。
+  String _processVariableMacros(String text) {
+    String result = text;
+    final vars = VariablesService.instance;
+    final chatId = context.chatId;
+    bool localChanged = false;
+
+    // {{setvar::name::value}} - 设置局部变量(先设后取，保证同段文本内顺序正确)
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{setvar::([^:]+?)::([^}]*)\}\}', caseSensitive: false),
+      (match) {
+        final name = match.group(1)!.trim();
+        final value = match.group(2)!;
+        if (chatId.isNotEmpty && name.isNotEmpty) {
+          vars.setLocalVariable(chatId, name, value);
+          localChanged = true;
+        }
+        return '';
+      },
+    );
+    if (localChanged && chatId.isNotEmpty) {
+      vars.saveLocalVariablesToPrefs(chatId); // 一段文本处理完统一落盘一次
+    }
+
+    // {{setglobalvar::name::value}} - 设置全局变量
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{setglobalvar::([^:]+?)::([^}]*)\}\}', caseSensitive: false),
+      (match) {
+        final name = match.group(1)!.trim();
+        final value = match.group(2)!;
+        if (name.isNotEmpty) {
+          vars.setGlobalVariable(name, value); // 持久化异步进行，内存同步生效
+        }
+        return '';
+      },
+    );
+
+    // {{getvar::name}} - 读局部变量
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{getvar::([^}]+?)\}\}', caseSensitive: false),
+      (match) {
+        final name = match.group(1)!.trim();
+        if (chatId.isEmpty || name.isEmpty) return '';
+        final value = vars.getLocalVariable(chatId, name);
+        return value?.toString() ?? '';
+      },
+    );
+
+    // {{getglobalvar::name}} - 读全局变量
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{getglobalvar::([^}]+?)\}\}', caseSensitive: false),
+      (match) {
+        final name = match.group(1)!.trim();
+        if (name.isEmpty) return '';
+        final value = vars.getGlobalVariable(name);
+        return value?.toString() ?? '';
+      },
+    );
+
     return result;
   }
   

@@ -137,6 +137,7 @@ class ChatRepository {
       characterId: Value(newMessage.characterId),
       characterName: Value(newMessage.characterName),
       attachmentsJson: Value(jsonEncode(newMessage.attachments.map((a) => a.toJson()).toList())),
+      swipesDataJson: Value(jsonEncode(newMessage.swipesData)),
     ));
     
     // Update chat's updatedAt
@@ -156,6 +157,7 @@ class ChatRepository {
           characterId: Value(message.characterId),
           characterName: Value(message.characterName),
           attachmentsJson: Value(jsonEncode(message.attachments.map((a) => a.toJson()).toList())),
+          swipesDataJson: Value(jsonEncode(message.swipesData)),
         ));
     
     // Update chat's updatedAt
@@ -234,6 +236,7 @@ class ChatRepository {
       characterId: row.characterId,
       characterName: row.characterName,
       attachments: _parseAttachments(row.attachmentsJson),
+      swipesData: _parseSwipesData(row.swipesDataJson),
     );
   }
 
@@ -241,6 +244,14 @@ class ChatRepository {
     try {
       final list = jsonDecode(json) as List;
       return list.cast<String>();
+    } catch (_) {
+      return [];
+    }
+  }
+  List<Map<String, dynamic>> _parseSwipesData(String json) {
+    try {
+      final list = jsonDecode(json) as List;
+      return list.map((e) => (e as Map).cast<String, dynamic>()).toList();
     } catch (_) {
       return [];
     }

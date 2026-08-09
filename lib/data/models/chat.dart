@@ -170,6 +170,7 @@ class ChatMessage {
   final String? reasoning; // Chain of Thought / Thinking content from LLM
   final List<String>? reasoningSwipes; // Reasoning content for each swipe
   final List<ChatAttachment> attachments; // Image attachments
+  final List<Map<String, dynamic>> swipesData; // per-swipe MvuData: {stat_data, schema, initialized_lorebooks, ...}
 
   const ChatMessage({
     required this.id,
@@ -184,6 +185,7 @@ class ChatMessage {
     this.reasoning,
     this.reasoningSwipes,
     this.attachments = const [],
+    this.swipesData = const [],
   });
 
   /// Get the current reasoning content (for current swipe)
@@ -217,6 +219,7 @@ class ChatMessage {
     String? reasoning,
     List<String>? reasoningSwipes,
     List<ChatAttachment>? attachments,
+    List<Map<String, dynamic>>? swipesData,
     bool clearCharacterId = false,
     bool clearCharacterName = false,
     bool clearReasoning = false,
@@ -234,6 +237,7 @@ class ChatMessage {
       reasoning: clearReasoning ? null : (reasoning ?? this.reasoning),
       reasoningSwipes: clearReasoning ? null : (reasoningSwipes ?? this.reasoningSwipes),
       attachments: attachments ?? this.attachments,
+      swipesData: swipesData ?? this.swipesData,
     );
   }
 
@@ -250,6 +254,7 @@ class ChatMessage {
         if (reasoning != null) 'reasoning': reasoning,
         if (reasoningSwipes != null) 'reasoningSwipes': reasoningSwipes,
         if (attachments.isNotEmpty) 'attachments': attachments.map((a) => a.toJson()).toList(),
+        if (swipesData.isNotEmpty) 'swipesData': swipesData,
       };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
@@ -270,5 +275,9 @@ class ChatMessage {
         attachments: (json['attachments'] as List<dynamic>?)
             ?.map((a) => ChatAttachment.fromJson(a as Map<String, dynamic>))
             .toList() ?? [],
+        swipesData: (json['swipesData'] as List<dynamic>?)
+                ?.map((e) => (e as Map).cast<String, dynamic>())
+                .toList() ??
+            const [],
       );
 }

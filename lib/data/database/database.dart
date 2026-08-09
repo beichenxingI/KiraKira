@@ -66,6 +66,7 @@ class Messages extends Table {
   TextColumn get characterId => text().nullable()(); // For group chats - which character sent this
   TextColumn get characterName => text().nullable()(); // Cached character name
   TextColumn get attachmentsJson => text().withDefault(const Constant('[]'))(); // JSON array of attachments
+  TextColumn get swipesDataJson => text().withDefault(const Constant('[]'))(); // JSON: per-swipe MvuData
 
   @override
   Set<Column> get primaryKey => {id};
@@ -260,7 +261,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-    int get schemaVersion => 14;
+     int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration {
@@ -337,6 +338,10 @@ class AppDatabase extends _$AppDatabase {
           // Add vector storage tables for RAG persistence
           await m.createTable(vectorCollections);
           await m.createTable(vectorDocuments);
+        }
+        if (from < 15) {
+          // per-swipe MVU variable data
+          await m.addColumn(messages, messages.swipesDataJson);
         }
       },
     );

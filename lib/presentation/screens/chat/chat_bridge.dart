@@ -225,6 +225,14 @@ class ChatBridge {
       _dispatch(m.type, m.payload);
     }
   }
+  /// 保险丝：JS ready 信号丢失时（老 WebView 常见），外部超时强制放行。
+  /// 已 ready 则直接跳过，对正常机器零影响。
+  void markReadyIfMissing() {
+    if (_ready) return;              // 新机器早已 ready，直接跳过
+    if (_controller == null) return; // 控制器没就绪就不动
+    onLog?.call('⏰ ready 信号缺失，超时保险触发，强制放行队列');
+    _onReady();                      // 复用同一套握手完成逻辑
+  }
 
   /// 发送出站指令给 WebView。握手未完成则自动入队（规矩 2）。
   void send(String type, Map<String, dynamic> payload) {

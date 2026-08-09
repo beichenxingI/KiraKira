@@ -1616,6 +1616,14 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('[]'));
+  static const VerificationMeta _swipesDataJsonMeta =
+      const VerificationMeta('swipesDataJson');
+  @override
+  late final GeneratedColumn<String> swipesDataJson = GeneratedColumn<String>(
+      'swipes_data_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -1630,7 +1638,8 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
         metadataJson,
         characterId,
         characterName,
-        attachmentsJson
+        attachmentsJson,
+        swipesDataJson
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1713,6 +1722,12 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
           attachmentsJson.isAcceptableOrUnknown(
               data['attachments_json']!, _attachmentsJsonMeta));
     }
+    if (data.containsKey('swipes_data_json')) {
+      context.handle(
+          _swipesDataJsonMeta,
+          swipesDataJson.isAcceptableOrUnknown(
+              data['swipes_data_json']!, _swipesDataJsonMeta));
+    }
     return context;
   }
 
@@ -1748,6 +1763,8 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
           .read(DriftSqlType.string, data['${effectivePrefix}character_name']),
       attachmentsJson: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}attachments_json'])!,
+      swipesDataJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}swipes_data_json'])!,
     );
   }
 
@@ -1771,6 +1788,7 @@ class Message extends DataClass implements Insertable<Message> {
   final String? characterId;
   final String? characterName;
   final String attachmentsJson;
+  final String swipesDataJson;
   const Message(
       {required this.id,
       required this.chatId,
@@ -1784,7 +1802,8 @@ class Message extends DataClass implements Insertable<Message> {
       required this.metadataJson,
       this.characterId,
       this.characterName,
-      required this.attachmentsJson});
+      required this.attachmentsJson,
+      required this.swipesDataJson});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1805,6 +1824,7 @@ class Message extends DataClass implements Insertable<Message> {
       map['character_name'] = Variable<String>(characterName);
     }
     map['attachments_json'] = Variable<String>(attachmentsJson);
+    map['swipes_data_json'] = Variable<String>(swipesDataJson);
     return map;
   }
 
@@ -1827,6 +1847,7 @@ class Message extends DataClass implements Insertable<Message> {
           ? const Value.absent()
           : Value(characterName),
       attachmentsJson: Value(attachmentsJson),
+      swipesDataJson: Value(swipesDataJson),
     );
   }
 
@@ -1847,6 +1868,7 @@ class Message extends DataClass implements Insertable<Message> {
       characterId: serializer.fromJson<String?>(json['characterId']),
       characterName: serializer.fromJson<String?>(json['characterName']),
       attachmentsJson: serializer.fromJson<String>(json['attachmentsJson']),
+      swipesDataJson: serializer.fromJson<String>(json['swipesDataJson']),
     );
   }
   @override
@@ -1866,6 +1888,7 @@ class Message extends DataClass implements Insertable<Message> {
       'characterId': serializer.toJson<String?>(characterId),
       'characterName': serializer.toJson<String?>(characterName),
       'attachmentsJson': serializer.toJson<String>(attachmentsJson),
+      'swipesDataJson': serializer.toJson<String>(swipesDataJson),
     };
   }
 
@@ -1882,7 +1905,8 @@ class Message extends DataClass implements Insertable<Message> {
           String? metadataJson,
           Value<String?> characterId = const Value.absent(),
           Value<String?> characterName = const Value.absent(),
-          String? attachmentsJson}) =>
+          String? attachmentsJson,
+          String? swipesDataJson}) =>
       Message(
         id: id ?? this.id,
         chatId: chatId ?? this.chatId,
@@ -1898,6 +1922,7 @@ class Message extends DataClass implements Insertable<Message> {
         characterName:
             characterName.present ? characterName.value : this.characterName,
         attachmentsJson: attachmentsJson ?? this.attachmentsJson,
+        swipesDataJson: swipesDataJson ?? this.swipesDataJson,
       );
   Message copyWithCompanion(MessagesCompanion data) {
     return Message(
@@ -1923,6 +1948,9 @@ class Message extends DataClass implements Insertable<Message> {
       attachmentsJson: data.attachmentsJson.present
           ? data.attachmentsJson.value
           : this.attachmentsJson,
+      swipesDataJson: data.swipesDataJson.present
+          ? data.swipesDataJson.value
+          : this.swipesDataJson,
     );
   }
 
@@ -1941,7 +1969,8 @@ class Message extends DataClass implements Insertable<Message> {
           ..write('metadataJson: $metadataJson, ')
           ..write('characterId: $characterId, ')
           ..write('characterName: $characterName, ')
-          ..write('attachmentsJson: $attachmentsJson')
+          ..write('attachmentsJson: $attachmentsJson, ')
+          ..write('swipesDataJson: $swipesDataJson')
           ..write(')'))
         .toString();
   }
@@ -1960,7 +1989,8 @@ class Message extends DataClass implements Insertable<Message> {
       metadataJson,
       characterId,
       characterName,
-      attachmentsJson);
+      attachmentsJson,
+      swipesDataJson);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1977,7 +2007,8 @@ class Message extends DataClass implements Insertable<Message> {
           other.metadataJson == this.metadataJson &&
           other.characterId == this.characterId &&
           other.characterName == this.characterName &&
-          other.attachmentsJson == this.attachmentsJson);
+          other.attachmentsJson == this.attachmentsJson &&
+          other.swipesDataJson == this.swipesDataJson);
 }
 
 class MessagesCompanion extends UpdateCompanion<Message> {
@@ -1994,6 +2025,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
   final Value<String?> characterId;
   final Value<String?> characterName;
   final Value<String> attachmentsJson;
+  final Value<String> swipesDataJson;
   final Value<int> rowid;
   const MessagesCompanion({
     this.id = const Value.absent(),
@@ -2009,6 +2041,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     this.characterId = const Value.absent(),
     this.characterName = const Value.absent(),
     this.attachmentsJson = const Value.absent(),
+    this.swipesDataJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MessagesCompanion.insert({
@@ -2025,6 +2058,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     this.characterId = const Value.absent(),
     this.characterName = const Value.absent(),
     this.attachmentsJson = const Value.absent(),
+    this.swipesDataJson = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         chatId = Value(chatId),
@@ -2045,6 +2079,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     Expression<String>? characterId,
     Expression<String>? characterName,
     Expression<String>? attachmentsJson,
+    Expression<String>? swipesDataJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2061,6 +2096,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       if (characterId != null) 'character_id': characterId,
       if (characterName != null) 'character_name': characterName,
       if (attachmentsJson != null) 'attachments_json': attachmentsJson,
+      if (swipesDataJson != null) 'swipes_data_json': swipesDataJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2079,6 +2115,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       Value<String?>? characterId,
       Value<String?>? characterName,
       Value<String>? attachmentsJson,
+      Value<String>? swipesDataJson,
       Value<int>? rowid}) {
     return MessagesCompanion(
       id: id ?? this.id,
@@ -2094,6 +2131,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       characterId: characterId ?? this.characterId,
       characterName: characterName ?? this.characterName,
       attachmentsJson: attachmentsJson ?? this.attachmentsJson,
+      swipesDataJson: swipesDataJson ?? this.swipesDataJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2140,6 +2178,9 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     if (attachmentsJson.present) {
       map['attachments_json'] = Variable<String>(attachmentsJson.value);
     }
+    if (swipesDataJson.present) {
+      map['swipes_data_json'] = Variable<String>(swipesDataJson.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2162,6 +2203,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
           ..write('characterId: $characterId, ')
           ..write('characterName: $characterName, ')
           ..write('attachmentsJson: $attachmentsJson, ')
+          ..write('swipesDataJson: $swipesDataJson, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8338,6 +8380,7 @@ typedef $$MessagesTableCreateCompanionBuilder = MessagesCompanion Function({
   Value<String?> characterId,
   Value<String?> characterName,
   Value<String> attachmentsJson,
+  Value<String> swipesDataJson,
   Value<int> rowid,
 });
 typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
@@ -8354,6 +8397,7 @@ typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
   Value<String?> characterId,
   Value<String?> characterName,
   Value<String> attachmentsJson,
+  Value<String> swipesDataJson,
   Value<int> rowid,
 });
 
@@ -8421,6 +8465,10 @@ class $$MessagesTableFilterComposer
 
   ColumnFilters<String> get attachmentsJson => $composableBuilder(
       column: $table.attachmentsJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get swipesDataJson => $composableBuilder(
+      column: $table.swipesDataJson,
       builder: (column) => ColumnFilters(column));
 
   $$ChatsTableFilterComposer get chatId {
@@ -8493,6 +8541,10 @@ class $$MessagesTableOrderingComposer
       column: $table.attachmentsJson,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get swipesDataJson => $composableBuilder(
+      column: $table.swipesDataJson,
+      builder: (column) => ColumnOrderings(column));
+
   $$ChatsTableOrderingComposer get chatId {
     final $$ChatsTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -8559,6 +8611,9 @@ class $$MessagesTableAnnotationComposer
   GeneratedColumn<String> get attachmentsJson => $composableBuilder(
       column: $table.attachmentsJson, builder: (column) => column);
 
+  GeneratedColumn<String> get swipesDataJson => $composableBuilder(
+      column: $table.swipesDataJson, builder: (column) => column);
+
   $$ChatsTableAnnotationComposer get chatId {
     final $$ChatsTableAnnotationComposer composer = $composerBuilder(
         composer: this,
@@ -8616,6 +8671,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             Value<String?> characterId = const Value.absent(),
             Value<String?> characterName = const Value.absent(),
             Value<String> attachmentsJson = const Value.absent(),
+            Value<String> swipesDataJson = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MessagesCompanion(
@@ -8632,6 +8688,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             characterId: characterId,
             characterName: characterName,
             attachmentsJson: attachmentsJson,
+            swipesDataJson: swipesDataJson,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -8648,6 +8705,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             Value<String?> characterId = const Value.absent(),
             Value<String?> characterName = const Value.absent(),
             Value<String> attachmentsJson = const Value.absent(),
+            Value<String> swipesDataJson = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MessagesCompanion.insert(
@@ -8664,6 +8722,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             characterId: characterId,
             characterName: characterName,
             attachmentsJson: attachmentsJson,
+            swipesDataJson: swipesDataJson,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
