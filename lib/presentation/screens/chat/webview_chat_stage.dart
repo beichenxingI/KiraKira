@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:ui';
 import '../../widgets/common/glass_container.dart';
 import 'package:flutter/material.dart';
@@ -142,6 +142,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   static bool _libsLoaded = false;
   static String? _mvuBundleRaw;
   static bool _mvuLoaded = false;
+  static String? _ejsBundleRaw;
+  static bool _ejsLoaded = false;
+  static String? _ejsStubRaw;
+  static bool _ejsStubLoaded = false;
 
   /// 加载并缓存第三方库（base64 编码，供内联注入）。只在首次调用时真正读取。
   static Future<void> _loadCompatLibs() async {
@@ -162,6 +166,28 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
   /// 加载并缓存 MVU bundle(base64),供引擎房内联。
+  static Future<void> _loadEjsStub() async {
+    if (_ejsStubLoaded) return;
+    try {
+      final bundle = await rootBundle.loadString('assets/libs/ejs_stub.js');
+      _ejsStubRaw = bundle;
+      _ejsStubLoaded = true;
+    } catch (e) {
+      KiraLogger().info('EJS', 'stub 加载失败: $e');
+    }
+  }
+
+  static Future<void> _loadEjsBundle() async {
+    if (_ejsLoaded) return;
+    try {
+      final bundle = await rootBundle.loadString('assets/libs/ejs_bundle.js');
+      _ejsBundleRaw = bundle;
+      _ejsLoaded = true;
+    } catch (e) {
+      KiraLogger().info('EJS', 'bundle 加载失败: $e');
+    }
+  }
+
   static Future<void> _loadMvuBundle() async {
     if (_mvuLoaded) return;
     try {
@@ -220,6 +246,28 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   }
   /// 把 MVU bundle(base64)注入外层 window.__KIRA_MVU_BUNDLE,
   /// 供 createEngineRoom 建引擎房时内联为 ES module。
+  Future<void> _injectEjsStub(InAppWebViewController c) async {
+    if (!_ejsStubLoaded || _ejsStubRaw == null) return;
+    final b64 = base64Encode(utf8.encode(_ejsStubRaw!));
+    final js = 'window.__KIRA_EJS_STUB="$b64";';
+    try {
+      await c.evaluateJavascript(source: js);
+    } catch (e) {
+      KiraLogger().info('EJS', 'stub 注入失败: $e');
+    }
+  }
+
+  Future<void> _injectEjsBundle(InAppWebViewController c) async {
+    if (!_ejsLoaded || _ejsBundleRaw == null) return;
+    final b64 = base64Encode(utf8.encode(_ejsBundleRaw!));
+    final js = 'window.__KIRA_EJS_BUNDLE="$b64";';
+    try {
+      await c.evaluateJavascript(source: js);
+    } catch (e) {
+      KiraLogger().info('EJS', 'bundle 注入失败: $e');
+    }
+  }
+
   Future<void> _injectMvuBundle(InAppWebViewController c) async {
     if (!_mvuLoaded || _mvuBundleRaw == null) return;
 
@@ -269,6 +317,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       if (!mounted) return;
       await _loadCompatLibs();
       await _loadMvuBundle();
+      await _loadEjsStub();
+      await _loadEjsBundle();
       if (!mounted) return;
       ref.read(activeChatProvider.notifier).loadChat(widget.chatId);
       // 延迟挂载 WebView:让入场这段时间保持纯 Flutter(无 WebView 重活),动画/遮罩流畅
@@ -565,12 +615,15 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest('th_wiGetLorebookSettings', _handleWiGetLorebookSettings);
                     _bridge.onRequest('th_wiSetLorebookSettings', _handleWiSetLorebookSettings);
                     _bridge.onRequest('th_generateRaw', _handleGenerateRaw);
+    _bridge.onRequest('th_renderEJS', _handleRenderEJS);
                   },
                   onLoadStop: (c, url) async {
                     await _injectCompatLibs(c); // 注入第三方库到外层window
                     await _injectMacroValues(c); // 注入宏替换用的角色名/用户名
                     await _injectEngineFacade(c); // 注入引擎房共享门面
-                    await _injectMvuBundle(c); // 注入 MVU bundle 供引擎房内联
+                    await _injectMvuBundle(c);
+      await _injectEjsStub(c);
+      await _injectEjsBundle(c); // 注入 EJS bundle 供引擎房内联
                     await c.evaluateJavascript(
                         source: 'if(window.createEngineRoom)window.createEngineRoom();');
     // 保险丝：2 秒后若 JS 的 ready 信号仍未到（老 WebView），强制放行
@@ -967,6 +1020,41 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
     return result;
     }
+
+  /// EJS 渲染桥:接收文本,发进引擎房跑 dist 的 EJS,返回渲染后的文本。
+  Future<String> _handleRenderEJS(Map<String, dynamic> payload) async {
+    final text = payload['text'] as String? ?? '';
+    if (text.isEmpty) return text;
+
+    final controller = _controller;
+    if (controller == null) return text;
+
+    try {
+      final js = '''
+        (function() {
+          try {
+            var text = ${jsonEncode(text)};
+            if (typeof window._TH !== 'undefined' && typeof window._TH.substituteParams === 'function') {
+              return window._TH.substituteParams(text);
+            }
+            return text;
+          } catch (e) {
+            console.error('[EJS渲染错误]', e);
+            return text;
+          }
+        })();
+      ''';
+
+      final result = await controller.evaluateJavascript(source: js);
+      if (result != null && result is String) {
+        return result;
+      }
+      return text;
+    } catch (e) {
+      KiraLogger().info('EJS渲染', '渲染失败 error=$e');
+      return text;
+    }
+  }
   /// 酒馆助手 generateRaw：MVU 额外模型解析走这里。
   /// 拆 cfg.custom_api 造临时 LLMConfig，拍平 ordered_prompts+injects 成 messages，
   /// 调 llm_service 发一次请求，把文本原样回传给 MVU（MVU 自己解析 _.set 后走 setVariables 落库）。
@@ -1260,7 +1348,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         debugPrint('[setVars落点] targetIndex=$targetIndex '
             '写入的stat_data=${jsonEncode(vars['stat_data'])}');
         // 同步引擎房镜像
-        _syncVarsToEngine('message', vars, messageId: targetIndex, lastMsgId: targetIndex);
+        _syncVarsToEngine('message', vars, messageId: targetIndex, lastMsgId: targetIndex, swipeId: swipeId);
         return vars;
       }
       // 连一条消息都没有（极端情况），才落 chat 兜底
@@ -1276,13 +1364,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return readBack;
   }
   /// 反向同步:把变量表推进引擎房镜像。
-  void _syncVarsToEngine(String type, Map<String, dynamic> data, {int? messageId, int? lastMsgId}) {
+  void _syncVarsToEngine(String type, Map<String, dynamic> data, {int? messageId, int? lastMsgId, int? swipeId}) {
     final dataJson = jsonEncode(data);
     final midArg = messageId?.toString() ?? 'null';
     final lastArg = lastMsgId?.toString() ?? 'null';
+    final swipeArg = swipeId?.toString() ?? 'null';
     _controller?.evaluateJavascript(
         source: 'if(window.__syncVarsToEngine)window.__syncVarsToEngine('
-            '"$type",$dataJson,$midArg,$lastArg);');
+            '"$type",$dataJson,$midArg,$lastArg,$swipeArg);');
   }
   /// 推送角色主世界书名到引擎房镜像（供 MVU isExtraModelSupported 同步读）
   Future<void> _syncPrimaryLorebookToEngine() async {
@@ -3546,14 +3635,14 @@ window.addEventListener('message', function(e) {
     } catch(e) { return false; }
   };
 // ── 外层 → 引擎房:推真实变量进镜像(反向同步) ──
-  window.__syncVarsToEngine = function(type, data, messageId, lastMsgId) {
+  window.__syncVarsToEngine = function(type, data, messageId, lastMsgId, swipeId) {
     try {
       var host = document.getElementById('__engineRoomHost');
       var f = host && host.querySelector('iframe[data-frame-id="engine-room"]');
       if (f && f.contentWindow) {
         f.contentWindow.postMessage({
           __varSync: true, type: type, data: data,
-          message_id: messageId, lastMsgId: lastMsgId
+          message_id: messageId, lastMsgId: lastMsgId, swipe_id: swipeId
         }, '*');
         return true;
       }
@@ -4147,6 +4236,57 @@ window.addEventListener('message', function(e) {
               ms.src = URL.createObjectURL(bl);
               frame.contentDocument.head.appendChild(ms);
               parent.postMessage({__thLog:true,text:'[引擎房] MVU 模块已注入'},'*');
+              // ── EJS 注入（Mimic：桩 + 15 路径替换）──
+              try {
+                var ejsB64 = window.__KIRA_EJS_BUNDLE;
+                var stubB64 = window.__KIRA_EJS_STUB;
+                if (ejsB64 && stubB64 && frame.contentDocument) {
+                  var cs = frame.contentDocument.createElement('script');
+                  cs.textContent = '(function(){function _send(t){try{parent.postMessage({__thLog:true,text:t},"*");}catch(e){}}var _o=console.log.bind(console);console.log=function(){try{var a=Array.prototype.slice.call(arguments).map(function(x){return (typeof x==="object")?JSON.stringify(x):String(x);}).join(" ");_send("[引擎房:console] "+a);}catch(e){}_o.apply(console,arguments);};var _e=console.error.bind(console);console.error=function(){try{var a=Array.prototype.slice.call(arguments).map(function(x){return (x&&x.stack)?x.stack:((typeof x==="object")?JSON.stringify(x):String(x));}).join(" ");_send("[引擎房:console.error] "+a);}catch(e){}_e.apply(console,arguments);};window.onerror=function(m,s,l,col,err){_send("[引擎房:onerror] "+m+" @"+l+":"+col+" | "+((err&&err.stack)||""));return false;};window.addEventListener("unhandledrejection",function(ev){var r=ev&&ev.reason;_send("[引擎房:rejection] "+((r&&r.stack)||String(r)));});})();';
+                  frame.contentDocument.head.appendChild(cs);
+                  var stubBytes = Uint8Array.from(atob(stubB64), function(c){ return c.charCodeAt(0); });
+                  var stubUrl = URL.createObjectURL(new Blob([stubBytes],{type:'text/javascript'}));
+                  var distBin = atob(ejsB64);
+                  var paths = [
+                    '../libs/faker.mjs',
+                    '../../../../../lib.js',
+                    '../../../../../script.js',
+                    '../../../../extensions.js',
+                    '../../../../group-chats.js',
+                    '../../../../openai.js',
+                    '../../../../power-user.js',
+                    '../../../../reasoning.js',
+                    '../../../../slash-commands.js',
+                    '../../../../slash-commands/SlashCommand.js',
+                    '../../../../slash-commands/SlashCommandArgument.js',
+                    '../../../../slash-commands/SlashCommandParser.js',
+                    '../../../../tokenizers.js',
+                    '../../../../utils.js',
+                    '../../../../world-info.js',
+                    '../../../regex/engine.js'
+                  ];
+                  var hit = 0;
+                  for (var pi=0; pi<paths.length; pi++) {
+                    var p = paths[pi];
+                    var before = distBin.length;
+                    distBin = distBin.split('"'+p+'"').join('"'+stubUrl+'"');
+                    if (distBin.length !== before) hit++;
+                  }
+                  parent.postMessage({__thLog:true,text:'[引擎房] EJS 路径替换 命中'+hit+'/'+paths.length},'*');
+                  var distBytes = Uint8Array.from(distBin, function(c){ return c.charCodeAt(0); });
+                  var ejsMs = frame.contentDocument.createElement('script');
+                  ejsMs.type = 'module';
+                  var distUrl = URL.createObjectURL(new Blob([distBytes],{type:'text/javascript'}));
+                  ejsMs.src = distUrl;
+                  frame.contentDocument.head.appendChild(ejsMs);
+                  parent.postMessage({__thLog:true,text:'[引擎房] EJS 模块已注入'},'*');
+                  
+                } else {
+                  parent.postMessage({__thLog:true,text:'[引擎房] EJS bundle/stub 缺失'},'*');
+                }
+              } catch(ejsErr) {
+                parent.postMessage({__thLog:true,text:'[引擎房] EJS 注入失败: '+ejsErr},'*');
+              }
             }
           } catch(e) {
             parent.postMessage({__thLog:true,text:'[引擎房] MVU 注入失败: '+e},'*');

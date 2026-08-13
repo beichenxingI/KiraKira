@@ -93,6 +93,7 @@ String buildTavernHelperFacadeJs({
       '});'
       // ── _TH 门面接口 ──
       'var _TH={};'
+      'window._TH=_TH;'
       '_TH.getChatMessages=function(range,option){'
       'var _m=(window.__chatMessages||[]).slice();'
       'var _r;'
@@ -116,12 +117,29 @@ String buildTavernHelperFacadeJs({
       '_TH.__lastMsgId=0;'
       '_TH.__primaryLorebook=null;'
       '_TH.__varCache={global:{},chat:{},message:{}};'
+      // ── EJS 标准对象:与镜像同源,供 dist/index.js 的 externals import ──
+      'window.extension_settings=window.extension_settings||{};'
+      'window.extension_settings.variables=window.extension_settings.variables||{global:{}};'
+      'window.chat_metadata=window.chat_metadata||{variables:{}};'
+      'window.chat=window.chat||[];'
       // ── 收外层推来的真实变量 → 回填镜像(反向同步) ──
       'window.addEventListener("message",function(e){'
       'var d=e.data;if(!d||!d.__varSync)return;'
       'var t=d.type||"chat";'
       'if(t==="message"){_TH.__varCache.message[d.message_id]=d.data||{};}'
       'else{_TH.__varCache[t]=d.data||{};}'
+      // 同源回填 EJS 标准对象(与镜像并存,MVU 读镜像/EJS 读标准对象)
+      'if(t==="global"){window.extension_settings.variables.global=d.data||{};}'
+      'else if(t==="chat"){window.chat_metadata.variables=d.data||{};}'
+      'else if(t==="message"){'
+      'var _mid=d.message_id;'
+      'if(typeof _mid==="number"){'
+      'window.chat[_mid]=window.chat[_mid]||{};'
+      'window.chat[_mid].variables=window.chat[_mid].variables||[];'
+      'var _sw=(typeof d.swipe_id==="number")?d.swipe_id:0;'
+      'window.chat[_mid].swipe_id=_sw;'
+      'window.chat[_mid].variables[_sw]=d.data||{};'
+      '}}'
       'if(typeof d.lastMsgId==="number")_TH.__lastMsgId=d.lastMsgId;'
       'parent.postMessage({__thLog:true,text:"[引擎房] 变量同步 "+t},"*");'
       '});'                                                              // ← 新增：闭合监听器①
@@ -227,7 +245,7 @@ String buildTavernHelperFacadeJs({
       '_TH.eventEmitAndWait=function(type){var args=Array.prototype.slice.call(arguments,1);var l=(_TH.__events[type]||[]).slice();var results=[];for(var i=0;i<l.length;i++){try{results.push(l[i].apply(null,args));}catch(e){console.error("[事件]"+type,e);}}return Promise.all(results);};'
       // tavern_events / iframe_events 常量表
       'window.tavern_events={'
-      'MESSAGE_RECEIVED:"message_received",MESSAGE_UPDATED:"message_updated",MESSAGE_SWIPED:"message_swiped",MESSAGE_DELETED:"message_deleted",MORE_MESSAGES_LOADED:"more_messages_loaded",CHAT_CHANGED:"chat_changed",CHARACTER_MESSAGE_RENDERED:"character_message_rendered",USER_MESSAGE_RENDERED:"user_message_rendered",GENERATION_AFTER_COMMANDS:"generation_after_commands",GENERATION_STARTED:"generation_started",GENERATION_STOPPED:"generation_stopped",GENERATION_ENDED:"generation_ended",STREAM_TOKEN_RECEIVED:"stream_token_received",CONNECTED:"connected",DISCONNECTED:"disconnected",EXTENSION_SETTINGS_LOADED:"extension_settings_loaded",CHARACTER_SELECTED:"character_selected",CHARACTER_DELETED:"character_deleted",CHARACTER_RENAMED:"character_renamed",CHARACTER_CREATED:"character_created",CHAT_DELETED:"chat_deleted",GROUP_UPDATED:"group_updated",PRESET_RENAMED_BEFORE:"preset_renamed_before",MAIN_API_CHANGED:"main_api_changed",WORLDINFO_ENTRIES_LOADED:"worldinfo_entries_loaded",WORLDINFO_SCAN_DONE:"worldinfo_scan_done"'
+      'MESSAGE_RECEIVED:"message_received",MESSAGE_UPDATED:"message_updated",MESSAGE_SWIPED:"message_swiped",MESSAGE_DELETED:"message_deleted",MORE_MESSAGES_LOADED:"more_messages_loaded",CHAT_CHANGED:"chat_changed",CHARACTER_MESSAGE_RENDERED:"character_message_rendered",USER_MESSAGE_RENDERED:"user_message_rendered",GENERATION_AFTER_COMMANDS:"generation_after_commands",GENERATION_STARTED:"generation_started",GENERATION_STOPPED:"generation_stopped",GENERATION_ENDED:"generation_ended",STREAM_TOKEN_RECEIVED:"stream_token_received",CONNECTED:"connected",DISCONNECTED:"disconnected",EXTENSION_SETTINGS_LOADED:"extension_settings_loaded",CHARACTER_SELECTED:"character_selected",CHARACTER_DELETED:"character_deleted",CHARACTER_RENAMED:"character_renamed",CHARACTER_CREATED:"character_created",CHAT_DELETED:"chat_deleted",GROUP_UPDATED:"group_updated",PRESET_RENAMED_BEFORE:"preset_renamed_before",MAIN_API_CHANGED:"main_api_changed",WORLDINFO_ENTRIES_LOADED:"worldinfo_entries_loaded",WORLDINFO_SCAN_DONE:"worldinfo_scan_done",CHAT_COMPLETION_PROMPT_READY:"chatcompletion_prompt_ready",CHAT_COMPLETION_SETTINGS_READY:"chatcompletion_settings_ready",GENERATE_AFTER_DATA:"generate_after_data",APP_READY:"app_ready",MESSAGE_SENT:"message_sent",MESSAGE_SWIPE_DELETED:"message_swipe_deleted",SETTINGS_LOADED:"settings_loaded",SETTINGS_UPDATED:"settings_updated",WORLDINFO_FORCE_ACTIVATE:"worldinfo_force_activate",WORLDINFO_UPDATED:"worldinfo_updated"'
       '};'
       'window.iframe_events={GENERATION_STARTED:"iframe_generation_started",GENERATION_ENDED:"iframe_generation_ended",STREAM_TOKEN_RECEIVED_FULLY:"iframe_stream_token_received_fully",STREAM_TOKEN_RECEIVED_INCREMENTALLY:"iframe_stream_token_received_incrementally"};'
       // 全部裸挂到 window

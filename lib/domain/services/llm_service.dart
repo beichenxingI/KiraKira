@@ -409,10 +409,34 @@ class LLMService {
   }
 
   /// Generate a response with reasoning/thinking support (non-streaming)
+  /// EJS 渲染:遍历 messages,对每条 content 调引擎房 EJS 渲染,返回新数组。
+  Future<List<Map<String, dynamic>>> _renderEJSInMessages(
+    List<Map<String, dynamic>> messages,
+  ) async {
+    // TODO: 调 webview 桥 th_renderEJS 渲染每条 content
+    // 当前占位:直接返回原 messages(下一步补真正的桥调用)
+    final rendered = <Map<String, dynamic>>[];
+    for (final msg in messages) {
+      final role = msg['role'] as String? ?? 'system';
+      final content = msg['content'];
+      
+      if (content is String && content.isNotEmpty) {
+        // 这里下一步会调 webview 桥渲染 content
+        rendered.add({'role': role, 'content': content});
+      } else {
+        rendered.add(msg);
+      }
+    }
+    return rendered;
+  }
+
   Future<LLMResponse> generateWithReasoning(
     List<Map<String, dynamic>> messages,
     LLMConfig config,
   ) async {
+    // EJS 渲染:发给 LLM 前先跑一遍 EJS
+    messages = await _renderEJSInMessages(messages);
+
     switch (config.provider) {
       
       case LLMProvider.deepSeek:
@@ -449,24 +473,27 @@ class LLMService {
   Stream<LLMStreamChunk> generateStreamWithReasoning(
     List<Map<String, dynamic>> messages,
     LLMConfig config,
-  ) {
+  ) async* {
+    // EJS 渲染:流式生成前先跑一遍 EJS
+    messages = await _renderEJSInMessages(messages);
+
     switch (config.provider) {
       
       case LLMProvider.deepSeek:
       case LLMProvider.qwen:
       case LLMProvider.openAICompatible:
       case LLMProvider.openai:
-        return _streamOpenAIWithReasoning(messages, config);
+        yield* _streamOpenAIWithReasoning(messages, config);
       case LLMProvider.claude:
-        return _streamClaudeWithReasoning(messages, config);
+        yield* _streamClaudeWithReasoning(messages, config);
       case LLMProvider.openRouter:
-        return _streamOpenAIWithReasoning(messages, config); // Same as OpenAI
+        yield* _streamOpenAIWithReasoning(messages, config); // Same as OpenAI
       case LLMProvider.gemini:
-        return _streamGeminiWithReasoning(messages, config);
+        yield* _streamGeminiWithReasoning(messages, config);
       case LLMProvider.ollama:
-        return _streamOllamaWithReasoning(messages, config);
+        yield* _streamOllamaWithReasoning(messages, config);
       case LLMProvider.koboldCpp:
-        return _streamKoboldWithReasoning(messages, config);
+        yield* _streamKoboldWithReasoning(messages, config);
     }
   }
   Future<ConnectionMeasurement> measureConnection(LLMConfig config) async {
