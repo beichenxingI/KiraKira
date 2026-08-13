@@ -314,6 +314,7 @@ class GeekDashboardScreen extends ConsumerWidget {
       _GeekEntry(Icons.emoji_emotions, '精灵图', '/sprite-settings'),
       _GeekEntry(Icons.data_object, '变量管理', '/variables-settings'),
       _GeekEntry(Icons.analytics, '日志统计', '/statistics'),
+      _GeekEntry(Icons.extension, 'MVU 变量框架', '/mvu-settings'),
     ];
 
     return KiraSection(

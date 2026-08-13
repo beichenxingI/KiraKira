@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:kirakira/data/models/mvu_settings.dart';
 
 /// 共享 TavernHelper 门面(酒馆助手环境注入脚本)。
 ///
@@ -8,7 +9,10 @@ import 'dart:convert';
 ///
 /// [frameId] 每个 iframe 的唯一标识,用于 __thCall 请求路由。
 /// 宿主须在加载前往 window 注入 __KIRA_MACRO_VALUES({user,char})。
-String buildTavernHelperFacadeJs({required String frameId}) {
+String buildTavernHelperFacadeJs({
+  required String frameId,
+  required MvuSettings mvu,
+}) {
   return '(function(){'
       // ── localStorage / sessionStorage polyfill(老 WebView 兜底) ──
       'var _s={};try{localStorage.getItem("__t");}catch(e){'
@@ -89,7 +93,18 @@ String buildTavernHelperFacadeJs({required String frameId}) {
       '});'
       // ── _TH 门面接口 ──
       'var _TH={};'
-      '_TH.getChatMessages=function(range,option){var _m=(window.__chatMessages||[]).slice();var _last=_m[_m.length-1]||{};parent.postMessage({__thLog:true,text:"[闸探针] 末条name="+JSON.stringify(_last.name)+" name2="+JSON.stringify((window.SillyTavern&&window.SillyTavern.name2))+" is_user="+_last.is_user+" msg长度="+((_last.message||"").length)},"*");parent.postMessage({__thLog:true,text:"[镜像读取] range="+JSON.stringify(range)+" 返回条数="+_m.length},"*");return _m;};'
+      '_TH.getChatMessages=function(range,option){'
+      'var _m=(window.__chatMessages||[]).slice();'
+      'var _r;'
+      'if(typeof range==="number"){'
+      'var idx=range<0?_m.length+range:range;'
+      'var one=_m[idx];'
+      '_r=one?[one]:[];'
+      '}else{_r=_m;}'
+      'var _last=_r[_r.length-1]||{};'
+      'parent.postMessage({__thLog:true,text:"[闸探针] range="+JSON.stringify(range)+" 取到name="+JSON.stringify(_last.name)+" name2="+JSON.stringify((window.SillyTavern&&window.SillyTavern.name2))+" is_user="+_last.is_user+" 返回条数="+_r.length},"*");'
+      'return _r;'
+      '};'
       '_TH.setChatMessage=function(content,index,option){return __thCall("setChatMessage",[content,index,option||{}]);};'
       '_TH.setChatMessages=function(msgs,option){return __thCall("setChatMessages",[msgs,option||{}]);};'
       '_TH.createChatMessages=function(msgs,option){return __thCall("createChatMessages",[msgs,option||{}]);};'
@@ -99,7 +114,7 @@ String buildTavernHelperFacadeJs({required String frameId}) {
       // ── 变量镜像(同步读):MVU 的 getVariables/getLastMessageId 是同步调用 ──
       // 读走本地镜像,写走桥落库后回填镜像(见 updateVariablesWith / __varSync)
       '_TH.__lastMsgId=0;'
-      '_TH.__varCache={global:{},chat:{},message:{}};'
+      '_TH.__primaryLorebook=null;'
       '_TH.__varCache={global:{},chat:{},message:{}};'
       // ── 收外层推来的真实变量 → 回填镜像(反向同步) ──
       'window.addEventListener("message",function(e){'
@@ -109,6 +124,12 @@ String buildTavernHelperFacadeJs({required String frameId}) {
       'else{_TH.__varCache[t]=d.data||{};}'
       'if(typeof d.lastMsgId==="number")_TH.__lastMsgId=d.lastMsgId;'
       'parent.postMessage({__thLog:true,text:"[引擎房] 变量同步 "+t},"*");'
+      '});'                                                              // ← 新增：闭合监听器①
+      // ── 收外层推来的主世界书名 → 回填镜像 ──
+      'window.addEventListener("message",function(e){'
+      'var d=e.data;if(!d||!d.__primaryLorebookSync)return;'
+      '_TH.__primaryLorebook=(typeof d.name==="string")?d.name:null;'
+      'parent.postMessage({__thLog:true,text:"[引擎房] 主世界书同步 "+_TH.__primaryLorebook},"*");'
       '});'
       '_TH.getCurrentMessageId=function(){return (window.__chatMessages||[]).length-1;};'
       '_TH.getLastMessageId=function(){return (window.__chatMessages||[]).length-1;};'
@@ -160,7 +181,7 @@ String buildTavernHelperFacadeJs({required String frameId}) {
       // MVU 启动依赖:generate 空桩(真实现押后)
       '_TH.generate=function(cfg){parent.postMessage({__thLog:true,text:"[stub] generate 空桩"},"*");return Promise.resolve("");};'
       'window.generate=_TH.generate;'
-      '_TH.generateRaw=function(cfg){return Promise.resolve("");};'
+      '_TH.generateRaw=function(cfg){parent.postMessage({__thLog:true,text:"[额外模型] generateRaw被调 hasCustomApi="+(!!(cfg&&cfg.custom_api))+" prompts="+((cfg&&cfg.ordered_prompts||[]).length)+" injects="+((cfg&&cfg.injects||[]).length)},"*");return __thCall("generateRaw",[cfg]);};'
       'window.generateRaw=_TH.generateRaw;'
       // substitudeMacros:同步宏替换(读宿主注入的 window.__KIRA_MACRO_VALUES)
       '_TH.substitudeMacros=function(t){'
@@ -174,6 +195,8 @@ String buildTavernHelperFacadeJs({required String frameId}) {
       'window.substitudeMacros=_TH.substitudeMacros;'
       // 世界书接口
       '_TH.getLorebookEntries=function(name){return __thCall("getLorebookEntries",[name]);};'
+      '_TH.getCurrentCharPrimaryLorebook=function(){return _TH.__primaryLorebook;};'
+      'window.getCurrentCharPrimaryLorebook=_TH.getCurrentCharPrimaryLorebook;'
       '_TH.getEnabledLorebookList=function(){return __thCall("getEnabledLorebookList",[]);};'
       'window.getEnabledLorebookList=_TH.getEnabledLorebookList;'
       '_TH.setLorebookEntries=function(name,entries){return __thCall("setLorebookEntries",[name,entries||[]]);};'
@@ -243,7 +266,22 @@ String buildTavernHelperFacadeJs({required String frameId}) {
       'saveChat:function(){return Promise.resolve();},'
       'saveSettingsDebounced:function(){},'
       'getCurrentChatId:function(){return window.__KIRA_CHAT_ID||"";},'
-      'name1:"You",name2:((window.__KIRA_MACRO_VALUES&&window.__KIRA_MACRO_VALUES.char)||"")};'
+      '__macros:{},'
+      'registerMacro:function(k,fn){try{window.SillyTavern.__macros[k]=fn;}catch(e){}},'
+      'unregisterMacro:function(k){try{delete window.SillyTavern.__macros[k];}catch(e){}},'
+      'name1:"You",name2:((window.__KIRA_MACRO_VALUES&&window.__KIRA_MACRO_VALUES.char)||""),'
+      'extensionSettings:{mvu_settings:{'
+      '更新方式:${jsonEncode(mvu.updateMode)},'
+      '额外模型解析配置:{'
+      '破限方案:${jsonEncode(mvu.jailbreakScheme)},'
+      '启用自动请求:${mvu.autoRequest},'
+      'max_chat_history:${mvu.maxChatHistory},'
+      '模型来源:${jsonEncode(mvu.modelSource)},'
+      'api地址:${jsonEncode(mvu.apiUrl)},'
+      '密钥:${jsonEncode(mvu.apiKey)},'
+      '模型名称:${jsonEncode(mvu.modelName)}'
+      '}}}'
+      '};'
       'try{Object.defineProperty(window.SillyTavern,"chat",{configurable:true,get:function(){return window.__chatMessages||[];}});}catch(e){window.SillyTavern.chat=window.__chatMessages||[];}'
       'window.appendInexistentScriptButtons=function(){};'
       'window.getButtonEvent=function(n){return "button_event_"+n;};'

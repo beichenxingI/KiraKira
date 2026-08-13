@@ -41,6 +41,7 @@ import 'package:kirakira/presentation/screens/tags/tags_screen.dart';
 import 'package:kirakira/presentation/widgets/common/app_shell.dart';
 import 'package:kirakira/presentation/screens/chat/webview_chat_stage.dart';
 import 'package:kirakira/presentation/screens/settings/geek_dashboard_screen.dart';
+import 'package:kirakira/presentation/screens/settings/mvu_settings_screen.dart';
 
 /// Route paths
 import '../screens/ai_config/model_detection_screen.dart';
@@ -80,6 +81,7 @@ abstract class AppRoutes {
   static const imageGenSettings = '/image-gen-settings';
   static const regexSettings = '/regex-settings';
   static const variablesSettings = '/variables-settings';
+  static const mvuSettings = '/mvu-settings';
   static const logitBiasSettings = '/logit-bias-settings';
   static const cfgScaleSettings = '/cfg-scale-settings';
   static const logprobsSettings = '/logprobs-settings';
@@ -298,6 +300,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'statistics',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const StatisticsScreen(),
+      ),
+     GoRoute(
+        path: AppRoutes.mvuSettings,
+        name: 'mvuSettings',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const MvuSettingsScreen(),
       ),
       GoRoute(
         path: AppRoutes.aiPresets,

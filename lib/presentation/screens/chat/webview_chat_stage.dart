@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:ui';
 import '../../widgets/common/glass_container.dart';
 import 'package:flutter/material.dart';
@@ -46,6 +46,8 @@ import 'package:kirakira/core/utils/path_utils.dart';
 import 'package:kirakira/presentation/providers/context_usage_providers.dart';
 import 'package:image/image.dart' as img;
 import 'package:kirakira/presentation/providers/tts_providers.dart';
+import 'package:kirakira/domain/services/llm_service.dart';
+import 'package:kirakira/presentation/providers/mvu_settings_providers.dart';
 
 /// compute 用的顶层函数：在独立 isolate 读文件并返回 base64 字符串。
 String _readFileAsB64(String path) {
@@ -138,7 +140,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   static String? _toastrJsB64;
   static String? _toastrCssB64;
   static bool _libsLoaded = false;
-  static String? _mvuBundleB64;
+  static String? _mvuBundleRaw;
   static bool _mvuLoaded = false;
 
   /// 加载并缓存第三方库（base64 编码，供内联注入）。只在首次调用时真正读取。
@@ -164,7 +166,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     if (_mvuLoaded) return;
     try {
       final bundle = await rootBundle.loadString('assets/libs/mvu_bundle.js');
-      _mvuBundleB64 = base64Encode(utf8.encode(bundle));
+      _mvuBundleRaw = bundle;
       _mvuLoaded = true;
     } catch (e) {
       KiraLogger().info('MVU', 'bundle 加载失败: $e');
@@ -207,7 +209,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   /// 把共享 TavernHelper 门面注入到外层 window.__ENGINE_FACADE_JS,
   /// 供 createEngineRoom 建引擎房 iframe 时内联。
   Future<void> _injectEngineFacade(InAppWebViewController c) async {
-    final facade = buildTavernHelperFacadeJs(frameId: 'engine-room');
+    final mvu = ref.read(mvuSettingsProvider);
+    final facade = buildTavernHelperFacadeJs(frameId: 'engine-room', mvu: mvu);
     final js = 'window.__ENGINE_FACADE_JS=${jsonEncode(facade)};';
     try {
       await c.evaluateJavascript(source: js);
@@ -218,13 +221,39 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   /// 把 MVU bundle(base64)注入外层 window.__KIRA_MVU_BUNDLE,
   /// 供 createEngineRoom 建引擎房时内联为 ES module。
   Future<void> _injectMvuBundle(InAppWebViewController c) async {
-    if (!_mvuLoaded || _mvuBundleB64 == null) return;
-    final js = 'window.__KIRA_MVU_BUNDLE="${_mvuBundleB64!}";';
+    if (!_mvuLoaded || _mvuBundleRaw == null) return;
+
+    var bundle = _mvuBundleRaw!;
+    final mvu = ref.read(mvuSettingsProvider);
+    if (mvu.customPromptEnabled && mvu.customPrompt.trim().isNotEmpty) {
+      bundle = _replaceMvuTask(bundle, mvu.customPrompt.trim());
+    }
+
+    final b64 = base64Encode(utf8.encode(bundle));
+    final js = 'window.__KIRA_MVU_BUNDLE="$b64";';
     try {
       await c.evaluateJavascript(source: js);
     } catch (e) {
       KiraLogger().info('MVU', 'bundle 注入失败: $e');
     }
+  }
+
+  /// 用自定义提示词替换 bundle 里的 const wX='...默认task...'。
+  /// 正则用 (?:[^'\\]|\\.)* 跳过内部转义单引号,避免非贪婪提前截断。
+  String _replaceMvuTask(String bundle, String customTask) {
+    final escaped = customTask
+        .replaceAll('\\', '\\\\')
+        .replaceAll("'", "\\'")
+        .replaceAll('\r\n', '\\r\\n')
+        .replaceAll('\n', '\\n')
+        .replaceAll('\r', '\\r');
+    final regex = RegExp(r"const wX='(?:[^'\\]|\\.)*'");
+    if (!regex.hasMatch(bundle)) {
+      KiraLogger().info('MVU', '⚠️ 未匹配到 const wX,替换跳过(bundle 可能变了)');
+      return bundle;
+    }
+    KiraLogger().info('MVU', '✅ 已用自定义提示词替换默认task');
+    return bundle.replaceFirst(regex, "const wX='$escaped'");
   }
 
   double _keyboardHeight = 0;
@@ -346,6 +375,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       // 点火：用户发消息 → isGenerating false→true，用户消息已入 state
       // → 通知引擎房 MVU initCheck（带 msgs 填充 __chatMessages / SillyTavern.chat）
       if (!_wasGenerating && gen) {
+        _syncPrimaryLorebookToEngine();   // 趁生成期间提前推主世界书名进镜像
         final msgsJson = jsonEncode(_serializeMessagesForMvu());
         _controller?.evaluateJavascript(
             source: 'if(window.__emitToEngine)window.__emitToEngine("generation_started",[],$msgsJson);');
@@ -519,7 +549,6 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     _bridge.onRequest('th_wiGetEnabledList', (payload) async {
       final char = ref.read(activeChatProvider).character;
       final book = char?.characterBook;
-      debugPrint('[世界书探针] char=${char?.name} book=${book?.name} entries=${book?.entries.length}');
       if (book == null || book.entries.isEmpty) return <String>[];
       return <String>[book.name ?? 'character_book'];
     });
@@ -535,6 +564,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest('th_wiGetCharLorebooks', _handleWiGetCharLorebooks);
                     _bridge.onRequest('th_wiGetLorebookSettings', _handleWiGetLorebookSettings);
                     _bridge.onRequest('th_wiSetLorebookSettings', _handleWiSetLorebookSettings);
+                    _bridge.onRequest('th_generateRaw', _handleGenerateRaw);
                   },
                   onLoadStop: (c, url) async {
                     await _injectCompatLibs(c); // 注入第三方库到外层window
@@ -875,6 +905,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   List<Map<String, dynamic>> _serializeMessagesForMvu() {
     final activeChat = ref.read(activeChatProvider);
     final messages = activeChat.messages;
+    final storeA = VariablesService.instance.getAllLocalVariables(widget.chatId);
+    for (var _bi = 0; _bi < messages.length; _bi++) {
+      debugPrint('[base定位] i=$_bi id=${messages[_bi].id} '
+          'swipeIdx=${messages[_bi].currentSwipeIndex} '
+          'swipesData=${jsonEncode(messages[_bi].swipesData)}');
+    }
+    debugPrint('[base定位] 存储A stat_data=${jsonEncode(storeA['stat_data'])}');
     final defaultCharName = activeChat.character?.name ?? 'Assistant';
     final result = <Map<String, dynamic>>[];
     for (var i = 0; i < messages.length; i++) {
@@ -919,16 +956,183 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'is_user': m.role == MessageRole.user,
         'content': m.content,
         'swipe_id': swipeId,
-        'swipes': swipes,          // ← 新增这一行：开场白文本版本数组，MVU的143行读它找<initvar>
+        'swipes': swipes,          //开场白文本版本数组，MVU的143行读它找<initvar>
           'variables': effectiveSwipesData,
           'swipes_data': effectiveSwipesData,
         });
       }
     for (final r in result) {
-      debugPrint('[镜像探针] mid=${r['message_id']} variables=${jsonEncode(r['variables'])}');
+    }
+    for (var i = 0; i < messages.length; i++) {
     }
     return result;
     }
+  /// 酒馆助手 generateRaw：MVU 额外模型解析走这里。
+  /// 拆 cfg.custom_api 造临时 LLMConfig，拍平 ordered_prompts+injects 成 messages，
+  /// 调 llm_service 发一次请求，把文本原样回传给 MVU（MVU 自己解析 _.set 后走 setVariables 落库）。
+  Future<dynamic> _handleGenerateRaw(Map<String, dynamic> payload) async {
+    final cfg = (payload['cfg'] as Map?)?.cast<String, dynamic>() ?? {};
+    final customApi = (cfg['custom_api'] as Map?)?.cast<String, dynamic>();
+
+    KiraLogger().info('额外模型', 'th_generateRaw 被调 hasCustomApi=${customApi != null}');
+
+    // 1) 造 config：有 custom_api 用独立配置，否则沿用主对话 config（"与插头相同"）
+    LLMConfig config = ref.read(llmConfigProvider);
+    if (customApi != null) {
+      final apiUrl = (customApi['apiurl'] as String?)?.trim();
+      final key = (customApi['key'] as String?)?.trim();
+      final model = (customApi['model'] as String?)?.trim();
+      config = config.copyWith(
+        apiUrl: (apiUrl != null && apiUrl.isNotEmpty) ? apiUrl : config.apiUrl,
+        apiKey: (key != null && key.isNotEmpty) ? key : config.apiKey,
+        model: (model != null && model.isNotEmpty) ? model : config.model,
+        maxTokens: _asInt(customApi['max_tokens']) ?? config.maxTokens,
+        temperature: _asDouble(customApi['temperature']) ?? config.temperature,
+        topP: _asDouble(customApi['top_p']) ?? config.topP,
+        frequencyPenalty:
+            _asDouble(customApi['frequency_penalty']) ?? config.frequencyPenalty,
+        presencePenalty:
+            _asDouble(customApi['presence_penalty']) ?? config.presencePenalty,
+      );
+      KiraLogger().info('额外模型',
+          'custom_api model=${config.model} url=${config.apiUrl} maxTok=${config.maxTokens} temp=${config.temperature}');
+    } else {
+      KiraLogger().info('额外模型', 'custom_api 为空，沿用主对话 config model=${config.model}');
+    }
+
+    // 2) 拍平 ordered_prompts + injects 成 messages（B+：先顺序拼接）
+    final messages = <Map<String, dynamic>>[];
+    void appendList(dynamic list) {
+      if (list is! List) return;
+      for (final e in list) {
+        if (e is Map) {
+          final role = (e['role'] as String?) ?? 'system';
+          final content = (e['content'] as String?) ?? '';
+          if (content.isNotEmpty) {
+            messages.add({'role': role, 'content': content});
+          }
+        } else if (e == 'chat_history') {
+          // 展开真实聊天记录（最近 N 条），修复 past_observe 空壳
+          final n = _asInt(cfg['max_chat_history']) ?? 10;
+          final history = ref.read(activeChatProvider).messages;
+          final recent =
+              history.length > n ? history.sublist(history.length - n) : history;
+          
+          for (var _h = 0; _h < recent.length; _h++) {
+            final _m = recent[_h];
+            final _sw = _m.swipes;
+            final _si = _m.currentSwipeIndex;
+            final _c = (_sw.isNotEmpty && _si >= 0 && _si < _sw.length) ? _sw[_si] : _m.content;
+          }
+
+          for (int i = 0; i < recent.length; i++) {
+            final m = recent[i];
+            // 与 _serializeMessagesForMvu 一致：优先取当前 swipe 的正文
+            final sw = m.swipes;
+            final swIdx = m.currentSwipeIndex;
+            final mContent =
+                (sw.isNotEmpty && swIdx >= 0 && swIdx < sw.length)
+                    ? sw[swIdx]
+                    : m.content;
+            if (mContent.trim().isEmpty) continue;
+
+            final r = switch (m.role) {
+              MessageRole.user => 'user',
+              MessageRole.assistant => 'assistant',
+              MessageRole.system => 'system',
+            };
+
+            final isSecondLast = (i == recent.length - 2);
+            final isLast = (i == recent.length - 1);
+            String prefix = '';
+            if (isSecondLast) prefix = '[上一轮] ';
+            if (isLast) prefix = '[本轮最新剧情] ';
+
+            String content = mContent;
+            if (i > 0) content = '\n\n' + content;
+
+            messages.add({'role': r, 'content': prefix + content});
+          }
+        }
+        // 其他字符串占位符(persona/char/world_info/user_input)B阶段忽略
+      }
+    }
+
+    appendList(cfg['ordered_prompts']);
+    appendList(cfg['injects']);
+    // 注入当前变量状态（更新前）：从消息 swipesData 回溯取最后一条有效 stat_data，
+    // 与 MVU getLastValidVariable 的读取语义一致。不再读空的存储A。
+    try {
+      final histMsgs = ref.read(activeChatProvider).messages;
+      Map<String, dynamic>? currentStat;
+      for (int i = histMsgs.length - 1; i >= 0; i--) {
+        final sd = histMsgs[i].swipesData;
+        final swIdx = histMsgs[i].currentSwipeIndex;
+        if (sd.isEmpty) continue;
+        final idx = (swIdx >= 0 && swIdx < sd.length) ? swIdx : 0;
+        final stat = sd[idx]['stat_data'];
+        if (stat != null) {
+          currentStat = Map<String, dynamic>.from(stat as Map);
+          break;
+        }
+      }
+      if (currentStat != null) {
+        messages.add({
+          'role': 'system',
+          'content': '更新前变量状态：\n${jsonEncode(currentStat)}',
+        });
+      } else {
+      }
+    } catch (e) {
+      KiraLogger().info('额外模型', '注入变量状态失败: $e');
+    }
+
+    // MVU 的 user_input 是 user turn 内容，补上——否则全 system，Claude 等通道 422
+    final userInput = (cfg['user_input'] as String?)?.trim();
+    if (userInput != null && userInput.isNotEmpty) {
+      messages.add({'role': 'user', 'content': userInput});
+    } else if (!messages.any((m) => m['role'] == 'user') && messages.isNotEmpty) {
+      messages.last['role'] = 'user';
+    }
+
+    KiraLogger().info('额外模型', '拍平后 messages 条数=${messages.length}');
+
+    if (messages.isEmpty) {
+      KiraLogger().info('额外模型', 'messages 为空，返回空串');
+      return '';
+    }
+
+    // 3) 调 llm_service 发一次，聚合流为完整文本
+    try {
+      final buffer = StringBuffer();
+      await for (final chunk
+          in ref.read(llmServiceProvider).generateStreamWithReasoning(messages, config)) {
+        if (chunk.content != null) {
+          buffer.write(chunk.content);
+        }
+      }
+      final text = buffer.toString();
+      KiraLogger().info('额外模型', 'generateRaw 返回文本长度=${text.length}');
+      return text;
+    } catch (e) {
+      KiraLogger().info('额外模型', 'generateRaw 请求失败: $e');
+      // 失败返回空串，让 MVU 走它的重试/降级，不抛异常炸桥
+      return '';
+    }
+  }
+
+  int? _asInt(dynamic v) {
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    if (v is String) return int.tryParse(v);
+    return null;
+  }
+
+  double? _asDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v);
+    return null;
+  }
   /// 酒馆助手 getChatMessages 的 Flutter 侧实现。
   /// 读取当前会话消息，映射成与 TavernHelper 对齐的格式返回。
   /// 数据源唯一：ActiveChatNotifier.state.messages（避免串台）。
@@ -940,7 +1144,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         false;
     KiraLogger().info('助手API', 'th_getMessages 被调用 start=$start swipe=$includeSwipe');
 
-    debugPrint('[镜像探针] _serializeMessagesForMvu 被调用');
     final activeChat = ref.read(activeChatProvider);
     final messages = activeChat.messages;
     // name 推导：assistant/system 优先用消息缓存的角色名，其次用当前角色名
@@ -990,7 +1193,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
     for (final r in result) {
       final sd = r['swipes_data'];
-      debugPrint('[读侧探针] getMsg mid=${r['message_id']} role=${r['is_user']} sdLen=${sd is List ? sd.length : -1}');
     }
     return result;
   }
@@ -1008,7 +1210,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
     // 默认 chat 局部变量
     final result = service.getAllLocalVariables(widget.chatId);
-    debugPrint('[getVars探针] type=$type 返回 stat_data=${jsonEncode((result as Map?)?['stat_data'])}');
     return result;
   }
 
@@ -1020,7 +1221,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final type = (option['type'] as String?) ?? 'chat';
     final service = VariablesService.instance;
     KiraLogger().info('助手API', 'th_setVars 被调用 type=$type keys=${vars.keys.toList()}');
-    debugPrint('[setVars探针] option=${jsonEncode(option)}');
 
     if (type == 'global') {
       for (final entry in vars.entries) {
@@ -1028,15 +1228,26 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       }
       return service.getAllGlobalVariables();
     }
-    // MVU 消息级持久化：type=='message' 时把整份 MvuData 写进对应消息的 swipesData 并落库。
+    // MVU 消息级持久化：把整份 MvuData 写进消息的 swipesData 并落库。
+    // MVU 的 replaceVariables 用 type:message 但常不带 message_id（它靠宿主隐式定位"当前消息"）。
+    // 缺失时落到最后一条消息——契合 getLastValidVariable 从末尾回溯的读取语义。
     if (type == 'message') {
       final messageId = option['message_id'] as int?;
       final notifier = ref.read(activeChatProvider.notifier);
       final messages = ref.read(activeChatProvider).messages;
+
+      // 选定目标消息：有效 message_id 用它，否则回退到最后一条
+      int? targetIndex;
       if (messageId != null && messageId >= 0 && messageId < messages.length) {
-        final target = messages[messageId];
+        targetIndex = messageId;
+      } else if (messages.isNotEmpty) {
+        targetIndex = messages.length - 1;
+        debugPrint('[setVars修复] message_id 缺失($messageId)，落到最后一条 mid=$targetIndex');
+      }
+
+      if (targetIndex != null) {
+        final target = messages[targetIndex];
         final swipeId = target.currentSwipeIndex < 0 ? 0 : target.currentSwipeIndex;
-        // 拷贝现有 swipesData，补齐长度，把这份 vars 放到当前 swipe 槽位
         final newSwipesData =
             List<Map<String, dynamic>>.from(target.swipesData);
         while (newSwipesData.length <= swipeId) {
@@ -1044,14 +1255,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         }
         newSwipesData[swipeId] = Map<String, dynamic>.from(vars);
         await notifier.updateMessageSwipesData(target.id, newSwipesData);
-        debugPrint('[setVars修复] 已写入 mid=$messageId swipe=$swipeId keys=${vars.keys.toList()}');
-        debugPrint('[setVars校验] mid=$messageId 实际role=${target.role} 内容前20=${target.content.length > 20 ? target.content.substring(0, 20) : target.content}');
-        // 同步引擎房镜像（带 messageId）
-        _syncVarsToEngine('message', vars, messageId: messageId, lastMsgId: messageId);
+        debugPrint('[setVars修复] 已写入 mid=$targetIndex id=${target.id} swipe=$swipeId');
+        debugPrint('[setVars修复] 已写入 mid=$targetIndex swipe=$swipeId keys=${vars.keys.toList()}');
+        debugPrint('[setVars落点] targetIndex=$targetIndex '
+            '写入的stat_data=${jsonEncode(vars['stat_data'])}');
+        // 同步引擎房镜像
+        _syncVarsToEngine('message', vars, messageId: targetIndex, lastMsgId: targetIndex);
         return vars;
       }
-      // message_id 缺失/越界：兜底走 chat 分支
-      debugPrint('[setVars修复] message_id 无效($messageId)，回退 chat 分支');
+      // 连一条消息都没有（极端情况），才落 chat 兜底
+      debugPrint('[setVars修复] 无任何消息，回退 chat 分支');
     }
     // 默认 chat 局部变量：写内存 + 落盘持久化
     for (final entry in vars.entries) {
@@ -1059,7 +1272,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
     await service.saveLocalVariablesToPrefs(widget.chatId);
     final readBack = service.getAllLocalVariables(widget.chatId);
-    // 反向同步:落库后把最新 chat 变量推回引擎房镜像
     _syncVarsToEngine('chat', readBack);
     return readBack;
   }
@@ -1071,6 +1283,22 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     _controller?.evaluateJavascript(
         source: 'if(window.__syncVarsToEngine)window.__syncVarsToEngine('
             '"$type",$dataJson,$midArg,$lastArg);');
+  }
+  /// 推送角色主世界书名到引擎房镜像（供 MVU isExtraModelSupported 同步读）
+  Future<void> _syncPrimaryLorebookToEngine() async {
+    try {
+      final charId = ref.read(activeChatProvider).character?.id;
+      if (charId == null) return;
+      final repo = ref.read(worldInfoRepositoryProvider);
+      final books = await repo.getWorldInfosForCharacter(charId);
+      final names = books.map((b) => b.name).whereType<String>().toList();
+      final primary = names.isNotEmpty ? names.first : null;
+      _controller?.evaluateJavascript(
+          source: 'if(window.__syncPrimaryLorebook)'
+              'window.__syncPrimaryLorebook(${jsonEncode(primary)});');
+    } catch (e) {
+      debugPrint('[主世界书同步] 失败: $e');
+    }
   }
 
   // ── 世界书 API handlers ─────────────────────────────
@@ -1187,18 +1415,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   /// 酒馆助手 setChatMessages（复数）：MVU 用它把 per-swipe 变量种进消息。
   /// 每项 {message_id, swipes_data:[...]}，把 swipes_data 写进 ChatMessage.swipesData。
   Future<dynamic> _handleSetMessages(Map<String, dynamic> payload) async {
-    debugPrint('[持久化探针] _handleSetMessages 被调用');
     final msgs = (payload['msgs'] as List?) ?? const [];
-    debugPrint('[持久化探针] 原始payload=${jsonEncode(payload)}');
     final messages = ref.read(activeChatProvider).messages;
     final notifier = ref.read(activeChatProvider.notifier);
     for (final raw in msgs) {
-      if (raw is Map) {
-        debugPrint('[持久化探针] msg键=${raw.keys.toList()} '
-            'variables=${jsonEncode(raw['variables'])} '
-            'swipe_id=${raw['swipe_id']} '
-            'data=${jsonEncode(raw['data'])}');
-      }
       if (raw is! Map) continue;
       final mid = raw['message_id'] as int?;
       if (mid == null || mid < 0 || mid >= messages.length) continue;
@@ -1207,7 +1427,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               .toList() ??
           const <Map<String, dynamic>>[];
       if (swipesData.isEmpty) {
-        debugPrint('[持久化探针] mid=$mid swipes_data为空，跳过（保护已写变量，不覆盖）');
         continue;
       }
       await notifier.updateMessageSwipesData(messages[mid].id, swipesData);
@@ -3314,6 +3533,18 @@ window.addEventListener('message', function(e) {
       return false;
     }
   };
+
+  window.__syncPrimaryLorebook = function(name) {
+    try {
+      var host = document.getElementById('__engineRoomHost');
+      var f = host && host.querySelector('iframe[data-frame-id="engine-room"]');
+      if (f && f.contentWindow) {
+        f.contentWindow.postMessage({ __primaryLorebookSync: true, name: name }, '*');
+        return true;
+      }
+      return false;
+    } catch(e) { return false; }
+  };
 // ── 外层 → 引擎房:推真实变量进镜像(反向同步) ──
   window.__syncVarsToEngine = function(type, data, messageId, lastMsgId) {
     try {
@@ -3358,6 +3589,7 @@ window.addEventListener('message', function(e) {
       setInput: 'th_setInput',
       getVariables:    'th_getVars',
       setVariables:    'th_setVars',
+      replaceVariables: 'th_setVars',
       getLorebookEntries:    'th_wiGetEntries',
       getEnabledLorebookList: 'th_wiGetEnabledList',
       setLorebookEntries:    'th_wiSetEntries',
@@ -3368,7 +3600,8 @@ window.addEventListener('message', function(e) {
       getLorebookSettings: 'th_wiGetLorebookSettings',
       setLorebookSettings: 'th_wiSetLorebookSettings',
       getLorebooks:          'th_wiGetLorebooks',
-      createLorebook:        'th_wiCreateBook'
+      createLorebook:        'th_wiCreateBook',
+      generateRaw:           'th_generateRaw'
     };
     sendToFlutter('log', { text: '[TH中转] 收到iframe请求 method=' + method });
     var type = typeMap[method];
@@ -3389,6 +3622,8 @@ window.addEventListener('message', function(e) {
       payload = { option: args[0] || {} };
     } else if (method === 'setVariables') {
       payload = { vars: args[0] || {}, option: args[1] || {} };
+    } else if (method === 'replaceVariables') {
+      payload = { vars: args[0] || {}, option: args[1] || {} };
     } else if (method === 'getLorebookEntries') {
       payload = { name: args[0] };
     } else if (method === 'setLorebookEntries') {
@@ -3406,6 +3641,8 @@ window.addEventListener('message', function(e) {
       console.log('[写侧探针] setChatMessages 被调 msgs条数=' + (args[0] ? args[0].length : 0));
     } else if (method === 'createLorebook') {
       payload = { name: args[0] };
+    } else if (method === 'generateRaw') {
+      payload = { cfg: args[0] || {} };
     }
 
     __sendRequest(type, payload)
