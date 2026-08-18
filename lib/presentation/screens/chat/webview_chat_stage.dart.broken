@@ -311,13 +311,6 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
    @override
   void initState() {
     super.initState();
-    // 登记 EJS 渲染函数,供 LLMService 发送前渲染提示词
-ref.read(ejsRenderRegistryProvider).register(
-  (text) {
-    print('🌟 lambda被调用,收到text长度=${text.length}');
-    return _handleRenderEJS({'text': text});
-  },
-);
     WidgetsBinding.instance.addObserver(this);
     _maskController.value = 1.0;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -348,10 +341,6 @@ ref.read(ejsRenderRegistryProvider).register(
   }
   @override
   void dispose() {
-    // 清空 EJS 渲染函数登记(离开聊天页,回到安全态)
-    try {
-      ref.read(ejsRenderRegistryProvider).clear();
-    } catch (_) {}
     _controller?.evaluateJavascript(
         source: 'if(window.resetEngineRoom){var h=document.getElementById("__engineRoomHost");if(h)h.innerHTML="";}');
     WidgetsBinding.instance.removeObserver(this);
@@ -1034,7 +1023,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
   /// EJS 渲染桥:接收文本,发进引擎房跑 dist 的 EJS,返回渲染后的文本。
   Future<String> _handleRenderEJS(Map<String, dynamic> payload) async {
-    print('[探针🎯] _handleRenderEJS 被调用! 收到text长度=${payload["text"]?.toString().length ?? 0}');
     final text = payload['text'] as String? ?? '';
     if (text.isEmpty) return text;
 
@@ -2162,7 +2150,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
   Future<void> _sendMessage() async {
-    print('🧪 _sendMessage 被调用了,这是测试探针');
     final content = _inputController.text.trim();
     final attachments = List<ChatAttachment>.from(_pendingAttachments);
     // 文字和图片都没有才跳过
@@ -3972,7 +3959,10 @@ window.addEventListener('message', function(e) {
           frame.style.borderRadius = '18px';
           frame.setAttribute('data-frame-id', m.id);
           frame.setAttribute('scrolling', 'no');
-          frame.setAttribute('data-html', m.html);
+            console.log('[EJS诊断] 渲染前:', m.html.substring(0, 100));
+            var ejsResult = (typeof window._TH !== 'undefined' && window._TH.substituteParams) ? window._TH.substituteParams(m.html) : m.html;
+            console.log('[EJS诊断] 渲染后:', ejsResult.substring(0, 100));
+            (ejsResult)
           (function(f, html, id){
             var injected = injectBridge(html, id);
             try {
@@ -3991,7 +3981,7 @@ window.addEventListener('message', function(e) {
         } else {
           var c = document.createElement('div');
           c.innerHTML = (m.html && m.html.trim() !== '')
-            ? m.html
+            ? (typeof window._TH !== 'undefined' && window._TH.substituteParams ? window._TH.substituteParams(m.html) : m.html)
             : '<div class="thinking"><span class="star">⭐</span>思考中……</div>';
           wrap.appendChild(c);
           group.appendChild(wrap);
@@ -4270,6 +4260,7 @@ window.addEventListener('message', function(e) {
         + 'if(window.TavernHelper&&window.TavernHelper.eventEmit){'
         + 'window.TavernHelper.eventEmit("chat_changed");'
         + 'parent.postMessage({__thLog:true,text:"[引擎房] 自触发 chat_changed"},"*");'
+          + 'parent.postMessage({__engineReady:true},"*");'
         + '}}catch(e){parent.postMessage({__thLog:true,text:"[引擎房] chat_changed 失败: "+e},"*");}},300);<\\/script>'
         + '</body></html>';
       var frame = document.createElement('iframe');
@@ -4358,6 +4349,30 @@ window.addEventListener('message', function(e) {
     }
   }
   window.createEngineRoom = createEngineRoom;
+    // ── 监听引擎房 ready 信号,重新渲染所有消息 ──
+    window.addEventListener('message', function(e) {
+      if (e.data && e.data.__engineReady) {
+        sendToFlutter('log', { text: '[EJS] 引擎房已就绪,重新渲染消息' });
+        var msgs = document.querySelectorAll('.msg');
+        sendToFlutter('log', { text: '[EJS] 找到 ' + msgs.length + ' 个 .msg 元素' });
+        var ejsCount = 0;
+          if (el.innerHTML && el.innerHTML.indexOf('<%') !== -1) {
+            try {
+              if (typeof window._TH !== 'undefined' && window._TH.substituteParams) {
+                var original = el.innerHTML;
+                var rendered = window._TH.substituteParams(original);
+                if (rendered !== original) {
+                  el.innerHTML = rendered;
+                  sendToFlutter('log', { text: '[EJS] 已重新渲染消息' });
+                }
+              }
+            } catch(err) {
+              sendToFlutter('log', { text: '[EJS] 重新渲染失败: ' + err });
+            }
+          }
+        });
+      }
+    });
   function resetEngineRoom() {
     try {
       var host = document.getElementById('__engineRoomHost');

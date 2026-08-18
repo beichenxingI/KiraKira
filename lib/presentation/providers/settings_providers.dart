@@ -43,6 +43,11 @@ final llmServiceProvider = Provider<LLMService>((ref) {
   throw UnimplementedError('Must be overridden in ProviderScope');
 });
 
+/// Provider for EJS render registry(活跃聊天页登记 EJS 渲染函数)
+final ejsRenderRegistryProvider = Provider<EJSRenderRegistry>((ref) {
+  throw UnimplementedError('Must be overridden in ProviderScope');
+});
+
 class LLMConfigNotifier extends StateNotifier<LLMConfig> {
   final SharedPreferences _prefs;
   final AppDatabase _db;

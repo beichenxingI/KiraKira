@@ -34,7 +34,8 @@ void main() async {
   final worldInfoRepo = WorldInfoRepository(database);
   
   // Create services
-  final llmService = LLMService();
+  final ejsRegistry = EJSRenderRegistry();
+  final llmService = LLMService(ejsRenderer: RegistryEJSRenderer(ejsRegistry));
   final importService = ImportService(initData.dataPath);
   
   runApp(
@@ -50,6 +51,7 @@ void main() async {
         
         // Services
         llmServiceProvider.overrideWithValue(llmService),
+        ejsRenderRegistryProvider.overrideWithValue(ejsRegistry),
         importServiceProvider.overrideWithValue(importService),
         
         // Shared preferences

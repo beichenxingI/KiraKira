@@ -4,6 +4,37 @@ import 'dart:developer' as developer;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+
+/// EJS 渲染器接口(domain 层不依赖 presentation 层的具体实现)
+abstract class EJSRenderer {
+  /// 渲染 EJS 模板字符串,返回渲染后的结果
+  Future<String> render(String text);
+}
+
+/// EJS 渲染函数签名
+typedef EJSRenderFn = Future<String> Function(String text);
+
+/// 当前活跃聊天页的 EJS 渲染函数登记处(main 创建,provider 暴露)
+class EJSRenderRegistry {
+  EJSRenderFn? _fn;
+  void register(EJSRenderFn fn) => _fn = fn;
+  void clear() => _fn = null;
+  EJSRenderFn? get current => _fn;
+}
+
+/// 从登记处取当前渲染函数的 EJSRenderer 实现
+class RegistryEJSRenderer implements EJSRenderer {
+  final EJSRenderRegistry _registry;
+  RegistryEJSRenderer(this._registry);
+
+  @override
+  Future<String> render(String text) async {
+    final fn = _registry.current;
+    print('🎯 registry.current=${fn != null ? "有值" : "null"}');
+    if (fn == null) return text; // 无活跃聊天页,原样返回
+    return await fn(text);
+  }
+}
 /// LLM Provider enum
 enum LLMProvider {
   openAICompatible,
@@ -244,6 +275,11 @@ class LLMConfig {
 /// LLM Service for generating responses
 class LLMService {
   final Dio _dio = Dio();
+
+  /// EJS 渲染器(可选,由 presentation 层注入)
+  final EJSRenderer? _ejsRenderer;
+
+  LLMService({EJSRenderer? ejsRenderer}) : _ejsRenderer = ejsRenderer;
   
   /// Log a message to the console
   /// Always calls debugPrint so DebugLogService can capture logs in all build modes
@@ -413,16 +449,18 @@ class LLMService {
   Future<List<Map<String, dynamic>>> _renderEJSInMessages(
     List<Map<String, dynamic>> messages,
   ) async {
-    // TODO: 调 webview 桥 th_renderEJS 渲染每条 content
-    // 当前占位:直接返回原 messages(下一步补真正的桥调用)
     final rendered = <Map<String, dynamic>>[];
+    // 无 EJS 渲染器时,原样返回
+    if (_ejsRenderer == null) return messages;
+
     for (final msg in messages) {
       final role = msg['role'] as String? ?? 'system';
       final content = msg['content'];
       
       if (content is String && content.isNotEmpty) {
-        // 这里下一步会调 webview 桥渲染 content
-        rendered.add({'role': role, 'content': content});
+        // 调用 EJS 渲染器渲染 content
+        final renderedContent = await _ejsRenderer!.render(content);
+        rendered.add({'role': role, 'content': renderedContent});
       } else {
         rendered.add(msg);
       }

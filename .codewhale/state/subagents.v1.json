@@ -1,0 +1,469 @@
+{
+  "schema_version": 1,
+  "agents": [
+    {
+      "id": "agent_5c01eb38",
+      "session_name": "detect-models-scanner",
+      "fork_context": false,
+      "workspace": "D:\\KiraKira",
+      "agent_type": "explore",
+      "prompt": "QUESTION: ComfyUI Impact Pack 的 UltralyticsDetectorProvider 能直接加载哪些「手部检测」和「人体部位分割」YOLOv8 模型？需要 Impact Pack 官方仓库明确记载或社区广为引用的可信来源，每个候选给出文件名、bbox/segm 类型、来源URL、放置目录、体积、许可、最后更新。\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要推测。重点检索：\n1. 手部检测模型：搜索 \"ComfyUI Impact Pack hand detection yolov8\"、\"yolov8 hand model ultralytics ComfyUI\"，重点看 Impact Pack 官方 README/检测表(model_url_map.json 或类似)、HuggingFace 上明确的 hand YOLOv8 模型。\n2. 人体部位分割模型（segm类，用于成人角色局部精修）：搜索 \"yolov8-seg human body ComfyUI Impact Pack\"、\"ultralytics segmentation model ComfyUI segm\"，找 segm 格式、放在 models/ultralytics/segm 的模型。\n3. 眼睛/嘴部等精细部位：搜索 \"ComfyUI eyes mouth detailer yolov8\"、\"impact pack eye detection model\"，看是否有质量可靠的。\n\nALREADY_KNOWN:\n- Impact Pack 检测模型格式位于 models/ultralytics/bbox（bbox类）和 models/ultralytics/segm（segm类）。\n- 现有 face_yolov8m.pt、face_yolov8m.onnx、yolov8x6_animeface.pt 三个人脸bbox，没有segm没有SAM。\n- GPU 8GB，优先小体积。\n- 约束：来源不明/镜像站/无许可的一律标注风险，不当推荐项。\n\nEFFORT: 重点核实 Impact Pack 官方仓库的模型清单文件（通常叫 model_url_map.json 或在 README 里列出）。如果找到官方下载映射表，优先引用里面的条目。\n\nSTOP_CONDITION: 已尽力搜索仍找不到的项目，明确写\"查不到/未确认\"，不要编造文件名。\n\nOUTPUT 格式（严格）:\n对每个候选模型返回：\n- 候选名\n- 文件名 (未确认则写未确认)\n- 类型 bbox/segm\n- 来源URL (必须是检索到的真实URL)\n- 放置路径 (models/ultralytics/bbox 或 /segm)\n- 体积 (未确认则写未确认)\n- 许可 (未确认则写未确认)\n- 最后更新 (未确认则写未确认)\n- 备注 (含显存占用、风险标注)\n- 证据来源: 检索到的页面URL + 该页面支撑此条目的原文摘录\n\n最后给 VERDICT（推荐序列）+ EVIDENCE（关键来源URL列表）+ GAPS（未确认项）+ NEXT（还需查的点）。",
+      "assignment": {
+        "objective": "QUESTION: ComfyUI Impact Pack 的 UltralyticsDetectorProvider 能直接加载哪些「手部检测」和「人体部位分割」YOLOv8 模型？需要 Impact Pack 官方仓库明确记载或社区广为引用的可信来源，每个候选给出文件名、bbox/segm 类型、来源URL、放置目录、体积、许可、最后更新。\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要推测。重点检索：\n1. 手部检测模型：搜索 \"ComfyUI Impact Pack hand detection yolov8\"、\"yolov8 hand model ultralytics ComfyUI\"，重点看 Impact Pack 官方 README/检测表(model_url_map.json 或类似)、HuggingFace 上明确的 hand YOLOv8 模型。\n2. 人体部位分割模型（segm类，用于成人角色局部精修）：搜索 \"yolov8-seg human body ComfyUI Impact Pack\"、\"ultralytics segmentation model ComfyUI segm\"，找 segm 格式、放在 models/ultralytics/segm 的模型。\n3. 眼睛/嘴部等精细部位：搜索 \"ComfyUI eyes mouth detailer yolov8\"、\"impact pack eye detection model\"，看是否有质量可靠的。\n\nALREADY_KNOWN:\n- Impact Pack 检测模型格式位于 models/ultralytics/bbox（bbox类）和 models/ultralytics/segm（segm类）。\n- 现有 face_yolov8m.pt、face_yolov8m.onnx、yolov8x6_animeface.pt 三个人脸bbox，没有segm没有SAM。\n- GPU 8GB，优先小体积。\n- 约束：来源不明/镜像站/无许可的一律标注风险，不当推荐项。\n\nEFFORT: 重点核实 Impact Pack 官方仓库的模型清单文件（通常叫 model_url_map.json 或在 README 里列出）。如果找到官方下载映射表，优先引用里面的条目。\n\nSTOP_CONDITION: 已尽力搜索仍找不到的项目，明确写\"查不到/未确认\"，不要编造文件名。\n\nOUTPUT 格式（严格）:\n对每个候选模型返回：\n- 候选名\n- 文件名 (未确认则写未确认)\n- 类型 bbox/segm\n- 来源URL (必须是检索到的真实URL)\n- 放置路径 (models/ultralytics/bbox 或 /segm)\n- 体积 (未确认则写未确认)\n- 许可 (未确认则写未确认)\n- 最后更新 (未确认则写未确认)\n- 备注 (含显存占用、风险标注)\n- 证据来源: 检索到的页面URL + 该页面支撑此条目的原文摘录\n\n最后给 VERDICT（推荐序列）+ EVIDENCE（关键来源URL列表）+ GAPS（未确认项）+ NEXT（还需查的点）。",
+        "role": "explorer"
+      },
+      "model": "z-ai/glm-5.2",
+      "nickname": "Rough-toothed",
+      "status": "Running",
+      "result": null,
+      "steps_taken": 1,
+      "checkpoint": {
+        "checkpoint_id": "agent_5c01eb38:step:1:ts:1786911349166",
+        "agent_id": "agent_5c01eb38",
+        "continuation_handle": "agent:agent_5c01eb38:checkpoint:agent_5c01eb38:step:1:ts:1786911349166",
+        "reason": "before_api_request",
+        "continuable": true,
+        "steps_taken": 1,
+        "message_count": 1,
+        "created_at_ms": 1786911349166,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Assignment metadata:\n- objective: QUESTION: ComfyUI Impact Pack 的 UltralyticsDetectorProvider 能直接加载哪些「手部检测」和「人体部位分割」YOLOv8 模型？需要 Impact Pack 官方仓库明确记载或社区广为引用的可信来源，每个候选给出文件名、bbox/segm 类型、来源URL、放置目录、体积、许可、最后更新。\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要推测。重点检索：\n1. 手部检测模型：搜索 \"ComfyUI Impact Pack hand detection yolov8\"、\"yolov8 hand model ultralytics ComfyUI\"，重点看 Impact Pack 官方 README/检测表(model_url_map.json 或类似)、HuggingFace 上明确的 hand YOLOv8 模型。\n2. 人体部位分割模型（segm类，用于成人角色局部精修）：搜索 \"yolov8-seg human body ComfyUI Impact Pack\"、\"ultralytics segmentation model ComfyUI segm\"，找 segm 格式、放在 models/ultralytics/segm 的模型。\n3. 眼睛/嘴部等精细部位：搜索 \"ComfyUI eyes mouth detailer yolov8\"、\"impact pack eye detection model\"，看是否有质量可靠的。\n\nALREADY_KNOWN:\n- Impact Pack 检测模型格式位于 models/ultralytics/bbox（bbox类）和 models/ultralytics/segm（segm类）。\n- 现有 face_yolov8m.pt、face_yolov8m.onnx、yolov8x6_animeface.pt 三个人脸bbox，没有segm没有SAM。\n- GPU 8GB，优先小体积。\n- 约束：来源不明/镜像站/无许可的一律标注风险，不当推荐项。\n\nEFFORT: 重点核实 Impact Pack 官方仓库的模型清单文件（通常叫 model_url_map.json 或在 README 里列出）。如果找到官方下载映射表，优先引用里面的条目。\n\nSTOP_CONDITION: 已尽力搜索仍找不到的项目，明确写\"查不到/未确认\"，不要编造文件名。\n\nOUTPUT 格式（严格）:\n对每个候选模型返回：\n- 候选名\n- 文件名 (未确认则写未确认)\n- 类型 bbox/segm\n- 来源URL (必须是检索到的真实URL)\n- 放置路径 (models/ultralytics/bbox 或 /segm)\n- 体积 (未确认则写未确认)\n- 许可 (未确认则写未确认)\n- 最后更新 (未确认则写未确认)\n- 备注 (含显存占用、风险标注)\n- 证据来源: 检索到的页面URL + 该页面支撑此条目的原文摘录\n\n最后给 VERDICT（推荐序列）+ EVIDENCE（关键来源URL列表）+ GAPS（未确认项）+ NEXT（还需查的点）。\n- role: explorer\n- resolved_type: explore\n\nTask:\nQUESTION: ComfyUI Impact Pack 的 UltralyticsDetectorProvider 能直接加载哪些「手部检测」和「人体部位分割」YOLOv8 模型？需要 Impact Pack 官方仓库明确记载或社区广为引用的可信来源，每个候选给出文件名、bbox/segm 类型、来源URL、放置目录、体积、许可、最后更新。\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要推测。重点检索：\n1. 手部检测模型：搜索 \"ComfyUI Impact Pack hand detection yolov8\"、\"yolov8 hand model ultralytics ComfyUI\"，重点看 Impact Pack 官方 README/检测表(model_url_map.json 或类似)、HuggingFace 上明确的 hand YOLOv8 模型。\n2. 人体部位分割模型（segm类，用于成人角色局部精修）：搜索 \"yolov8-seg human body ComfyUI Impact Pack\"、\"ultralytics segmentation model ComfyUI segm\"，找 segm 格式、放在 models/ultralytics/segm 的模型。\n3. 眼睛/嘴部等精细部位：搜索 \"ComfyUI eyes mouth detailer yolov8\"、\"impact pack eye detection model\"，看是否有质量可靠的。\n\nALREADY_KNOWN:\n- Impact Pack 检测模型格式位于 models/ultralytics/bbox（bbox类）和 models/ultralytics/segm（segm类）。\n- 现有 face_yolov8m.pt、face_yolov8m.onnx、yolov8x6_animeface.pt 三个人脸bbox，没有segm没有SAM。\n- GPU 8GB，优先小体积。\n- 约束：来源不明/镜像站/无许可的一律标注风险，不当推荐项。\n\nEFFORT: 重点核实 Impact Pack 官方仓库的模型清单文件（通常叫 model_url_map.json 或在 README 里列出）。如果找到官方下载映射表，优先引用里面的条目。\n\nSTOP_CONDITION: 已尽力搜索仍找不到的项目，明确写\"查不到/未确认\"，不要编造文件名。\n\nOUTPUT 格式（严格）:\n对每个候选模型返回：\n- 候选名\n- 文件名 (未确认则写未确认)\n- 类型 bbox/segm\n- 来源URL (必须是检索到的真实URL)\n- 放置路径 (models/ultralytics/bbox 或 /segm)\n- 体积 (未确认则写未确认)\n- 许可 (未确认则写未确认)\n- 最后更新 (未确认则写未确认)\n- 备注 (含显存占用、风险标注)\n- 证据来源: 检索到的页面URL + 该页面支撑此条目的原文摘录\n\n最后给 VERDICT（推荐序列）+ EVIDENCE（关键来源URL列表）+ GAPS（未确认项）+ NEXT（还需查的点）。"
+              }
+            ]
+          }
+        ]
+      },
+      "duration_ms": 1902,
+      "allowed_tools": [],
+      "updated_at_ms": 1786911350990,
+      "session_boot_id": "boot_ea1a8d8a-e0d"
+    },
+    {
+      "id": "agent_6c2feca5",
+      "session_name": "anima-arch-scanner",
+      "fork_context": false,
+      "workspace": "D:\\KiraKira",
+      "agent_type": "explore",
+      "prompt": "QUESTION: 核实 \"Anima\" / \"miaomiaoHarem_anima14\" 图像生成模型的架构归属、LoRA 兼容格式、tokenizer 最大长度、是否有步数蒸馏权重。\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要凭记忆推测。逐项查证：\n\n1. 架构归属：搜索 \"Anima diffusion model architecture\"、\"miaomiaoHarem anima qwen image\"、\"Anima DiT Qwen3 text encoder\"、\"Anima Cosmos-Predict2\"。已知它用 Qwen3-0.6B(qwen3_06b) 做文本编码器、Qwen-Image VAE、权重 bfloat16。核实它和 Qwen-Image、Cosmos-Predict2、Qwen-Image-Diffusers 的关系——是不是基于 Qwen-Image 微调的社区模型？有官方项目页/Civitai页面/HuggingFace主页吗？\n\n2. LoRA 格式：搜索 \"Anima LoRA format\"、\"Qwen-Image LoRA ComfyUI\"、\"qwen-image lora safetensors\"、\"qwen-image-anime-nsfw LoRA\"。核实 Qwen-Image 架构的 LoRA(safetensors) 能否直接用于 Anima，是否需要 kohya/PeFT 转换。注意区分 Qwen-Image 与 Qwen-Image-Diffusers(DiT/MMDiT版本差异)。\n\n3. 步数蒸馏权重：搜索 \"Qwen-Image LCM\"、\"Qwen-Image Lightning\"、\"Qwen-Image Turbo DMD\"、\"Anima distillation\"、\"qwen-image 8 steps\"。是否有官方或社区的 LCM/Turbo/DMD/Lightning 蒸馏权重能把30步压到8-12步。没有就明说没有。\n\n4. tokenizer 最大长度：找 Qwen3-0.6B 或 Qwen-Image 文本编码器的 tokenizer_config.json / max_length / max_position_embeddings。搜索 \"Qwen3-0.6B tokenizer max length\"、\"Qwen-Image text encoder max tokens 512\"。fetch HuggingFace 上 Qwen/Qwen3-0.6B 的 tokenizer_config.json 或 config.json 核实确切值。注意区分 CLIP 时代的512与 Qwen3 实际值。\n\nALREADY_KNOWN:\n- 主模型 miaomiaoHarem_anima14.safetensors (Anima架构/DiT)。\n- 文本编码器 miaomiaoHarem_anima14_txt.safetensors, CLIPLoader类型 qwen3_06b。\n- VAE: qwen_image_vae.safetensors。\n- 现有 LoRA: qwen-image-anime-nsfw.safetensors (权重0.6, 目前bypass)。\n- 目前30步 euler。\n\nEFFORT: 关键证据优先抓官方项目页(NVIDIA Cosmos, Qwen-Image 阿里官方HF, Civitai 模型页面作者说明, GitHub repo README)。对 tokenizer 一定要找到 config.json 或 tokenizer_config.json 中的确切数字字段。\n\nSTOP_CONDITION: 查不到的项目明确写\"查不到\"，绝不给\"可能叫做xxx\"的猜测。\n\nOUTPUT 格式（严格）, 每个子问题给:\n- 答案(核实过的事实或\"查不到\")\n- 证据来源: URL + 原文摘录(关键字段/原话)\n- 可信度: 高/中/低 + 理由\n- 风险标注\n\n最后给 VERDICT(逐题结论) + EVIDENCE(URL列表) + GAPS(未确认项) + NEXT。",
+      "assignment": {
+        "objective": "QUESTION: 核实 \"Anima\" / \"miaomiaoHarem_anima14\" 图像生成模型的架构归属、LoRA 兼容格式、tokenizer 最大长度、是否有步数蒸馏权重。\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要凭记忆推测。逐项查证：\n\n1. 架构归属：搜索 \"Anima diffusion model architecture\"、\"miaomiaoHarem anima qwen image\"、\"Anima DiT Qwen3 text encoder\"、\"Anima Cosmos-Predict2\"。已知它用 Qwen3-0.6B(qwen3_06b) 做文本编码器、Qwen-Image VAE、权重 bfloat16。核实它和 Qwen-Image、Cosmos-Predict2、Qwen-Image-Diffusers 的关系——是不是基于 Qwen-Image 微调的社区模型？有官方项目页/Civitai页面/HuggingFace主页吗？\n\n2. LoRA 格式：搜索 \"Anima LoRA format\"、\"Qwen-Image LoRA ComfyUI\"、\"qwen-image lora safetensors\"、\"qwen-image-anime-nsfw LoRA\"。核实 Qwen-Image 架构的 LoRA(safetensors) 能否直接用于 Anima，是否需要 kohya/PeFT 转换。注意区分 Qwen-Image 与 Qwen-Image-Diffusers(DiT/MMDiT版本差异)。\n\n3. 步数蒸馏权重：搜索 \"Qwen-Image LCM\"、\"Qwen-Image Lightning\"、\"Qwen-Image Turbo DMD\"、\"Anima distillation\"、\"qwen-image 8 steps\"。是否有官方或社区的 LCM/Turbo/DMD/Lightning 蒸馏权重能把30步压到8-12步。没有就明说没有。\n\n4. tokenizer 最大长度：找 Qwen3-0.6B 或 Qwen-Image 文本编码器的 tokenizer_config.json / max_length / max_position_embeddings。搜索 \"Qwen3-0.6B tokenizer max length\"、\"Qwen-Image text encoder max tokens 512\"。fetch HuggingFace 上 Qwen/Qwen3-0.6B 的 tokenizer_config.json 或 config.json 核实确切值。注意区分 CLIP 时代的512与 Qwen3 实际值。\n\nALREADY_KNOWN:\n- 主模型 miaomiaoHarem_anima14.safetensors (Anima架构/DiT)。\n- 文本编码器 miaomiaoHarem_anima14_txt.safetensors, CLIPLoader类型 qwen3_06b。\n- VAE: qwen_image_vae.safetensors。\n- 现有 LoRA: qwen-image-anime-nsfw.safetensors (权重0.6, 目前bypass)。\n- 目前30步 euler。\n\nEFFORT: 关键证据优先抓官方项目页(NVIDIA Cosmos, Qwen-Image 阿里官方HF, Civitai 模型页面作者说明, GitHub repo README)。对 tokenizer 一定要找到 config.json 或 tokenizer_config.json 中的确切数字字段。\n\nSTOP_CONDITION: 查不到的项目明确写\"查不到\"，绝不给\"可能叫做xxx\"的猜测。\n\nOUTPUT 格式（严格）, 每个子问题给:\n- 答案(核实过的事实或\"查不到\")\n- 证据来源: URL + 原文摘录(关键字段/原话)\n- 可信度: 高/中/低 + 理由\n- 风险标注\n\n最后给 VERDICT(逐题结论) + EVIDENCE(URL列表) + GAPS(未确认项) + NEXT。",
+        "role": "explorer"
+      },
+      "model": "z-ai/glm-5.2",
+      "nickname": "小露脊鲸",
+      "status": "Running",
+      "result": null,
+      "steps_taken": 1,
+      "checkpoint": {
+        "checkpoint_id": "agent_6c2feca5:step:1:ts:1786911349424",
+        "agent_id": "agent_6c2feca5",
+        "continuation_handle": "agent:agent_6c2feca5:checkpoint:agent_6c2feca5:step:1:ts:1786911349424",
+        "reason": "before_api_request",
+        "continuable": true,
+        "steps_taken": 1,
+        "message_count": 1,
+        "created_at_ms": 1786911349424,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Assignment metadata:\n- objective: QUESTION: 核实 \"Anima\" / \"miaomiaoHarem_anima14\" 图像生成模型的架构归属、LoRA 兼容格式、tokenizer 最大长度、是否有步数蒸馏权重。\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要凭记忆推测。逐项查证：\n\n1. 架构归属：搜索 \"Anima diffusion model architecture\"、\"miaomiaoHarem anima qwen image\"、\"Anima DiT Qwen3 text encoder\"、\"Anima Cosmos-Predict2\"。已知它用 Qwen3-0.6B(qwen3_06b) 做文本编码器、Qwen-Image VAE、权重 bfloat16。核实它和 Qwen-Image、Cosmos-Predict2、Qwen-Image-Diffusers 的关系——是不是基于 Qwen-Image 微调的社区模型？有官方项目页/Civitai页面/HuggingFace主页吗？\n\n2. LoRA 格式：搜索 \"Anima LoRA format\"、\"Qwen-Image LoRA ComfyUI\"、\"qwen-image lora safetensors\"、\"qwen-image-anime-nsfw LoRA\"。核实 Qwen-Image 架构的 LoRA(safetensors) 能否直接用于 Anima，是否需要 kohya/PeFT 转换。注意区分 Qwen-Image 与 Qwen-Image-Diffusers(DiT/MMDiT版本差异)。\n\n3. 步数蒸馏权重：搜索 \"Qwen-Image LCM\"、\"Qwen-Image Lightning\"、\"Qwen-Image Turbo DMD\"、\"Anima distillation\"、\"qwen-image 8 steps\"。是否有官方或社区的 LCM/Turbo/DMD/Lightning 蒸馏权重能把30步压到8-12步。没有就明说没有。\n\n4. tokenizer 最大长度：找 Qwen3-0.6B 或 Qwen-Image 文本编码器的 tokenizer_config.json / max_length / max_position_embeddings。搜索 \"Qwen3-0.6B tokenizer max length\"、\"Qwen-Image text encoder max tokens 512\"。fetch HuggingFace 上 Qwen/Qwen3-0.6B 的 tokenizer_config.json 或 config.json 核实确切值。注意区分 CLIP 时代的512与 Qwen3 实际值。\n\nALREADY_KNOWN:\n- 主模型 miaomiaoHarem_anima14.safetensors (Anima架构/DiT)。\n- 文本编码器 miaomiaoHarem_anima14_txt.safetensors, CLIPLoader类型 qwen3_06b。\n- VAE: qwen_image_vae.safetensors。\n- 现有 LoRA: qwen-image-anime-nsfw.safetensors (权重0.6, 目前bypass)。\n- 目前30步 euler。\n\nEFFORT: 关键证据优先抓官方项目页(NVIDIA Cosmos, Qwen-Image 阿里官方HF, Civitai 模型页面作者说明, GitHub repo README)。对 tokenizer 一定要找到 config.json 或 tokenizer_config.json 中的确切数字字段。\n\nSTOP_CONDITION: 查不到的项目明确写\"查不到\"，绝不给\"可能叫做xxx\"的猜测。\n\nOUTPUT 格式（严格）, 每个子问题给:\n- 答案(核实过的事实或\"查不到\")\n- 证据来源: URL + 原文摘录(关键字段/原话)\n- 可信度: 高/中/低 + 理由\n- 风险标注\n\n最后给 VERDICT(逐题结论) + EVIDENCE(URL列表) + GAPS(未确认项) + NEXT。\n- role: explorer\n- resolved_type: explore\n\nTask:\nQUESTION: 核实 \"Anima\" / \"miaomiaoHarem_anima14\" 图像生成模型的架构归属、LoRA 兼容格式、tokenizer 最大长度、是否有步数蒸馏权重。\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要凭记忆推测。逐项查证：\n\n1. 架构归属：搜索 \"Anima diffusion model architecture\"、\"miaomiaoHarem anima qwen image\"、\"Anima DiT Qwen3 text encoder\"、\"Anima Cosmos-Predict2\"。已知它用 Qwen3-0.6B(qwen3_06b) 做文本编码器、Qwen-Image VAE、权重 bfloat16。核实它和 Qwen-Image、Cosmos-Predict2、Qwen-Image-Diffusers 的关系——是不是基于 Qwen-Image 微调的社区模型？有官方项目页/Civitai页面/HuggingFace主页吗？\n\n2. LoRA 格式：搜索 \"Anima LoRA format\"、\"Qwen-Image LoRA ComfyUI\"、\"qwen-image lora safetensors\"、\"qwen-image-anime-nsfw LoRA\"。核实 Qwen-Image 架构的 LoRA(safetensors) 能否直接用于 Anima，是否需要 kohya/PeFT 转换。注意区分 Qwen-Image 与 Qwen-Image-Diffusers(DiT/MMDiT版本差异)。\n\n3. 步数蒸馏权重：搜索 \"Qwen-Image LCM\"、\"Qwen-Image Lightning\"、\"Qwen-Image Turbo DMD\"、\"Anima distillation\"、\"qwen-image 8 steps\"。是否有官方或社区的 LCM/Turbo/DMD/Lightning 蒸馏权重能把30步压到8-12步。没有就明说没有。\n\n4. tokenizer 最大长度：找 Qwen3-0.6B 或 Qwen-Image 文本编码器的 tokenizer_config.json / max_length / max_position_embeddings。搜索 \"Qwen3-0.6B tokenizer max length\"、\"Qwen-Image text encoder max tokens 512\"。fetch HuggingFace 上 Qwen/Qwen3-0.6B 的 tokenizer_config.json 或 config.json 核实确切值。注意区分 CLIP 时代的512与 Qwen3 实际值。\n\nALREADY_KNOWN:\n- 主模型 miaomiaoHarem_anima14.safetensors (Anima架构/DiT)。\n- 文本编码器 miaomiaoHarem_anima14_txt.safetensors, CLIPLoader类型 qwen3_06b。\n- VAE: qwen_image_vae.safetensors。\n- 现有 LoRA: qwen-image-anime-nsfw.safetensors (权重0.6, 目前bypass)。\n- 目前30步 euler。\n\nEFFORT: 关键证据优先抓官方项目页(NVIDIA Cosmos, Qwen-Image 阿里官方HF, Civitai 模型页面作者说明, GitHub repo README)。对 tokenizer 一定要找到 config.json 或 tokenizer_config.json 中的确切数字字段。\n\nSTOP_CONDITION: 查不到的项目明确写\"查不到\"，绝不给\"可能叫做xxx\"的猜测。\n\nOUTPUT 格式（严格）, 每个子问题给:\n- 答案(核实过的事实或\"查不到\")\n- 证据来源: URL + 原文摘录(关键字段/原话)\n- 可信度: 高/中/低 + 理由\n- 风险标注\n\n最后给 VERDICT(逐题结论) + EVIDENCE(URL列表) + GAPS(未确认项) + NEXT。"
+              }
+            ]
+          }
+        ]
+      },
+      "duration_ms": 1642,
+      "allowed_tools": [],
+      "updated_at_ms": 1786911350990,
+      "session_boot_id": "boot_ea1a8d8a-e0d"
+    },
+    {
+      "id": "agent_969ed310",
+      "session_name": "sam-scanner",
+      "fork_context": false,
+      "workspace": "D:\\KiraKira",
+      "agent_type": "explore",
+      "prompt": "QUESTION: 当前 ComfyUI Impact Pack 的 SAMDetector 支持哪些 SAM 模型？8GB 显存（RTX 4060 Laptop）下推荐哪个？每个 SAM 模型的确切下载源（官方/原始出处）和放置路径是什么？\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要推测。重点检索：\n1. Impact Pack 仓库 README 中 SAM 模型清单与下载链接：搜索 \"ComfyUI Impact Pack SAM model download\"、\"SAMDetector sam_vit_b sam_vit_l sam_vit_h\"、fetch Impact Pack GitHub README。\n2. Google 选哪个：搜索 \"ComfyUI SAM 8GB VRAM vit_b vit_l\"、SAM 模型体积/显存占用对比。\n3. 确认放置路径（通常 models/sams）。\n\nALREADY_KNOWN:\n- GPU RTX 4060 Laptop 8GB 显存，系统内存16GB。\n- 现有 custom_nodes 已装 ComfyUI-Impact-Pack。\n- 没有 SAM 模型文件。\n- 约束：来源不明/镜像站/无许可的一律标注风险。优先原版权威源(Meta 官方 release / HuggingFace 官方)。\n\nEFFORT: 一定要找到 Impact Pack 官方 README 里列出的 SAM 下载链接表，这是权威依据。注意区分 Segment Anything 原始 vit_b/l/h 与 SAM2/HQ-SAM 是否被 Impact Pack 支持。\n\nSTOP_CONDITION: 找不到确切下载URL的，写\"未确认\"，不要给猜测链接。\n\nOUTPUT 格式（严格）:\n对每个 SAM 模型：\n- 模型名 (如 sam_vit_b)\n- 来源URL\n- 体积\n- 显存占用(如查得到)\n- 放置路径\n- 备注(Impact Pack是否原生支持/风险标注)\n- 证据来源: URL + 原文摘录\n\n最后给 VERDICT（8GB显存推荐）+ EVIDENCE + GAPS + NEXT。",
+      "assignment": {
+        "objective": "QUESTION: 当前 ComfyUI Impact Pack 的 SAMDetector 支持哪些 SAM 模型？8GB 显存（RTX 4060 Laptop）下推荐哪个？每个 SAM 模型的确切下载源（官方/原始出处）和放置路径是什么？\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要推测。重点检索：\n1. Impact Pack 仓库 README 中 SAM 模型清单与下载链接：搜索 \"ComfyUI Impact Pack SAM model download\"、\"SAMDetector sam_vit_b sam_vit_l sam_vit_h\"、fetch Impact Pack GitHub README。\n2. Google 选哪个：搜索 \"ComfyUI SAM 8GB VRAM vit_b vit_l\"、SAM 模型体积/显存占用对比。\n3. 确认放置路径（通常 models/sams）。\n\nALREADY_KNOWN:\n- GPU RTX 4060 Laptop 8GB 显存，系统内存16GB。\n- 现有 custom_nodes 已装 ComfyUI-Impact-Pack。\n- 没有 SAM 模型文件。\n- 约束：来源不明/镜像站/无许可的一律标注风险。优先原版权威源(Meta 官方 release / HuggingFace 官方)。\n\nEFFORT: 一定要找到 Impact Pack 官方 README 里列出的 SAM 下载链接表，这是权威依据。注意区分 Segment Anything 原始 vit_b/l/h 与 SAM2/HQ-SAM 是否被 Impact Pack 支持。\n\nSTOP_CONDITION: 找不到确切下载URL的，写\"未确认\"，不要给猜测链接。\n\nOUTPUT 格式（严格）:\n对每个 SAM 模型：\n- 模型名 (如 sam_vit_b)\n- 来源URL\n- 体积\n- 显存占用(如查得到)\n- 放置路径\n- 备注(Impact Pack是否原生支持/风险标注)\n- 证据来源: URL + 原文摘录\n\n最后给 VERDICT（8GB显存推荐）+ EVIDENCE + GAPS + NEXT。",
+        "role": "explorer"
+      },
+      "model": "z-ai/glm-5.2",
+      "nickname": "Striped",
+      "status": "Running",
+      "result": null,
+      "steps_taken": 1,
+      "checkpoint": {
+        "checkpoint_id": "agent_969ed310:step:1:ts:1786911349268",
+        "agent_id": "agent_969ed310",
+        "continuation_handle": "agent:agent_969ed310:checkpoint:agent_969ed310:step:1:ts:1786911349268",
+        "reason": "before_api_request",
+        "continuable": true,
+        "steps_taken": 1,
+        "message_count": 1,
+        "created_at_ms": 1786911349268,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Assignment metadata:\n- objective: QUESTION: 当前 ComfyUI Impact Pack 的 SAMDetector 支持哪些 SAM 模型？8GB 显存（RTX 4060 Laptop）下推荐哪个？每个 SAM 模型的确切下载源（官方/原始出处）和放置路径是什么？\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要推测。重点检索：\n1. Impact Pack 仓库 README 中 SAM 模型清单与下载链接：搜索 \"ComfyUI Impact Pack SAM model download\"、\"SAMDetector sam_vit_b sam_vit_l sam_vit_h\"、fetch Impact Pack GitHub README。\n2. Google 选哪个：搜索 \"ComfyUI SAM 8GB VRAM vit_b vit_l\"、SAM 模型体积/显存占用对比。\n3. 确认放置路径（通常 models/sams）。\n\nALREADY_KNOWN:\n- GPU RTX 4060 Laptop 8GB 显存，系统内存16GB。\n- 现有 custom_nodes 已装 ComfyUI-Impact-Pack。\n- 没有 SAM 模型文件。\n- 约束：来源不明/镜像站/无许可的一律标注风险。优先原版权威源(Meta 官方 release / HuggingFace 官方)。\n\nEFFORT: 一定要找到 Impact Pack 官方 README 里列出的 SAM 下载链接表，这是权威依据。注意区分 Segment Anything 原始 vit_b/l/h 与 SAM2/HQ-SAM 是否被 Impact Pack 支持。\n\nSTOP_CONDITION: 找不到确切下载URL的，写\"未确认\"，不要给猜测链接。\n\nOUTPUT 格式（严格）:\n对每个 SAM 模型：\n- 模型名 (如 sam_vit_b)\n- 来源URL\n- 体积\n- 显存占用(如查得到)\n- 放置路径\n- 备注(Impact Pack是否原生支持/风险标注)\n- 证据来源: URL + 原文摘录\n\n最后给 VERDICT（8GB显存推荐）+ EVIDENCE + GAPS + NEXT。\n- role: explorer\n- resolved_type: explore\n\nTask:\nQUESTION: 当前 ComfyUI Impact Pack 的 SAMDetector 支持哪些 SAM 模型？8GB 显存（RTX 4060 Laptop）下推荐哪个？每个 SAM 模型的确切下载源（官方/原始出处）和放置路径是什么？\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要推测。重点检索：\n1. Impact Pack 仓库 README 中 SAM 模型清单与下载链接：搜索 \"ComfyUI Impact Pack SAM model download\"、\"SAMDetector sam_vit_b sam_vit_l sam_vit_h\"、fetch Impact Pack GitHub README。\n2. Google 选哪个：搜索 \"ComfyUI SAM 8GB VRAM vit_b vit_l\"、SAM 模型体积/显存占用对比。\n3. 确认放置路径（通常 models/sams）。\n\nALREADY_KNOWN:\n- GPU RTX 4060 Laptop 8GB 显存，系统内存16GB。\n- 现有 custom_nodes 已装 ComfyUI-Impact-Pack。\n- 没有 SAM 模型文件。\n- 约束：来源不明/镜像站/无许可的一律标注风险。优先原版权威源(Meta 官方 release / HuggingFace 官方)。\n\nEFFORT: 一定要找到 Impact Pack 官方 README 里列出的 SAM 下载链接表，这是权威依据。注意区分 Segment Anything 原始 vit_b/l/h 与 SAM2/HQ-SAM 是否被 Impact Pack 支持。\n\nSTOP_CONDITION: 找不到确切下载URL的，写\"未确认\"，不要给猜测链接。\n\nOUTPUT 格式（严格）:\n对每个 SAM 模型：\n- 模型名 (如 sam_vit_b)\n- 来源URL\n- 体积\n- 显存占用(如查得到)\n- 放置路径\n- 备注(Impact Pack是否原生支持/风险标注)\n- 证据来源: URL + 原文摘录\n\n最后给 VERDICT（8GB显存推荐）+ EVIDENCE + GAPS + NEXT。"
+              }
+            ]
+          }
+        ]
+      },
+      "duration_ms": 1798,
+      "allowed_tools": [],
+      "updated_at_ms": 1786911350990,
+      "session_boot_id": "boot_ea1a8d8a-e0d"
+    }
+  ],
+  "workers": [
+    {
+      "spec": {
+        "worker_id": "agent_5c01eb38",
+        "run_id": "agent_5c01eb38",
+        "session_name": "detect-models-scanner",
+        "objective": "QUESTION: ComfyUI Impact Pack 的 UltralyticsDetectorProvider 能直接加载哪些「手部检测」和「人体部位分割」YOLOv8 模型？需要 Impact Pack 官方仓库明确记载或社区广为引用的可信来源，每个候选给出文件名、bbox/segm 类型、来源URL、放置目录、体积、许可、最后更新。\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要推测。重点检索：\n1. 手部检测模型：搜索 \"ComfyUI Impact Pack hand detection yolov8\"、\"yolov8 hand model ultralytics ComfyUI\"，重点看 Impact Pack 官方 README/检测表(model_url_map.json 或类似)、HuggingFace 上明确的 hand YOLOv8 模型。\n2. 人体部位分割模型（segm类，用于成人角色局部精修）：搜索 \"yolov8-seg human body ComfyUI Impact Pack\"、\"ultralytics segmentation model ComfyUI segm\"，找 segm 格式、放在 models/ultralytics/segm 的模型。\n3. 眼睛/嘴部等精细部位：搜索 \"ComfyUI eyes mouth detailer yolov8\"、\"impact pack eye detection model\"，看是否有质量可靠的。\n\nALREADY_KNOWN:\n- Impact Pack 检测模型格式位于 models/ultralytics/bbox（bbox类）和 models/ultralytics/segm（segm类）。\n- 现有 face_yolov8m.pt、face_yolov8m.onnx、yolov8x6_animeface.pt 三个人脸bbox，没有segm没有SAM。\n- GPU 8GB，优先小体积。\n- 约束：来源不明/镜像站/无许可的一律标注风险，不当推荐项。\n\nEFFORT: 重点核实 Impact Pack 官方仓库的模型清单文件（通常叫 model_url_map.json 或在 README 里列出）。如果找到官方下载映射表，优先引用里面的条目。\n\nSTOP_CONDITION: 已尽力搜索仍找不到的项目，明确写\"查不到/未确认\"，不要编造文件名。\n\nOUTPUT 格式（严格）:\n对每个候选模型返回：\n- 候选名\n- 文件名 (未确认则写未确认)\n- 类型 bbox/segm\n- 来源URL (必须是检索到的真实URL)\n- 放置路径 (models/ultralytics/bbox 或 /segm)\n- 体积 (未确认则写未确认)\n- 许可 (未确认则写未确认)\n- 最后更新 (未确认则写未确认)\n- 备注 (含显存占用、风险标注)\n- 证据来源: 检索到的页面URL + 该页面支撑此条目的原文摘录\n\n最后给 VERDICT（推荐序列）+ EVIDENCE（关键来源URL列表）+ GAPS（未确认项）+ NEXT（还需查的点）。",
+        "role": "explorer",
+        "agent_type": "explore",
+        "model": "z-ai/glm-5.2",
+        "workspace": "D:\\KiraKira",
+        "git_branch": "feature/ejs-prompt-template",
+        "context_mode": "fresh",
+        "fork_context": false,
+        "tool_profile": "inherited",
+        "runtime_profile": {
+          "role": "explore",
+          "permissions": {
+            "write": false,
+            "network": false
+          },
+          "shell": "read_only",
+          "tools": "inherit",
+          "model": "inherit",
+          "provider": "nvidia-nim",
+          "max_spawn_depth": 2,
+          "background": true
+        },
+        "max_steps": 4294967295,
+        "spawn_depth": 1,
+        "max_spawn_depth": 3
+      },
+      "actor_kind": "subagent",
+      "follow_up": {
+        "tool": "handle_read",
+        "agent_id": "agent_5c01eb38",
+        "session_name": "detect-models-scanner",
+        "accepted_statuses": [
+          "running",
+          "interrupted_continuable"
+        ]
+      },
+      "takeover": {
+        "kind": "local_subagent_session",
+        "supported": true,
+        "agent_id": "agent_5c01eb38",
+        "session_name": "detect-models-scanner",
+        "instructions": "Inspect agent 'detect-models-scanner' through the returned transcript_handle with handle_read; open a replacement with agent if the lane no longer fits."
+      },
+      "artifacts": [
+        {
+          "kind": "worker_events",
+          "name": "worker_record.events",
+          "target": "agent_5c01eb38",
+          "description": "Bounded structured lifecycle events retained on the worker record."
+        },
+        {
+          "kind": "transcript",
+          "name": "transcript_handle",
+          "target": "agent:agent_5c01eb38",
+          "description": "Use the projection transcript_handle with handle_read for the child transcript."
+        },
+        {
+          "kind": "receipt",
+          "name": "result_summary",
+          "target": "agent_5c01eb38",
+          "description": "Child final summary when present; verify before treating as fact."
+        }
+      ],
+      "usage": {
+        "status": "reported",
+        "input_tokens": 14379,
+        "output_tokens": 93,
+        "total_tokens": 14472,
+        "note": "Provider reported 14472 tokens for this worker."
+      },
+      "verification": {
+        "status": "self_report_only",
+        "summary": "No verified command or test receipt is attached; treat the result summary as a child self-report."
+      },
+      "recommended_action": {
+        "action": "continue_parent_work",
+        "reason": "Worker detect-models-scanner is active in the background; continue parent work until its completion event arrives."
+      },
+      "status": "model_wait",
+      "created_at_ms": 1786911349121,
+      "updated_at_ms": 1786911350989,
+      "started_at_ms": 1786911349166,
+      "latest_message": "step 1: requesting model response",
+      "steps_taken": 1,
+      "events": [
+        {
+          "seq": 1,
+          "worker_id": "agent_5c01eb38",
+          "status": "starting",
+          "timestamp_ms": 1786911349121,
+          "message": "starting"
+        },
+        {
+          "seq": 2,
+          "worker_id": "agent_5c01eb38",
+          "status": "starting",
+          "timestamp_ms": 1786911349166,
+          "message": "started (explore)"
+        },
+        {
+          "seq": 3,
+          "worker_id": "agent_5c01eb38",
+          "status": "model_wait",
+          "timestamp_ms": 1786911349166,
+          "message": "step 1: requesting model response",
+          "step": 1
+        }
+      ]
+    },
+    {
+      "spec": {
+        "worker_id": "agent_6c2feca5",
+        "run_id": "agent_6c2feca5",
+        "session_name": "anima-arch-scanner",
+        "objective": "QUESTION: 核实 \"Anima\" / \"miaomiaoHarem_anima14\" 图像生成模型的架构归属、LoRA 兼容格式、tokenizer 最大长度、是否有步数蒸馏权重。\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要凭记忆推测。逐项查证：\n\n1. 架构归属：搜索 \"Anima diffusion model architecture\"、\"miaomiaoHarem anima qwen image\"、\"Anima DiT Qwen3 text encoder\"、\"Anima Cosmos-Predict2\"。已知它用 Qwen3-0.6B(qwen3_06b) 做文本编码器、Qwen-Image VAE、权重 bfloat16。核实它和 Qwen-Image、Cosmos-Predict2、Qwen-Image-Diffusers 的关系——是不是基于 Qwen-Image 微调的社区模型？有官方项目页/Civitai页面/HuggingFace主页吗？\n\n2. LoRA 格式：搜索 \"Anima LoRA format\"、\"Qwen-Image LoRA ComfyUI\"、\"qwen-image lora safetensors\"、\"qwen-image-anime-nsfw LoRA\"。核实 Qwen-Image 架构的 LoRA(safetensors) 能否直接用于 Anima，是否需要 kohya/PeFT 转换。注意区分 Qwen-Image 与 Qwen-Image-Diffusers(DiT/MMDiT版本差异)。\n\n3. 步数蒸馏权重：搜索 \"Qwen-Image LCM\"、\"Qwen-Image Lightning\"、\"Qwen-Image Turbo DMD\"、\"Anima distillation\"、\"qwen-image 8 steps\"。是否有官方或社区的 LCM/Turbo/DMD/Lightning 蒸馏权重能把30步压到8-12步。没有就明说没有。\n\n4. tokenizer 最大长度：找 Qwen3-0.6B 或 Qwen-Image 文本编码器的 tokenizer_config.json / max_length / max_position_embeddings。搜索 \"Qwen3-0.6B tokenizer max length\"、\"Qwen-Image text encoder max tokens 512\"。fetch HuggingFace 上 Qwen/Qwen3-0.6B 的 tokenizer_config.json 或 config.json 核实确切值。注意区分 CLIP 时代的512与 Qwen3 实际值。\n\nALREADY_KNOWN:\n- 主模型 miaomiaoHarem_anima14.safetensors (Anima架构/DiT)。\n- 文本编码器 miaomiaoHarem_anima14_txt.safetensors, CLIPLoader类型 qwen3_06b。\n- VAE: qwen_image_vae.safetensors。\n- 现有 LoRA: qwen-image-anime-nsfw.safetensors (权重0.6, 目前bypass)。\n- 目前30步 euler。\n\nEFFORT: 关键证据优先抓官方项目页(NVIDIA Cosmos, Qwen-Image 阿里官方HF, Civitai 模型页面作者说明, GitHub repo README)。对 tokenizer 一定要找到 config.json 或 tokenizer_config.json 中的确切数字字段。\n\nSTOP_CONDITION: 查不到的项目明确写\"查不到\"，绝不给\"可能叫做xxx\"的猜测。\n\nOUTPUT 格式（严格）, 每个子问题给:\n- 答案(核实过的事实或\"查不到\")\n- 证据来源: URL + 原文摘录(关键字段/原话)\n- 可信度: 高/中/低 + 理由\n- 风险标注\n\n最后给 VERDICT(逐题结论) + EVIDENCE(URL列表) + GAPS(未确认项) + NEXT。",
+        "role": "explorer",
+        "agent_type": "explore",
+        "model": "z-ai/glm-5.2",
+        "workspace": "D:\\KiraKira",
+        "git_branch": "feature/ejs-prompt-template",
+        "context_mode": "fresh",
+        "fork_context": false,
+        "tool_profile": "inherited",
+        "runtime_profile": {
+          "role": "explore",
+          "permissions": {
+            "write": false,
+            "network": false
+          },
+          "shell": "read_only",
+          "tools": "inherit",
+          "model": "inherit",
+          "provider": "nvidia-nim",
+          "max_spawn_depth": 2,
+          "background": true
+        },
+        "max_steps": 4294967295,
+        "spawn_depth": 1,
+        "max_spawn_depth": 3
+      },
+      "actor_kind": "subagent",
+      "follow_up": {
+        "tool": "handle_read",
+        "agent_id": "agent_6c2feca5",
+        "session_name": "anima-arch-scanner",
+        "accepted_statuses": [
+          "running",
+          "interrupted_continuable"
+        ]
+      },
+      "takeover": {
+        "kind": "local_subagent_session",
+        "supported": true,
+        "agent_id": "agent_6c2feca5",
+        "session_name": "anima-arch-scanner",
+        "instructions": "Inspect agent 'anima-arch-scanner' through the returned transcript_handle with handle_read; open a replacement with agent if the lane no longer fits."
+      },
+      "artifacts": [
+        {
+          "kind": "worker_events",
+          "name": "worker_record.events",
+          "target": "agent_6c2feca5",
+          "description": "Bounded structured lifecycle events retained on the worker record."
+        },
+        {
+          "kind": "transcript",
+          "name": "transcript_handle",
+          "target": "agent:agent_6c2feca5",
+          "description": "Use the projection transcript_handle with handle_read for the child transcript."
+        },
+        {
+          "kind": "receipt",
+          "name": "result_summary",
+          "target": "agent_6c2feca5",
+          "description": "Child final summary when present; verify before treating as fact."
+        }
+      ],
+      "usage": {
+        "status": "unknown",
+        "note": "Token usage is not yet reported by the sub-agent worker ledger."
+      },
+      "verification": {
+        "status": "self_report_only",
+        "summary": "No verified command or test receipt is attached; treat the result summary as a child self-report."
+      },
+      "recommended_action": {
+        "action": "continue_parent_work",
+        "reason": "Worker anima-arch-scanner is active in the background; continue parent work until its completion event arrives."
+      },
+      "status": "model_wait",
+      "created_at_ms": 1786911349384,
+      "updated_at_ms": 1786911349424,
+      "started_at_ms": 1786911349424,
+      "latest_message": "step 1: requesting model response",
+      "steps_taken": 1,
+      "events": [
+        {
+          "seq": 7,
+          "worker_id": "agent_6c2feca5",
+          "status": "starting",
+          "timestamp_ms": 1786911349384,
+          "message": "starting"
+        },
+        {
+          "seq": 8,
+          "worker_id": "agent_6c2feca5",
+          "status": "starting",
+          "timestamp_ms": 1786911349424,
+          "message": "started (explore)"
+        },
+        {
+          "seq": 9,
+          "worker_id": "agent_6c2feca5",
+          "status": "model_wait",
+          "timestamp_ms": 1786911349424,
+          "message": "step 1: requesting model response",
+          "step": 1
+        }
+      ]
+    },
+    {
+      "spec": {
+        "worker_id": "agent_969ed310",
+        "run_id": "agent_969ed310",
+        "session_name": "sam-scanner",
+        "objective": "QUESTION: 当前 ComfyUI Impact Pack 的 SAMDetector 支持哪些 SAM 模型？8GB 显存（RTX 4060 Laptop）下推荐哪个？每个 SAM 模型的确切下载源（官方/原始出处）和放置路径是什么？\n\nSCOPE: 仅限联网检索（web_search / fetch_url），不要推测。重点检索：\n1. Impact Pack 仓库 README 中 SAM 模型清单与下载链接：搜索 \"ComfyUI Impact Pack SAM model download\"、\"SAMDetector sam_vit_b sam_vit_l sam_vit_h\"、fetch Impact Pack GitHub README。\n2. Google 选哪个：搜索 \"ComfyUI SAM 8GB VRAM vit_b vit_l\"、SAM 模型体积/显存占用对比。\n3. 确认放置路径（通常 models/sams）。\n\nALREADY_KNOWN:\n- GPU RTX 4060 Laptop 8GB 显存，系统内存16GB。\n- 现有 custom_nodes 已装 ComfyUI-Impact-Pack。\n- 没有 SAM 模型文件。\n- 约束：来源不明/镜像站/无许可的一律标注风险。优先原版权威源(Meta 官方 release / HuggingFace 官方)。\n\nEFFORT: 一定要找到 Impact Pack 官方 README 里列出的 SAM 下载链接表，这是权威依据。注意区分 Segment Anything 原始 vit_b/l/h 与 SAM2/HQ-SAM 是否被 Impact Pack 支持。\n\nSTOP_CONDITION: 找不到确切下载URL的，写\"未确认\"，不要给猜测链接。\n\nOUTPUT 格式（严格）:\n对每个 SAM 模型：\n- 模型名 (如 sam_vit_b)\n- 来源URL\n- 体积\n- 显存占用(如查得到)\n- 放置路径\n- 备注(Impact Pack是否原生支持/风险标注)\n- 证据来源: URL + 原文摘录\n\n最后给 VERDICT（8GB显存推荐）+ EVIDENCE + GAPS + NEXT。",
+        "role": "explorer",
+        "agent_type": "explore",
+        "model": "z-ai/glm-5.2",
+        "workspace": "D:\\KiraKira",
+        "git_branch": "feature/ejs-prompt-template",
+        "context_mode": "fresh",
+        "fork_context": false,
+        "tool_profile": "inherited",
+        "runtime_profile": {
+          "role": "explore",
+          "permissions": {
+            "write": false,
+            "network": false
+          },
+          "shell": "read_only",
+          "tools": "inherit",
+          "model": "inherit",
+          "provider": "nvidia-nim",
+          "max_spawn_depth": 2,
+          "background": true
+        },
+        "max_steps": 4294967295,
+        "spawn_depth": 1,
+        "max_spawn_depth": 3
+      },
+      "actor_kind": "subagent",
+      "follow_up": {
+        "tool": "handle_read",
+        "agent_id": "agent_969ed310",
+        "session_name": "sam-scanner",
+        "accepted_statuses": [
+          "running",
+          "interrupted_continuable"
+        ]
+      },
+      "takeover": {
+        "kind": "local_subagent_session",
+        "supported": true,
+        "agent_id": "agent_969ed310",
+        "session_name": "sam-scanner",
+        "instructions": "Inspect agent 'sam-scanner' through the returned transcript_handle with handle_read; open a replacement with agent if the lane no longer fits."
+      },
+      "artifacts": [
+        {
+          "kind": "worker_events",
+          "name": "worker_record.events",
+          "target": "agent_969ed310",
+          "description": "Bounded structured lifecycle events retained on the worker record."
+        },
+        {
+          "kind": "transcript",
+          "name": "transcript_handle",
+          "target": "agent:agent_969ed310",
+          "description": "Use the projection transcript_handle with handle_read for the child transcript."
+        },
+        {
+          "kind": "receipt",
+          "name": "result_summary",
+          "target": "agent_969ed310",
+          "description": "Child final summary when present; verify before treating as fact."
+        }
+      ],
+      "usage": {
+        "status": "unknown",
+        "note": "Token usage is not yet reported by the sub-agent worker ledger."
+      },
+      "verification": {
+        "status": "self_report_only",
+        "summary": "No verified command or test receipt is attached; treat the result summary as a child self-report."
+      },
+      "recommended_action": {
+        "action": "continue_parent_work",
+        "reason": "Worker sam-scanner is active in the background; continue parent work until its completion event arrives."
+      },
+      "status": "model_wait",
+      "created_at_ms": 1786911349222,
+      "updated_at_ms": 1786911349268,
+      "started_at_ms": 1786911349268,
+      "latest_message": "step 1: requesting model response",
+      "steps_taken": 1,
+      "events": [
+        {
+          "seq": 4,
+          "worker_id": "agent_969ed310",
+          "status": "starting",
+          "timestamp_ms": 1786911349222,
+          "message": "starting"
+        },
+        {
+          "seq": 5,
+          "worker_id": "agent_969ed310",
+          "status": "starting",
+          "timestamp_ms": 1786911349268,
+          "message": "started (explore)"
+        },
+        {
+          "seq": 6,
+          "worker_id": "agent_969ed310",
+          "status": "model_wait",
+          "timestamp_ms": 1786911349268,
+          "message": "step 1: requesting model response",
+          "step": 1
+        }
+      ]
+    }
+  ]
+}
