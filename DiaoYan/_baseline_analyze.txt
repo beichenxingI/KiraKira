@@ -1,0 +1,6 @@
+
+┌─────────────────────────────────────────────────────────┐
+│ WARNING: your installation of Flutter is 564 days old.  │
+│                                                         │
+│ To update to the latest version, run "flutter upgrade". │
+└─────────────────────────────────────────────────────────┘

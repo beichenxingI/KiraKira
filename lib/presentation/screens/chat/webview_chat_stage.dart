@@ -4254,6 +4254,15 @@ window.addEventListener('message', function(e) {
         + '<script>window.__KIRA_CHAT_ID=' + JSON.stringify(window.__KIRA_CHAT_ID||'') + ';<\\/script>'
         + '<script>' + facadeJs + '<\\/script>'
         + '<script>'
+        + '  // Trinity: 为 EJS/dist 准备标准 ST 对象'
+        + '  window.chat = [];'
+        + '  window.chat_metadata = { variables: {} };'
+        + '  window.extension_settings = { variables: { global: {} } };'
+        + '  console.log("[Trinity] 已初始化 chat/chat_metadata/extension_settings");'
+        + '<\\/script>'
+        + '<script>'
+        + 'window.__chatMessages=[];'
+        + '<script>'
         + 'window.__chatMessages=[];'
         + 'window.addEventListener("message",function(e){'
         + 'if(!e.data||!e.data.__thEvent)return;'
@@ -4335,6 +4344,36 @@ window.addEventListener('message', function(e) {
                   var distUrl = URL.createObjectURL(new Blob([distBytes],{type:'text/javascript'}));
                   ejsMs.src = distUrl;
                   frame.contentDocument.head.appendChild(ejsMs);
+
+                  checkScript.textContent = `
+                    console.log('[EJS验证] 验证脚本已注入');
+                    setTimeout(async () => {
+                      console.log('[EJS验证] window._TH keys:', Object.keys(window._TH || {}));
+                      console.log('[EJS验证] substituteParams:', typeof window._TH?.substituteParams);
+                      
+                      // 尝试从 module 导出里拿
+                      try {
+                        const ejsBundleUrl = 'blob:http://...'; // 从日志里复制真实的 blob URL
+                        const ejsModule = await import(ejsBundleUrl);
+                        console.log('[EJS验证] EJS module exports:', Object.keys(ejsModule));
+                        
+                        // 如果有 substituteParams,挂到 window._TH
+                        if (ejsModule.substituteParams) {
+                          window._TH.substituteParams = ejsModule.substituteParams;
+                          console.log('[EJS验证] 已挂载 substituteParams 从 module');
+                          
+                          // 测试
+                          const testResult = window._TH.substituteParams('<% if (1===1) { %>YES<% } %>');
+                          console.log('[EJS验证] 测试结果:', testResult);
+                        } else {
+                          console.log('[EJS验证] module 没有导出 substituteParams');
+                        }
+                      } catch (e) {
+                        console.error('[EJS验证] import 失败:', e);
+                      }
+                    }, 1000);
+                  `;
+
                   parent.postMessage({__thLog:true,text:'[引擎房] EJS 模块已注入'},'*');
                   
                 } else {
