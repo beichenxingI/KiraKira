@@ -1,0 +1,87 @@
+/* assets/css/design_tokens.css
+ * KiraKira 设计 Token · CSS 版
+ * 与 lib/presentation/theme/design_tokens.dart 保持一致的色值/圆角/间距/动画。
+ * 供 WebView 内联页面（MVU/EJS 引擎房）引用，确保原生与 WebView 视觉统一。
+ * 注意：WebView 注入逻辑未自动同步此文件（已记入遗留清单 18_重叠），
+ *       当前需手动在 WebView HTML 模板里 @import 本文件。
+ */
+
+:root {
+  /* ── 圆角（5 级）── */
+  --kira-radius-xs: 4px;
+  --kira-radius-sm: 8px;
+  --kira-radius-md: 12px;
+  --kira-radius-lg: 16px;
+  --kira-radius-xl: 20px;
+  --kira-radius-full: 30px;
+
+  /* 语义别名 */
+  --kira-radius-card: var(--kira-radius-xl);
+  --kira-radius-input: var(--kira-radius-md);
+  --kira-radius-button: var(--kira-radius-md);
+  --kira-radius-dialog: var(--kira-radius-lg);
+  --kira-radius-bottom-sheet: var(--kira-radius-xl);
+  --kira-radius-chip: var(--kira-radius-sm);
+
+  /* ── 间距（8pt 基准网格）── */
+  --kira-space-xxs: 2px;
+  --kira-space-xs: 4px;
+  --kira-space-sm: 8px;
+  --kira-space-md: 16px;
+  --kira-space-lg: 24px;
+  --kira-space-xl: 32px;
+  --kira-space-2xl: 48px;
+  --kira-space-3xl: 64px;
+
+  /* ── 字号（7 级）── */
+  --kira-font-caption: 10px;
+  --kira-font-xs: 12px;
+  --kira-font-sm: 13px;
+  --kira-font-body-md: 14px;
+  --kira-font-body-lg: 16px;
+  --kira-font-lg: 18px;
+  --kira-font-xl: 20px;
+  --kira-font-2xl: 24px;
+  --kira-font-3xl: 28px;
+
+  /* ── 动画时长 ── */
+  --kira-duration-xs: 100ms;
+  --kira-duration-sm: 200ms;
+  --kira-duration-md: 300ms;
+  --kira-duration-lg: 400ms;
+  --kira-duration-xl: 500ms;
+  --kira-duration-dialog: 250ms;
+
+  /* ── 阴影（3 级）── */
+  --kira-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --kira-shadow-2: 0 4px 16px rgba(0, 0, 0, 0.10), 0 12px 32px -8px rgba(0, 0, 0, 0.12);
+  --kira-shadow-3: 0 8px 24px rgba(0, 0, 0, 0.12), 0 16px 48px -12px rgba(0, 0, 0, 0.16);
+
+  /* ── 颜色 ── */
+  /* 深色主题 */
+  --kira-dark-bg: #0D1128;
+  --kira-dark-surface: #161B3A;
+  --kira-dark-card: #1F264A;
+  --kira-dark-divider: #2A3057;
+
+  /* 浅色主题 */
+  --kira-light-bg: #EEEEF8;
+  --kira-light-surface: #F5F5FF;
+  --kira-light-card: #FFFFFF;
+  --kira-light-divider: #DDDDEE;
+
+  /* 文字 */
+  --kira-text-primary: #E8EAF5;
+  --kira-text-secondary: #9095B8;
+  --kira-text-muted: #6A6F94;
+
+  /* 品牌色 */
+  --kira-primary: #7C7BF0;
+  --kira-secondary: #6C8FF0;
+  --kira-accent: #56D4C8;
+
+  /* 聊天气泡 */
+  --kira-user-bubble: #5A58D4;
+  --kira-assistant-bubble: #1F264A;
+  --kira-system-bubble: #2A3057;
+}
