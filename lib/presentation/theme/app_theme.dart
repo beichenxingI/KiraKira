@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/theme/glass_theme_extension.dart';
 
 /// App theme configuration matching SillyTavern's dark aesthetic
 class AppTheme {
@@ -28,6 +30,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      extensions: [const GlassThemeExtension()],
       colorScheme: ColorScheme.dark(
         primary: primaryColor,
         secondary: secondaryColor,
@@ -50,7 +53,7 @@ class AppTheme {
         color: darkCard,
         elevation: 2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
         ),
       ),
       listTileTheme: const ListTileThemeData(
@@ -61,15 +64,15 @@ class AppTheme {
         filled: true,
         fillColor: darkCard,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
           borderSide: const BorderSide(color: darkDivider),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
           borderSide: const BorderSide(color: darkDivider),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
           borderSide: const BorderSide(color: primaryColor, width: 2),
         ),
         hintStyle: const TextStyle(color: textMuted),
@@ -80,7 +83,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
           ),
         ),
       ),
@@ -95,46 +98,46 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: darkSurface,
-        indicatorColor: primaryColor.withOpacity(0.2),
+        indicatorColor: primaryColor.withValues(alpha: 0.2),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: primaryColor, fontSize: 12);
+            return const TextStyle(color: primaryColor, fontSize: DesignTokens.fontSizeXs);
           }
-          return const TextStyle(color: textMuted, fontSize: 12);
+          return const TextStyle(color: textMuted, fontSize: DesignTokens.fontSizeXs);
         }),
       ),
       textTheme: const TextTheme(
         headlineLarge: TextStyle(
           color: textPrimary,
-          fontSize: 28,
+          fontSize: DesignTokens.fontSize3xl,
           fontWeight: FontWeight.bold,
         ),
         headlineMedium: TextStyle(
           color: textPrimary,
-          fontSize: 24,
+          fontSize: DesignTokens.fontSize2xl,
           fontWeight: FontWeight.bold,
         ),
         titleLarge: TextStyle(
           color: textPrimary,
-          fontSize: 20,
+          fontSize: DesignTokens.fontSizeXl,
           fontWeight: FontWeight.w600,
         ),
         titleMedium: TextStyle(
           color: textPrimary,
-          fontSize: 16,
+          fontSize: DesignTokens.fontSizeBodyLarge,
           fontWeight: FontWeight.w500,
         ),
         bodyLarge: TextStyle(
           color: textPrimary,
-          fontSize: 16,
+          fontSize: DesignTokens.fontSizeBodyLarge,
         ),
         bodyMedium: TextStyle(
           color: textSecondary,
-          fontSize: 14,
+          fontSize: DesignTokens.fontSizeBodyMedium,
         ),
         bodySmall: TextStyle(
           color: textMuted,
-          fontSize: 12,
+          fontSize: DesignTokens.fontSizeXs,
         ),
       ),
     );
@@ -144,6 +147,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      extensions: [const GlassThemeExtension()],
       colorScheme: ColorScheme.light(
         primary: primaryColor,
         secondary: secondaryColor,
@@ -167,7 +171,7 @@ class AppTheme {
         color: Colors.white,
         elevation: 2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
         ),
       ),
       listTileTheme: const ListTileThemeData(
@@ -178,15 +182,15 @@ class AppTheme {
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
           borderSide: const BorderSide(color: Color(0xFFDDDDEE)),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
           borderSide: const BorderSide(color: Color(0xFFDDDDEE)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
           borderSide: const BorderSide(color: primaryColor, width: 2),
         ),
         hintStyle: const TextStyle(color: Color(0xFF9090AA)),
@@ -197,7 +201,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
           ),
         ),
       ),
@@ -215,43 +219,43 @@ class AppTheme {
         indicatorColor: primaryColor.withValues(alpha: 0.15),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: primaryColor, fontSize: 12);
+            return const TextStyle(color: primaryColor, fontSize: DesignTokens.fontSizeXs);
           }
-          return const TextStyle(color: Color(0xFF9090AA), fontSize: 12);
+          return const TextStyle(color: Color(0xFF9090AA), fontSize: DesignTokens.fontSizeXs);
         }),
       ),
       textTheme: const TextTheme(
         headlineLarge: TextStyle(
           color: Color(0xFF1A1A2E),
-          fontSize: 28,
+          fontSize: DesignTokens.fontSize3xl,
           fontWeight: FontWeight.bold,
         ),
         headlineMedium: TextStyle(
           color: Color(0xFF1A1A2E),
-          fontSize: 24,
+          fontSize: DesignTokens.fontSize2xl,
           fontWeight: FontWeight.bold,
         ),
         titleLarge: TextStyle(
           color: Color(0xFF1A1A2E),
-          fontSize: 20,
+          fontSize: DesignTokens.fontSizeXl,
           fontWeight: FontWeight.w600,
         ),
         titleMedium: TextStyle(
           color: Color(0xFF1A1A2E),
-          fontSize: 16,
+          fontSize: DesignTokens.fontSizeBodyLarge,
           fontWeight: FontWeight.w500,
         ),
         bodyLarge: TextStyle(
           color: Color(0xFF1A1A2E),
-          fontSize: 16,
+          fontSize: DesignTokens.fontSizeBodyLarge,
         ),
         bodyMedium: TextStyle(
           color: Color(0xFF5A5A7A),
-          fontSize: 14,
+          fontSize: DesignTokens.fontSizeBodyMedium,
         ),
         bodySmall: TextStyle(
           color: Color(0xFF9090AA),
-          fontSize: 12,
+          fontSize: DesignTokens.fontSizeXs,
         ),
       ),
     );

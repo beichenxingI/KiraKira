@@ -1,7 +1,4 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 /// 毛玻璃配色方案
 @immutable
@@ -107,6 +104,9 @@ abstract final class GlassDesign {
 
 /// 深色磨砂玻璃容器：半透明底 + 高斯模糊 + 极淡白边 + 柔和阴影。
 /// 顶栏/输入栏/面板/卡片统一复用，保证"通透但看得清"。
+@Deprecated('Use GlassCard/GlassPanel from glass_widgets.dart instead. '
+    '旧组件仅过渡期兼容，新代码请用 DesignTokens 版组件。')
+// ignore: deprecated_member_use
 class GlassContainer extends StatelessWidget {
   const GlassContainer({
     super.key,
