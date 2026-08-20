@@ -29,6 +29,7 @@ import 'package:uuid/uuid.dart';
 import 'package:kirakira/presentation/providers/image_gen_providers.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
+import 'package:kirakira/core/utils/file_utils.dart';
 
 // Note: Repository providers are defined in their respective repository files
 // llmServiceProvider is defined in settings_providers.dart
@@ -36,10 +37,6 @@ import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 /// Current active chat ID
 final activeChatIdProvider = StateProvider<String?>((ref) => null);
 
-/// isolate 中读文件并编码 base64，避免大图阻塞主线程
-String _encodeFileToB64(String path) {
-  return base64Encode(File(path).readAsBytesSync());
-}
 
 /// Active chat state
 class ActiveChatState {
@@ -2312,7 +2309,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     for (final attachment in msg.attachments) {
       try {
         if (File(attachment.path).existsSync()) {
-          final base64Data = await compute(_encodeFileToB64, attachment.path);
+          final base64Data = await compute(encodeFileToBase64, attachment.path);
           final mimeType = attachment.mimeType ?? 'image/jpeg';
           contentParts.add({
             'type': 'image_url',

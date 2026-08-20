@@ -48,11 +48,8 @@ import 'package:image/image.dart' as img;
 import 'package:kirakira/presentation/providers/tts_providers.dart';
 import 'package:kirakira/domain/services/llm_service.dart';
 import 'package:kirakira/presentation/providers/mvu_settings_providers.dart';
+import 'package:kirakira/core/utils/file_utils.dart';
 
-/// compute 用的顶层函数：在独立 isolate 读文件并返回 base64 字符串。
-String _readFileAsB64(String path) {
-  return base64Encode(File(path).readAsBytesSync());
-}
 /// compute 用的顶层函数：isolate 中只读图片头部拿宽高，不解码整图（内存安全）。
 /// 返回 {'w': 宽, 'h': 高}，失败返回 null。
 Map<String, int>? _probeImageSize(String path) {
@@ -2262,7 +2259,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       );
       _pendingAttachments.add(attachment);
       // 预热缓存：在后台 isolate 读文件转 base64，发送时直接用，不阻塞主线程
-      compute(_readFileAsB64, newPath).then((b64) {
+      compute(encodeFileToBase64, newPath).then((b64) {
         _attachmentB64Cache[newPath] = b64;
       });
     } catch (e) {
@@ -2818,7 +2815,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           if (b64 == null) {
             final file = File(att.path);
             if (!file.existsSync()) continue;
-            final encoded = await compute(_readFileAsB64, att.path);
+            final encoded = await compute(encodeFileToBase64, att.path);
             _attachmentB64Cache[att.path] = encoded;
             b64 = encoded;
           }
