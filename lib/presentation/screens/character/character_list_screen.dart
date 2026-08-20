@@ -5,12 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
-import 'package:kirakira/presentation/providers/chat_providers.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
-import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
-import 'character_view_mode.dart';
-import '../../widgets/common/greeting_picker.dart';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
@@ -34,8 +30,6 @@ class CharacterListScreen extends ConsumerStatefulWidget {
 
 class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   String _searchQuery = '';
-  CharacterViewMode _viewMode = CharacterViewMode.grid;
-
   // ── 多选状态（仅标准网格支持）──
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
@@ -342,13 +336,6 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
           : AppBar(
               title: Text(l10n.characters),
               actions: [
-                // TODO(UI大修): 视图切换按钮已隐藏，当前锁定标准网格（唯一支持多选）
-                // 大修时按需恢复或彻底移除，连同 CharacterViewMode、_getViewModeIcon 一并清理
-                // IconButton(
-                //   icon: _getViewModeIcon(),
-                //   onPressed: () => setState(() => _viewMode = _viewMode.next),
-                //   tooltip: _viewMode.getDisplayName(l10n),
-                // ),
                 IconButton(
                   icon: const Icon(Icons.refresh),
                   tooltip: l10n.retry,
@@ -375,11 +362,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                   return const _EmptyState();
                 }
 
-                switch (_viewMode) {
-                  case CharacterViewMode.list:
-                    return _CharacterListView(characters: filtered);
-                  case CharacterViewMode.grid:
-                    return _CharacterGridView(
+                return _CharacterGridView(
                       characters: filtered,
                       selectionMode: _selectionMode,
                       selectedIds: _selectedIds,
@@ -395,9 +378,6 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                         else _toggleSelect(id);
                       },
                     );
-                  case CharacterViewMode.compactGrid:
-                    return _CharacterCompactGridView(characters: filtered);
-                }
               },
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, stack) => Center(
@@ -486,16 +466,6 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     );
   }
 
-  Icon _getViewModeIcon() {
-    switch (_viewMode) {
-      case CharacterViewMode.list:
-        return const Icon(Icons.list);
-      case CharacterViewMode.grid:
-        return const Icon(Icons.grid_view);
-      case CharacterViewMode.compactGrid:
-        return const Icon(Icons.view_compact);
-    }
-  }
 }
 
 class _SearchBar extends StatelessWidget {
@@ -562,50 +532,6 @@ class _CharacterGridView extends StatelessWidget {
           onTap: () => onTap(c.id),
           onLongPress: () => onLongPress(c.id),
         );
-      },
-    );
-  }
-}
-
-// TODO(UI大修): 此视图已弃用，当前锁定标准网格（_CharacterGridView，唯一支持多选）。
-// 大修时应删除此类及 _CharacterCompactGridCard，连同 CharacterViewMode 枚举、切换逻辑一并清理。
-class _CharacterListView extends StatelessWidget {
-  final List<Character> characters;
-
-  const _CharacterListView({required this.characters});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: characters.length,
-      itemBuilder: (context, index) {
-        return _CharacterListTile(character: characters[index]);
-      },
-    );
-  }
-}
-
-// TODO(UI大修): 此视图已弃用，当前锁定标准网格（_CharacterGridView，唯一支持多选）。
-// 大修时应删除此类及 _CharacterCompactGridCard，连同 CharacterViewMode 枚举、切换逻辑一并清理。
-class _CharacterCompactGridView extends StatelessWidget {
-  final List<Character> characters;
-
-  const _CharacterCompactGridView({required this.characters});
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.82,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: characters.length,
-      itemBuilder: (context, index) {
-        return _CharacterCompactGridCard(character: characters[index]);
       },
     );
   }
@@ -836,286 +762,6 @@ class _CharacterGridCard extends ConsumerWidget {
         return const Color(0xFFFF5722); // Orange/Red for social media
       default:
         return const Color(0xFFF5AEB2); // KiraKira 粉,替代死蓝占位
-    }
-  }
-}
-
-class _CharacterCompactGridCard extends ConsumerWidget {
-  final Character character;
-
-  const _CharacterCompactGridCard({required this.character});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/characters/${character.id}'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              flex: 4,
-              child: _buildCompactAvatar(),
-            ),
-            Expanded(
-              flex: 1,
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      character.name,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCompactAvatar() {
-    if (character.assets?.avatarPath != null) {
-      return CharacterAvatarImage(
-        imagePath: character.assets!.avatarPath!,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _defaultCompactAvatar(),
-      );
-    }
-    return _defaultCompactAvatar();
-  }
-
-  Widget _defaultCompactAvatar() {
-    final icon = _getCharacterIcon(character);
-    final color = _getCharacterColor(character);
-    
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color,
-            color.withValues(alpha: 0.7),
-          ],
-        ),
-      ),
-      child: Center(
-        child: Icon(
-          icon,
-          size: 40,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
-
-  IconData _getCharacterIcon(Character character) {
-    switch (character.id) {
-      case 'builtin_coding_assistant':
-        return Icons.code;
-      case 'builtin_image_gen_assistant':
-        return Icons.image;
-      case 'builtin_xiaohongshu_copywriter':
-        return Icons.edit_note;
-      default:
-        return Icons.person;
-    }
-  }
-
-  Color _getCharacterColor(Character character) {
-    switch (character.id) {
-      case 'builtin_coding_assistant':
-        return const Color(0xFF2196F3);
-      case 'builtin_image_gen_assistant':
-        return const Color(0xFFE91E63);
-      case 'builtin_xiaohongshu_copywriter':
-        return const Color(0xFFFF5722);
-      default:
-        return AppTheme.darkDivider;
-    }
-  }
-}
-
-class _CharacterListTile extends ConsumerWidget {
-  final Character character;
-
-  const _CharacterListTile({required this.character});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: _buildListAvatar(),
-        title: Text(character.name),
-        subtitle: Text(
-          character.description.isNotEmpty
-              ? character.description
-              : l10n.description,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: PopupMenuButton(
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'chat',
-              child: ListTile(
-                leading: const Icon(Icons.chat),
-                title: Text(l10n.startChat),
-                contentPadding: EdgeInsets.zero,
-              ),
-              onTap: () => _startChat(context, ref),
-            ),
-            PopupMenuItem(
-              value: 'edit',
-              child: ListTile(
-                leading: const Icon(Icons.edit),
-                title: Text(l10n.edit),
-                contentPadding: EdgeInsets.zero,
-              ),
-              onTap: () => context.push('/characters/${character.id}'),
-            ),
-            PopupMenuItem(
-              value: 'export',
-              child: ListTile(
-                leading: const Icon(Icons.file_upload),
-                title: Text(l10n.exportChat),
-                contentPadding: EdgeInsets.zero,
-              ),
-              onTap: () {
-                // TODO: Export character
-              },
-            ),
-            PopupMenuItem(
-              value: 'delete',
-              onTap: () => _confirmDelete(context, ref),
-              child: ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: Text(l10n.delete, style: const TextStyle(color: Colors.red)),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ],
-        ),
-        onTap: () => context.push('/characters/${character.id}'),
-      ),
-    );
-  }
-
-  Future<void> _startChat(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context);
-    
-    try {
-      String? selectedGreeting;
-      if (character.alternateGreetings.any((g) => g.trim().isNotEmpty)) {
-        selectedGreeting = await showGreetingPicker(context, character);
-        if (selectedGreeting == null || !context.mounted) return;
-      }
-      final chatId = await ref
-          .read(activeChatProvider.notifier)
-          .createChat(character.id, selectedGreeting: selectedGreeting);
-      if (chatId != null && context.mounted) {
-        context.push('/chat/$chatId');
-      } else if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.error)),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${l10n.error}: $e')),
-        );
-      }
-    }
-  }
-
-  void _confirmDelete(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.deleteCharacter),
-        content: Text(l10n.deleteCharacterConfirmation(character.name)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ref.read(characterListProvider.notifier).deleteCharacter(character.id);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.characterDeleted)),
-              );
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(l10n.delete),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildListAvatar() {
-    if (character.assets?.avatarPath != null) {
-      return CharacterAvatarCircle(
-        imagePath: character.assets!.avatarPath!,
-        radius: 28,
-      );
-    }
-
-    final icon = _getCharacterIcon(character);
-    final color = _getCharacterColor(character);
-
-    return CircleAvatar(
-      radius: 28,
-      backgroundColor: color,
-      child: Icon(
-        icon,
-        color: Colors.white,
-        size: 28,
-      ),
-    );
-  }
-
-  IconData _getCharacterIcon(Character character) {
-    switch (character.id) {
-      case 'builtin_coding_assistant':
-        return Icons.code;
-      case 'builtin_image_gen_assistant':
-        return Icons.image;
-      case 'builtin_xiaohongshu_copywriter':
-        return Icons.edit_note;
-      default:
-        return Icons.person;
-    }
-  }
-
-  Color _getCharacterColor(Character character) {
-    switch (character.id) {
-      case 'builtin_coding_assistant':
-        return const Color(0xFF2196F3);
-      case 'builtin_image_gen_assistant':
-        return const Color(0xFFE91E63);
-      case 'builtin_xiaohongshu_copywriter':
-        return const Color(0xFFFF5722);
-      default:
-        return AppTheme.primaryColor;
     }
   }
 }
