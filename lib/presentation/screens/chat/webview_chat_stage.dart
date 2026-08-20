@@ -1031,42 +1031,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
     return result;
     }
-
+  
   /// EJS 渲染桥:接收文本,发进引擎房跑 dist 的 EJS,返回渲染后的文本。
   Future<String> _handleRenderEJS(Map<String, dynamic> payload) async {
-    print('[探针🎯] _handleRenderEJS 被调用! 收到text长度=${payload["text"]?.toString().length ?? 0}');
     final text = payload['text'] as String? ?? '';
     if (text.isEmpty) return text;
 
-
-    // === EJS控制流自测探针(临时,验证后删) ===
-    {
-      final probeController = _controller;
-      if (probeController != null) {
-        try {
-          const probeInput = '<% if (1 === 1) { %>YES-控制流跑了<% } %>';
-          final probeJs = '''
-            (function() {
-              try {
-                if (typeof window._TH !== 'undefined' && typeof window._TH.substituteParams === 'function') {
-                  return window._TH.substituteParams(${jsonEncode(probeInput)});
-                }
-                return 'NO-substituteParams不存在';
-              } catch (e) {
-                return 'ERROR-' + e;
-              }
-            })();
-          ''';
-          final probeResult =
-              await probeController.evaluateJavascript(source: probeJs);
-          KiraLogger().info('EJS探针',
-              '输入=$probeInput → 输出=$probeResult');
-        } catch (e) {
-          KiraLogger().info('EJS探针', '探针失败 error=$e');
-        }
-      }
-    }
-    // === 探针结束 ===
 
     final controller = _controller;
     if (controller == null) return text;
