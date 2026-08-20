@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -388,7 +389,7 @@ class RegexSettingsScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: AppTheme.darkBackground,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
               ),
               child: SelectableText(
                 json,
@@ -500,7 +501,7 @@ class _RegexTestWidgetState extends ConsumerState<_RegexTestWidget> {
                 color: _result!.success
                     ? AppTheme.accentColor.withValues(alpha: 0.1)
                     : Colors.red.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                 border: Border.all(
                   color: _result!.success ? AppTheme.accentColor : Colors.red,
                 ),

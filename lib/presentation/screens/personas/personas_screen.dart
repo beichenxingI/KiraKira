@@ -1,4 +1,5 @@
-import 'dart:io';
+﻿import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -191,14 +192,14 @@ class _PersonaCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       color: isActive ? AppTheme.primaryColor.withValues(alpha: 0.15) : AppTheme.darkCard,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         side: isActive
             ? const BorderSide(color: AppTheme.primaryColor, width: 2)
             : BorderSide.none,
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(

@@ -1,4 +1,5 @@
-import 'dart:io';
+﻿import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/sprite.dart';
@@ -84,10 +85,10 @@ class _SpriteImageState extends State<_SpriteImage>
       duration: Duration(milliseconds: widget.settings.transitionDurationMs),
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _controller, curve: DesignTokens.curveEmphasized),
     );
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+      CurvedAnimation(parent: _controller, curve: DesignTokens.curveFade),
     );
     _controller.forward();
     _previousSpritePath = widget.sprite.imagePath;
@@ -127,7 +128,7 @@ class _SpriteImageState extends State<_SpriteImage>
           height: widget.settings.size,
           decoration: BoxDecoration(
             color: AppTheme.darkCard,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
           ),
           child: const Center(
             child: Icon(
@@ -174,7 +175,7 @@ class _SpriteImageState extends State<_SpriteImage>
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           decoration: BoxDecoration(
             color: AppTheme.darkCard.withValues(alpha: 0.8),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
           ),
           child: Text(
             _getEmotionDisplayName(widget.sprite.emotion),
@@ -282,7 +283,7 @@ class CompactSpriteDisplay extends ConsumerWidget {
         
         final file = File(sprite.imagePath);
         return ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
           child: Image.file(
             file,
             width: size,
@@ -331,7 +332,7 @@ class SpritePreview extends StatelessWidget {
           border: isSelected
               ? Border.all(color: AppTheme.accentColor, width: 2)
               : null,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -339,7 +340,7 @@ class SpritePreview extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                   child: Image.file(
                     file,
                     width: size,

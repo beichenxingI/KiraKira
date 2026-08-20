@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/data/models/world_info.dart';
@@ -278,7 +279,7 @@ class _WorldBookCard extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final entryCount = worldBook.entries.length;
 
-    return Card(margin: const EdgeInsets.only(bottom: 8), child: InkWell(borderRadius: BorderRadius.circular(12),
+    return Card(margin: const EdgeInsets.only(bottom: 8), child: InkWell(borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
       onTap: () => _openEntries(context),
       child: Padding(padding: const EdgeInsets.all(12), child: Row(children: [
         const Icon(Icons.auto_stories, color: AppTheme.textSecondary), const SizedBox(width: 12),

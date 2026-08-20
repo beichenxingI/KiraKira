@@ -1,4 +1,5 @@
 ﻿import 'dart:convert';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,7 +62,7 @@ class AIPresetsScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: AppTheme.primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
             ),
             child: Row(
               children: [
@@ -504,14 +505,14 @@ class _PresetCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       color: isActive ? AppTheme.primaryColor.withValues(alpha: 0.15) : null,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         side: isActive
             ? const BorderSide(color: AppTheme.primaryColor, width: 2)
             : BorderSide.none,
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -524,7 +525,7 @@ class _PresetCard extends StatelessWidget {
                   color: isActive
                       ? AppTheme.primaryColor
                       : AppTheme.primaryColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                 ),
                 child: Icon(
                   _getPresetIcon(preset),
@@ -554,7 +555,7 @@ class _PresetCard extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: AppTheme.primaryColor,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                             ),
                             child: Builder(
                               builder: (context) {
@@ -696,7 +697,7 @@ class _SettingChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -705,7 +706,7 @@ class _SettingChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+            style: const TextStyle(fontSize: DesignTokens.fontSizeCaption, color: AppTheme.textSecondary),
           ),
         ],
       ),

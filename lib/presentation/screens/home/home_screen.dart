@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kirakira/data/models/chat.dart';
@@ -77,7 +78,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           filled: true,
           fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
             borderSide: BorderSide.none,
           ),
           contentPadding: const EdgeInsets.symmetric(vertical: 10),
@@ -100,7 +101,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             Text(
               '基于 NativeTavern',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: DesignTokens.fontSizeCaption,
                 fontWeight: FontWeight.w400,
                 color: Theme.of(context).textTheme.bodySmall?.color
                     ?.withValues(alpha: 0.55),

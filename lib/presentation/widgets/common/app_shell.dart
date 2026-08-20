@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/presentation/widgets/chat/chat_background_widget.dart';
@@ -67,7 +68,7 @@ class _AdvancedFab extends StatelessWidget {
       onTap: () => context.push('/advanced'),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
+        curve: DesignTokens.curveStandard,
         width: 48,
         height: 48,
         decoration: BoxDecoration(
@@ -116,7 +117,7 @@ class _KiraNav extends StatelessWidget {
                     decoration: BoxDecoration(
                       // 实色（不透明）
                       color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
                       border: Border.all(
                         color: Colors.white.withValues(alpha: 0.18),
                         width: 0.8,
@@ -160,7 +161,7 @@ class _KiraNav extends StatelessWidget {
       onTap: () => onTap(2),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
+        curve: DesignTokens.curveStandard,
         width: 52,
         height: 52,
         decoration: BoxDecoration(
@@ -192,7 +193,7 @@ Widget _navItem(BuildContext context, IconData icon, String label, int idx, {boo
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
+        curve: DesignTokens.curveStandard,
         padding: EdgeInsets.symmetric(
           horizontal: center ? 14 : 8,
           vertical: center ? 6 : 4,

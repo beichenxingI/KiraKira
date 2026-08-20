@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 
 /// KiraKira 通用设计组件 · 实色层次方案
 /// 全部读 Theme，明暗主题自动适配；只负责外观，不绑定页面布局。
@@ -220,7 +221,7 @@ class KiraListTile extends StatelessWidget {
           : null,
       trailing: trailing,
       onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusMd)),
     );
   }
 }
@@ -246,7 +247,7 @@ class KiraSwitch extends StatelessWidget {
       onTap: onChanged == null ? null : () => onChanged!(!value),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
+        curve: DesignTokens.curveFade,
         width: 50,
         height: 30,
         padding: const EdgeInsets.all(3),
@@ -256,7 +257,7 @@ class KiraSwitch extends StatelessWidget {
         ),
         child: AnimatedAlign(
           duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOut,
+          curve: DesignTokens.curveFade,
           alignment: value ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
             width: 24,

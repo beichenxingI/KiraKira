@@ -1,4 +1,5 @@
-import 'dart:convert';
+﻿import 'dart:convert';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'dart:ui';
 import '../../widgets/common/glass_container.dart';
 import 'package:flutter/material.dart';
@@ -129,7 +130,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   bool _wasGenerating = false;
   late final AnimationController _maskController = AnimationController(
     vsync: this, duration: const Duration(milliseconds: 550));
-  late final Animation<double> _maskAnim = CurvedAnimation(parent: _maskController, curve: Curves.easeInOut);
+  late final Animation<double> _maskAnim = CurvedAnimation(parent: _maskController, curve: DesignTokens.curveEmphasized);
 
   // 第三方库缓存（jQuery/lodash/toastr），全类共享，只读一次
   static String? _jqueryB64;
@@ -789,7 +790,7 @@ ref.read(ejsRenderRegistryProvider).register(
                     Text(
                       '加载中…',
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: DesignTokens.fontSizeBodyLarge,
                         fontWeight: FontWeight.w500,
                         color: activeGlassPalette.primaryText,
                       ),
@@ -1675,7 +1676,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: activeGlassPalette.primaryText,
-                      fontSize: 15,
+                      fontSize: DesignTokens.fontSizeBodyLarge,
                       height: 1.15,
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.15,
@@ -1784,7 +1785,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
                     clipBehavior: Clip.none,
                     children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                         child: Image.file(
                           File(att.path),
                           width: 64,
@@ -4497,7 +4498,7 @@ class _BreathingStarState extends State<_BreathingStar>
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: Tween<double>(begin: 0.3, end: 1.0).animate(
-        CurvedAnimation(parent: _c, curve: Curves.easeInOut),
+        CurvedAnimation(parent: _c, curve: DesignTokens.curveEmphasized),
       ),
       child: const Text('✨', style: TextStyle(fontSize: 16)),
     );

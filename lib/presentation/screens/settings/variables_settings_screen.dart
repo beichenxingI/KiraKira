@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/variables_service.dart';
@@ -535,7 +536,7 @@ class _VariableTestWidgetState extends ConsumerState<_VariableTestWidget> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppTheme.accentColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                 border: Border.all(color: AppTheme.accentColor),
               ),
               child: Column(

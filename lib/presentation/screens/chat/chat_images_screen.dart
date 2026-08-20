@@ -1,4 +1,5 @@
-import 'dart:io';
+﻿import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -287,7 +288,7 @@ class _ChatImagesScreenState extends ConsumerState<ChatImagesScreen>
           onTap: () => _showImageActions(f),
           onLongPress: () => _delete(f),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
             child: Image.file(f, fit: BoxFit.cover),
           ),
         );

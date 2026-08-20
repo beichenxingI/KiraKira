@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/services/model_fingerprint_service.dart';
 import '../../providers/fingerprint_providers.dart';
@@ -51,7 +52,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
             Text(
               '模型深度检测',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: DesignTokens.fontSizeSm,
                 fontWeight: FontWeight.w400,
                 color: Colors.white.withOpacity(0.6),
               ),
@@ -99,7 +100,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C2E).withOpacity(0.4),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -159,7 +160,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                     : '正在准备…',
                 key: ValueKey(state.current),
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: DesignTokens.fontSizeBodyLarge,
                   fontWeight: FontWeight.w500,
                   color: Colors.white,
                 ),
@@ -188,7 +189,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C2E).withOpacity(0.6),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
         border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
       ),
       child: ListTile(
@@ -197,12 +198,12 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
         title: const Text(
           '裁判模型',
           style: TextStyle(
-              color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+              color: Colors.white, fontSize: DesignTokens.fontSizeBodyLarge, fontWeight: FontWeight.w500),
         ),
         subtitle: Text(
           judgeName ?? '未设置（自评模式，可信度低）',
           style: TextStyle(
-              color: Colors.white.withOpacity(0.5), fontSize: 13),
+              color: Colors.white.withOpacity(0.5), fontSize: DesignTokens.fontSizeSm),
         ),
         trailing:
             Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.3)),
@@ -237,7 +238,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
               const Text('选择裁判模型',
                   style: TextStyle(
                       color: Colors.white,
-                      fontSize: 17,
+                      fontSize: DesignTokens.fontSizeLg,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               ListTile(
@@ -318,7 +319,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                   const Text('选择裁判使用的模型',
                       style: TextStyle(
                           color: Colors.white,
-                          fontSize: 17,
+                          fontSize: DesignTokens.fontSizeLg,
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Flexible(
@@ -381,7 +382,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
         Text(
           '检测档位',
           style: TextStyle(
-            fontSize: 15,
+            fontSize: DesignTokens.fontSizeBodyLarge,
             fontWeight: FontWeight.w600,
             color: Colors.white.withOpacity(0.9),
           ),
@@ -435,10 +436,10 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
       child: AnimatedScale(
         scale: isSelected ? 1.02 : 1.0,
         duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOutCubic,
+        curve: DesignTokens.curveStandard,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
+          curve: DesignTokens.curveStandard,
           decoration: BoxDecoration(
             gradient: isSelected
                 ? LinearGradient(
@@ -492,7 +493,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
               ),
               AnimatedSize(
                 duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
+                curve: DesignTokens.curveStandard,
                 child: isSelected
                     ? Padding(
                         padding: const EdgeInsets.only(top: 12),
@@ -500,7 +501,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                           _getLevelDescription(level),
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: DesignTokens.fontSizeCaption,
                             height: 1.4,
                             color: Colors.white.withOpacity(0.7),
                           ),
@@ -538,12 +539,12 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
         elevation: 0,
       ),
       child: const Text(
         '开始检测',
-        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+        style: TextStyle(fontSize: DesignTokens.fontSizeLg, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -571,11 +572,11 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                 side: BorderSide(color: Colors.white.withOpacity(0.25)),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
               ),
               child: const Text(
                 '重新检测',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: DesignTokens.fontSizeLg, fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -599,7 +600,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
             const Text(
               '检测失败',
               style: TextStyle(
-                  fontSize: 17,
+                  fontSize: DesignTokens.fontSizeLg,
                   fontWeight: FontWeight.w600,
                   color: Colors.white),
             ),
@@ -608,7 +609,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
               error,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: DesignTokens.fontSizeSm,
                 height: 1.5,
                 color: Colors.white.withOpacity(0.6),
               ),
@@ -623,7 +624,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 32, vertical: 14),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
               ),
               child: const Text('返回重试'),
             ),
@@ -656,9 +657,9 @@ class _RevealWrapperState extends State<_RevealWrapper>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _fade = CurvedAnimation(parent: _controller, curve: DesignTokens.curveFade);
     _scale = Tween<double>(begin: 0.96, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+      CurvedAnimation(parent: _controller, curve: DesignTokens.curveStandard),
     );
     _controller.forward();
   }
@@ -725,7 +726,7 @@ class _ScanningProgressBarState extends State<_ScanningProgressBar>
                 // 填充
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeOut,
+                  curve: DesignTokens.curveFade,
                   width: fullWidth * widget.progress.clamp(0.0, 1.0),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: widget.gradient),

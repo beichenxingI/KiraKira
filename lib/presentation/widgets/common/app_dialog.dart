@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 
 /// 统一弹窗入口，替代原生 showDialog。
 /// 提供「缩放 + 淡入」的入场动画，走 GPU 合成层，性能开销极低。
@@ -29,8 +30,8 @@ Future<T?> showAppDialog<T>({
       // 用 easeOutCubic 让入场有「先快后缓」的顺滑感
       final curved = CurvedAnimation(
         parent: animation,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
+        curve: DesignTokens.curveStandard,
+        reverseCurve: DesignTokens.curveStandard,
       );
       return FadeTransition(
         opacity: curved,

@@ -1,4 +1,5 @@
 ﻿import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -483,7 +484,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                 padding: const EdgeInsets.all(48),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                   border: Border.all(
                     color: Theme.of(context).dividerColor,
                     width: 2,
@@ -549,7 +550,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                   border: Border.all(
                     color: Theme.of(context).dividerColor,
                     width: 2,
@@ -600,7 +601,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                             ],
                           ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                           ),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
@@ -646,7 +647,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                   ),
                   child: Row(
                     children: [
@@ -1058,11 +1059,11 @@ class _CharacterPreview extends StatelessWidget {
                     height: 100,
                     decoration: BoxDecoration(
                       color: Theme.of(context).dividerColor,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                     ),
                     child: character.assets?.avatarPath != null
                         ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                             child: Image.file(
                               File(character.assets!.avatarPath!),
                               fit: BoxFit.cover,

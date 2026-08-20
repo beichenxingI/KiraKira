@@ -1,4 +1,5 @@
-import 'dart:io';
+﻿import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kirakira/data/models/character.dart';
@@ -215,7 +216,7 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
         color: isUser
             ? AppTheme.accentColor.withValues(alpha: 0.35)
             : Colors.black.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
         border: Border.all(
           color: isUser
               ? AppTheme.accentColor.withValues(alpha: 0.5)
@@ -241,7 +242,7 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
             : (widget.hasBackground
                 ? Colors.transparent.withValues(alpha: widget.bubbleOpacity)
                 : Colors.transparent),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
       );
     }
   }
@@ -300,7 +301,7 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
         child: GestureDetector(
           onTap: () => _showImagePreview(attachments[0]),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 maxWidth: 250,
@@ -333,7 +334,7 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
           return GestureDetector(
             onTap: () => _showImagePreview(attachment),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
               child: Image.file(
                 File(attachment.path),
                 width: 80,
@@ -366,7 +367,7 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
             Center(
               child: InteractiveViewer(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                   child: Image.file(
                     File(attachment.path),
                     errorBuilder: (context, error, stackTrace) => Container(

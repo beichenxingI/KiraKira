@@ -1,4 +1,5 @@
 ﻿import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -434,7 +435,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
             ListTile(
               leading: Icon(Icons.file_download_outlined, color: Theme.of(context).colorScheme.primary),
               title: Text(l10n.importCharacter),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusMd)),
               onTap: () {
                 Navigator.pop(ctx);
                 context.push(AppRoutes.import_);
@@ -444,7 +445,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
             ListTile(
               leading: Icon(Icons.folder_zip_outlined, color: Theme.of(context).colorScheme.primary),
               title: const Text('从ZIP批量导入'),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusMd)),
               onTap: () {
                 Navigator.pop(ctx);
                 _importFromZip();
@@ -454,7 +455,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
             ListTile(
               leading: Icon(Icons.add, color: Theme.of(context).colorScheme.primary),
               title: Text(l10n.createCharacter),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusMd)),
               onTap: () {
                 Navigator.pop(ctx);
                 context.push(AppRoutes.characterCreate);
@@ -665,7 +666,7 @@ class _CharacterGridCard extends ConsumerWidget {
                             child: Text(
                               'by ${character.creator}',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    fontSize: 11,
+                                    fontSize: DesignTokens.fontSizeCaption,
                                     color: Theme.of(context)
                                         .textTheme
                                         .bodySmall

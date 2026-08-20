@@ -1,4 +1,5 @@
-import 'dart:io';
+﻿import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/core/logger/logger.dart';
 import 'package:kirakira/core/logger/log_entry.dart';
@@ -104,13 +105,13 @@ class _LogViewScreenState extends State<LogViewScreen> {
                                 child: Text(e.level, style: TextStyle(color: _color(e.level), fontSize: 10, fontWeight: FontWeight.bold)),
                               ),
                               const SizedBox(width: 8),
-                              Text(e.tag, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
+                              Text(e.tag, style: const TextStyle(color: AppTheme.textSecondary, fontSize: DesignTokens.fontSizeCaption)),
                               const Spacer(),
                               Text(_fmt(e.timestamp), style: const TextStyle(color: AppTheme.textMuted, fontSize: 10)),
                             ],
                           ),
                           const SizedBox(height: 2),
-                          Text(e.message, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13)),
+                          Text(e.message, style: const TextStyle(color: AppTheme.textPrimary, fontSize: DesignTokens.fontSizeSm)),
                           const Divider(height: 12),
                         ],
                       ),

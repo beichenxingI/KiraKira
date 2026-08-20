@@ -1,4 +1,5 @@
-import 'dart:io';
+﻿import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -845,7 +846,7 @@ class _SectionCardState extends State<_SectionCard> {
                     autofocus: true,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                       ),
                       contentPadding: const EdgeInsets.all(12),
                     ),
@@ -875,7 +876,7 @@ class _SectionCardState extends State<_SectionCard> {
                 ] else if (widget.content.isEmpty)
                   InkWell(
                     onTap: widget.onSave != null ? _startEdit : null,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(children: [
@@ -1039,7 +1040,7 @@ class _AlternateGreetingsCardState extends State<_AlternateGreetingsCard> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                           border: Border.all(color: theme.dividerColor),
                         ),
                         child: Column(
@@ -1247,7 +1248,7 @@ class _GreetingEditSheetState extends State<_GreetingEditSheet> {
                   autofocus: true,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                     ),
                     contentPadding: const EdgeInsets.all(12),
                   ),

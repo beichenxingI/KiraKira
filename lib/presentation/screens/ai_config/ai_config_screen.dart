@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,7 +59,7 @@ class AIConfigScreen extends ConsumerWidget {
                     Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.08),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                 border: Border.all(
                   color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
                 ),
@@ -70,7 +71,7 @@ class AIConfigScreen extends ConsumerWidget {
                     height: 48,
                     decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                     ),
                     child: const Icon(
                       Icons.auto_awesome,
@@ -1146,7 +1147,7 @@ class _ModelSelectionSheetState extends State<_ModelSelectionSheet> {
                         )
                       : null,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                   ),
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1402,7 +1403,7 @@ class _ConnectionStatusCard extends ConsumerWidget {
               Text(
                 '深度检测会发送 3 次测试消息，消耗少量额度',
                 style: TextStyle(
-                    fontSize: 11,
+                    fontSize: DesignTokens.fontSizeCaption,
                     color: Theme.of(context).textTheme.bodySmall?.color),
               ),
             ],
@@ -1433,7 +1434,7 @@ class _MetricCell extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-                fontSize: 11,
+                fontSize: DesignTokens.fontSizeCaption,
                 color: Theme.of(context).textTheme.bodySmall?.color),
           ),
         ],
@@ -1653,7 +1654,7 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
           Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
               onTap: () {
                 final models = ref.read(modelFetchProvider).models;
                 if (models.isNotEmpty) {
@@ -1674,7 +1675,7 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                 ),
                 child: Row(
                   children: [

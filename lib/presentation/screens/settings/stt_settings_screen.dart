@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/stt_service.dart';
 import 'package:kirakira/presentation/providers/stt_providers.dart';
@@ -217,7 +218,7 @@ class STTSettingsScreen extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                         border: Border.all(
                           color: result.isFinal
                               ? AppTheme.accentColor
@@ -429,7 +430,7 @@ class _AnimatedVoiceInputButtonState extends ConsumerState<AnimatedVoiceInputBut
       duration: const Duration(milliseconds: 1000),
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _controller, curve: DesignTokens.curveEmphasized),
     );
   }
 

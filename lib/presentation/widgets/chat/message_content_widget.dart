@@ -1,4 +1,5 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -411,7 +412,7 @@ class _MessageContentWidgetState extends ConsumerState<MessageContentWidget> {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
               child: CachedNetworkImage(
                 imageUrl: uri.toString(),
                 fit: BoxFit.contain,
@@ -469,7 +470,7 @@ class _MessageContentWidgetState extends ConsumerState<MessageContentWidget> {
           ),
           codeblockDecoration: BoxDecoration(
             color: AppTheme.darkBackground.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
           ),
           codeblockPadding: const EdgeInsets.all(12),
           blockquote: TextStyle(

@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/translation_service.dart';
 import 'package:kirakira/presentation/providers/translation_providers.dart';
@@ -373,7 +374,7 @@ class _TranslationTestWidgetState extends ConsumerState<_TranslationTestWidget> 
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppTheme.darkBackground,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                 border: Border.all(color: AppTheme.accentColor),
               ),
               child: Column(
@@ -407,7 +408,7 @@ class _TranslationTestWidgetState extends ConsumerState<_TranslationTestWidget> 
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.red.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                 border: Border.all(color: Colors.red),
               ),
               child: Row(
@@ -479,7 +480,7 @@ class TranslationDisplay extends StatelessWidget {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: AppTheme.accentColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
         border: Border.all(color: AppTheme.accentColor.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -492,7 +493,7 @@ class TranslationDisplay extends StatelessWidget {
               Text(
                 'Translated from ${_getLanguageName(result.sourceLanguage)}',
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: DesignTokens.fontSizeCaption,
                   color: AppTheme.textMuted,
                 ),
               ),

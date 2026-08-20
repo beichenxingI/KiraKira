@@ -1,4 +1,5 @@
 ﻿import 'dart:typed_data';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
@@ -723,7 +724,7 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppTheme.darkBackground,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                 border: Border.all(color: AppTheme.accentColor),
               ),
               child: Column(
@@ -774,7 +775,7 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
                             child: GestureDetector(
                               onTap: () => _showFullScreenImage(context, imageData),
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                                 child: Image.memory(
                                   imageData,
                                   fit: BoxFit.contain,
@@ -807,7 +808,7 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.red.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                 border: Border.all(color: Colors.red),
               ),
               child: Row(

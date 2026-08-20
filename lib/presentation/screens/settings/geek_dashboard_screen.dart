@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kirakira/presentation/providers/cfg_scale_providers.dart';
@@ -360,7 +361,7 @@ class _EntryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
       onTap: () => context.push(entry.route),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -506,7 +507,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
       children: [
         InkWell(
           onTap: () => setState(() => _expanded = !_expanded),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
@@ -608,7 +609,7 @@ class _IntInputRow extends StatelessWidget {
     final theme = Theme.of(context);
     return InkWell(
       onTap: () => _showDialog(context),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(

@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 
 class InputMenuButton extends StatelessWidget {
@@ -17,12 +18,12 @@ class InputMenuButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: AppTheme.darkCard,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -32,7 +33,7 @@ class InputMenuButton extends StatelessWidget {
             Text(
               label,
               style: const TextStyle(
-                fontSize: 13,
+                fontSize: DesignTokens.fontSizeSm,
                 color: AppTheme.textSecondary,
               ),
             ),

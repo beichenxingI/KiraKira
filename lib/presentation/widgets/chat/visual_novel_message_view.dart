@@ -1,4 +1,5 @@
-import 'dart:ui';
+﻿import 'dart:ui';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/chat.dart';
@@ -55,7 +56,7 @@ class _VisualNovelMessageViewState extends ConsumerState<VisualNovelMessageView>
             _pageController.animateToPage(
               newIndex,
               duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
+              curve: DesignTokens.curveFade,
             );
           }
         });
@@ -102,7 +103,7 @@ class _VisualNovelMessageViewState extends ConsumerState<VisualNovelMessageView>
                 ? () {
                     _pageController.previousPage(
                       duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOut,
+                      curve: DesignTokens.curveFade,
                     );
                   }
                 : null,
@@ -118,7 +119,7 @@ class _VisualNovelMessageViewState extends ConsumerState<VisualNovelMessageView>
               '${_currentIndex + 1} / ${widget.messages.length}',
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 13,
+                fontSize: DesignTokens.fontSizeSm,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -135,7 +136,7 @@ class _VisualNovelMessageViewState extends ConsumerState<VisualNovelMessageView>
                 ? () {
                     _pageController.nextPage(
                       duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOut,
+                      curve: DesignTokens.curveFade,
                     );
                   }
                 : null,
@@ -293,7 +294,7 @@ class _VisualNovelMessageViewState extends ConsumerState<VisualNovelMessageView>
           isUser ? 'You' : (widget.character?.name ?? 'AI'),
           style: TextStyle(
             color: isUser ? AppTheme.accentColor : Colors.amber,
-            fontSize: 15,
+            fontSize: DesignTokens.fontSizeBodyLarge,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -370,7 +371,7 @@ class _VisualNovelMessageViewState extends ConsumerState<VisualNovelMessageView>
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
               color: Colors.white10,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
             ),
             child: Text(
               '${currentSwipeIndex + 1} / $totalSwipes',

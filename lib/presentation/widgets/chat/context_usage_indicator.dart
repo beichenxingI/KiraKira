@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/context_usage_service.dart';
 import 'package:kirakira/presentation/providers/context_usage_providers.dart';
@@ -31,7 +32,7 @@ class ContextUsageIndicator extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         border: Border.all(
           color: color.withOpacity(0.3),
           width: 1,
@@ -67,7 +68,7 @@ class ContextUsageIndicator extends ConsumerWidget {
           Text(
             '${_formatTokenCount(usage.totalTokens)} / ${_formatTokenCount(usage.maxContext)}',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: DesignTokens.fontSizeCaption,
               color: color,
               fontWeight: FontWeight.w500,
             ),
@@ -146,7 +147,7 @@ class ContextUsageDialog extends ConsumerWidget {
     return AlertDialog(
       backgroundColor: AppTheme.darkCard,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
       ),
       title: Row(
         children: [
@@ -270,7 +271,7 @@ class ContextUsageDialog extends ConsumerWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.darkBackground,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
       ),
       child: Column(
         children: [
@@ -304,14 +305,14 @@ class ContextUsageDialog extends ConsumerWidget {
           label,
           style: const TextStyle(
             color: AppTheme.textMuted,
-            fontSize: 13,
+            fontSize: DesignTokens.fontSizeSm,
           ),
         ),
         Text(
           value,
           style: TextStyle(
             color: valueColor,
-            fontSize: 13,
+            fontSize: DesignTokens.fontSizeSm,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -352,7 +353,7 @@ class ContextUsageDialog extends ConsumerWidget {
                   component.name,
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
-                    fontSize: 13,
+                    fontSize: DesignTokens.fontSizeSm,
                   ),
                 ),
               ),
@@ -426,7 +427,7 @@ class ContextUsageDialog extends ConsumerWidget {
             '${_formatTokenCount(component.tokenCount)} (${percentage.toStringAsFixed(1)}%)',
             style: const TextStyle(
               color: AppTheme.textMuted,
-              fontSize: 11,
+              fontSize: DesignTokens.fontSizeCaption,
             ),
           ),
         ],

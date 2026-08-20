@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 
@@ -54,7 +55,7 @@ class ModelSelectorDialogState extends State<ModelSelectorDialog> {
     return Dialog(
       backgroundColor: AppTheme.darkCard,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
       ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -105,7 +106,7 @@ class ModelSelectorDialogState extends State<ModelSelectorDialog> {
                   filled: true,
                   fillColor: AppTheme.darkBackground,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
@@ -162,7 +163,7 @@ class ModelSelectorDialogState extends State<ModelSelectorDialog> {
                           selectedTileColor:
                               AppTheme.accentColor.withValues(alpha: 0.1),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                           ),
                           onTap: () => Navigator.pop(context, model),
                         );

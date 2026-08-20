@@ -1,4 +1,5 @@
-import 'dart:io';
+﻿import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -120,7 +121,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _scrollController.animateTo(
           0, // With reverse: true, position 0 is the bottom
           duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+          curve: DesignTokens.curveFade,
         );
       }
     });
@@ -1255,7 +1256,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       filled: true,
                       fillColor: Colors.black.withValues(alpha: 0.55),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(
@@ -1300,7 +1301,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       child: GlassContainer(
         opacity: 0.6,
         blur: 18,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1333,7 +1334,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                     ),
                     child: Row(
                       children: [
@@ -1453,7 +1454,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: Stack(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                   child: Image.file(
                     File(attachment.path),
                     width: 80,
@@ -1928,7 +1929,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
 
 /// Button widget for the input menu panel
-
 
 
 

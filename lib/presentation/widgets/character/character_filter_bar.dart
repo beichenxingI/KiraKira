@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/tag.dart';
 import '../../providers/character_filter_providers.dart';
@@ -42,7 +43,7 @@ class CharacterFilterBar extends ConsumerWidget {
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
                       borderSide: BorderSide.none,
                     ),
                     filled: true,

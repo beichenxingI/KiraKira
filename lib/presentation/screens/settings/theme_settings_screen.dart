@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../data/models/app_theme_config.dart';
@@ -145,11 +146,11 @@ class ThemeSettingsScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: activeTheme.card,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                       ),
                       child: Text(
                         'Hello! How can I help you today?',
-                        style: TextStyle(color: activeTheme.textPrimary, fontSize: 13),
+                        style: TextStyle(color: activeTheme.textPrimary, fontSize: DesignTokens.fontSizeSm),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -160,11 +161,11 @@ class ThemeSettingsScreen extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: activeTheme.accent,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                         ),
                         child: const Text(
                           'Tell me a story!',
-                          style: TextStyle(color: Colors.white, fontSize: 13),
+                          style: TextStyle(color: Colors.white, fontSize: DesignTokens.fontSizeSm),
                         ),
                       ),
                     ),
@@ -187,7 +188,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                       ),
                       child: Text(
                         'Type a message...',
-                        style: TextStyle(color: activeTheme.textSecondary, fontSize: 13),
+                        style: TextStyle(color: activeTheme.textSecondary, fontSize: DesignTokens.fontSizeSm),
                       ),
                     ),
                   ),
@@ -284,7 +285,7 @@ class _ThemeCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
           border: isActive
               ? Border.all(color: AppTheme.accentColor, width: 3)
               : Border.all(color: Colors.grey.withValues(alpha: 0.3)),
@@ -365,7 +366,7 @@ class _ThemeCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       theme.name,
-                      style: const TextStyle(fontSize: 11),
+                      style: const TextStyle(fontSize: DesignTokens.fontSizeCaption),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -547,7 +548,7 @@ class _ColorPickerTile extends StatelessWidget {
               height: 40,
               decoration: BoxDecoration(
                 color: AppThemeConfig.hexToColor(color),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                 border: Border.all(color: Colors.grey),
               ),
             ),

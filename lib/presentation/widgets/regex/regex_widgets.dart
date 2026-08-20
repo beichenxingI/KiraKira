@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:kirakira/data/models/regex_script.dart';
 import 'package:kirakira/presentation/providers/regex_providers.dart';
@@ -318,7 +319,7 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
                     // ── 高级选项（折叠） ───────────────────────────────
                     InkWell(
                       onTap: () => setState(() => _showAdvanced = !_showAdvanced),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Row(
@@ -344,12 +345,12 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
                       // 消息深度范围
                       const Text(
                         '消息深度限制 Depth Range',
-                        style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: DesignTokens.fontSizeSm, color: AppTheme.textSecondary),
                       ),
                       const SizedBox(height: 4),
                       const Text(
                         '限制脚本只对最近 N 条消息生效。0 = 最新消息，留空 = 不限制。',
-                        style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                        style: TextStyle(fontSize: DesignTokens.fontSizeCaption, color: AppTheme.textMuted),
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -386,12 +387,12 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
                       // 修剪字符串
                       const Text(
                         '修剪字符串 Trim Strings',
-                        style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: DesignTokens.fontSizeSm, color: AppTheme.textSecondary),
                       ),
                       const SizedBox(height: 4),
                       const Text(
                         '在替换后从结果中删除这些字符串。',
-                        style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                        style: TextStyle(fontSize: DesignTokens.fontSizeCaption, color: AppTheme.textMuted),
                       ),
                       const SizedBox(height: 8),
                       if (_trimStrings.isNotEmpty) ...[
@@ -454,7 +455,7 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
       label: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(labelZh, style: const TextStyle(fontSize: 13)),
+          Text(labelZh, style: const TextStyle(fontSize: DesignTokens.fontSizeSm)),
           Text(labelEn, style: const TextStyle(fontSize: 9, color: AppTheme.textMuted)),
         ],
       ),

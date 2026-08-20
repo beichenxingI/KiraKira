@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import '../../../domain/models/fingerprint_result.dart';
 
 class FingerprintResultWidget extends StatelessWidget {
@@ -22,7 +23,7 @@ class FingerprintResultWidget extends StatelessWidget {
     return Card(
       color: const Color(0xFF1E1E2E),
       margin: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: isLoading ? _buildLoading() : result != null ? _buildResult(context) : _buildEmpty(),
@@ -63,7 +64,7 @@ class FingerprintResultWidget extends StatelessWidget {
       // 家族命中证据（为什么判成这个家族）
       if (r.closestFamily != null && r.closestFamily!.evidence.isNotEmpty) ...[
         const SizedBox(height: 10),
-        const Text('判定依据：', style: TextStyle(color: Colors.white70, fontSize: 13)),
+        const Text('判定依据：', style: TextStyle(color: Colors.white70, fontSize: DesignTokens.fontSizeSm)),
         const SizedBox(height: 4),
         ...r.closestFamily!.evidence.map((e) => Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 2),
@@ -118,7 +119,7 @@ class FingerprintResultWidget extends StatelessWidget {
       ],
       const SizedBox(height: 12),
       Text(r.disclaimer,
-          style: const TextStyle(color: Colors.white38, fontSize: 11)),
+          style: const TextStyle(color: Colors.white38, fontSize: DesignTokens.fontSizeCaption)),
     ]);
   }
 
@@ -135,7 +136,7 @@ class FingerprintResultWidget extends StatelessWidget {
           Container(height: 6, decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(3))),
           FractionallySizedBox(widthFactor: val / 100, child: Container(height: 6, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)))),
         ]),
-        Text('${val.round()}分', style: TextStyle(color: Colors.white, fontSize: 11)),
+        Text('${val.round()}分', style: TextStyle(color: Colors.white, fontSize: DesignTokens.fontSizeCaption)),
       ]));
     }).toList());
   }

@@ -1,4 +1,5 @@
 ﻿import 'dart:convert';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
@@ -428,7 +429,7 @@ class _WorldInfoCard extends StatelessWidget {
       color: AppTheme.darkCard,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -441,7 +442,7 @@ class _WorldInfoCard extends StatelessWidget {
                   color: worldInfo.enabled
                       ? AppTheme.primaryColor.withValues(alpha: 0.2)
                       : AppTheme.textMuted.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                 ),
                 child: Icon(
                   Icons.auto_stories,
@@ -1044,7 +1045,7 @@ class _WorldInfoEntryCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         onLongPress: () => _copyToClipboard(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1535,7 +1536,7 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
 
     return Dialog(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 500),
@@ -1647,7 +1648,7 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
                         Container(
                           decoration: BoxDecoration(
                             color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                             border: Border.all(color: Theme.of(context).dividerColor),
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -1728,7 +1729,7 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusSm)),
                     ),
                     child: _isSaving
                         ? SizedBox(
@@ -1753,7 +1754,7 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
       text,
       style: TextStyle(
         color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
-        fontSize: 13,
+        fontSize: DesignTokens.fontSizeSm,
         fontWeight: FontWeight.w500,
       ),
     );
@@ -1765,20 +1766,20 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
       hintText: hint,
       hintStyle: TextStyle(
         color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-        fontSize: 13,
+        fontSize: DesignTokens.fontSizeSm,
       ),
       filled: true,
       fillColor: theme.cardColor,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
         borderSide: BorderSide(color: theme.dividerColor),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
         borderSide: BorderSide(color: theme.dividerColor),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
         borderSide: BorderSide(color: theme.colorScheme.primary),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1810,4 +1811,3 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
     );
   }
 }
-

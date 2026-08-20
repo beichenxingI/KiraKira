@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 
 /// 跟随时间段变化的问候语，放在主页时间旁
 class TimeGreeting extends StatelessWidget {
@@ -22,7 +23,7 @@ class TimeGreeting extends StatelessWidget {
       greetingFor(hour),
       style: style ??
           TextStyle(
-            fontSize: 13,
+            fontSize: DesignTokens.fontSizeSm,
             color: Colors.white.withValues(alpha: 0.6),
           ),
     );

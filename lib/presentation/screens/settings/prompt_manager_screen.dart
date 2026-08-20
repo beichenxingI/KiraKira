@@ -1,4 +1,5 @@
-import 'dart:convert';
+﻿import 'dart:convert';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -590,7 +591,7 @@ class PromptManagerScreen extends ConsumerWidget {
                   'Supports macros: {{user}}, {{char}}, {{time}}, {{date}}, etc.',
                   style: TextStyle(
                     color: AppTheme.textMuted,
-                    fontSize: 11,
+                    fontSize: DesignTokens.fontSizeCaption,
                     fontStyle: FontStyle.italic,
                   ),
                 ),

@@ -1,4 +1,5 @@
 ﻿import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -224,7 +225,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,7 +371,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: AppTheme.darkCard.withValues(alpha: _currentBackground.bubbleOpacity),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                     ),
                     child: Text(
                       AppLocalizations.of(context).sampleMessage1,
@@ -384,7 +385,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: AppTheme.accentColor.withValues(alpha: _currentBackground.bubbleOpacity),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                       ),
                       child: Text(
                         AppLocalizations.of(context).sampleMessage2,

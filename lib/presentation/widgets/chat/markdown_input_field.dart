@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:kirakira/domain/services/markdown_hotkey_service.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
@@ -139,7 +140,7 @@ class _MarkdownInputFieldState extends State<MarkdownInputField> {
               filled: true,
               fillColor: AppTheme.darkBackground,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -170,7 +171,7 @@ class _MarkdownToolbar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: AppTheme.darkCard,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
         border: Border.all(color: AppTheme.darkDivider),
       ),
       child: SingleChildScrollView(
@@ -320,7 +321,7 @@ class MarkdownToolbar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: AppTheme.darkCard,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
         border: Border.all(color: AppTheme.darkDivider),
       ),
       child: SingleChildScrollView(

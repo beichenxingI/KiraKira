@@ -1,4 +1,5 @@
-import 'dart:async';
+﻿import 'dart:async';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
@@ -309,7 +310,7 @@ $htmlContent
       onLongPress: widget.onLongPress,
       child: AnimatedSize(
         duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
+        curve: DesignTokens.curveEmphasized,
         alignment: Alignment.topCenter,
         child: SizedBox(
           height: _contentHeight,

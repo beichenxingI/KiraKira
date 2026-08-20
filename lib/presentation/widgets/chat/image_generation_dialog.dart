@@ -1,4 +1,5 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
@@ -123,7 +124,7 @@ class _ImageGenerationDialogState extends ConsumerState<ImageGenerationDialog> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: AppTheme.darkBackground,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                 ),
                 child: Row(
                   children: [
@@ -173,7 +174,7 @@ class _ImageGenerationDialogState extends ConsumerState<ImageGenerationDialog> {
                   filled: true,
                   fillColor: AppTheme.darkBackground,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                     borderSide: BorderSide.none,
                   ),
                 ),
@@ -203,7 +204,7 @@ class _ImageGenerationDialogState extends ConsumerState<ImageGenerationDialog> {
                       filled: true,
                       fillColor: AppTheme.darkBackground,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                         borderSide: BorderSide.none,
                       ),
                     ),
@@ -238,7 +239,7 @@ class _ImageGenerationDialogState extends ConsumerState<ImageGenerationDialog> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                     border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                   ),
                   child: Row(
@@ -260,7 +261,7 @@ class _ImageGenerationDialogState extends ConsumerState<ImageGenerationDialog> {
               if (_generatedImage != null) ...[
                 const SizedBox(height: 16),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                   child: Image.memory(
                     _generatedImage!,
                     fit: BoxFit.contain,
@@ -401,7 +402,7 @@ class _ImageGenerationDialogState extends ConsumerState<ImageGenerationDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
               color: AppTheme.darkBackground,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(

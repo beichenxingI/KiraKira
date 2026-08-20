@@ -1,4 +1,5 @@
-import 'dart:io';
+﻿import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -157,7 +158,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
                   .colorScheme
                   .primary
                   .withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,7 +178,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
                   '2. 当前角色卡在"绑定角色卡"里指定的人设\n'
                   '3. 都没有时，使用默认人设\n\n'
                   '你可以在"绑定角色卡"页把这个人设关联到一个或多个角色。',
-                  style: TextStyle(fontSize: 13, height: 1.6),
+                  style: TextStyle(fontSize: DesignTokens.fontSizeSm, height: 1.6),
                 ),
               ],
             ),
@@ -255,7 +256,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
             child: const Text(
               '勾选角色卡，进入对应角色的聊天时将自动使用这个人设'
               '（除非你在聊天里手动选择了其他人设）。',
-              style: TextStyle(fontSize: 13, height: 1.5),
+              style: TextStyle(fontSize: DesignTokens.fontSizeSm, height: 1.5),
             ),
           ),
         ),

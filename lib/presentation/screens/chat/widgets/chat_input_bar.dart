@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 
 class ChatInputBar extends StatelessWidget {
   final TextEditingController controller;
@@ -38,7 +39,7 @@ class ChatInputBar extends StatelessWidget {
               filled: true,
               fillColor: Theme.of(context).cardColor,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.symmetric(

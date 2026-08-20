@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/tag.dart';
 import 'package:kirakira/presentation/providers/tag_providers.dart';
@@ -187,7 +188,7 @@ class _TagListItem extends StatelessWidget {
           height: 40,
           decoration: BoxDecoration(
             color: tag.colorValue.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
           ),
           child: Center(
             child: tag.icon != null && tag.icon!.isNotEmpty
@@ -367,7 +368,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppTheme.darkCard,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
               ),
               child: Row(
                 children: [
@@ -407,7 +408,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: _selectedColor.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
         border: Border.all(color: _selectedColor),
       ),
       child: Row(
@@ -488,7 +489,7 @@ class TagChip extends StatelessWidget {
           color: selected
               ? tag.colorValue.withValues(alpha: 0.3)
               : tag.colorValue.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
           border: Border.all(
             color: selected ? tag.colorValue : tag.colorValue.withValues(alpha: 0.5),
             width: selected ? 2 : 1,
@@ -506,7 +507,7 @@ class TagChip extends StatelessWidget {
               style: TextStyle(
                 color: tag.colorValue,
                 fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                fontSize: 13,
+                fontSize: DesignTokens.fontSizeSm,
               ),
             ),
             if (onDelete != null) ...[

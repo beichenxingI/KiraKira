@@ -1,4 +1,5 @@
-import 'dart:convert';
+﻿import 'dart:convert';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -181,7 +182,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                 border: Border.all(
                   color: AppTheme.primaryColor.withValues(alpha: 0.3),
                 ),
@@ -209,7 +210,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
                   const Text(
                     '使用设备本地的 bge-small-zh 模型生成向量，无需 API、'
                     '不花费任何 token、聊天内容不出设备。首次使用会加载模型（约24MB），稍有延迟。',
-                    style: TextStyle(fontSize: 13, height: 1.5),
+                    style: TextStyle(fontSize: DesignTokens.fontSizeSm, height: 1.5),
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -232,7 +233,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
                   Text(
                     'KiraKira 致力于让每个人都能用上安全、免费的 AI 聊天体验。',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: DesignTokens.fontSizeCaption,
                       fontStyle: FontStyle.italic,
                       color: Theme.of(context)
                           .textTheme
@@ -761,7 +762,7 @@ class _StatChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/bookmark.dart';
 import 'package:kirakira/data/models/chat.dart';
@@ -365,7 +366,7 @@ class BookmarkPreviewDialog extends ConsumerWidget {
                       color: isUser 
                           ? AppTheme.accentColor.withValues(alpha: 0.2)
                           : AppTheme.darkCard,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

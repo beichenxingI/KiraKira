@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/services/slash_command_service.dart';
 import '../../theme/app_theme.dart';
@@ -30,7 +31,7 @@ class SlashCommandSuggestions extends ConsumerWidget {
       constraints: const BoxConstraints(maxHeight: 250),
       decoration: BoxDecoration(
         color: AppTheme.darkCard,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.3),

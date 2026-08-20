@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -62,7 +63,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
               Text('KiraKira',
                   style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 13,
+                      fontSize: DesignTokens.fontSizeSm,
                       letterSpacing: 1.5)),
               const SizedBox(height: 4),
               Text(t.title,
@@ -101,7 +102,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                       Text(t.warning,
                           style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 13,
+                              fontSize: DesignTokens.fontSizeSm,
                               height: 1.6)),
                       const SizedBox(height: 12),
                       _licenseLine(t),
@@ -125,7 +126,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                     Expanded(
                       child: Text(t.checkbox,
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 15)),
+                              color: Colors.white, fontSize: DesignTokens.fontSizeBodyLarge)),
                     ),
                   ],
                 ),
@@ -161,7 +162,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                   child: Text(t.disagree,
                       style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.4),
-                          fontSize: 13)),
+                          fontSize: DesignTokens.fontSizeSm)),
                 ),
               ),
             ],
@@ -180,7 +181,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
             color: on ? _accent : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
           ),
           child: Text(label,
               style: TextStyle(
@@ -238,7 +239,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                 Text(body,
                     style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 13,
+                        fontSize: DesignTokens.fontSizeSm,
                         height: 1.6)),
               ],
             ),
@@ -257,7 +258,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
             TextSpan(
               style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 13,
+                  fontSize: DesignTokens.fontSizeSm,
                   height: 1.6),
               children: [
                 TextSpan(text: t.licensePrefix),
