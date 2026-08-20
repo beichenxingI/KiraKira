@@ -287,6 +287,7 @@ class _GroupCard extends ConsumerWidget {
 
   void _startGroupChat(BuildContext context, WidgetRef ref) {
     // TODO: Create group chat and navigate to it
+    // TRACKED: recorded in DiaoYan/18 (phase-6 tech-debt)
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(AppLocalizations.of(context)!.groupChatWillBeImplemented)),
     );

@@ -384,6 +384,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       case 'bg':
         // TODO: Implement background change
+        // TRACKED: recorded in DiaoYan/18 (phase-6 tech-debt)
         _showSnackBar('Background feature coming soon');
         break;
 

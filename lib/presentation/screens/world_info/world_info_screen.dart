@@ -918,6 +918,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
               itemCount: _worldInfo.entries.length,
               onReorder: (oldIndex, newIndex) {
                 // TODO: Implement reordering
+                // TRACKED: recorded in DiaoYan/18 (phase-6 tech-debt)
               },
               itemBuilder: (context, index) {
                 final entry = _worldInfo.entries[index];
