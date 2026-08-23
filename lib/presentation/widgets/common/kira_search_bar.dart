@@ -1,10 +1,12 @@
 // lib/presentation/widgets/common/kira_search_bar.dart
-/// KiraSearchBar · 全局统一胶囊搜索栏(宪法 §六.4)
+/// KiraSearchBar · 全局统一搜索栏(iOS 化:宪法 §五.5 + 手册 A-T5)
 ///
-/// 顶部吸附、filled 胶囊、圆角 radiusFull。各列表页共用一套,
-/// 不再各自造搜索框。
+/// iOS 搜索框规格:高 36、圆角 10(非全胶囊)、前缀 CupertinoIcons.search、
+/// 填充 dark=darkCard / light=lightFillTertiary、聚焦无描边(光标即反馈)、
+/// 清除按钮 clear_circled_solid。
 library;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 
@@ -17,6 +19,7 @@ class KiraSearchBar extends StatelessWidget {
     this.onSubmitted,
     this.onClear,
     this.autofocus = false,
+    this.padding = DesignTokens.paddingScreen,
   });
 
   final TextEditingController? controller;
@@ -26,70 +29,75 @@ class KiraSearchBar extends StatelessWidget {
   final VoidCallback? onClear;
   final bool autofocus;
 
+  /// 外层留白;传 EdgeInsets.zero 可裸贴(供 Block B/C 吸顶排版)
+  final EdgeInsetsGeometry padding;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final fillColor = isDark
-        ? DesignTokens.darkCard
-        : theme.colorScheme.surfaceContainerHighest;
+    final fillColor =
+        isDark ? DesignTokens.darkCard : DesignTokens.lightFillTertiary;
+    final tertiary = theme.textTheme.bodySmall?.color;
 
-    return Padding(
-      padding: DesignTokens.paddingScreen,
-      child: SizedBox(
-        height: 44, // 工程尺寸:iOS 触控最小高,不进 token
-        child: TextField(
-          controller: controller,
-          autofocus: autofocus,
-          onChanged: onChanged,
-          onSubmitted: onSubmitted,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontSize: DesignTokens.fontSizeBodyMedium,
+    final field = SizedBox(
+      height: 36, // iOS 搜索栏实测 36
+      child: TextField(
+        controller: controller,
+        autofocus: autofocus,
+        onChanged: onChanged,
+        onSubmitted: onSubmitted,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          fontSize: DesignTokens.fontSizeBodyLarge,
+          color: theme.textTheme.bodyLarge?.color,
+        ),
+        cursorColor: theme.colorScheme.primary,
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: fillColor,
+          hintText: hintText,
+          hintStyle: TextStyle(
+            color: tertiary,
+            fontSize: DesignTokens.fontSizeBodyLarge,
           ),
-          cursorColor: theme.colorScheme.primary,
-          decoration: InputDecoration(
-            isDense: true,
-            filled: true,
-            fillColor: fillColor,
-            hintText: hintText,
-            hintStyle: const TextStyle(
-              color: DesignTokens.darkTextSecondary,
-              fontSize: DesignTokens.fontSizeBodyMedium,
-            ),
-            prefixIcon: const Icon(Icons.search, size: 20),
-            prefixIconColor: DesignTokens.darkTextSecondary,
-            suffixIcon: _ClearButton(
-              controller: controller,
-              onClear: onClear,
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: DesignTokens.spaceMd,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-              borderSide: BorderSide(color: theme.colorScheme.primary),
-            ),
+          prefixIcon: Icon(CupertinoIcons.search, size: 18, color: tertiary),
+          suffixIcon: _ClearButton(
+            controller: controller,
+            onClear: onClear,
+            color: tertiary,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spaceSm,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusGroupedCard),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusGroupedCard),
+            borderSide: BorderSide.none,
+          ),
+          // iOS 搜索聚焦无边框描边,光标即反馈
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusGroupedCard),
+            borderSide: BorderSide.none,
           ),
         ),
       ),
     );
+
+    return Padding(padding: padding, child: field);
   }
 }
 
 /// 清除按钮:仅在有输入时显示
 class _ClearButton extends StatefulWidget {
-  const _ClearButton({this.controller, this.onClear});
+  const _ClearButton({this.controller, this.onClear, this.color});
 
   final TextEditingController? controller;
   final VoidCallback? onClear;
+  final Color? color;
 
   @override
   State<_ClearButton> createState() => _ClearButtonState();
@@ -114,13 +122,20 @@ class _ClearButtonState extends State<_ClearButton> {
   Widget build(BuildContext context) {
     final hasText = widget.controller?.text.isNotEmpty ?? false;
     if (!hasText) return const SizedBox.shrink();
-    return IconButton(
-      icon: const Icon(Icons.clear, size: 18),
-      color: DesignTokens.darkTextSecondary,
-      onPressed: () {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
         widget.controller?.clear();
         widget.onClear?.call();
       },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceSm),
+        child: Icon(
+          CupertinoIcons.clear_circled_solid,
+          size: 17,
+          color: widget.color,
+        ),
+      ),
     );
   }
 }
