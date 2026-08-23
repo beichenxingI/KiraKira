@@ -18,6 +18,7 @@ class KiraPressable extends StatefulWidget {
     this.onTap,
     this.borderRadius,
     this.scaleEnabled = true, // 导航项/小按钮传 false
+    this.pressScale = 0.97, // 特殊档位(如底栏中球 0.93)
   });
 
   final Widget child;
@@ -28,6 +29,9 @@ class KiraPressable extends StatefulWidget {
 
   /// 关闭后按压只有 opacity 反馈(导航项/底栏等大面积元素避免缩放廉价感)
   final bool scaleEnabled;
+
+  /// 按压缩放档位;默认 0.97 锁定,任何块不得改默认值,用本参数调档
+  final double pressScale;
 
   @override
   State<KiraPressable> createState() => _KiraPressableState();
@@ -52,7 +56,7 @@ class _KiraPressableState extends State<KiraPressable> {
       onTapUp: (_) => _setPressed(false),
       onTapCancel: () => _setPressed(false),
       child: AnimatedScale(
-        scale: (_pressed && widget.scaleEnabled) ? 0.97 : 1.0,
+        scale: (_pressed && widget.scaleEnabled) ? widget.pressScale : 1.0,
         duration: const Duration(milliseconds: 120),
         curve: Curves.easeOut,
         child: AnimatedOpacity(
