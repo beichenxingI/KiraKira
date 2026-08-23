@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -323,12 +323,13 @@ class GeekDashboardScreen extends ConsumerWidget {
     final cfgEnabled = ref.watch(isCFGActiveProvider);
     final ragEnabled = ref.watch(vectorStorageSettingsProvider).enabled;
     final config = ref.watch(llmConfigProvider);
-    final screenWidth = MediaQuery.of(context).size.width - 24;
-    final halfWidth = (screenWidth - 10) / 2;
+    final screenWidth =
+        MediaQuery.of(context).size.width - DesignTokens.spaceMd * 2;
+    final halfWidth = (screenWidth - DesignTokens.spaceSm) / 2;
 
     return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+      spacing: DesignTokens.spaceSm,
+      runSpacing: DesignTokens.spaceSm,
       children: [
         // CFG Scale（半宽，开关 + 进详细配置）
         _StatusCard(
@@ -438,15 +439,15 @@ class GeekDashboardScreen extends ConsumerWidget {
       icon: Icons.apps,
       children: [
         Padding(
-          padding: const EdgeInsets.all(12),
+          padding: DesignTokens.paddingCard,
           child: GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: entries.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
-              mainAxisSpacing: 4,
-              crossAxisSpacing: 4,
+              mainAxisSpacing: DesignTokens.spaceXs,
+              crossAxisSpacing: DesignTokens.spaceXs,
               childAspectRatio: 1.05,
             ),
             itemBuilder: (context, i) => _EntryTile(entry: entries[i]),
@@ -486,14 +487,14 @@ class _EntryTile extends StatelessWidget {
             height: 38,
             decoration: BoxDecoration(
               color: theme.colorScheme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
             ),
             child: Icon(entry.icon, size: 19, color: theme.colorScheme.primary),
           ),
           const SizedBox(height: 3),
           Text(
             entry.label,
-            style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
+            style: theme.textTheme.bodySmall?.copyWith(fontSize: DesignTokens.fontSizeCaption),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -531,31 +532,17 @@ class _StatusCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: width,
-        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+        padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceSm, DesignTokens.spaceSm, DesignTokens.spaceSm),
         decoration: BoxDecoration(
           color: theme.cardColor,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
           border: Border.all(
             color: isDark
                 ? Colors.white.withValues(alpha: 0.06)
                 : theme.dividerColor.withValues(alpha: 0.5),
             width: 0.8,
           ),
-          boxShadow: isDark
-              ? const []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 24,
-                    spreadRadius: -4,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+          boxShadow: isDark ? const [] : DesignTokens.shadowLevel1,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -587,7 +574,7 @@ class _StatusCard extends StatelessWidget {
                   Expanded(
                     child: Text(note!,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 10,
+                          fontSize: DesignTokens.fontSizeCaption,
                           color: theme.colorScheme.tertiary,
                         )),
                   ),
@@ -624,7 +611,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
           onTap: () => setState(() => _expanded = !_expanded),
           borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSm),
             child: Row(
               children: [
                 Icon(
@@ -726,7 +713,7 @@ class _IntInputRow extends StatelessWidget {
       onTap: () => _showDialog(context),
       borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSm),
         child: Row(
           children: [
             Expanded(
