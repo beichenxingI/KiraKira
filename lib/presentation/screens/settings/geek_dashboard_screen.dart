@@ -29,12 +29,17 @@ class GeekDashboardScreen extends ConsumerWidget {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
+        padding: const EdgeInsets.fromLTRB(
+          DesignTokens.spaceMd,
+          DesignTokens.spaceSm,
+          DesignTokens.spaceMd,
+          DesignTokens.spaceXl,
+        ),
         children: [
           _quickAdjustSection(context, ref),
-          const SizedBox(height: 4),
+          const SizedBox(height: DesignTokens.spaceLg),
           _statusCardSection(context, ref),
-          const SizedBox(height: 4),
+          const SizedBox(height: DesignTokens.spaceLg),
           _entryGridSection(context),
         ],
       ),
@@ -51,7 +56,10 @@ class GeekDashboardScreen extends ConsumerWidget {
       icon: Icons.tune,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          padding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spaceMd,
+            vertical: DesignTokens.spaceXs,
+          ),
           child: Column(
             children: [
               // ── 基础采样 ──
