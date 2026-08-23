@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,7 +31,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // Enable toggle
           SwitchListTile(
@@ -179,7 +179,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
           ] else ...[
             const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(DesignTokens.spaceMd),
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
@@ -220,7 +220,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
                     '· 三星 Exynos 2200 及以上\n'
                     '配置较低的设备仍可使用，但速度较慢、发热较明显。',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: DesignTokens.fontSizeXs,
                       height: 1.5,
                       color: Theme.of(context)
                           .textTheme
@@ -564,7 +564,7 @@ class _CollectionDetails extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -759,7 +759,7 @@ class _StatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceSm, vertical: DesignTokens.spaceXs),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMd),

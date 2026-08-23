@@ -1,8 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/tts_service.dart';
 import 'package:kirakira/presentation/providers/tts_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Screen for TTS settings
@@ -32,7 +33,7 @@ class TTSSettingsScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // Enable/Disable toggle
           _buildSection(
@@ -354,11 +355,11 @@ class TTSSettingsScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: DesignTokens.fontSizeBodyMedium,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.accentColor,
               ),

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,7 +52,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // Info section
           _buildSection(
@@ -87,7 +87,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
             children: [
               if (globalVars.isEmpty)
                 const Padding(
-                  padding: EdgeInsets.all(32),
+                  padding: EdgeInsets.all(DesignTokens.spaceXl),
                   child: Center(
                     child: Column(
                       children: [
@@ -123,7 +123,7 @@ class VariablesSettingsScreen extends ConsumerWidget {
               children: [
                 if (localVars.isEmpty)
                   const Padding(
-                    padding: EdgeInsets.all(32),
+                    padding: EdgeInsets.all(DesignTokens.spaceXl),
                     child: Center(
                       child: Column(
                         children: [
@@ -174,11 +174,11 @@ class VariablesSettingsScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: DesignTokens.fontSizeBodyMedium,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.accentColor,
               ),
@@ -418,15 +418,15 @@ class _VariableTile extends StatelessWidget {
           Text(name),
           const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: DesignTokens.spaceXxs),
             decoration: BoxDecoration(
               color: AppTheme.textMuted.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
             ),
             child: Text(
               _valueType,
               style: const TextStyle(
-                fontSize: 10,
+                fontSize: DesignTokens.fontSizeCaption,
                 color: AppTheme.textMuted,
               ),
             ),
@@ -437,7 +437,7 @@ class _VariableTile extends StatelessWidget {
         value?.toString() ?? 'null',
         style: const TextStyle(
           fontFamily: 'monospace',
-          fontSize: 12,
+          fontSize: DesignTokens.fontSizeXs,
         ),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
@@ -511,7 +511,7 @@ class _VariableTestWidgetState extends ConsumerState<_VariableTestWidget> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(DesignTokens.spaceMd),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -557,10 +557,10 @@ class _VariableTestWidgetState extends ConsumerState<_VariableTestWidget> {
                   ),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(DesignTokens.spaceSm),
                     decoration: BoxDecoration(
                       color: AppTheme.darkBackground,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
                     ),
                     child: SelectableText(
                       _result!.isEmpty ? '(empty string)' : _result!,

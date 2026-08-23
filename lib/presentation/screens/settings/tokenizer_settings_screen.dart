@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/tokenizer.dart';
@@ -42,7 +42,7 @@ class _TokenizerSettingsScreenState extends ConsumerState<TokenizerSettingsScree
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // Settings section
           _buildSectionHeader(context, 'Settings'),
@@ -184,7 +184,7 @@ class _QuickEstimate extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         child: Row(
           children: [
             Icon(
@@ -237,14 +237,14 @@ class _TokenizationResultView extends ConsumerWidget {
     return resultAsync.when(
       loading: () => const Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
+          padding: EdgeInsets.all(DesignTokens.spaceXl),
           child: CircularProgressIndicator(),
         ),
       ),
       error: (error, _) => Card(
         color: Theme.of(context).colorScheme.errorContainer,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(DesignTokens.spaceMd),
           child: Text('Error: $error'),
         ),
       ),
@@ -276,7 +276,7 @@ class _StatisticsCard extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -338,7 +338,7 @@ class _StatisticsCard extends ConsumerWidget {
                   return Chip(
                     label: Text(
                       '"${_escapeToken(entry.key)}" (${entry.value})',
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(fontSize: DesignTokens.fontSizeXs),
                     ),
                     visualDensity: VisualDensity.compact,
                   );
@@ -410,7 +410,7 @@ class _TokenVisualization extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -474,11 +474,11 @@ class _TokenChip extends StatelessWidget {
     return Tooltip(
       message: 'Token ID: ${token.id}\nLength: ${token.text.length} chars',
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceSm, vertical: DesignTokens.spaceXs),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.15),
           border: Border.all(color: color.withValues(alpha: 0.5)),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
         ),
         child: Text(
           _escapeToken(token.text),
