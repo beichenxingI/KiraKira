@@ -41,11 +41,13 @@ class KiraCard extends StatelessWidget {
             ),
           ];
 
+    final cardRadius = BorderRadius.circular(DesignTokens.radiusCard);
+
     return Container(
-      margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      margin: margin ?? DesignTokens.marginCard,
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: cardRadius,
         border: Border.all(
           color: isDark
               ? Colors.white.withValues(alpha: 0.06)
@@ -57,18 +59,18 @@ class KiraCard extends StatelessWidget {
       // 去掉 clipBehavior: Clip.antiAlias — child不会超出圆角,无需裁剪,省saveLayer
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: cardRadius,
         child: onTap != null
             ? InkWell(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: cardRadius,
                 onTap: onTap,
                 child: Padding(
-                  padding: padding ?? const EdgeInsets.all(16),
+                  padding: padding ?? DesignTokens.paddingCard,
                   child: child,
                 ),
               )
             : Padding(
-                padding: padding ?? const EdgeInsets.all(16),
+                padding: padding ?? DesignTokens.paddingCard,
                 child: child,
               ),
       ),
@@ -94,17 +96,20 @@ class KiraSection extends StatelessWidget {
     final theme = Theme.of(context);
     final labelColor = theme.textTheme.bodySmall?.color ?? theme.colorScheme.primary;
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.only(top: DesignTokens.spaceMd),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(28, 8, 28, 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spaceLg,
+              vertical: DesignTokens.spaceSm,
+            ),
             child: Row(
               children: [
                 if (icon != null) ...[
                   Icon(icon, size: 16, color: labelColor),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: DesignTokens.spaceSm),
                 ],
                 Text(
                   title,
@@ -119,7 +124,7 @@ class KiraSection extends StatelessWidget {
           ),
           Column(
             children: children.map((child) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: DesignTokens.spaceSm),
               child: KiraCard(
                 padding: EdgeInsets.zero,
                 child: child,
@@ -144,7 +149,7 @@ class KiraGradientCard extends StatelessWidget {
     required this.child,
     this.padding,
     this.margin,
-    this.radius = 16,
+    this.radius = DesignTokens.radiusLg,
   });
 
   @override
@@ -157,7 +162,7 @@ class KiraGradientCard extends StatelessWidget {
     final darker = Color.lerp(base, Colors.black, isDark ? 0.12 : 0.03)!;
     return Container(
       margin: margin,
-      padding: padding ?? const EdgeInsets.all(16),
+      padding: padding ?? DesignTokens.paddingCard,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -171,13 +176,8 @@ class KiraGradientCard extends StatelessWidget {
           color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.5),
           width: 0.8,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        // 宪法:深色靠明度分层不靠重阴影 → 深色无阴影,浅色仅 shadowLevel1
+        boxShadow: isDark ? const [] : DesignTokens.shadowLevel1,
       ),
       child: child,
     );
@@ -246,7 +246,7 @@ class KiraSwitch extends StatelessWidget {
     return GestureDetector(
       onTap: onChanged == null ? null : () => onChanged!(!value),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
+        duration: const Duration(milliseconds: DesignTokens.durationSm),
         curve: DesignTokens.curveFade,
         width: 50,
         height: 30,
@@ -256,7 +256,7 @@ class KiraSwitch extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
         ),
         child: AnimatedAlign(
-          duration: const Duration(milliseconds: 160),
+          duration: const Duration(milliseconds: DesignTokens.durationSm),
           curve: DesignTokens.curveFade,
           alignment: value ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
