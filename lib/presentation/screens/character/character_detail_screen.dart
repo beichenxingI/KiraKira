@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -382,7 +382,7 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: DesignTokens.paddingCard,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -781,25 +781,20 @@ class _SectionCardState extends State<_SectionCard> {
       onLongPress: _editing ? null : _copyToClipboard,
       child: Card(
         // iOS 质感：大圆角 + 柔和阴影
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusCard)),
         elevation: 0,
         shadowColor: Colors.black.withValues(alpha: 0.15),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
             // 实色（跟随主题），消除半透明合成开销
             color: theme.cardColor,
             border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            // 宪法:卡片阴影仅 shadowLevel1
+            boxShadow: DesignTokens.shadowLevel1,
           ),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: DesignTokens.paddingCard,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -837,7 +832,7 @@ class _SectionCardState extends State<_SectionCard> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: DesignTokens.spaceSm),
                 if (_editing) ...[
                   TextField(
                     controller: _controller,
@@ -848,11 +843,14 @@ class _SectionCardState extends State<_SectionCard> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                       ),
-                      contentPadding: const EdgeInsets.all(12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: DesignTokens.spaceMd,
+                      vertical: DesignTokens.spaceSm,
+                    ),
                     ),
                     style: theme.textTheme.bodyMedium,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: DesignTokens.spaceSm),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -986,11 +984,11 @@ class _AlternateGreetingsCardState extends State<_AlternateGreetingsCard> {
     final theme = Theme.of(context);
     final mutedColor = theme.colorScheme.onSurface.withValues(alpha: 0.6);
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusCard)),
       elevation: 0,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
           color: theme.cardColor,
           border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
           boxShadow: [
@@ -1002,7 +1000,7 @@ class _AlternateGreetingsCardState extends State<_AlternateGreetingsCard> {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(18),
+              padding: DesignTokens.paddingCard,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1031,15 +1029,15 @@ class _AlternateGreetingsCardState extends State<_AlternateGreetingsCard> {
                     ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: DesignTokens.spaceSm),
               ...widget.greetings.asMap().entries.map((entry) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(bottom: DesignTokens.spaceSm),
                     child: GestureDetector(
                       onLongPress: () => _copyGreeting(context, entry.value, entry.key),
                       child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
+            padding: DesignTokens.paddingCard,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
                           borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                           border: Border.all(color: theme.dividerColor),
                         ),
@@ -1109,7 +1107,7 @@ class _CharacterBookCard extends ConsumerWidget {
     return worldInfosAsync.when(
       loading: () => const Card(
         child: Padding(
-          padding: EdgeInsets.all(16),
+          padding: DesignTokens.paddingCard,
           child: Center(child: CircularProgressIndicator()),
         ),
       ),
@@ -1118,16 +1116,16 @@ class _CharacterBookCard extends ConsumerWidget {
         final theme2 = Theme.of(context);
         final worldInfo = worldInfos.isEmpty ? null : worldInfos.first;
         return Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusCard)),
           elevation: 0,
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
               color: theme2.cardColor,
               border: Border.all(color: theme2.dividerColor.withValues(alpha: 0.5)),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMd, vertical: DesignTokens.spaceSm),
               leading: Icon(Icons.auto_stories, color: theme2.colorScheme.primary),
               title: Text(
                 worldInfo?.name ?? '世界书',
@@ -1227,7 +1225,7 @@ class _GreetingEditSheetState extends State<_GreetingEditSheet> {
                 height: 4,
                 decoration: BoxDecoration(
                   color: theme.dividerColor,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
                 ),
               ),
             ),
@@ -1238,7 +1236,7 @@ class _GreetingEditSheetState extends State<_GreetingEditSheet> {
                 color: theme.colorScheme.primary,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: DesignTokens.spaceSm),
             Flexible(
               child: SingleChildScrollView(
                 child: TextField(
@@ -1250,7 +1248,10 @@ class _GreetingEditSheetState extends State<_GreetingEditSheet> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                     ),
-                    contentPadding: const EdgeInsets.all(12),
+                    contentPadding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spaceMd,
+                    vertical: DesignTokens.spaceSm,
+                  ),
                   ),
                   style: theme.textTheme.bodyMedium,
                 ),
