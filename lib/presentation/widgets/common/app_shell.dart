@@ -1,8 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kirakira/presentation/widgets/chat/chat_background_widget.dart';
 import 'package:kirakira/presentation/providers/advanced_mode_provider.dart';
 
 class AppShell extends ConsumerWidget {
@@ -13,7 +12,7 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final advanced = ref.watch(advancedModeProvider);
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a2e),
+      backgroundColor: DesignTokens.darkBackground,
       extendBody: false, // 让背景延伸到底栏后面，毛玻璃才有内容可模糊
       body: Stack(children: [
         // 聊天背景只在这里，不再是全局的
@@ -67,18 +66,16 @@ class _AdvancedFab extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.push('/advanced'),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: const Duration(milliseconds: DesignTokens.durationMd),
         curve: DesignTokens.curveStandard,
         width: 48,
         height: 48,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [Color(0xFFa78bfa), Color(0xFF60a5fa)],
-          ),
+          color: DesignTokens.primary,
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFa78bfa).withValues(alpha: 0.45),
+              color: DesignTokens.primary.withValues(alpha: 0.45),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -160,18 +157,16 @@ class _KiraNav extends StatelessWidget {
     return GestureDetector(
       onTap: () => onTap(2),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
+        duration: const Duration(milliseconds: DesignTokens.durationMd),
         curve: DesignTokens.curveStandard,
         width: 52,
         height: 52,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [Color(0xFFa78bfa), Color(0xFF60a5fa)],
-          ),
+          color: DesignTokens.primary,
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFa78bfa).withValues(alpha: active ? 0.55 : 0.35),
+              color: DesignTokens.primary.withValues(alpha: active ? 0.55 : 0.35),
               blurRadius: 18,
               offset: const Offset(0, 4),
             ),
@@ -185,14 +180,14 @@ class _KiraNav extends StatelessWidget {
 Widget _navItem(BuildContext context, IconData icon, String label, int idx, {bool center = false}) {
     final active = sel == idx;
     final c = active
-        ? const Color(0xFFa78bfa)
+        ? DesignTokens.primary
         : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55);
 
     return GestureDetector(
       onTap: () => onTap(idx),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: DesignTokens.durationMd),
         curve: DesignTokens.curveStandard,
         padding: EdgeInsets.symmetric(
           horizontal: center ? 14 : 8,
@@ -201,15 +196,12 @@ Widget _navItem(BuildContext context, IconData icon, String label, int idx, {boo
         decoration: center
             ? BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: active
-                    ? const LinearGradient(
-                        colors: [Color(0xFFa78bfa), Color(0xFF60a5fa)],
-                      )
-                    : null,
-                color: active ? null : Colors.white.withValues(alpha: 0.08),
+                color: active
+                    ? DesignTokens.primary
+                    : Colors.white.withValues(alpha: 0.08),
                 boxShadow: active
                     ? [BoxShadow(
-                        color: const Color(0xFFa78bfa).withValues(alpha: 0.45),
+                        color: DesignTokens.primary.withValues(alpha: 0.45),
                         blurRadius: 20,
                       )]
                     : null,
