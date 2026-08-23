@@ -104,6 +104,11 @@ abstract final class GlassDesign {
 
 /// 深色磨砂玻璃容器：半透明底 + 高斯模糊 + 极淡白边 + 柔和阴影。
 /// 顶栏/输入栏/面板/卡片统一复用，保证"通透但看得清"。
+///
+/// ⚠️ 仅存引用为聊天域(webview_chat_stage.dart / chat_screen.dart,本轮禁区),
+/// 故本文件保留不删除。GlassPalettes/GlassDesign 的野色(0xFF070B14 等)
+/// 属聊天域视觉,待聊天域正式重构时再迁回 DesignTokens。新代码一律使用
+/// glass_widgets.dart 的 GlassCard/GlassPanel/GlassInputContainer。
 @Deprecated('Use GlassCard/GlassPanel from glass_widgets.dart instead. '
     '旧组件仅过渡期兼容，新代码请用 DesignTokens 版组件。')
 // ignore: deprecated_member_use
