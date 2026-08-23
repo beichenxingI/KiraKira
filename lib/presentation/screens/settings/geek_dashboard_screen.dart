@@ -36,6 +36,9 @@ class GeekDashboardScreen extends ConsumerWidget {
           DesignTokens.spaceXl,
         ),
         children: [
+          // Hero 指标区(宪法 §六.3:可视化优先)
+          _heroMetricsSection(context, ref),
+          const SizedBox(height: DesignTokens.spaceLg),
           _quickAdjustSection(context, ref),
           const SizedBox(height: DesignTokens.spaceLg),
           _statusCardSection(context, ref),
@@ -43,6 +46,110 @@ class GeekDashboardScreen extends ConsumerWidget {
           _entryGridSection(context),
         ],
       ),
+    );
+  }
+
+  // ── Hero 指标区(宪法 §六.3:环形图/大数字/状态色编码)──
+  Widget _heroMetricsSection(BuildContext context, WidgetRef ref) {
+    final config = ref.watch(llmConfigProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final budgetRatio = config.contextLength <= 0
+        ? 0.0
+        : (config.maxTokens / config.contextLength).clamp(0.0, 1.0);
+    final onlineCount = [
+      ref.watch(isCFGActiveProvider),
+      ref.watch(vectorStorageSettingsProvider).enabled,
+      config.streamEnabled,
+      config.autoSummarizeEnabled,
+      ref.watch(logitBiasSettingsProvider).enabled,
+      ref.watch(tokenizerSettingsProvider).showTokenCount,
+    ].where((e) => e).length;
+
+    return Row(
+      children: [
+        // 生成预算:环形(maxTokens/contextLength)
+        Expanded(
+          child: _HeroMetricCard(
+            label: '生成预算',
+            child: Row(
+              children: [
+                _RingGauge(
+                  value: budgetRatio,
+                  isDark: isDark,
+                  // 青=正常(正向),超额→警告黄
+                  color: budgetRatio > 0.9
+                      ? _HeroMetricCard.statusWarning
+                      : DesignTokens.accent,
+                ),
+                const SizedBox(width: DesignTokens.spaceMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${config.maxTokens}',
+                        style: const TextStyle(
+                          fontSize: DesignTokens.fontSize3xl,
+                          fontWeight: DesignTokens.weightBold,
+                          color: DesignTokens.textPrimary,
+                        ),
+                      ),
+                      const Text(
+                        'tokens / 次',
+                        style: TextStyle(
+                          fontSize: DesignTokens.fontSizeXs,
+                          color: DesignTokens.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: DesignTokens.spaceSm),
+        // 功能在线:大数字 + 胶囊进度条
+        Expanded(
+          child: _HeroMetricCard(
+            label: '功能在线',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      '$onlineCount',
+                      style: const TextStyle(
+                        fontSize: DesignTokens.fontSize3xl,
+                        fontWeight: DesignTokens.weightBold,
+                        color: DesignTokens.accent,
+                      ),
+                    ),
+                    const Text(
+                      ' / 6 项启用',
+                      style: TextStyle(
+                        fontSize: DesignTokens.fontSizeXs,
+                        color: DesignTokens.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: DesignTokens.spaceSm),
+                _CapsuleProgressBar(
+                  value: onlineCount / 6,
+                  isDark: isDark,
+                  color: onlineCount == 0
+                      ? _HeroMetricCard.statusError
+                      : DesignTokens.accent,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -670,5 +777,154 @@ class _IntInputRow extends StatelessWidget {
       ),
     );
     if (result != null) onChanged(result);
+  }
+}
+// ── Hero 指标区组件 ──
+
+/// Hero 指标卡容器:radiusCard + 明度分层(深色无阴影,浅色 shadowLevel1)
+class _HeroMetricCard extends StatelessWidget {
+  // 语义状态色(工程豁免,不进 token):青=accent 已在 token
+  static const Color statusWarning = Color(0xFFF5B04C);
+  static const Color statusError = Color(0xFFE5534B);
+
+  final String label;
+  final Widget child;
+
+  const _HeroMetricCard({required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return Container(
+      padding: DesignTokens.paddingCard,
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.06)
+              : theme.dividerColor.withValues(alpha: 0.5),
+          width: 0.8,
+        ),
+        boxShadow: isDark ? const [] : DesignTokens.shadowLevel1,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: DesignTokens.fontSizeXs,
+              fontWeight: DesignTokens.weightMedium,
+              color: DesignTokens.textSecondary,
+            ),
+          ),
+          const SizedBox(height: DesignTokens.spaceSm),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+/// 环形指标(CustomPainter 自绘,不引第三方图表库)
+class _RingGauge extends StatelessWidget {
+  final double value; // 0.0~1.0
+  final Color color;
+  final bool isDark;
+
+  const _RingGauge({
+    required this.value,
+    required this.color,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 56,
+      height: 56,
+      child: CustomPaint(
+        painter: _RingPainter(
+          value: value,
+          color: color,
+          trackColor: isDark
+              ? DesignTokens.darkSurface
+              : DesignTokens.lightDivider,
+        ),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  final double value;
+  final Color color;
+  final Color trackColor;
+
+  _RingPainter({
+    required this.value,
+    required this.color,
+    required this.trackColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const strokeWidth = 6.0;
+    final center = size.center(Offset.zero);
+    final radius = (size.shortestSide - strokeWidth) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    final trackPaint = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, radius, trackPaint);
+
+    final valuePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect, -3.14159265 / 2, 2 * 3.14159265 * value, false, valuePaint);
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) =>
+      old.value != value || old.color != color || old.trackColor != trackColor;
+}
+
+/// 胶囊进度条(功能在线等)
+class _CapsuleProgressBar extends StatelessWidget {
+  final double value;
+  final Color color;
+  final bool isDark;
+
+  const _CapsuleProgressBar({
+    required this.value,
+    required this.color,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // durationMd + curveEmphasized:进度刷新动画(宪法 Block4 动效)
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: value.clamp(0.0, 1.0)),
+      duration: const Duration(milliseconds: DesignTokens.durationMd),
+      curve: DesignTokens.curveEmphasized,
+      builder: (context, v, _) => ClipRRect(
+        borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+        child: LinearProgressIndicator(
+          value: v,
+          minHeight: 6,
+          backgroundColor:
+              isDark ? DesignTokens.darkSurface : DesignTokens.lightDivider,
+          valueColor: AlwaysStoppedAnimation(color),
+        ),
+      ),
+    );
   }
 }
