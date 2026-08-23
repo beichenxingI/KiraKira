@@ -4,6 +4,7 @@ import '../../../data/models/chat_statistics.dart';
 import '../../providers/statistics_providers.dart';
 import '../../theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import '../../widgets/common/kira_button.dart';
 
 /// Screen for viewing app and chat statistics
 class StatisticsScreen extends ConsumerWidget {
@@ -40,11 +41,12 @@ class StatisticsScreen extends ConsumerWidget {
           'Are you sure you want to reset all statistics? This cannot be undone.',
         ),
         actions: [
-          TextButton(
+          KiraButton(
+            variant: KiraButtonVariant.text,
             onPressed: () => Navigator.pop(context),
             child: const Text('取消'),
           ),
-          TextButton(
+          KiraButton(
             onPressed: () {
               ref.read(appStatisticsProvider.notifier).reset();
               Navigator.pop(context);
