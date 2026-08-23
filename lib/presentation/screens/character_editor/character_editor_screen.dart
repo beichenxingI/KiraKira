@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/character.dart';
@@ -12,6 +12,12 @@ import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/widgets/regex/regex_widgets.dart';
 import 'package:kirakira/presentation/providers/regex_providers.dart';
 import 'package:kirakira/data/models/regex_script.dart';
+import 'package:kirakira/presentation/widgets/common/kira_button.dart';
+
+/// 统一表单输入框描边(radiusInput 12)
+OutlineInputBorder _outlineBorder() => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
+    );
 
 /// Character editor screen
 class CharacterEditorScreen extends ConsumerStatefulWidget {
@@ -124,7 +130,7 @@ class _CharacterEditorScreenState extends ConsumerState<CharacterEditorScreen> w
         ],
         bottom: isEdit && _tabController != null ? TabBar(controller: _tabController, tabs: [
           Tab(text: l10n.characterName),
-          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.auto_stories_outlined, size: 18), const SizedBox(width: 6), Text(l10n.worldInfo)])),
+          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.auto_stories_outlined, size: 18), const SizedBox(width: DesignTokens.spaceSm), Text(l10n.worldInfo)])),
         ]) : null,
       ),
       body: isEdit && _tabController != null
@@ -137,29 +143,30 @@ class _CharacterEditorScreenState extends ConsumerState<CharacterEditorScreen> w
   }
 
   Widget _buildBasicInfoTab(AppLocalizations l10n) {
-    return SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      _field(l10n.name, _nameCtrl, hint: l10n.characterName), const SizedBox(height: 12),
-      _field(l10n.description, _descCtrl, maxLines: 3, hint: l10n.description), const SizedBox(height: 12),
-      _field(l10n.personality, _personalityCtrl, maxLines: 4, hint: l10n.personality), const SizedBox(height: 12),
-      _field(l10n.scenario, _scenarioCtrl, maxLines: 3, hint: l10n.scenario), const SizedBox(height: 12),
-      _field(l10n.firstMessage, _firstMsgCtrl, maxLines: 4, hint: l10n.firstMessage), const SizedBox(height: 12),
-      _field(l10n.systemPrompt, _systemPromptCtrl, maxLines: 4, hint: l10n.systemPrompt), const SizedBox(height: 12),
-      _field(l10n.creatorNotes, _creatorNotesCtrl, maxLines: 2, hint: l10n.creatorNotes), const SizedBox(height: 12),
-      _field(l10n.tags, _tagsCtrl, hint: l10n.tagsHint), const SizedBox(height: 24),
+    return SingleChildScrollView(padding: DesignTokens.paddingCard, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _field(l10n.name, _nameCtrl, hint: l10n.characterName), const SizedBox(height: DesignTokens.spaceMd),
+      _field(l10n.description, _descCtrl, maxLines: 3, hint: l10n.description), const SizedBox(height: DesignTokens.spaceMd),
+      _field(l10n.personality, _personalityCtrl, maxLines: 4, hint: l10n.personality), const SizedBox(height: DesignTokens.spaceMd),
+      _field(l10n.scenario, _scenarioCtrl, maxLines: 3, hint: l10n.scenario), const SizedBox(height: DesignTokens.spaceMd),
+      _field(l10n.firstMessage, _firstMsgCtrl, maxLines: 4, hint: l10n.firstMessage), const SizedBox(height: DesignTokens.spaceMd),
+      _field(l10n.systemPrompt, _systemPromptCtrl, maxLines: 4, hint: l10n.systemPrompt), const SizedBox(height: DesignTokens.spaceMd),
+      _field(l10n.creatorNotes, _creatorNotesCtrl, maxLines: 2, hint: l10n.creatorNotes), const SizedBox(height: DesignTokens.spaceMd),
+      _field(l10n.tags, _tagsCtrl, hint: l10n.tagsHint), const SizedBox(height: DesignTokens.spaceLg),
       if (_editingCharacterId != null) ...[
         const Divider(height: 32),
         _buildRegexSection(l10n),
-        const SizedBox(height: 24),
+        const SizedBox(height: DesignTokens.spaceLg),
       ],
-      ElevatedButton.icon(onPressed: _isSaving ? null : _save, icon: const Icon(Icons.save), label: Text(l10n.save)),
+      // 试点:保存按钮统一为 KiraButton.filled(批量批换另列一轮)
+      KiraButton.icon(onPressed: _isSaving ? null : _save, icon: Icons.save, isLoading: _isSaving, label: Text(l10n.save)),
     ]));
   }
 
   Widget _field(String label, TextEditingController ctrl, {int maxLines = 1, String? hint}) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppTheme.textSecondary)),
-      const SizedBox(height: 4),
-      TextField(controller: ctrl, maxLines: maxLines, decoration: InputDecoration(hintText: hint, border: const OutlineInputBorder(), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10))),
+      Text(label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppTheme.textSecondary, fontSize: DesignTokens.fontSizeSm)),
+      const SizedBox(height: DesignTokens.spaceXs),
+      TextField(controller: ctrl, maxLines: maxLines, decoration: InputDecoration(hintText: hint, border: _outlineBorder(), contentPadding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMd, vertical: DesignTokens.spaceSm))),
     ]);
   }
   Widget _buildRegexSection(AppLocalizations l10n) {
@@ -172,16 +179,16 @@ class _CharacterEditorScreenState extends ConsumerState<CharacterEditorScreen> w
         IconButton(icon: const Icon(Icons.add_circle_outline), tooltip: '添加正则',
             onPressed: () => _showRegexEditor(null)),
       ]),
-      const SizedBox(height: 4),
+      const SizedBox(height: DesignTokens.spaceXs),
       if (scripts.isEmpty)
         Container(
-          padding: const EdgeInsets.symmetric(vertical: 24),
+          padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceLg),
           alignment: Alignment.center,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.find_replace, size: 40, color: AppTheme.textMuted),
-            const SizedBox(height: 8),
+            const SizedBox(height: DesignTokens.spaceSm),
             const Text('尚未添加角色正则', style: TextStyle(color: AppTheme.textSecondary)),
-            const SizedBox(height: 12),
+            const SizedBox(height: DesignTokens.spaceMd),
             ElevatedButton.icon(onPressed: () => _showRegexEditor(null),
                 icon: const Icon(Icons.add), label: const Text('添加正则')),
           ]),
@@ -231,13 +238,13 @@ class _WorldBookTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
         const Icon(Icons.error_outline, size: 40, color: Colors.red),
-        const SizedBox(height: 8), Text('${l10n.error}: $e'),
-        const SizedBox(height: 12),
+        const SizedBox(height: DesignTokens.spaceSm), Text('${l10n.error}: $e'),
+        const SizedBox(height: DesignTokens.spaceMd),
         ElevatedButton(onPressed: () => ref.invalidate(characterWorldInfosProvider(characterId)), child: Text(l10n.retry)),
       ])),
       data: (worldBooks) {
         return Column(children: [
-          Padding(padding: const EdgeInsets.fromLTRB(16, 8, 8, 4), child: Row(children: [
+          Padding(padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceSm, DesignTokens.spaceSm, DesignTokens.spaceXs), child: Row(children: [
             Text('${l10n.worldInfo} (${worldBooks.length})',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(color: AppTheme.textSecondary)),
             const Spacer(),
@@ -246,7 +253,7 @@ class _WorldBookTab extends ConsumerWidget {
           ])),
           Expanded(child: worldBooks.isEmpty
               ? _buildEmpty(context, ref, l10n)
-              : ListView.builder(padding: const EdgeInsets.symmetric(horizontal: 12),
+              : ListView.builder(padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMd),
                   itemCount: worldBooks.length, itemBuilder: (_, i) => _WorldBookCard(worldBook: worldBooks[i]))),
         ]);
       },
@@ -255,8 +262,8 @@ class _WorldBookTab extends ConsumerWidget {
 
   Widget _buildEmpty(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
     return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.auto_stories_outlined, size: 48, color: AppTheme.textMuted), const SizedBox(height: 12),
-      Text(l10n.noLorebooksYet, style: const TextStyle(color: AppTheme.textSecondary)), const SizedBox(height: 16),
+      const Icon(Icons.auto_stories_outlined, size: 48, color: AppTheme.textMuted), const SizedBox(height: DesignTokens.spaceMd),
+      Text(l10n.noLorebooksYet, style: const TextStyle(color: AppTheme.textSecondary)), const SizedBox(height: DesignTokens.spaceMd),
       ElevatedButton.icon(onPressed: () => _showCreateDialog(context, ref, l10n),
           icon: const Icon(Icons.add), label: Text(l10n.createLorebook)),
     ]));
@@ -279,17 +286,17 @@ class _WorldBookCard extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final entryCount = worldBook.entries.length;
 
-    return Card(margin: const EdgeInsets.only(bottom: 8), child: InkWell(borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+    return Card(margin: const EdgeInsets.only(bottom: DesignTokens.spaceSm), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusCard)), child: InkWell(borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
       onTap: () => _openEntries(context),
-      child: Padding(padding: const EdgeInsets.all(12), child: Row(children: [
-        const Icon(Icons.auto_stories, color: AppTheme.textSecondary), const SizedBox(width: 12),
+      child: Padding(padding: DesignTokens.paddingCard, child: Row(children: [
+        const Icon(Icons.auto_stories, color: AppTheme.textSecondary), const SizedBox(width: DesignTokens.spaceMd),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(worldBook.name, style: Theme.of(context).textTheme.titleSmall, overflow: TextOverflow.ellipsis),
           if (worldBook.description != null && worldBook.description!.isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 2), child: Text(worldBook.description!,
+            Padding(padding: const EdgeInsets.only(top: DesignTokens.spaceXxs), child: Text(worldBook.description!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textMuted),
                 maxLines: 1, overflow: TextOverflow.ellipsis)),
-          const SizedBox(height: 4),
+          const SizedBox(height: DesignTokens.spaceXs),
           Text('$entryCount entries',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppTheme.textSecondary)),
         ])),
@@ -360,10 +367,10 @@ class _WorldBookDialogState extends State<_WorldBookDialog> {
       title: Text(widget.title),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         TextField(controller: _nameCtrl, autofocus: true,
-            decoration: InputDecoration(labelText: l10n.name, border: const OutlineInputBorder())),
-        const SizedBox(height: 12),
+            decoration: InputDecoration(labelText: l10n.name, border: _outlineBorder())),
+        const SizedBox(height: DesignTokens.spaceMd),
         TextField(controller: _descCtrl, maxLines: 3,
-            decoration: InputDecoration(labelText: l10n.description, border: const OutlineInputBorder())),
+            decoration: InputDecoration(labelText: l10n.description, border: _outlineBorder())),
       ])),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
