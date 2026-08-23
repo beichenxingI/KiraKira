@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,9 +32,6 @@ class CharacterListScreen extends ConsumerStatefulWidget {
 }
 
 class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
-  /// FAB 避让区高度(工程尺寸)
-  static const double _fabBottomClearance = 80;
-
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   // ── 多选状态（仅标准网格支持）──
@@ -321,172 +319,180 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 不透明底，避免透出 shell 的聊天壁纸
-      appBar: _selectionMode
-          ? AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: _exitSelection,
+      body: RefreshIndicator(
+        // iOS 风下拉刷新(替代 AppBar 刷新按钮,C-T1)
+        onRefresh: () async {
+          ref.read(characterListProvider.notifier).refresh();
+        },
+        child: CustomScrollView(
+          slivers: [
+            // ── 常态:Large Title;选择态:收缩小标题(同一 CustomScrollView)──
+            if (_selectionMode)
+              SliverAppBar(
+                pinned: true,
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: _exitSelection,
+                ),
+                title: Text('已选 ${_selectedIds.length} 个'),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.archive_outlined),
+                    tooltip: '打包为ZIP',
+                    onPressed: () {
+                      final all = ref.read(characterListProvider).valueOrNull ?? [];
+                      _exportSelectedAsZip(all);
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    tooltip: l10n.delete,
+                    onPressed: () {
+                      final all = ref.read(characterListProvider).valueOrNull ?? [];
+                      _deleteSelected(all);
+                    },
+                  ),
+                ],
+              )
+            else
+              SliverAppBar.large(
+                title: Text(
+                  l10n.characters,
+                  style: Theme.of(context).textTheme.displayLarge,
+                ),
+                actions: [
+                  // iOS 风格 "+":导入/ZIP 导入/新建 合流进 CupertinoActionSheet
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.add),
+                    tooltip: l10n.createCharacter,
+                    onPressed: () => _showAddActionSheet(context),
+                  ),
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.checkmark_circle),
+                    tooltip: '选择',
+                    onPressed: () {
+                      final all = ref.read(characterListProvider).valueOrNull ?? [];
+                      if (all.isNotEmpty) {
+                        setState(() => _selectionMode = true);
+                      }
+                    },
+                  ),
+                  const SizedBox(width: DesignTokens.spaceSm),
+                ],
               ),
-              title: Text('已选 ${_selectedIds.length} 个'),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.archive_outlined),
-                  tooltip: '打包为ZIP',
-                  onPressed: () {
-                    final all = ref.read(characterListProvider).valueOrNull ?? [];
-                    _exportSelectedAsZip(all);
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: l10n.delete,
-                  onPressed: () {
-                    final all = ref.read(characterListProvider).valueOrNull ?? [];
-                    _deleteSelected(all);
-                  },
-                ),
-              ],
-            )
-          : AppBar(
-              title: Text(l10n.characters),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip: l10n.retry,
-                  onPressed: () => ref.read(characterListProvider.notifier).refresh(),
-                ),
-              ],
+            // ── 搜索框:跟随滚入(不做死 pinned,KISS;C-T8 分段控件另起吸顶)──
+            SliverToBoxAdapter(
+              child: KiraSearchBar(
+                controller: _searchController,
+                hintText: l10n.searchCharacters,
+                onChanged: (value) => setState(() => _searchQuery = value),
+                onClear: () => setState(() => _searchQuery = ''),
+              ),
             ),
-      body: Column(
-        children: [
-          KiraSearchBar(
-            controller: _searchController,
-            hintText: l10n.searchCharacters,
-            onChanged: (value) => setState(() => _searchQuery = value),
-            onClear: () => setState(() => _searchQuery = ''),
-          ),
-          Expanded(
-            child: charactersAsync.when(
+            const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceSm)),
+            // ── 内容区 ──
+            ...charactersAsync.when(
               data: (characters) {
                 final filtered = _searchQuery.isEmpty
                     ? characters
-                    : characters.where((c) => 
+                    : characters.where((c) =>
                         c.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
                         c.description.toLowerCase().contains(_searchQuery.toLowerCase())
                       ).toList();
 
                 if (filtered.isEmpty) {
-                  return const _EmptyState();
+                  return const [
+                    SliverFillRemaining(child: _EmptyState()),
+                  ];
                 }
 
-                return _CharacterGridView(
-                      characters: filtered,
-                      selectionMode: _selectionMode,
-                      selectedIds: _selectedIds,
-                      onTap: (id) {
-                        if (_selectionMode) {
-                          _toggleSelect(id);
-                        } else {
-                          context.push('/characters/$id');
-                        }
-                      },
-                      onLongPress: (id) {
-                        if (!_selectionMode) _enterSelection(id);
-                        else _toggleSelect(id);
-                      },
-                    );
+                return [
+                  _CharacterGridView(
+                    characters: filtered,
+                    selectionMode: _selectionMode,
+                    selectedIds: _selectedIds,
+                    onTap: (id) {
+                      if (_selectionMode) {
+                        _toggleSelect(id);
+                      } else {
+                        context.push('/characters/$id');
+                      }
+                    },
+                    onLongPress: (id) {
+                      if (!_selectionMode) _enterSelection(id);
+                      else _toggleSelect(id);
+                    },
+                  ),
+                ];
               },
-              loading: () => const _SkeletonGrid(),
-              error: (error, stack) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text('${l10n.error}: $error'),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => ref.read(characterListProvider.notifier).refresh(),
-                      child: Text(l10n.retry),
+              loading: () => const [_SkeletonGrid()],
+              error: (error, stack) => [
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text('${l10n.error}: $error'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => ref.read(characterListProvider.notifier).refresh(),
+                          child: Text(l10n.retry),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: Padding(
-        // FAB 避让工程尺寸(底部导航遮挡区),8 倍数合规,不进 token
-        padding: const EdgeInsets.only(bottom: _fabBottomClearance),
-        child: FloatingActionButton(
-          onPressed: () => _showFabMenu(context),
-          child: const Icon(Icons.add_rounded, size: 28),
+            // 底部避让底栏(胶囊高 62 + 下边距 12 + 呼吸)
+            const SliverToBoxAdapter(child: SizedBox(height: 96)),
+          ],
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 
-  void _showFabMenu(BuildContext context) {
+  /// iOS 风格新增菜单(C-T1:FAB 三入口 → 右上 "+" ActionSheet)
+  void _showAddActionSheet(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    showModalBottomSheet<String>(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showCupertinoModalPopup<void>(
       context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(DesignTokens.radiusBottomSheet),
+      builder: (sheetCtx) => CupertinoTheme(
+        // MaterialApp 下兜底:深色下 CupertinoActionSheet 文字走暗色(C-表 #10)
+        data: CupertinoThemeData(
+          brightness: isDark ? Brightness.dark : Brightness.light,
         ),
-      ),
-      builder: (ctx) => Padding(
-        // 底部 100 为 Sheet 内预留手势避让区(工程尺寸,不进 token)
-        padding: const EdgeInsets.fromLTRB(
-          DesignTokens.spaceLg,
-          DesignTokens.spaceSm,
-          DesignTokens.spaceLg,
-          100,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
-              ),
-            ),
-            const SizedBox(height: DesignTokens.spaceMd),
-            ListTile(
-              leading: Icon(Icons.file_download_outlined, color: Theme.of(context).colorScheme.primary),
-              title: Text(l10n.importCharacter),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusMd)),
-              onTap: () {
-                Navigator.pop(ctx);
+        child: CupertinoActionSheet(
+          actions: [
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(sheetCtx);
                 context.push(AppRoutes.import_);
               },
+              child: Text(l10n.importCharacter),
             ),
-            const SizedBox(height: DesignTokens.spaceSm),
-            ListTile(
-              leading: Icon(Icons.folder_zip_outlined, color: Theme.of(context).colorScheme.primary),
-              title: const Text('从ZIP批量导入'),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusMd)),
-              onTap: () {
-                Navigator.pop(ctx);
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(sheetCtx);
                 _importFromZip();
               },
+              child: const Text('从ZIP批量导入'),
             ),
-            const SizedBox(height: DesignTokens.spaceSm),
-            ListTile(
-              leading: Icon(Icons.add, color: Theme.of(context).colorScheme.primary),
-              title: Text(l10n.createCharacter),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusMd)),
-              onTap: () {
-                Navigator.pop(ctx);
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(sheetCtx);
                 context.push(AppRoutes.characterCreate);
               },
+              child: Text(l10n.createCharacter),
             ),
           ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(sheetCtx),
+            child: Text(l10n.cancel),
+          ),
         ),
       ),
     );
@@ -511,35 +517,37 @@ class _CharacterGridView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      // 底部 100 为 FAB 避让区(工程尺寸,不进 token)
+    return SliverPadding(
       padding: const EdgeInsets.fromLTRB(
         DesignTokens.spaceMd,
+        DesignTokens.spaceSm,
         DesignTokens.spaceMd,
-        DesignTokens.spaceMd,
-        100,
+        0,
       ),
-      cacheExtent: 1200,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.72,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.72,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final c = characters[index];
+            return _StaggeredEntrance(
+              index: index,
+              child: _CharacterGridCard(
+                character: c,
+                selectionMode: selectionMode,
+                isSelected: selectedIds.contains(c.id),
+                onTap: () => onTap(c.id),
+                onLongPress: () => onLongPress(c.id),
+              ),
+            );
+          },
+          childCount: characters.length,
+        ),
       ),
-      itemCount: characters.length,
-      itemBuilder: (context, index) {
-        final c = characters[index];
-        return _StaggeredEntrance(
-          index: index,
-          child: _CharacterGridCard(
-            character: c,
-            selectionMode: selectionMode,
-            isSelected: selectedIds.contains(c.id),
-            onTap: () => onTap(c.id),
-            onLongPress: () => onLongPress(c.id),
-          ),
-        );
-      },
     );
   }
 }
@@ -587,23 +595,26 @@ class _SkeletonGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
+    return SliverPadding(
       padding: const EdgeInsets.fromLTRB(
         DesignTokens.spaceMd,
         DesignTokens.spaceMd,
         DesignTokens.spaceMd,
-        100,
+        0,
       ),
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.72,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: 6,
-      itemBuilder: (_, __) => const _BreathingBox(
-        borderRadius: DesignTokens.radiusCard,
+      sliver: SliverGrid(
+        delegate: SliverChildBuilderDelegate(
+          (_, __) => const _BreathingBox(
+            borderRadius: DesignTokens.radiusCard,
+          ),
+          childCount: 6,
+        ),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.72,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
       ),
     );
   }
@@ -734,35 +745,23 @@ class _CharacterGridCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      decoration: BoxDecoration(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      clipBehavior: Clip.antiAlias,
+      color: Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(
+        // C-T7:卡片圆角随卡片级别,深色零阴影(A-T1 铁律),浅色 0.5 separator
         borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
-        boxShadow: Theme.of(context).brightness == Brightness.dark
-            ? const []
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  spreadRadius: -2,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+        side: isSelected
+            ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2.5)
+            : BorderSide(
+                color: isDark
+                    ? Colors.transparent
+                    : Theme.of(context).dividerColor.withValues(alpha: 0.5),
+                width: 0.5,
+              ),
       ),
-      child: Material(
-        clipBehavior: Clip.antiAlias,
-        color: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
-          side: isSelected
-              ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2.5)
-              : BorderSide(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withValues(alpha: 0.06)
-                      : Theme.of(context).dividerColor.withValues(alpha: 0.5),
-                  width: 0.8,
-                ),
-        ),
-        child: InkWell(
+      child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
           child: Stack(
@@ -826,7 +825,6 @@ class _CharacterGridCard extends ConsumerWidget {
             ],
           ),
         ),
-      ),
     );
   }
 
