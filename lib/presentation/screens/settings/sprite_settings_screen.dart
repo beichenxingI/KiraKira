@@ -487,7 +487,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
               height: 4,
               decoration: BoxDecoration(
                 color: AppTheme.textMuted,
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
               ),
             ),
             const SizedBox(height: 16),

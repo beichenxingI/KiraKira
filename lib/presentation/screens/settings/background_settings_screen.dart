@@ -281,7 +281,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
             height: 36,
             decoration: BoxDecoration(
               color: current,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
               border: Border.all(color: Colors.white24),
             ),
           ),
@@ -319,7 +319,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
                 height: 40,
                 decoration: BoxDecoration(
                   color: c,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                   border: Border.all(
                     color: selected ? Colors.white : Colors.white24,
                     width: selected ? 3 : 1,

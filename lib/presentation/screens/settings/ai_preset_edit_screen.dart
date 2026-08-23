@@ -209,12 +209,12 @@ class _AIPresetEditScreenState extends ConsumerState<AIPresetEditScreen> {
               )
             : null,
         secondary: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: DesignTokens.spaceXxs),
+          padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceSm, vertical: DesignTokens.spaceXxs),
           decoration: BoxDecoration(
             color: script.disabled
                 ? AppTheme.darkCard
                 : AppTheme.primaryColor.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusChip),
           ),
           child: Text(
             script.disabled ? '已禁用' : '启用',
