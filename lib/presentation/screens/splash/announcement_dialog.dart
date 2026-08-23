@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kirakira/data/models/announcement.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 
 /// 弹出公告对话框
 ///
@@ -47,7 +48,7 @@ class _AnnouncementCard extends StatelessWidget {
           maxHeight: size.height * 0.8,
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
@@ -57,17 +58,17 @@ class _AnnouncementCard extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [
                     Colors.white.withValues(alpha: 0.16),
-                    const Color(0xFF1a1a2e).withValues(alpha: 0.55),
+                    DesignTokens.darkBackground.withValues(alpha: 0.55),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
                 border: Border.all(
                   color: Colors.white.withValues(alpha: 0.2),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFa78bfa).withValues(alpha: 0.2),
+                    color: DesignTokens.primary.withValues(alpha: 0.2),
                     blurRadius: 30,
                     spreadRadius: 2,
                   ),
@@ -168,14 +169,14 @@ class _AnnouncementCard extends StatelessWidget {
   Widget _buildTitle() {
     return Row(
       children: [
-        const Icon(Icons.auto_awesome, color: Color(0xFFa78bfa), size: 20),
-        const SizedBox(width: 8),
+        const Icon(Icons.auto_awesome, color: DesignTokens.primary, size: 20),
+        const SizedBox(width: DesignTokens.spaceSm),
         Expanded(
           child: Text(
             announcement.title.trim().isNotEmpty ? announcement.title : '公告',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: DesignTokens.fontSizeLg,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -186,7 +187,7 @@ class _AnnouncementCard extends StatelessWidget {
 
   Widget _buildActions(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceXs, DesignTokens.spaceMd, DesignTokens.spaceMd),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -196,10 +197,10 @@ class _AnnouncementCard extends StatelessWidget {
               icon: const Icon(Icons.download, size: 18),
               label: const Text('前往下载'),
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFa78bfa),
+                foregroundColor: DesignTokens.primary,
               ),
             ),
-          const SizedBox(width: 8),
+          const SizedBox(width: DesignTokens.spaceSm),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             style: TextButton.styleFrom(

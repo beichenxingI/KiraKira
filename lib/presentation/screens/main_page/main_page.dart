@@ -226,14 +226,9 @@ bool _loadingAnnouncement = false;
   }
 
   Widget _defaultGradient() {
+    // 宪法:无渐变系统,默认背景为平色 darkBackground
     return const DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1a1a2e), Color(0xFF16213e), Color(0xFF0f3460)],
-        ),
-      ),
+      decoration: BoxDecoration(color: DesignTokens.darkBackground),
     );
   }
 }

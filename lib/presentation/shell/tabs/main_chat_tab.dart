@@ -37,7 +37,7 @@ class _MainChatTabState extends State<MainChatTab> {
     final dateStr = DateFormat('\u4eca\u5929\u662f yyyy\u5e74M\u6708d\u65e5 EEEE', 'zh_CN').format(_now);
     final timeStr = DateFormat('HH:mm:ss', 'zh_CN').format(_now);
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a2e),
+      backgroundColor: DesignTokens.darkBackground,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

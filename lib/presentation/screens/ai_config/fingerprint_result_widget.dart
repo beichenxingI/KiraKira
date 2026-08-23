@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import '../../../domain/models/fingerprint_result.dart';
 
@@ -57,13 +57,13 @@ class FingerprintResultWidget extends StatelessWidget {
       const SizedBox(height: 16),
       Text('整体能力匹配度：${r.overallMatch.toStringAsFixed(0)}%', style: const TextStyle(color: Colors.white, fontSize: 16)),
       if (r.closestFamily != null) ...[
-        const SizedBox(height: 8),
+        const SizedBox(height: DesignTokens.spaceSm),
         Text('行为特征最接近：${r.closestFamily!.familyName} 家族 (${r.closestFamily!.confidence.name}置信度)',
-            style: const TextStyle(color: Color(0xFFa78bfa), fontSize: 14)),
+            style: const TextStyle(color: DesignTokens.primary, fontSize: DesignTokens.fontSizeBodyMedium)),
       ],
       // 家族命中证据（为什么判成这个家族）
       if (r.closestFamily != null && r.closestFamily!.evidence.isNotEmpty) ...[
-        const SizedBox(height: 10),
+        const SizedBox(height: DesignTokens.spaceSm),
         const Text('判定依据：', style: TextStyle(color: Colors.white70, fontSize: DesignTokens.fontSizeSm)),
         const SizedBox(height: 4),
         ...r.closestFamily!.evidence.map((e) => Padding(
