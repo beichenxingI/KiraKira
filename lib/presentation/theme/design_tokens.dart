@@ -1,11 +1,13 @@
 // lib/presentation/theme/design_tokens.dart
-/// KiraKira 设计 Token 单一真相源
+/// KiraKira 设计 Token 单一真相源(iOS 化宪法 v2 版)
 ///
 /// 所有硬编码颜色、圆角、间距、字体、动画、阴影均从此文件引用。
-/// 严禁在业务代码中直接使用字面量，统一引用 [DesignTokens]。
+/// 严禁在业务代码中直接使用字面量,统一引用 [DesignTokens]。
 ///
-/// 色值来源：`app_theme.dart` 的 SillyTavern 星海色系（已确认一致）。
-/// 动画规范：圆润 iOS 风格，自然曲线 + 200-350ms 时长。
+/// 色板 = 宪法 v2 §一「B 方案:iOS 骨架 + 星海皮肤」:
+/// 近黑带微蓝底(0B0B12)、三级灰差分层、半透明白文字(非实色灰)、
+/// 深色零阴影、单强调色星海紫 7C7BF0。
+/// 字阶对齐 iOS Type Scale(HIG Typography)。
 library;
 
 import 'package:flutter/material.dart';
@@ -14,21 +16,23 @@ abstract class DesignTokens {
   DesignTokens._();
 
   // ===========================================================================
-  // 圆角系统 (5 级) · 圆润 iOS 风
+  // 圆角系统 · iOS 实测区间(宪法 v2 §三)
   // ===========================================================================
   static const double radiusXs = 4; // 小标签、输入框内部
   static const double radiusSm = 8; // 紧凑按钮、ListTile
-  static const double radiusMd = 12; // 标准卡片、输入框、按钮、对话框
-  static const double radiusLg = 16; // 渐变卡片、大型对话框
-  static const double radiusXl = 20; // 主卡片、底部Sheet
+  static const double radiusMd = 12; // 标准按钮、输入框基准
+  static const double radiusLg = 16; // 大弹层内衬
+  @Deprecated('旧主卡片值(20),iOS 化后勿再用,用 radiusCard(12)')
+  static const double radiusXl = 20; // 旧主卡片值,勿再用
   static const double radiusFull = 30; // 胶囊、底栏、FAB
 
-  // 语义化别名（推荐使用）
-  static const double radiusCard = radiusXl; // 20 - 主卡片
+  // 语义化别名(推荐使用)
+  static const double radiusCard = 12; // 独立卡(iOS 卡片惯例 10-12)
+  static const double radiusGroupedCard = 10; // inset-grouped 分组卡(主力)
   static const double radiusInput = radiusMd; // 12 - 输入框
   static const double radiusButton = radiusMd; // 12 - 按钮
-  static const double radiusDialog = radiusLg; // 16 - 对话框
-  static const double radiusBottomSheet = radiusXl; // 20 - 底部Sheet
+  static const double radiusDialog = 14; // AlertDialog(iOS alert ~14)
+  static const double radiusBottomSheet = 14; // 底部Sheet 顶角(iOS 13+ 10-14)
   static const double radiusChip = radiusSm; // 8 - 标签/Chip
 
   // ===========================================================================
@@ -39,7 +43,7 @@ abstract class DesignTokens {
   static const double spaceXs = 4; // 图标间距、内边距微调
   static const double spaceSm = 8; // 基础单位、紧凑布局
   static const double spaceMd = 16; // 标准卡片内边距、组件间距
-  static const double spaceLg = 24; // 页面区块间距
+  static const double spaceLg = 24; // 页面区块间距(inset-grouped 组间距)
   static const double spaceXl = 32; // 大区块间距
   static const double space2xl = 48; // 页面级留白
   static const double space3xl = 64; // 超大留白
@@ -59,17 +63,18 @@ abstract class DesignTokens {
       EdgeInsets.symmetric(horizontal: spaceMd, vertical: spaceSm); // 16/8
 
   // ===========================================================================
-  // 字体系统 (7 级阶梯) · 系统默认/SF Pro 风格
+  // 字阶 · 对齐 iOS Type Scale(宪法 v2 §二,HIG Typography)
   // ===========================================================================
-  static const double fontSizeCaption = 10; // 辅助说明
-  static const double fontSizeXs = 12; // 次要文本、Chip
-  static const double fontSizeSm = 13; // 表格、紧凑文本
-  static const double fontSizeBodyMedium = 14; // 正文（标准）
-  static const double fontSizeBodyLarge = 16; // 正文（大）/标题
-  static const double fontSizeLg = 18; // 副标题
-  static const double fontSizeXl = 20; // 标题
-  static const double fontSize2xl = 24; // 大标题
-  static const double fontSize3xl = 28; // 屏幕标题
+  static const double fontSizeCaption = 11; // Caption 2
+  static const double fontSizeXs = 12; // Caption 1
+  static const double fontSizeSm = 13; // Footnote(列表副行/说明)
+  static const double fontSizeBodyMedium = 15; // Subheadline
+  static const double fontSizeHeadline = 17; // Headline 17/Semibold(列表行标题,配 weightSemibold)
+  static const double fontSizeBodyLarge = 17; // Body 17(iOS 默认正文)
+  static const double fontSizeXl = 20; // Title 3
+  static const double fontSize2xl = 22; // Title 2
+  static const double fontSize3xl = 28; // Title 1
+  static const double fontSizeDisplayLarge = 34; // Large Title(SliverAppBar.large)
 
   // 字重
   static const FontWeight weightRegular = FontWeight.w400;
@@ -78,35 +83,37 @@ abstract class DesignTokens {
   static const FontWeight weightBold = FontWeight.w700;
 
   // ===========================================================================
-  // 动画系统 · 圆润自然曲线（iOS 风）
+  // 动画系统 · iOS 手感(宪法 v2 §四)
   // ===========================================================================
   // 曲线
   static const Curve curveStandard =
-      Curves.easeOutCubic; // 标准入场/过渡（减速自然）
+      Curves.easeOutCubic; // 标准入场/过渡(减速自然)
   static const Curve curveEmphasized =
-      Curves.easeInOutCubic; // 强调过渡（双向平滑）
+      Curves.easeInOutCubic; // 强调过渡(双向平滑)
   static const Curve curveDecelerate =
       Curves.fastEaseInToSlowEaseOut; // 减速入场
   static const Curve curveSpring =
-      Curves.elasticOut; // 弹性出场（对话框/按钮反馈）
+      Curves.easeOutBack; // 温和回弹,iOS 性格;elasticOut 禁用
   static const Curve curveSlide =
-      Curves.easeOut; // 页面滑动渐隐（iOS 转场）
+      Curves.easeOut; // 页面滑动渐隐(iOS 转场)
   static const Curve curveFade =
       Curves.easeOut; // 渐隐过渡
 
-  // 时长 (ms) · 200-350ms 区间，避免拖沓
-  static const int durationXs = 100; // 微反馈（涟漪、高亮）
-  static const int durationSm = 200; // 快速过渡（淡入、Chip）
-  static const int durationMd = 300; // 标准（按钮、卡片）
-  static const int durationLg = 400; // 强调（页面切换、展开）
-  static const int durationXl = 500; // 复杂动画（仅特殊场景）
-  static const int durationDialog = 250; // 对话框（iOS 标准对话时长）
+  // 时长 (ms)
+  static const int durationXs = 100; // 微反馈
+  static const int durationSm = 200; // 快速过渡
+  static const int durationMd = 300; // 标准
+  static const int durationLg = 400; // 强调
+  static const int durationXl = 500; // 复杂动画(仅特殊场景)
+  static const int durationDialog = 250; // 对话框
 
   // ===========================================================================
-  // 阴影系统 (3 级) · 柔和细腻
+  // 阴影系统
+  // ⚠️ 宪法 v2:深色模式一律零阴影(层次靠三级灰差+separator);
+  //    shadowLevel1/2/3 仅浅色模式 modal/sheet 允许使用,所有卡片禁用。
   // ===========================================================================
   static List<BoxShadow> get shadowLevel1 => [
-        // 低浮起：卡片、ListTile
+        // 仅浅色小浮起
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.08),
           blurRadius: 8,
@@ -115,7 +122,7 @@ abstract class DesignTokens {
       ];
 
   static List<BoxShadow> get shadowLevel2 => [
-        // 中浮起：悬浮卡片、下拉菜单
+        // 仅浅色 modal/sheet 允许
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.10),
           blurRadius: 16,
@@ -130,7 +137,7 @@ abstract class DesignTokens {
       ];
 
   static List<BoxShadow> get shadowLevel3 => [
-        // 模态对话框、底部Sheet
+        // 仅浅色大型模态极端场景;深色禁用
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.12),
           blurRadius: 24,
@@ -144,7 +151,8 @@ abstract class DesignTokens {
         ),
       ];
 
-  // Glass 专用阴影（深色模式）
+  // Glass 专用阴影(深色模式)· 保留至 Block B 底栏参考后评估删除
+  @Deprecated('A 阶段过渡保留:B-T2 毛玻璃底栏落地后评估删除;深色模式禁止新引用')
   static List<BoxShadow> get shadowGlass => [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.24),
@@ -161,35 +169,52 @@ abstract class DesignTokens {
       ];
 
   // ===========================================================================
-  // 颜色系统 · 与 app_theme.dart 的 AppTheme 静态色值保持一致
-  // 单一真相源由 AppTheme 持有原色，DesignTokens 提供语义别名引用
+  // 颜色系统 · 宪法 v2 §一(B 方案:iOS 骨架 + 星海皮肤)
+  // iOS 原型 + 2-3% 蓝紫微调;深色文字 = 纯白 + 透明度分层(禁止实色灰)
   // ===========================================================================
-  // 深色主题
-  static const Color darkBackground = Color(0xFF0D1128);
-  static const Color darkSurface = Color(0xFF161B3A);
-  static const Color darkCard = Color(0xFF1F264A);
-  static const Color darkDivider = Color(0xFF2A3057);
+  // 深色主题(主战场)
+  static const Color darkBackground = Color(0xFF0B0B12); // 页面最底层(grouped 列表背景)
+  static const Color darkSurface = Color(0xFF17171E); // inset-grouped 分组卡/导航栏底
+  static const Color darkCard = Color(0xFF26262F); // 三级:输入框填充、控件容器、按压高亮
+  static const Color darkSeparator = Color(0x99545458); // 半透明分隔线(iOS 原型)
+  static const Color darkSeparatorOpaque = Color(0xFF3A3A44); // 不透明分隔线(极少用)
 
   // 浅色主题
-  static const Color lightBackground = Color(0xFFEEEEF8);
-  static const Color lightSurface = Color(0xFFF5F5FF);
-  static const Color lightCard = Color(0xFFFFFFFF);
-  static const Color lightDivider = Color(0xFFDDDDEE);
+  static const Color lightBackground = Color(0xFFF2F2F7); // systemGroupedBackground
+  static const Color lightSurface = Color(0xFFFFFFFF); // secondarySystemGroupedBackground
+  static const Color lightCard = Color(0xFFFFFFFF); // 分组卡=纯白,层级靠灰底反衬
+  static const Color lightFillTertiary = Color(0x1F767680); // tertiarySystemFill(输入框/控件填充)
+  static const Color lightSeparator = Color(0x493C3C43); // separator
 
-  // 文字
-  static const Color textPrimary = Color(0xFFE8EAF5);
-  static const Color textSecondary = Color(0xFF9095B8);
-  static const Color textMuted = Color(0xFF6A6F94);
+  // 深色文字 · 白 + 透明度(铁律:禁止实色灰)
+  static const Color darkTextPrimary = Color(0xFFFFFFFF); // label
+  static const Color darkTextSecondary = Color(0x99EBEBF5); // secondaryLabel 白60%
+  static const Color darkTextTertiary = Color(0x4DEBEBF5); // tertiaryLabel 白30%
+  static const Color darkTextDisabled = Color(0x29EBEBF5); // quaternaryLabel 白16%
 
-  // 品牌色
-  static const Color primary = Color(0xFF7C7BF0);
-  static const Color secondary = Color(0xFF6C8FF0);
-  static const Color accent = Color(0xFF56D4C8);
+  // 浅色文字 · 黑 + 透明度
+  static const Color lightTextPrimary = Color(0xFF000000); // label
+  static const Color lightTextSecondary = Color(0x993C3C43); // secondaryLabel 黑60%
+  static const Color lightTextTertiary = Color(0x4D3C3C43); // tertiaryLabel 黑30%
+  static const Color lightTextDisabled = Color(0x2E3C3C43); // quaternaryLabel 黑18%
 
-  // 聊天气泡
+  // 品牌色(星海皮肤)
+  static const Color primary = Color(0xFF7C7BF0); // 星海紫 · 唯一交互强调色
+  static const Color secondary = Color(0xFF6C8FF0); // 图表第二序列/渐变辅助
+  static const Color accent = Color(0xFF56D4C8); // 青 · 仅状态正向/数据高亮
+
+  // 状态色(iOS system 绿/橙/红;主名=深色值,Light 为浅色模式变体)
+  static const Color statusSuccess = Color(0xFF30D158); // iOS systemGreen 深
+  static const Color statusSuccessLight = Color(0xFF34C759); // iOS systemGreen 浅
+  static const Color statusWarning = Color(0xFFFF9F0A); // iOS systemOrange 深
+  static const Color statusWarningLight = Color(0xFFFF9500); // iOS systemOrange 浅
+  static const Color statusError = Color(0xFFFF453A); // iOS systemRed 深
+  static const Color statusErrorLight = Color(0xFFFF3B30); // iOS systemRed 浅
+
+  // 聊天气泡(token 指认;聊天域渲染层禁改)
   static const Color userBubble = Color(0xFF5A58D4);
-  static const Color assistantBubble = Color(0xFF1F264A);
-  static const Color systemBubble = Color(0xFF2A3057);
+  static const Color assistantBubble = darkSurface; // #17171E
+  static const Color systemBubble = darkCard; // #26262F
 
   // ===========================================================================
   // 断点 (响应式)
