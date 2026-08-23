@@ -9,6 +9,7 @@ import 'package:kirakira/presentation/providers/persona_providers.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/screens/settings/log_view_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kirakira/presentation/providers/theme_providers.dart';
@@ -17,6 +18,9 @@ import 'package:kirakira/presentation/widgets/common/kira_components.dart';
 
 /// Settings screen - App settings only (AI config is in separate tab)
 class SettingsScreen extends ConsumerWidget {
+  /// 底部导航避让区(工程尺寸,不进 token)
+  static const double _bottomNavClearance = 100;
+
   const SettingsScreen({super.key});
 
   @override
@@ -28,7 +32,7 @@ class SettingsScreen extends ConsumerWidget {
         title: Text(l10n.settings),
       ),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 100),
+        padding: const EdgeInsets.only(bottom: _bottomNavClearance),
         children: [
           const SizedBox(height: 8),
 
@@ -141,10 +145,18 @@ class SettingsScreen extends ConsumerWidget {
                   mode: LaunchMode.externalApplication,
                 ),
               ),
+              KiraListTile(
+                // TODO(Block5): About 页路由由 Block5 接管,此处仅占位
+                icon: Icons.info_outline,
+                title: l10n.about,
+                trailing: const Icon(Icons.chevron_right,
+                    color: DesignTokens.textMuted),
+                onTap: null,
+              ),
             ],
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: DesignTokens.spaceLg),
         ],
       ),
     );
@@ -302,8 +314,8 @@ class _LanguageTile extends ConsumerWidget {
                   Text(
                     l10n.selectLanguage,
                     style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontSize: DesignTokens.fontSizeXl,
+                      fontWeight: DesignTokens.weightSemibold,
                     ),
                   ),
                   const Spacer(),
