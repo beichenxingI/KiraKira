@@ -1,10 +1,14 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/widgets/common/kira_grouped_tile.dart';
+import 'package:kirakira/presentation/widgets/common/kira_pressable.dart';
 
-/// KiraKira 通用设计组件 · 实色层次方案
-/// 全部读 Theme，明暗主题自动适配；只负责外观，不绑定页面布局。
+/// KiraKira 通用设计组件 · iOS 化宪法 v2 版
+/// 深色零阴影、0.5 separator 细边、Cupertino 控件、按压=缩+暗。
+/// 全部读 Theme，明暗主题自动适配。
 
-/// 实色卡片:大圆角 + 双层柔阴影(日间)/ 表面层级+高光边(夜间),做出"浮起"。
+/// 实色卡片:圆角 12、零阴影、仅浅色留 0.5 separator 细边。
 class KiraCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -24,23 +28,6 @@ class KiraCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // 夜间:表面提亮 + 高光边,不靠阴影;日间:纯卡片色 + 双层柔阴影
-    final List<BoxShadow> shadows = isDark
-        ? const []
-        : [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 24,
-              spreadRadius: -4,
-              offset: const Offset(0, 8),
-            ),
-          ];
-
     final cardRadius = BorderRadius.circular(DesignTokens.radiusCard);
 
     return Container(
@@ -48,88 +35,123 @@ class KiraCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: cardRadius,
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.06)
-              : theme.dividerColor.withValues(alpha: 0.5),
-          width: 0.8,
-        ),
-        boxShadow: shadows,
+        // 宪法 v2:深色完全无边框;浅色 0.5 separator 细边
+        border: isDark
+            ? null
+            : Border.all(color: theme.dividerColor, width: 0.5),
       ),
-      // 去掉 clipBehavior: Clip.antiAlias — child不会超出圆角,无需裁剪,省saveLayer
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: cardRadius,
-        child: onTap != null
-            ? InkWell(
-                borderRadius: cardRadius,
-                onTap: onTap,
-                child: Padding(
-                  padding: padding ?? DesignTokens.paddingCard,
-                  child: child,
-                ),
-              )
-            : Padding(
+      // 去掉 clipBehavior(省 saveLayer);KiraPressable 自带按需裁切
+      child: onTap != null
+          ? KiraPressable(
+              onTap: onTap,
+              borderRadius: cardRadius,
+              child: Padding(
                 padding: padding ?? DesignTokens.paddingCard,
                 child: child,
               ),
-      ),
+            )
+          : Padding(
+              padding: padding ?? DesignTokens.paddingCard,
+              child: child,
+            ),
     );
   }
 }
 
-/// 分组容器:强调色小标题 + 一张卡片包裹一组内容,分组间敢留白。
+/// inset-grouped 分组(A-T4b):**一组一张卡**。
+/// 组头 = 13pt 次级色小字;组内 children 竖排共享一张圆角 10 卡,
+/// 行间自动插 0.5px separator(indent 16)。
+///
+/// 表单/滑块等"组内是一整块"的场景用 [KiraSection.plain](不插分隔线)。
 class KiraSection extends StatelessWidget {
   final String title;
   final List<Widget> children;
   final IconData? icon;
+  final bool _plain;
 
   const KiraSection({
     super.key,
     required this.title,
     required this.children,
     this.icon,
-  });
+  }) : _plain = false;
+
+  /// plain 形态:组内是一个整体(滑块组/表单),不自动插分隔线
+  KiraSection.plain({
+    super.key,
+    required this.title,
+    required Widget child,
+    this.icon,
+  })  : children = [child],
+        _plain = true;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final labelColor = theme.textTheme.bodySmall?.color ?? theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+    final labelColor = theme.textTheme.bodyMedium?.color;
+
+    final cardRadius = BorderRadius.circular(DesignTokens.radiusGroupedCard);
+
+    // 组内 items:plain 形态直接摆 child;默认形态行间插 0.5 separator
+    final items = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      if (!_plain && i > 0) {
+        items.add(Divider(
+          height: 0.5,
+          thickness: 0.5,
+          indent: DesignTokens.spaceMd,
+          color: theme.dividerColor,
+        ));
+      }
+      items.add(children[i]);
+    }
+
     return Padding(
-      padding: const EdgeInsets.only(top: DesignTokens.spaceMd),
+      padding: const EdgeInsets.only(top: DesignTokens.spaceLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 组头:13pt、次级色、w600、letterSpacing 0.5(左距 = 边距 16 + 12)
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: DesignTokens.spaceLg,
-              vertical: DesignTokens.spaceSm,
+            padding: const EdgeInsets.only(
+              left: DesignTokens.spaceMd + 12,
+              right: DesignTokens.spaceMd,
+              bottom: DesignTokens.spaceSm,
             ),
             child: Row(
               children: [
                 if (icon != null) ...[
-                  Icon(icon, size: 16, color: labelColor),
-                  const SizedBox(width: DesignTokens.spaceSm),
+                  Icon(icon, size: 14, color: labelColor),
+                  const SizedBox(width: DesignTokens.spaceXs),
                 ],
                 Text(
-                  title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: labelColor,
-                    fontWeight: FontWeight.bold,
+                  title.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeSm,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: 0.5,
+                    color: labelColor,
                   ),
                 ),
               ],
             ),
           ),
-          Column(
-            children: children.map((child) => Padding(
-              padding: const EdgeInsets.only(bottom: DesignTokens.spaceSm),
-              child: KiraCard(
-                padding: EdgeInsets.zero,
-                child: child,
-              ),
-            )).toList(),
+          // 一组一张卡
+          Container(
+            margin: DesignTokens.paddingScreen,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: theme.cardColor, // darkSurface / lightSurface(白)
+              borderRadius: cardRadius,
+              border: isDark
+                  ? null
+                  : Border.all(color: theme.dividerColor, width: 0.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: items,
+            ),
           ),
         ],
       ),
@@ -137,7 +159,8 @@ class KiraSection extends StatelessWidget {
   }
 }
 
-/// 微渐变卡片：同色系、小跨度、有光影方向，营造质感而不喧宾夺主。
+/// 微渐变卡片:仅主页欢迎/营销位允许使用(设置族禁用渐变卡,D 块铁律)。
+/// 圆角 radiusCard(12)、零阴影;深色只留顶部一条高光边。
 class KiraGradientCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -149,7 +172,7 @@ class KiraGradientCard extends StatelessWidget {
     required this.child,
     this.padding,
     this.margin,
-    this.radius = DesignTokens.radiusLg,
+    this.radius = DesignTokens.radiusCard,
   });
 
   @override
@@ -157,34 +180,55 @@ class KiraGradientCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final base = theme.cardColor;
-    // 微渐变：从左上"受光面"稍亮，到右下"背光面"稍暗，跨度极小(约6%明度)
+    // 微渐变:从左上"受光面"稍亮,到右下"背光面"稍暗,跨度极小
     final lighter = Color.lerp(base, Colors.white, isDark ? 0.06 : 0.5)!;
     final darker = Color.lerp(base, Colors.black, isDark ? 0.12 : 0.03)!;
     return Container(
       margin: margin,
-      padding: padding ?? DesignTokens.paddingCard,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [lighter, base, darker],
-          stops: const [0.0, 0.5, 1.0],
-        ),
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(
-          // 顶部高光边：模拟光线打在上缘，是"高级感"的关键细节
-          color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.5),
-          width: 0.8,
+        child: Stack(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: padding ?? DesignTokens.paddingCard,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [lighter, base, darker],
+                  stops: const [0.0, 0.5, 1.0],
+                ),
+                border: isDark
+                    ? null
+                    : Border.all(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        width: 0.5,
+                      ),
+              ),
+              child: child,
+            ),
+            // 深色只留顶部高光边(宪法 A-T4e)
+            if (isDark)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 0.8,
+                  color: Colors.white.withValues(alpha: 0.10),
+                ),
+              ),
+          ],
         ),
-        // 宪法:深色靠明度分层不靠重阴影 → 深色无阴影,浅色仅 shadowLevel1
-        boxShadow: isDark ? const [] : DesignTokens.shadowLevel1,
       ),
-      child: child,
     );
   }
 }
 
-/// 列表项：图标 + 标题 + 副标题 + 尾部控件，统一内边距与圆角高亮。
+/// 列表项:图标 + 标题 + 副标题 + 尾部控件。
+/// ⚠️ 图标色不再强制主色——主色只留"可点主行动"按钮(A-T4d);
+/// 分组卡内请优先用 KiraGroupedTile。
 class KiraListTile extends StatelessWidget {
   final IconData? icon;
   final String title;
@@ -206,7 +250,7 @@ class KiraListTile extends StatelessWidget {
     final theme = Theme.of(context);
     return ListTile(
       leading: icon != null
-          ? Icon(icon, color: theme.colorScheme.primary)
+          ? Icon(icon, color: theme.textTheme.bodySmall?.color)
           : null,
       title: Text(
         title,
@@ -214,19 +258,17 @@ class KiraListTile extends StatelessWidget {
           fontWeight: FontWeight.w500,
         ),
       ),
-      subtitle: subtitle != null
-          ? Text(subtitle!,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.textTheme.bodySmall?.color))
-          : null,
+      subtitle: subtitle != null ? Text(subtitle!) : null,
       trailing: trailing,
       onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusMd)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+      ),
     );
   }
 }
 
-/// 圆润胶囊开关：柔和轨道 + 圆形滑块,替代方形系统开关。
+/// 开关:CupertinoSwitch 薄封装(A-T4c),激活色 = 主题星海紫。
 class KiraSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -235,52 +277,16 @@ class KiraSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final active = theme.colorScheme.primary;
-    final track = value
-        ? active
-        : (isDark
-            ? Colors.white.withValues(alpha: 0.12)
-            : Colors.black.withValues(alpha: 0.10));
-    return GestureDetector(
-      onTap: onChanged == null ? null : () => onChanged!(!value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: DesignTokens.durationSm),
-        curve: DesignTokens.curveFade,
-        width: 50,
-        height: 30,
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: track,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: AnimatedAlign(
-          duration: const Duration(milliseconds: DesignTokens.durationSm),
-          curve: DesignTokens.curveFade,
-          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return CupertinoSwitch(
+      value: value,
+      onChanged: onChanged,
+      activeTrackColor: Theme.of(context).colorScheme.primary,
     );
   }
 }
 
-/// 带圆润开关的列表项:复用 KiraListTile 的排版,整行可点切换。
+/// 带开关的列表项:整行可点切换(内部已是 CupertinoSwitch)。
+/// 在分组卡内使用请用 KiraGroupedTile(trailing: KiraSwitch(...))。
 class KiraSwitchTile extends StatelessWidget {
   final IconData? icon;
   final String title;
@@ -299,7 +305,7 @@ class KiraSwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return KiraListTile(
+    return KiraGroupedTile(
       icon: icon,
       title: title,
       subtitle: subtitle,

@@ -5,5 +5,7 @@ library;
 export 'kira_button.dart';
 export 'kira_search_bar.dart';
 export 'kira_components.dart';
+export 'kira_grouped_tile.dart';
+export 'kira_pressable.dart';
 export 'glass_widgets.dart';
 export 'character_avatar_image.dart';
