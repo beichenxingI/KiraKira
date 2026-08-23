@@ -8,6 +8,7 @@ import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
+import 'package:kirakira/presentation/widgets/common/kira_search_bar.dart';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
@@ -30,7 +31,11 @@ class CharacterListScreen extends ConsumerStatefulWidget {
 }
 
 class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
+  /// FAB 避让区高度(工程尺寸)
+  static const double _fabBottomClearance = 80;
+
   String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
   // ── 多选状态（仅标准网格支持）──
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
@@ -102,7 +107,9 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
+        ),
       ),
       builder: (ctx) => SafeArea(
         child: Column(
@@ -302,6 +309,12 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   static String _two(int n) => n.toString().padLeft(2, '0');
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final charactersAsync = ref.watch(characterListProvider);
@@ -346,8 +359,11 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
             ),
       body: Column(
         children: [
-          _SearchBar(
+          KiraSearchBar(
+            controller: _searchController,
+            hintText: l10n.searchCharacters,
             onChanged: (value) => setState(() => _searchQuery = value),
+            onClear: () => setState(() => _searchQuery = ''),
           ),
           Expanded(
             child: charactersAsync.when(
@@ -401,7 +417,8 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
         ],
       ),
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 80),
+        // FAB 避让工程尺寸(底部导航遮挡区),8 倍数合规,不进 token
+        padding: const EdgeInsets.only(bottom: _fabBottomClearance),
         child: FloatingActionButton(
           onPressed: () => _showFabMenu(context),
           child: const Icon(Icons.add_rounded, size: 28),
@@ -417,10 +434,18 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
+        ),
       ),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 100),
+        // 底部 100 为 Sheet 内预留手势避让区(工程尺寸,不进 token)
+        padding: const EdgeInsets.fromLTRB(
+          DesignTokens.spaceLg,
+          DesignTokens.spaceSm,
+          DesignTokens.spaceLg,
+          100,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -428,10 +453,10 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
               width: 40, height: 4,
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: DesignTokens.spaceMd),
             ListTile(
               leading: Icon(Icons.file_download_outlined, color: Theme.of(context).colorScheme.primary),
               title: Text(l10n.importCharacter),
@@ -441,7 +466,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                 context.push(AppRoutes.import_);
               },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: DesignTokens.spaceSm),
             ListTile(
               leading: Icon(Icons.folder_zip_outlined, color: Theme.of(context).colorScheme.primary),
               title: const Text('从ZIP批量导入'),
@@ -451,7 +476,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                 _importFromZip();
               },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: DesignTokens.spaceSm),
             ListTile(
               leading: Icon(Icons.add, color: Theme.of(context).colorScheme.primary),
               title: Text(l10n.createCharacter),
@@ -467,35 +492,6 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     );
   }
 
-}
-
-class _SearchBar extends StatelessWidget {
-  final ValueChanged<String> onChanged;
-
-  const _SearchBar({required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: TextField(
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          hintText: l10n.searchCharacters,
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              // TODO: Show filter options
-              // TRACKED: recorded in DiaoYan/18 (phase-6 tech-debt)
-            },
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _CharacterGridView extends StatelessWidget {
@@ -516,7 +512,13 @@ class _CharacterGridView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      // 底部 100 为 FAB 避让区(工程尺寸,不进 token)
+      padding: const EdgeInsets.fromLTRB(
+        DesignTokens.spaceMd,
+        DesignTokens.spaceMd,
+        DesignTokens.spaceMd,
+        100,
+      ),
       cacheExtent: 1200,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -527,14 +529,51 @@ class _CharacterGridView extends StatelessWidget {
       itemCount: characters.length,
       itemBuilder: (context, index) {
         final c = characters[index];
-        return _CharacterGridCard(
-          character: c,
-          selectionMode: selectionMode,
-          isSelected: selectedIds.contains(c.id),
-          onTap: () => onTap(c.id),
-          onLongPress: () => onLongPress(c.id),
+        return _StaggeredEntrance(
+          index: index,
+          child: _CharacterGridCard(
+            character: c,
+            selectionMode: selectionMode,
+            isSelected: selectedIds.contains(c.id),
+            onTap: () => onTap(c.id),
+            onLongPress: () => onLongPress(c.id),
+          ),
         );
       },
+    );
+  }
+}
+
+/// 列表项进场:错峰 50ms 淡入上移(宪法 §五)
+class _StaggeredEntrance extends StatelessWidget {
+  final int index;
+  final Widget child;
+
+  const _StaggeredEntrance({required this.index, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    const duration = DesignTokens.durationMd;
+    // 错峰上限 12 项,避免长列表尾部等待过久
+    final delay = index.clamp(0, 12) * 50;
+    final total = duration + delay;
+    final intervalBegin = delay / total;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: total),
+      curve: Interval(
+        intervalBegin,
+        1,
+        curve: DesignTokens.curveDecelerate,
+      ),
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - t)),
+          child: child,
+        ),
+      ),
+      child: child,
     );
   }
 }
@@ -611,7 +650,7 @@ class _CharacterGridCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
         boxShadow: Theme.of(context).brightness == Brightness.dark
             ? const []
             : [
@@ -627,7 +666,7 @@ class _CharacterGridCard extends ConsumerWidget {
         clipBehavior: Clip.antiAlias,
         color: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
           side: isSelected
               ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2.5)
               : BorderSide(
@@ -647,7 +686,10 @@ class _CharacterGridCard extends ConsumerWidget {
                 children: [
                   Expanded(flex: 4, child: _buildAvatar()),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: DesignTokens.spaceSm,
+                      vertical: DesignTokens.spaceXs,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -656,14 +698,14 @@ class _CharacterGridCard extends ConsumerWidget {
                           character.name,
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                                fontSize: DesignTokens.fontSizeBodyMedium,
                               ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (character.creator.isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(top: 2),
+                            padding: const EdgeInsets.only(top: DesignTokens.spaceXxs),
                             child: Text(
                               'by ${character.creator}',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
