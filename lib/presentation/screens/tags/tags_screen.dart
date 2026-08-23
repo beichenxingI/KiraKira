@@ -499,7 +499,8 @@ class TagChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (tag.icon != null && tag.icon!.isNotEmpty) ...[
-              Text(tag.icon!, style: const TextStyle(fontSize: 14)) // emoji 渲染尺寸,工程值,
+              // emoji 渲染尺寸,工程值不进 token
+              Text(tag.icon!, style: const TextStyle(fontSize: 14)),
               const SizedBox(width: 4),
             ],
             Text(
