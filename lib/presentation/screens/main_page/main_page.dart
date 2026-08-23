@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kirakira/presentation/providers/home_background_providers.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/providers/home_music_service.dart';
 import 'package:kirakira/presentation/widgets/home/time_greeting.dart';
 import 'package:kirakira/presentation/widgets/home/video_background.dart';
@@ -97,7 +98,7 @@ bool _loadingAnnouncement = false;
     final homeBg = ref.watch(homeBackgroundProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a2e),
+      backgroundColor: DesignTokens.darkBackground,
       body: Stack(
         children: [
           // ── 1. 背景层：视频 / 图片-GIF / 默认渐变 ──────────────────
@@ -137,7 +138,7 @@ bool _loadingAnnouncement = false;
             child: GestureDetector(
               onTap: _openAnnouncementManually,
               child: Container(
-                padding: const EdgeInsets.all(12),
+                padding: DesignTokens.paddingCard,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
@@ -153,12 +154,12 @@ bool _loadingAnnouncement = false;
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor:
-                              AlwaysStoppedAnimation(Color(0xFFa78bfa)),
+                              AlwaysStoppedAnimation(DesignTokens.primary),
                         ),
                       )
                     : const Icon(
                         Icons.campaign_outlined,
-                        color: Color(0xFFa78bfa),
+                        color: DesignTokens.primary,
                         size: 22,
                       ),
               ),
@@ -208,7 +209,7 @@ bool _loadingAnnouncement = false;
     if (bg.type == BackgroundType.image && bg.imagePath != null) {
       return AnimatedOpacity(
         opacity: 1.0,
-        duration: const Duration(milliseconds: 400),
+        duration: const Duration(milliseconds: DesignTokens.durationLg),
         child: Image.file(
           File(bg.imagePath!),
           fit: BoxFit.cover,
