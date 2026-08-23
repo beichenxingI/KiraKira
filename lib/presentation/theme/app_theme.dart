@@ -6,25 +6,25 @@ import 'package:kirakira/presentation/theme/glass_theme_extension.dart';
 class AppTheme {
   // SillyTavern-inspired color palette
   // KiraKira 色彩语言 · 深空星海
-  static const Color primaryColor = Color(0xFF7C7BF0);   // 星蓝紫
-  static const Color secondaryColor = Color(0xFF6C8FF0); // 次级蓝
-  static const Color accentColor = Color(0xFF56D4C8);    // 青绿点睛
+  static const Color primaryColor = DesignTokens.primary;   // 星蓝紫(唯一交互强调)
+  static const Color secondaryColor = DesignTokens.secondary; // 次级蓝(渐变辅助/图表第二序列)
+  static const Color accentColor = DesignTokens.accent;    // 青绿点睛(状态正向/数据高亮)
 
   // Dark theme colors · 深空层次
-  static const Color darkBackground = Color(0xFF0D1128); // 深蓝紫底(非纯黑)
-  static const Color darkSurface = Color(0xFF161B3A);    // 表面(提亮一级)
-  static const Color darkCard = Color(0xFF1F264A);       // 卡片(再提亮,浮起)
-  static const Color darkDivider = Color(0xFF2A3057);    // 低调分隔
+  static const Color darkBackground = DesignTokens.darkBackground;
+  static const Color darkSurface = DesignTokens.darkSurface;
+  static const Color darkCard = DesignTokens.darkCard;
+  static const Color darkDivider = DesignTokens.darkDivider;
 
   // Text colors · 护眼灰白(非纯白)
-  static const Color textPrimary = Color(0xFFE8EAF5);
-  static const Color textSecondary = Color(0xFF9095B8);
-  static const Color textMuted = Color(0xFF6A6F94);
+  static const Color textPrimary = DesignTokens.textPrimary;
+  static const Color textSecondary = DesignTokens.textSecondary;
+  static const Color textMuted = DesignTokens.textMuted;
 
   // Chat bubble colors · 气泡
-  static const Color userBubble = Color(0xFF5A58D4);     // 用户(星蓝紫深)
-  static const Color assistantBubble = Color(0xFF1F264A);// 助手(融入卡片色)
-  static const Color systemBubble = Color(0xFF2A3057);   // 系统(分隔色)
+  static const Color userBubble = DesignTokens.userBubble;
+  static const Color assistantBubble = DesignTokens.assistantBubble;
+  static const Color systemBubble = DesignTokens.systemBubble;
   
   static ThemeData get darkTheme {
     return ThemeData(
@@ -51,9 +51,10 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         color: darkCard,
-        elevation: 2,
+        // 宪法:深色靠明度分层,不堆阴影
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
         ),
       ),
       listTileTheme: const ListTileThemeData(
@@ -81,7 +82,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLg, vertical: DesignTokens.spaceSm),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
           ),
@@ -152,26 +153,26 @@ class AppTheme {
         primary: primaryColor,
         secondary: secondaryColor,
         tertiary: accentColor,
-        surface: const Color(0xFFF5F5FF),
+        surface: DesignTokens.lightSurface,
         onSurface: const Color(0xFF1A1A2E),
         onPrimary: Colors.white,
         onSecondary: Colors.white,
         onSurfaceVariant: const Color(0xFF5A5A7A),
       ),
-      scaffoldBackgroundColor: const Color(0xFFEEEEF8),
-      cardColor: Colors.white,
-      dividerColor: const Color(0xFFDDDDEE),
+      scaffoldBackgroundColor: DesignTokens.lightBackground,
+      cardColor: DesignTokens.lightCard,
+      dividerColor: DesignTokens.lightDivider,
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFFF5F5FF),
+        backgroundColor: DesignTokens.lightSurface,
         foregroundColor: Color(0xFF1A1A2E),
         elevation: 0,
         centerTitle: true,
       ),
       cardTheme: CardThemeData(
-        color: Colors.white,
+        color: DesignTokens.lightCard,
         elevation: 2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
         ),
       ),
       listTileTheme: const ListTileThemeData(
@@ -180,14 +181,14 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: DesignTokens.lightCard,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
-          borderSide: const BorderSide(color: Color(0xFFDDDDEE)),
+          borderSide: const BorderSide(color: DesignTokens.lightDivider),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
-          borderSide: const BorderSide(color: Color(0xFFDDDDEE)),
+          borderSide: const BorderSide(color: DesignTokens.lightDivider),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
@@ -199,7 +200,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLg, vertical: DesignTokens.spaceSm),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
           ),
@@ -215,7 +216,7 @@ class AppTheme {
         unselectedItemColor: Color(0xFF9090AA),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: const Color(0xFFF5F5FF),
+        backgroundColor: DesignTokens.lightSurface,
         indicatorColor: primaryColor.withValues(alpha: 0.15),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
