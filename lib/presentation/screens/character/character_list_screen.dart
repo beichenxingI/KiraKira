@@ -831,7 +831,7 @@ class _CharacterGridCard extends ConsumerWidget {
   }
 
   Widget _buildAvatar() {
-    return RepaintBoundary(
+    final avatar = RepaintBoundary(
       child: character.assets?.avatarPath != null
           ? CharacterAvatarImage(
               imagePath: character.assets!.avatarPath!,
@@ -839,6 +839,11 @@ class _CharacterGridCard extends ConsumerWidget {
               errorBuilder: (_, __, ___) => _defaultAvatar(),
             )
           : _defaultAvatar(),
+    );
+    // 宪法 §五命门:列表卡→详情页容器变换 Hero(tag 契约:character-<id>)
+    return Hero(
+      tag: 'character-${character.id}',
+      child: avatar,
     );
   }
 

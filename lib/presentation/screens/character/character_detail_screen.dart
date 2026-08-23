@@ -369,7 +369,11 @@ class _CharacterDetailContentState extends ConsumerState<_CharacterDetailContent
               ),
               background: GestureDetector(
                 onTap: _showCoverOptions,
-                child: _buildAvatarBackground(character),
+                // 宪法 §五命门:与列表卡 Hero tag 契约 character-<id>
+                child: Hero(
+                  tag: 'character-${character.id}',
+                  child: _buildAvatarBackground(character),
+                ),
               ),
             ),
             actions: [
