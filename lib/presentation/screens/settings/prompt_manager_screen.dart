@@ -188,7 +188,7 @@ class PromptManagerScreen extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Text(
                     AppLocalizations.of(context)!.loadPreset,
-                    style: const TextStyle(fontSize: DesignTokens.fontSizeLg, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: DesignTokens.fontSizeXl, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
                   IconButton(

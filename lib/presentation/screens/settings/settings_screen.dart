@@ -150,7 +150,7 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.info_outline,
                 title: l10n.about,
                 trailing: const Icon(Icons.chevron_right,
-                    color: DesignTokens.textMuted),
+                    color: DesignTokens.darkTextTertiary),
                 onTap: () => context.push(AppRoutes.about),
               ),
             ],

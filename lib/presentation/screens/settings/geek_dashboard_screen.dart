@@ -91,14 +91,14 @@ class GeekDashboardScreen extends ConsumerWidget {
                         style: const TextStyle(
                           fontSize: DesignTokens.fontSize3xl,
                           fontWeight: DesignTokens.weightBold,
-                          color: DesignTokens.textPrimary,
+                          color: DesignTokens.darkTextPrimary,
                         ),
                       ),
                       const Text(
                         'tokens / 次',
                         style: TextStyle(
                           fontSize: DesignTokens.fontSizeXs,
-                          color: DesignTokens.textSecondary,
+                          color: DesignTokens.darkTextSecondary,
                         ),
                       ),
                     ],
@@ -132,7 +132,7 @@ class GeekDashboardScreen extends ConsumerWidget {
                       ' / 6 项启用',
                       style: TextStyle(
                         fontSize: DesignTokens.fontSizeXs,
-                        color: DesignTokens.textSecondary,
+                        color: DesignTokens.darkTextSecondary,
                       ),
                     ),
                   ],
@@ -804,7 +804,7 @@ class _HeroMetricCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: DesignTokens.fontSizeXs,
               fontWeight: DesignTokens.weightMedium,
-              color: DesignTokens.textSecondary,
+              color: DesignTokens.darkTextSecondary,
             ),
           ),
           const SizedBox(height: DesignTokens.spaceSm),
@@ -843,7 +843,7 @@ class _RingGauge extends StatelessWidget {
             color: color,
             trackColor: isDark
                 ? DesignTokens.darkSurface
-                : DesignTokens.lightDivider,
+                : DesignTokens.lightSeparator,
           ),
         ),
       ),
@@ -914,7 +914,7 @@ class _CapsuleProgressBar extends StatelessWidget {
           value: v,
           minHeight: 6,
           backgroundColor:
-              isDark ? DesignTokens.darkSurface : DesignTokens.lightDivider,
+              isDark ? DesignTokens.darkSurface : DesignTokens.lightSeparator,
           valueColor: AlwaysStoppedAnimation(color),
         ),
       ),

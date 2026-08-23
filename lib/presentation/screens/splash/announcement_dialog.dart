@@ -176,7 +176,7 @@ class _AnnouncementCard extends StatelessWidget {
             announcement.title.trim().isNotEmpty ? announcement.title : '公告',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: DesignTokens.fontSizeLg,
+              fontSize: DesignTokens.fontSizeXl,
               fontWeight: FontWeight.w600,
             ),
           ),

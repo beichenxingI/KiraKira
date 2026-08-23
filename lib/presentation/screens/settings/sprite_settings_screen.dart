@@ -395,7 +395,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
                 const Text(
                   'No sprites yet',
                   style: TextStyle(
-                    fontSize: DesignTokens.fontSizeLg,
+                    fontSize: DesignTokens.fontSizeXl,
                     color: AppTheme.textMuted,
                   ),
                 ),

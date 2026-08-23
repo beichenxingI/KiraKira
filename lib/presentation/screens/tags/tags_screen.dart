@@ -88,7 +88,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           Text(
             AppLocalizations.of(context)!.noTagsYet,
             style: const TextStyle(
-              fontSize: DesignTokens.fontSizeLg, fontWeight: DesignTokens.weightSemibold,
+              fontSize: DesignTokens.fontSizeXl, fontWeight: DesignTokens.weightSemibold,
               color: AppTheme.textSecondary,
             ),
           ),

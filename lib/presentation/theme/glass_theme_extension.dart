@@ -37,7 +37,7 @@ class GlassThemeExtension extends ThemeExtension<GlassThemeExtension> {
     final tint = isDark ? DesignTokens.darkCard : DesignTokens.lightCard;
     final borderColor = isDark
         ? Colors.white.withValues(alpha: 0.08)
-        : DesignTokens.lightDivider.withValues(alpha: 0.5);
+        : DesignTokens.lightSeparator.withValues(alpha: 0.5);
 
     return BoxDecoration(
       color:

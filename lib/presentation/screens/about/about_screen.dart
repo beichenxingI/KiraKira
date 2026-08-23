@@ -49,7 +49,7 @@ class AboutScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: DesignTokens.fontSize3xl,
                     fontWeight: DesignTokens.weightBold,
-                    color: DesignTokens.textPrimary,
+                    color: DesignTokens.darkTextPrimary,
                   ),
                 ),
                 const SizedBox(height: DesignTokens.spaceXs),
@@ -57,7 +57,7 @@ class AboutScreen extends StatelessWidget {
                   '1.0.0 (Build 1)',
                   style: TextStyle(
                     fontSize: DesignTokens.fontSizeBodyMedium,
-                    color: DesignTokens.textSecondary,
+                    color: DesignTokens.darkTextSecondary,
                   ),
                 ),
               ],
@@ -73,7 +73,7 @@ class AboutScreen extends StatelessWidget {
                 icon: Icons.gavel,
                 title: l10n.licenses,
                 trailing: const Icon(Icons.chevron_right,
-                    color: DesignTokens.textMuted),
+                    color: DesignTokens.darkTextTertiary),
                 onTap: () => showLicensePage(context: context),
               ),
               KiraListTile(
@@ -81,7 +81,7 @@ class AboutScreen extends StatelessWidget {
                 title: 'GitHub',
                 subtitle: 'github.com/beichenxingI/KiraKira',
                 trailing: const Icon(Icons.chevron_right,
-                    color: DesignTokens.textMuted),
+                    color: DesignTokens.darkTextTertiary),
                 onTap: () => launchUrl(
                   Uri.parse('https://github.com/beichenxingI/KiraKira'),
                   mode: LaunchMode.externalApplication,
@@ -97,7 +97,7 @@ class AboutScreen extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: DesignTokens.fontSizeXs,
-                color: DesignTokens.textMuted,
+                color: DesignTokens.darkTextTertiary,
               ),
             ),
           ),

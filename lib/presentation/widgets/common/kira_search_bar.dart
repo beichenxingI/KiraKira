@@ -53,11 +53,11 @@ class KiraSearchBar extends StatelessWidget {
             fillColor: fillColor,
             hintText: hintText,
             hintStyle: const TextStyle(
-              color: DesignTokens.textSecondary,
+              color: DesignTokens.darkTextSecondary,
               fontSize: DesignTokens.fontSizeBodyMedium,
             ),
             prefixIcon: const Icon(Icons.search, size: 20),
-            prefixIconColor: DesignTokens.textSecondary,
+            prefixIconColor: DesignTokens.darkTextSecondary,
             suffixIcon: _ClearButton(
               controller: controller,
               onClear: onClear,
@@ -116,7 +116,7 @@ class _ClearButtonState extends State<_ClearButton> {
     if (!hasText) return const SizedBox.shrink();
     return IconButton(
       icon: const Icon(Icons.clear, size: 18),
-      color: DesignTokens.textSecondary,
+      color: DesignTokens.darkTextSecondary,
       onPressed: () {
         widget.controller?.clear();
         widget.onClear?.call();

@@ -90,7 +90,7 @@ class CopyableListTile extends StatelessWidget {
               subtitle!,
               style: TextStyle(
                 color: theme.textTheme.bodySmall?.color ??
-                    DesignTokens.textSecondary,
+                    DesignTokens.darkTextSecondary,
               ),
             )
           : null,

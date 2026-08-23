@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/services/model_fingerprint_service.dart';
@@ -238,7 +238,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
               const Text('选择裁判模型',
                   style: TextStyle(
                       color: Colors.white,
-                      fontSize: DesignTokens.fontSizeLg,
+                      fontSize: DesignTokens.fontSizeXl,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               ListTile(
@@ -319,7 +319,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                   const Text('选择裁判使用的模型',
                       style: TextStyle(
                           color: Colors.white,
-                          fontSize: DesignTokens.fontSizeLg,
+                          fontSize: DesignTokens.fontSizeXl,
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Flexible(
@@ -544,7 +544,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
       ),
       child: const Text(
         '开始检测',
-        style: TextStyle(fontSize: DesignTokens.fontSizeLg, fontWeight: FontWeight.w600),
+        style: TextStyle(fontSize: DesignTokens.fontSizeXl, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -576,7 +576,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
               ),
               child: const Text(
                 '重新检测',
-                style: TextStyle(fontSize: DesignTokens.fontSizeLg, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: DesignTokens.fontSizeXl, fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -600,7 +600,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
             const Text(
               '检测失败',
               style: TextStyle(
-                  fontSize: DesignTokens.fontSizeLg,
+                  fontSize: DesignTokens.fontSizeXl,
                   fontWeight: FontWeight.w600,
                   color: Colors.white),
             ),

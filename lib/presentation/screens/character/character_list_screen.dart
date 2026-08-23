@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -643,7 +643,7 @@ class _BreathingBoxState extends State<_BreathingBox>
       child: Container(
         height: widget.height,
         decoration: BoxDecoration(
-          color: isDark ? DesignTokens.darkCard : DesignTokens.lightDivider,
+          color: isDark ? DesignTokens.darkCard : DesignTokens.lightSeparator,
           borderRadius: BorderRadius.circular(widget.borderRadius),
         ),
       ),
@@ -675,7 +675,7 @@ class _EmptyState extends StatelessWidget {
             child: const Icon(
               Icons.people_outline,
               size: 40,
-              color: DesignTokens.textMuted,
+              color: DesignTokens.darkTextTertiary,
             ),
           ),
           const SizedBox(height: DesignTokens.spaceMd),
@@ -691,7 +691,7 @@ class _EmptyState extends StatelessWidget {
             l10n.importCharacter,
             style: const TextStyle(
               fontSize: DesignTokens.fontSizeXs,
-              color: DesignTokens.textSecondary,
+              color: DesignTokens.darkTextSecondary,
             ),
           ),
           const SizedBox(height: DesignTokens.spaceLg),

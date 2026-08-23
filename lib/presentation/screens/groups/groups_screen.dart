@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,7 +50,7 @@ class GroupsScreen extends ConsumerWidget {
                     child: const Icon(
                       Icons.groups,
                       size: 40,
-                      color: DesignTokens.textMuted,
+                      color: DesignTokens.darkTextTertiary,
                     ),
                   ),
                   const SizedBox(height: DesignTokens.spaceMd),
@@ -66,7 +66,7 @@ class GroupsScreen extends ConsumerWidget {
                     AppLocalizations.of(context)!.createGroupDescription,
                     style: const TextStyle(
                       fontSize: DesignTokens.fontSizeXs,
-                      color: DesignTokens.textSecondary,
+                      color: DesignTokens.darkTextSecondary,
                     ),
                   ),
                   const SizedBox(height: DesignTokens.spaceLg),
@@ -200,7 +200,7 @@ class _BreathingRowState extends State<_BreathingRow>
         height: 88,
         margin: const EdgeInsets.only(bottom: DesignTokens.spaceMd),
         decoration: BoxDecoration(
-          color: widget.isDark ? DesignTokens.darkCard : DesignTokens.lightDivider,
+          color: widget.isDark ? DesignTokens.darkCard : DesignTokens.lightSeparator,
           borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
         ),
       ),

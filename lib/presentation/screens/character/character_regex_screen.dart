@@ -117,7 +117,7 @@ class _CharacterRegexScreenState extends ConsumerState<CharacterRegexScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('角色正则脚本', style: TextStyle(fontSize: DesignTokens.fontSizeLg, fontWeight: DesignTokens.weightSemibold)),
+            const Text('角色正则脚本', style: TextStyle(fontSize: DesignTokens.fontSizeXl, fontWeight: DesignTokens.weightSemibold)),
             Text(
               _character!.name,
               style: const TextStyle(fontSize: DesignTokens.fontSizeXs, color: AppTheme.textMuted),
