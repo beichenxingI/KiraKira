@@ -396,7 +396,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                       },
                     );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const _SkeletonGrid(),
               error: (error, stack) => Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -578,37 +578,123 @@ class _StaggeredEntrance extends StatelessWidget {
   }
 }
 
+// TODO(token·待批准): skeletonBase/skeletonHighlight 微光扫动,
+// 提案见总纲 §4。未批准前用 darkCard 实底呼吸兜底。
+
+/// 加载骨架:实底 + 400ms 呼吸(0.5↔1.0)
+class _SkeletonGrid extends StatelessWidget {
+  const _SkeletonGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(
+        DesignTokens.spaceMd,
+        DesignTokens.spaceMd,
+        DesignTokens.spaceMd,
+        100,
+      ),
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.72,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: 6,
+      itemBuilder: (_, __) => const _BreathingBox(
+        borderRadius: DesignTokens.radiusCard,
+      ),
+    );
+  }
+}
+
+/// 呼吸骨架块:实底 + 透明度呼吸
+class _BreathingBox extends StatefulWidget {
+  final double borderRadius;
+  final double? height;
+
+  const _BreathingBox({required this.borderRadius, this.height});
+
+  @override
+  State<_BreathingBox> createState() => _BreathingBoxState();
+}
+
+class _BreathingBoxState extends State<_BreathingBox>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: DesignTokens.durationLg),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return FadeTransition(
+      opacity: Tween(begin: 0.5, end: 1.0).animate(
+        CurvedAnimation(parent: _controller, curve: DesignTokens.curveEmphasized),
+      ),
+      child: Container(
+        height: widget.height,
+        decoration: BoxDecoration(
+          color: isDark ? DesignTokens.darkCard : DesignTokens.lightDivider,
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+        ),
+      ),
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.people_outline,
-            size: 80,
-            color: Theme.of(context).colorScheme.onSurfaceVariant
+          // 空态图标容器:胶囊圆角 + muted 色(宪法视觉降噪)
+          Container(
+            width: 96,
+            height: 96,
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? DesignTokens.darkCard
+                  : DesignTokens.lightSurface,
+              borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+            ),
+            child: const Icon(
+              Icons.people_outline,
+              size: 40,
+              color: DesignTokens.textMuted,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: DesignTokens.spaceMd),
           Text(
             l10n.noCharactersYet,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontSize: DesignTokens.fontSizeBodyLarge,
+                  fontWeight: DesignTokens.weightMedium,
                 ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: DesignTokens.spaceSm),
           Text(
             l10n.importCharacter,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant
-                ),
+            style: const TextStyle(
+              fontSize: DesignTokens.fontSizeXs,
+              color: DesignTokens.textSecondary,
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: DesignTokens.spaceLg),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

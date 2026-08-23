@@ -37,26 +37,39 @@ class GroupsScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.groups,
-                    size: 80,
-                    color: AppTheme.textMuted,
+                  Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? DesignTokens.darkCard
+                          : DesignTokens.lightSurface,
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusFull),
+                    ),
+                    child: const Icon(
+                      Icons.groups,
+                      size: 40,
+                      color: DesignTokens.textMuted,
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: DesignTokens.spaceMd),
                   Text(
                     AppLocalizations.of(context)!.noGroupChatsYet,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: AppTheme.textSecondary,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontSize: DesignTokens.fontSizeBodyLarge,
+                          fontWeight: DesignTokens.weightMedium,
                         ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: DesignTokens.spaceSm),
                   Text(
                     AppLocalizations.of(context)!.createGroupDescription,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.textMuted,
-                        ),
+                    style: const TextStyle(
+                      fontSize: DesignTokens.fontSizeXs,
+                      color: DesignTokens.textSecondary,
+                    ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: DesignTokens.spaceLg),
                   ElevatedButton.icon(
                     onPressed: () => _showCreateGroupDialog(context, ref),
                     icon: const Icon(Icons.add),
@@ -136,6 +149,61 @@ class _StaggeredEntrance extends StatelessWidget {
         ),
       ),
       child: child,
+    );
+  }
+}
+
+/// 加载骨架:实底 + 400ms 呼吸(0.5↔1.0)
+class _SkeletonList extends StatelessWidget {
+  const _SkeletonList();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ListView.builder(
+      padding: DesignTokens.paddingCard,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 4,
+      itemBuilder: (_, __) => _BreathingRow(isDark: isDark),
+    );
+  }
+}
+
+class _BreathingRow extends StatefulWidget {
+  final bool isDark;
+  const _BreathingRow({required this.isDark});
+
+  @override
+  State<_BreathingRow> createState() => _BreathingRowState();
+}
+
+class _BreathingRowState extends State<_BreathingRow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: DesignTokens.durationLg),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween(begin: 0.5, end: 1.0).animate(
+        CurvedAnimation(parent: _controller, curve: DesignTokens.curveEmphasized),
+      ),
+      child: Container(
+        height: 88,
+        margin: const EdgeInsets.only(bottom: DesignTokens.spaceMd),
+        decoration: BoxDecoration(
+          color: widget.isDark ? DesignTokens.darkCard : DesignTokens.lightDivider,
+          borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
+        ),
+      ),
     );
   }
 }
@@ -452,7 +520,7 @@ class _CreateGroupDialogState extends ConsumerState<_CreateGroupDialog> {
                     },
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const _SkeletonList(),
                 error: (e, _) => Center(child: Text('Error: $e')),
               ),
             ),
