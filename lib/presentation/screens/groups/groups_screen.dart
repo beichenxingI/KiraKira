@@ -68,10 +68,13 @@ class GroupsScreen extends ConsumerWidget {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: DesignTokens.paddingCard,
             itemCount: groups.length,
             itemBuilder: (context, index) {
-              return _GroupCard(group: groups[index]);
+              return _StaggeredEntrance(
+                index: index,
+                child: _GroupCard(group: groups[index]),
+              );
             },
           );
         },
@@ -108,6 +111,35 @@ class GroupsScreen extends ConsumerWidget {
   }
 }
 
+/// 列表项进场:错峰 50ms 淡入上移(宪法 §五,与角色列表同款)
+class _StaggeredEntrance extends StatelessWidget {
+  final int index;
+  final Widget child;
+
+  const _StaggeredEntrance({required this.index, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    const duration = DesignTokens.durationMd;
+    final delay = index.clamp(0, 12) * 50;
+    final total = duration + delay;
+    final intervalBegin = delay / total;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: total),
+      curve: Interval(intervalBegin, 1, curve: DesignTokens.curveDecelerate),
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - t)),
+          child: child,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
 class _GroupCard extends ConsumerWidget {
   final Group group;
 
@@ -116,12 +148,15 @@ class _GroupCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: DesignTokens.spaceMd),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
+      ),
       child: InkWell(
         onTap: () => context.push('/groups/${group.id}'),
-        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: DesignTokens.paddingCard,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -204,10 +239,10 @@ class _GroupCard extends ConsumerWidget {
     return Container(
       width: 56,
       height: 56,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(28),
-      ),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+        ),
       child: Center(
         child: Icon(
           Icons.groups,
@@ -231,7 +266,7 @@ class _GroupCard extends ConsumerWidget {
             builder: (context, snapshot) {
               final Character? character = snapshot.data;
               return Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.only(right: DesignTokens.spaceSm),
                 child: Tooltip(
                   message: character?.name ?? 'Unknown',
                   child: Stack(
@@ -245,7 +280,7 @@ class _GroupCard extends ConsumerWidget {
                                 backgroundColor: AppTheme.darkDivider,
                                 child: Text(
                                   character.name.substring(0, 1).toUpperCase(),
-                                  style: const TextStyle(fontSize: 16),
+                                  style: const TextStyle(fontSize: DesignTokens.fontSizeBodyLarge),
                                 ),
                               ),
                             )
@@ -254,7 +289,7 @@ class _GroupCard extends ConsumerWidget {
                               backgroundColor: AppTheme.darkDivider,
                               child: Text(
                                 character?.name.substring(0, 1).toUpperCase() ?? '?',
-                                style: const TextStyle(fontSize: 16),
+                                style: const TextStyle(fontSize: DesignTokens.fontSizeBodyLarge),
                               ),
                             ),
                       if (member.isMuted)
@@ -262,10 +297,10 @@ class _GroupCard extends ConsumerWidget {
                           bottom: 0,
                           right: 0,
                           child: Container(
-                            padding: const EdgeInsets.all(2),
+                            padding: const EdgeInsets.all(DesignTokens.spaceXxs),
                             decoration: BoxDecoration(
                               color: Colors.red,
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                             ),
                             child: const Icon(
                               Icons.volume_off,
@@ -423,7 +458,7 @@ class _CreateGroupDialogState extends ConsumerState<_CreateGroupDialog> {
             ),
             if (_selectedCharacterIds.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: DesignTokens.spaceSm),
                 child: Text(
                   AppLocalizations.of(context)!.charactersSelected(_selectedCharacterIds.length),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
