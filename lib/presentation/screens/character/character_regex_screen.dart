@@ -5,6 +5,7 @@ import 'package:kirakira/data/models/regex_script.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
 import 'package:kirakira/presentation/providers/regex_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/widgets/regex/regex_widgets.dart';
 
 /// 角色正则脚本管理页面（全屏独立页）
@@ -116,10 +117,10 @@ class _CharacterRegexScreenState extends ConsumerState<CharacterRegexScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('角色正则脚本', style: TextStyle(fontSize: 18)),
+            const Text('角色正则脚本', style: TextStyle(fontSize: DesignTokens.fontSizeLg, fontWeight: DesignTokens.weightSemibold)),
             Text(
               _character!.name,
-              style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+              style: const TextStyle(fontSize: DesignTokens.fontSizeXs, color: AppTheme.textMuted),
             ),
           ],
         ),
@@ -169,18 +170,18 @@ class _CharacterRegexScreenState extends ConsumerState<CharacterRegexScreen> {
                   const SizedBox(height: 16),
                   const Text(
                     '还没有角色正则脚本',
-                    style: TextStyle(color: AppTheme.textMuted, fontSize: 16),
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: DesignTokens.fontSizeBodyLarge),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     '点击右下角按钮添加',
-                    style: TextStyle(color: AppTheme.textMuted, fontSize: 14),
+                    style: TextStyle(color: AppTheme.textMuted, fontSize: DesignTokens.fontSizeBodyMedium),
                   ),
                 ],
               ),
             )
           : ReorderableListView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
+              padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, 88) // 88=FAB 避让工程尺寸,
               itemCount: scripts.length,
               onReorder: (oldIndex, newIndex) {
                 // ReorderableListView 的 newIndex 逻辑：拖到后面时 newIndex 会比实际位置大 1
@@ -190,7 +191,7 @@ class _CharacterRegexScreenState extends ConsumerState<CharacterRegexScreen> {
                 final script = scripts[index];
                 return Card(
                   key: ValueKey(script.id),
-                  margin: const EdgeInsets.only(bottom: 8),
+                  margin: const EdgeInsets.only(bottom: DesignTokens.spaceSm), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusCard)),
                   child: RegexScriptTile(
                     script: script,
                     onTap: () => _showScriptEditor(script),
