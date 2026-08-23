@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/widgets/common/kira_search_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kirakira/data/models/chat.dart';
@@ -58,32 +59,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   Widget _buildSearchBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: TextField(
-        controller: _searchController,
-        onChanged: (value) => setState(() => _searchQuery = value),
-        decoration: InputDecoration(
-          hintText: '搜索聊天记录...',
-          prefixIcon: const Icon(Icons.search, size: 20),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() => _searchQuery = '');
-                  },
-                )
-              : null,
-          filled: true,
-          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 10),
-        ),
-      ),
+    // 宪法 §六.4:全局统一 KiraSearchBar
+    return KiraSearchBar(
+      controller: _searchController,
+      hintText: '搜索聊天记录...',
+      onChanged: (value) => setState(() => _searchQuery = value),
+      onClear: () => setState(() => _searchQuery = ''),
     );
   }
 
@@ -119,6 +100,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         ],
       ),
       floatingActionButton: Padding(
+        // FAB 避让底栏(工程尺寸,不进 token)
         padding: const EdgeInsets.only(bottom: 80),
         child: FloatingActionButton.extended(
           onPressed: () => context.push(AppRoutes.characters),
@@ -199,12 +181,15 @@ class _ChatListView extends ConsumerWidget {
             ref.invalidate(allChatsProvider);
           },
           child: ListView.builder(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(DesignTokens.spaceSm),
             cacheExtent: 1200,
             itemCount: chats.length,
             itemBuilder: (context, index) {
               final chat = chats[index];
-              return _ChatListTile(chat: chat);
+              return _StaggeredEntrance(
+                index: index,
+                child: _ChatListTile(chat: chat),
+              );
             },
           ),
         );
@@ -225,11 +210,14 @@ class _ChatListTile extends ConsumerWidget {
     final lastMessageAsync = ref.watch(_lastMessageProvider(chat.id));
 
     return KiraCard(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      margin: DesignTokens.marginCard,
       padding: EdgeInsets.zero,
       onTap: () => context.push('/chat/${chat.id}'),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: DesignTokens.spaceMd,
+          vertical: DesignTokens.spaceXs,
+        ),
         leading: characterAsync.when(
           loading: () => const CircleAvatar(child: CircularProgressIndicator(strokeWidth: 2)),
           error: (_, __) => const CircleAvatar(child: Icon(Icons.person)),
@@ -381,3 +369,30 @@ final _lastMessageProvider = FutureProvider.family((ref, String chatId) async {
   final repo = ref.watch(chatRepositoryProvider);
   return repo.getLastMessage(chatId);
 });
+/// 列表项进场:错峰 50ms 淡入上移(宪法 §五)
+class _StaggeredEntrance extends StatelessWidget {
+  final int index;
+  final Widget child;
+
+  const _StaggeredEntrance({required this.index, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    const duration = DesignTokens.durationMd;
+    final delay = index.clamp(0, 12) * 50;
+    final total = duration + delay;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: total),
+      curve: Interval(delay / total, 1, curve: DesignTokens.curveDecelerate),
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - t)),
+          child: child,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
