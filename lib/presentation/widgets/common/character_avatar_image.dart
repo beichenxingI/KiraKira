@@ -1,6 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
+
+// TODO(token·待批准): avatarFallback 11 色(明度灰阶+1 主色)无图兜底,
+// 提案见总纲 §4。未批准前用 darkSurface/surfaceContainerHighest 兜底。
 
 /// 已解析路径的静态缓存：同一个 imagePath 只解析一次，
 /// 避免每次重建都异步解析导致闪一帧占位符（白图根因）。
@@ -15,6 +19,14 @@ Future<String> _resolveAvatarPath(String imagePath) async {
 }
 
 String? _cachedPath(String imagePath) => _resolvedPathCache[imagePath];
+
+/// 加载占位底色:深色用 darkSurface,浅色由 Theme 适配
+Color _placeholderColor(BuildContext context) {
+  final theme = Theme.of(context);
+  return theme.brightness == Brightness.dark
+      ? DesignTokens.darkSurface
+      : theme.colorScheme.surfaceContainerHighest;
+}
 
 /// Widget that displays character avatar image
 /// Handles both absolute and relative paths for mobile compatibility
@@ -71,12 +83,16 @@ class CharacterAvatarImage extends StatelessWidget {
               );
             } else {
               return Container(
-                color: Colors.grey[800],
+                color: _placeholderColor(context),
                 child: const Center(
                   child: SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor:
+                          AlwaysStoppedAnimation(DesignTokens.primary),
+                    ),
                   ),
                 ),
               );
@@ -143,11 +159,14 @@ class CharacterAvatarCircle extends StatelessWidget {
         } else {
           return CircleAvatar(
             radius: radius,
-            backgroundColor: Colors.grey[800],
+            backgroundColor: _placeholderColor(context),
             child: const SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation(DesignTokens.primary),
+              ),
             ),
           );
         }
