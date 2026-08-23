@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -84,7 +84,7 @@ class _MvuSettingsScreenState extends ConsumerState<MvuSettingsScreen> {
         centerTitle: false,
       ),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 32),
+        padding: const EdgeInsets.only(bottom: DesignTokens.spaceXl),
         children: [
           // ── 引擎行为 ──
           KiraSection(
@@ -122,7 +122,7 @@ class _MvuSettingsScreenState extends ConsumerState<MvuSettingsScreen> {
 
 // 从主 LLM 配置一键复制
 Padding(
-  padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+  padding: const EdgeInsets.fromLTRB(20, DesignTokens.spaceSm, 20, DesignTokens.spaceXs),
   child: Align(
     alignment: Alignment.centerRight,
     child: OutlinedButton.icon(
@@ -213,7 +213,7 @@ KiraSection(
     if (mvu.customPromptEnabled) ...[
       // 免责警告
       Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+        padding: const EdgeInsets.fromLTRB(20, DesignTokens.spaceXs, 20, DesignTokens.spaceSm),
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -239,7 +239,7 @@ KiraSection(
       ),
       // 提示词文本框
       Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, DesignTokens.spaceSm),
         child: TextField(
           controller: _customPromptController,
           maxLines: null,
@@ -254,7 +254,7 @@ KiraSection(
       ),
       // 恢复默认
       Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, DesignTokens.spaceSm),
         child: Align(
           alignment: Alignment.centerRight,
           child: TextButton.icon(
@@ -365,7 +365,7 @@ class _SliderTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, DesignTokens.spaceSm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -457,7 +457,7 @@ class _DropdownTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: DesignTokens.spaceSm),
       child: Row(
         children: [
           Expanded(
@@ -517,7 +517,7 @@ class _TextTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: DesignTokens.spaceSm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

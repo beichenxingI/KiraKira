@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,7 +70,7 @@ class RegexSettingsScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // Enable/Disable toggle
           _buildSection(
@@ -147,7 +147,7 @@ class RegexSettingsScreen extends ConsumerWidget {
             children: [
               if (scripts.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.all(32),
+                  padding: const EdgeInsets.all(DesignTokens.spaceXl),
                   child: Center(
                     child: Column(
                       children: [
@@ -160,7 +160,7 @@ class RegexSettingsScreen extends ConsumerWidget {
                         const SizedBox(height: 8),
                         Text(
                           AppLocalizations.of(context)!.tapToAddOrUseMenu,
-                          style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                          style: const TextStyle(color: AppTheme.textMuted, fontSize: DesignTokens.fontSizeXs),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -243,11 +243,11 @@ class RegexSettingsScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: DesignTokens.fontSizeBodyMedium,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.accentColor,
               ),
@@ -386,14 +386,14 @@ class RegexSettingsScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(DesignTokens.spaceSm),
               decoration: BoxDecoration(
                 color: AppTheme.darkBackground,
                 borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
               ),
               child: SelectableText(
                 json,
-                style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                style: const TextStyle(fontSize: DesignTokens.fontSizeXs, fontFamily: 'monospace'),
               ),
             ),
           ],
@@ -455,7 +455,7 @@ class _RegexTestWidgetState extends ConsumerState<_RegexTestWidget> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(DesignTokens.spaceMd),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -543,10 +543,10 @@ class _RegexTestWidgetState extends ConsumerState<_RegexTestWidget> {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(DesignTokens.spaceSm),
                       decoration: BoxDecoration(
                         color: AppTheme.darkBackground,
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
                       ),
                       child: SelectableText(
                         _result!.result,

@@ -6,6 +6,7 @@ import 'package:kirakira/data/models/logit_bias.dart';
 import 'package:kirakira/domain/services/logit_bias_service.dart';
 import 'package:kirakira/presentation/providers/logit_bias_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Settings screen for Logit Bias configuration
@@ -43,7 +44,7 @@ class _LogitBiasSettingsScreenState extends ConsumerState<LogitBiasSettingsScree
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // Enable toggle
           SwitchListTile(
@@ -425,7 +426,7 @@ class _BiasEntriesList extends StatelessWidget {
         if (entries.isEmpty)
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(32),
+              padding: const EdgeInsets.all(DesignTokens.spaceXl),
               child: Column(
                 children: [
                   Icon(
@@ -534,7 +535,7 @@ class _BiasEntryCardState extends ConsumerState<_BiasEntryCard> {
     final parsed = service.parseEntry(widget.entry);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: DesignTokens.spaceSm),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(

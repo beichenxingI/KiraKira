@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -109,7 +109,7 @@ class PromptManagerScreen extends ConsumerWidget {
         children: [
           // Info banner
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(DesignTokens.spaceMd),
             color: AppTheme.primaryColor.withOpacity(0.1),
             child: Row(
               children: [
@@ -134,7 +134,7 @@ class PromptManagerScreen extends ConsumerWidget {
           // Reorderable list
           Expanded(
             child: ReorderableListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSm),
               itemCount: sortedSections.length,
               onReorder: (oldIndex, newIndex) {
                 ref.read(promptManagerProvider.notifier).reorder(oldIndex, newIndex);
@@ -181,14 +181,14 @@ class PromptManagerScreen extends ConsumerWidget {
         builder: (context, scrollController) => Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(DesignTokens.spaceMd),
               child: Row(
                 children: [
                   const Icon(Icons.list, color: AppTheme.accentColor),
                   const SizedBox(width: 8),
                   Text(
                     AppLocalizations.of(context)!.loadPreset,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: DesignTokens.fontSizeLg, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
                   IconButton(
@@ -562,7 +562,7 @@ class PromptManagerScreen extends ConsumerWidget {
                   description,
                   style: TextStyle(
                     color: AppTheme.textSecondary,
-                    fontSize: 12,
+                    fontSize: DesignTokens.fontSizeXs,
                   ),
                 ),
                 if (section.identifier != null) ...[
@@ -571,7 +571,7 @@ class PromptManagerScreen extends ConsumerWidget {
                     'ID: ${section.identifier}',
                     style: TextStyle(
                       color: AppTheme.textMuted,
-                      fontSize: 10,
+                      fontSize: DesignTokens.fontSizeCaption,
                       fontFamily: 'monospace',
                     ),
                   ),
@@ -582,7 +582,7 @@ class PromptManagerScreen extends ConsumerWidget {
                     'Role: ${section.role}',
                     style: TextStyle(
                       color: AppTheme.textMuted,
-                      fontSize: 10,
+                      fontSize: DesignTokens.fontSizeCaption,
                     ),
                   ),
                 ],
@@ -737,7 +737,7 @@ class _PromptSectionTile extends StatelessWidget {
     }
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMd, vertical: DesignTokens.spaceXs),
       color: section.enabled
           ? colorScheme.surface
           : colorScheme.surfaceContainerHighest.withOpacity(0.5),
@@ -777,23 +777,23 @@ class _PromptSectionTile extends StatelessWidget {
             ),
             if (section.isCustom)
               Container(
-                margin: const EdgeInsets.only(left: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                margin: const EdgeInsets.only(left: DesignTokens.spaceXs),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: DesignTokens.spaceXxs),
                 decoration: BoxDecoration(
                   color: AppTheme.accentColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
                 ),
                 child: Text(
                   'Custom',
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: DesignTokens.fontSizeCaption,
                     color: section.enabled ? AppTheme.accentColor : AppTheme.textMuted,
                   ),
                 ),
               ),
             if (section.isEditable && !section.isCustom)
               Padding(
-                padding: const EdgeInsets.only(left: 4),
+                padding: const EdgeInsets.only(left: DesignTokens.spaceXs),
                 child: Icon(
                   Icons.edit_note,
                   size: 16,
@@ -806,7 +806,7 @@ class _PromptSectionTile extends StatelessWidget {
           description,
           style: TextStyle(
             color: section.enabled ? AppTheme.textSecondary : AppTheme.textMuted,
-            fontSize: 12,
+            fontSize: DesignTokens.fontSizeXs,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
