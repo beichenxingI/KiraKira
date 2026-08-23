@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -34,7 +34,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // Built-in themes
           _buildSectionHeader(context, AppLocalizations.of(context)!.builtInThemes),
@@ -116,7 +116,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
           children: [
             // App bar preview
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMd, vertical: 12),
               color: activeTheme.surface,
               child: Row(
                 children: [
@@ -143,7 +143,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                   children: [
                     // Assistant message
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: DesignTokens.spaceSm),
                       decoration: BoxDecoration(
                         color: activeTheme.card,
                         borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
@@ -158,7 +158,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                     Align(
                       alignment: Alignment.centerRight,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: DesignTokens.spaceSm),
                         decoration: BoxDecoration(
                           color: activeTheme.accent,
                           borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
@@ -181,10 +181,10 @@ class ThemeSettingsScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: DesignTokens.spaceSm),
                       decoration: BoxDecoration(
                         color: activeTheme.background,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
                       ),
                       child: Text(
                         'Type a message...',
@@ -194,7 +194,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(DesignTokens.spaceSm),
                     decoration: BoxDecoration(
                       color: activeTheme.primary,
                       shape: BoxShape.circle,
@@ -316,7 +316,7 @@ class _ThemeCard extends StatelessWidget {
                               width: 40,
                               decoration: BoxDecoration(
                                 color: theme.card,
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
                               ),
                             ),
                             const Spacer(),
@@ -327,7 +327,7 @@ class _ThemeCard extends StatelessWidget {
                                 width: 30,
                                 decoration: BoxDecoration(
                                   color: theme.accent,
-                                  borderRadius: BorderRadius.circular(4),
+                                  borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
                                 ),
                               ),
                             ),
@@ -345,7 +345,7 @@ class _ThemeCard extends StatelessWidget {
                           Container(
                             width: 12,
                             height: 12,
-                            margin: const EdgeInsets.only(right: 4),
+                            margin: const EdgeInsets.only(right: DesignTokens.spaceXs),
                             decoration: BoxDecoration(
                               color: theme.primary,
                               shape: BoxShape.circle,
@@ -360,7 +360,7 @@ class _ThemeCard extends StatelessWidget {
             ),
             // Name
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceSm, vertical: 6),
               child: Row(
                 children: [
                   Expanded(
@@ -536,7 +536,7 @@ class _ColorPickerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceXs),
       child: Row(
         children: [
           Text(label),
@@ -593,7 +593,7 @@ class _ColorPickerTile extends StatelessWidget {
                   height: 32,
                   decoration: BoxDecoration(
                     color: AppThemeConfig.hexToColor(c),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
                     border: Border.all(color: Colors.grey),
                   ),
                 ),

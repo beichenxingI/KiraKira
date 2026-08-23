@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/chat_statistics.dart';
 import '../../providers/statistics_providers.dart';
@@ -71,7 +72,7 @@ class _AppStatisticsView extends ConsumerWidget {
     final summary = ref.watch(statisticsSummaryProvider);
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(DesignTokens.spaceMd),
       children: [
         // Overview card
         _StatisticsCard(
@@ -172,7 +173,7 @@ class _ChatStatisticsView extends ConsumerWidget {
 
   Widget _buildStatsList(BuildContext context, ChatStatistics stats) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(DesignTokens.spaceMd),
       children: [
         // Messages card
         _StatisticsCard(
@@ -288,7 +289,7 @@ class _StatisticsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -325,7 +326,7 @@ class _StatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceXs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

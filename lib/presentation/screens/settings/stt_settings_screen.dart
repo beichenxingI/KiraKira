@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/stt_service.dart';
@@ -33,7 +33,7 @@ class STTSettingsScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // Availability status
           availableAsync.when(
@@ -42,7 +42,7 @@ class STTSettingsScreen extends ConsumerWidget {
                 : Card(
                     color: Colors.orange.withValues(alpha: 0.2),
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(DesignTokens.spaceMd),
                       child: Row(
                         children: [
                           const Icon(Icons.warning, color: Colors.orange),
@@ -214,7 +214,7 @@ class STTSettingsScreen extends ConsumerWidget {
                   if (result == null) return const SizedBox.shrink();
                   
                   return Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(DesignTokens.spaceMd),
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -241,7 +241,7 @@ class STTSettingsScreen extends ConsumerWidget {
                               Text(
                                 result.isFinal ? AppLocalizations.of(context)!.final_ : AppLocalizations.of(context)!.listening,
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: DesignTokens.fontSizeXs,
                                   color: result.isFinal
                                       ? AppTheme.accentColor
                                       : AppTheme.textMuted,
@@ -252,7 +252,7 @@ class STTSettingsScreen extends ConsumerWidget {
                           const SizedBox(height: 8),
                           Text(
                             result.text.isEmpty ? '...' : result.text,
-                            style: const TextStyle(fontSize: 16),
+                            style: const TextStyle(fontSize: DesignTokens.fontSizeBodyLarge),
                           ),
                         ],
                       ),
@@ -313,11 +313,11 @@ class STTSettingsScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: DesignTokens.fontSizeBodyMedium,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.accentColor,
               ),

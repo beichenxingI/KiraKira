@@ -1,10 +1,11 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kirakira/data/models/sprite.dart';
 import 'package:kirakira/presentation/providers/sprite_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/widgets/chat/sprite_display.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 
@@ -33,7 +34,7 @@ class SpriteSettingsScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // Enable/Disable toggle
           _buildSection(
@@ -198,7 +199,7 @@ class SpriteSettingsScreen extends ConsumerWidget {
                       emotion.keywords.take(5).join(', ') +
                           (emotion.keywords.length > 5 ? '...' : ''),
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: DesignTokens.fontSizeXs,
                         color: AppTheme.textMuted,
                       ),
                     ),
@@ -221,11 +222,11 @@ class SpriteSettingsScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: DesignTokens.fontSizeBodyMedium,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.accentColor,
               ),
@@ -321,12 +322,12 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
 
   Widget _buildContent(SpritePack pack) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(DesignTokens.spaceMd),
       children: [
         // Stats card
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(DesignTokens.spaceMd),
             child: Row(
               children: [
                 const Icon(Icons.image, color: AppTheme.accentColor),
@@ -338,7 +339,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
                       Text(
                         '${pack.sprites.length} sprites',
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: DesignTokens.fontSizeBodyLarge,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -346,7 +347,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
                         Text(
                           'Default: ${pack.defaultEmotion}',
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: DesignTokens.fontSizeXs,
                             color: AppTheme.textMuted,
                           ),
                         ),
@@ -365,7 +366,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
           const Text(
             'Sprites',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: DesignTokens.fontSizeBodyMedium,
               fontWeight: FontWeight.bold,
               color: AppTheme.textSecondary,
             ),
@@ -394,7 +395,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
                 const Text(
                   'No sprites yet',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: DesignTokens.fontSizeLg,
                     color: AppTheme.textMuted,
                   ),
                 ),
@@ -402,7 +403,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
                 const Text(
                   'Add expression images for this character',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: DesignTokens.fontSizeBodyMedium,
                     color: AppTheme.textMuted,
                   ),
                 ),
@@ -452,7 +453,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
                 title: Text(emotion.displayName),
                 subtitle: Text(
                   emotion.keywords.take(3).join(', '),
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                  style: const TextStyle(fontSize: DesignTokens.fontSizeXs, color: AppTheme.textMuted),
                 ),
                 onTap: () => Navigator.pop(context, emotion.id),
               );
@@ -474,14 +475,14 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
       context: context,
       backgroundColor: AppTheme.darkCard,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(DesignTokens.radiusLg)),
       ),
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              margin: const EdgeInsets.only(top: 8),
+              margin: const EdgeInsets.only(top: DesignTokens.spaceSm),
               width: 40,
               height: 4,
               decoration: BoxDecoration(
@@ -610,14 +611,14 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
               'Import sprites from a folder. Files should be named with emotion keywords:',
             ),
             SizedBox(height: 12),
-            Text('• happy.png, smile.jpg', style: TextStyle(fontSize: 12)),
-            Text('• sad.png, cry.jpg', style: TextStyle(fontSize: 12)),
-            Text('• angry.png, mad.jpg', style: TextStyle(fontSize: 12)),
-            Text('• neutral.png, default.jpg', style: TextStyle(fontSize: 12)),
+            Text('• happy.png, smile.jpg', style: TextStyle(fontSize: DesignTokens.fontSizeXs)),
+            Text('• sad.png, cry.jpg', style: TextStyle(fontSize: DesignTokens.fontSizeXs)),
+            Text('• angry.png, mad.jpg', style: TextStyle(fontSize: DesignTokens.fontSizeXs)),
+            Text('• neutral.png, default.jpg', style: TextStyle(fontSize: DesignTokens.fontSizeXs)),
             SizedBox(height: 12),
             Text(
               'Supported formats: PNG, JPG, GIF, WebP',
-              style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
+              style: TextStyle(color: AppTheme.textMuted, fontSize: DesignTokens.fontSizeXs),
             ),
           ],
         ),
