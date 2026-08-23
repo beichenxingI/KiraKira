@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kirakira/core/logger/logger.dart';
 import 'package:kirakira/domain/services/announcement_service.dart';
 import 'package:kirakira/presentation/providers/announcement_provider.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 
 /// 已读公告版本的存储键
 const String _kSeenKey = 'seen_announcement_version';
@@ -81,7 +82,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0d0d1a),
+      backgroundColor: DesignTokens.darkBackground,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -92,29 +93,31 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 scale: _breathe.drive(Tween(begin: 0.9, end: 1.1)),
                 child: const Icon(
                   Icons.auto_awesome,
-                  color: Color(0xFFa78bfa),
+                  // TODO(token·待批准): brandPurple(0xFFa78bfa) 品牌亮紫,
+                  // 未批准前用 primary(宪法 §一 主色)
+                  color: DesignTokens.primary,
                   size: 56,
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: DesignTokens.spaceLg),
             const Text(
               'KiraKira',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 22,
+                fontSize: DesignTokens.fontSize2xl,
                 fontWeight: FontWeight.w300,
                 letterSpacing: 4,
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: DesignTokens.spaceXl),
             SizedBox(
               width: 24,
               height: 24,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation(
-                  const Color(0xFFa78bfa).withValues(alpha: 0.7),
+                  DesignTokens.primary.withValues(alpha: 0.7),
                 ),
               ),
             ),
