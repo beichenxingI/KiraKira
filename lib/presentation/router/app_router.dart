@@ -141,6 +141,33 @@ CustomTransitionPage<void> _buildTabPage(LocalKey key, Widget child) {
   );
 }
 
+/// root 级 push 转场:iOS 侧滑(B-T2)
+/// 新页右侧滑入(350ms easeOutCubic),前页微向左挪 30%(iOS 视差)。
+CustomTransitionPage<void> _buildIosPushPage(LocalKey key, Widget child) {
+  return CustomTransitionPage<void>(
+    key: key,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 350),
+    reverseTransitionDuration: const Duration(milliseconds: 300),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+      );
+      return SlideTransition(
+        position: Tween(begin: const Offset(1, 0), end: Offset.zero)
+            .animate(curved),
+        child: SlideTransition(
+          // 前页微向左挪 30%,iOS 视差
+          position: Tween(begin: Offset.zero, end: const Offset(-0.3, 0))
+              .animate(secondaryAnimation),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
 /// App router provider
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -191,26 +218,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.worldInfo,
         name: 'worldInfo',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final cid = state.uri.queryParameters['characterId'];
           final isGlobal = state.uri.queryParameters['isGlobal'] == 'true';
-          return WorldInfoScreen(characterId: cid, isGlobal: isGlobal);
+          return _buildIosPushPage(state.pageKey,
+              WorldInfoScreen(characterId: cid, isGlobal: isGlobal));
         },
       ),
-      // Block5:关于页(接管 Block3 占位入口)
       GoRoute(
         path: AppRoutes.about,
         name: 'about',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const AboutScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const AboutScreen()),
       ),
       GoRoute(
         path: AppRoutes.characterRegex,
         name: 'characterRegex',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return CharacterRegexScreen(characterId: id);
+          return _buildIosPushPage(
+              state.pageKey, CharacterRegexScreen(characterId: id));
         },
       ),
       // Full-screen routes (outside shell)
@@ -220,24 +249,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.characterCreate,
         name: 'characterCreate',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const CharacterEditorScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const CharacterEditorScreen()),
       ),
       GoRoute(
         path: AppRoutes.characterEdit,
         name: 'characterEdit',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return CharacterEditorScreen(characterId: id);
+          return _buildIosPushPage(
+              state.pageKey, CharacterEditorScreen(characterId: id));
         },
       ),
       GoRoute(
         path: AppRoutes.characterDetail,
         name: 'characterDetail',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return CharacterDetailScreen(characterId: id);
+          return _buildIosPushPage(
+              state.pageKey, CharacterDetailScreen(characterId: id));
         },
       ),
       GoRoute(
@@ -262,169 +294,193 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.import_,
         name: 'import',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const ImportScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const ImportScreen()),
       ),
       GoRoute(
         path: AppRoutes.personas,
         name: 'personas',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const PersonasScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const PersonasScreen()),
       ),
       GoRoute(
         path: AppRoutes.promptManager,
         name: 'promptManager',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const PromptManagerScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const PromptManagerScreen()),
       ),
       GoRoute(
         path: AppRoutes.advancedSettings,
         name: 'advancedSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const AdvancedSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const AdvancedSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.homeAppearance,
         name: 'homeAppearance',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const HomeAppearanceScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const HomeAppearanceScreen()),
       ),
       GoRoute(
         path: AppRoutes.backgroundSettings,
         name: 'backgroundSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const BackgroundSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const BackgroundSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.themeSettings,
         name: 'themeSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const ThemeSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const ThemeSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.advanced,
         name: 'advanced',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const GeekDashboardScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const GeekDashboardScreen()),
       ),
       GoRoute(
         path: AppRoutes.statistics,
         name: 'statistics',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const StatisticsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const StatisticsScreen()),
       ),
-     GoRoute(
+      GoRoute(
         path: AppRoutes.mvuSettings,
         name: 'mvuSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const MvuSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const MvuSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.aiPresets,
         name: 'aiPresets',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const AIPresetsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const AIPresetsScreen()),
       ),
       GoRoute(
         path: AppRoutes.chatStatistics,
         name: 'chatStatistics',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return StatisticsScreen(chatId: id);
+          return _buildIosPushPage(
+              state.pageKey, StatisticsScreen(chatId: id));
         },
       ),
       GoRoute(
         path: AppRoutes.groups,
         name: 'groups',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const GroupsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const GroupsScreen()),
       ),
       GoRoute(
         path: AppRoutes.groupDetail,
         name: 'groupDetail',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return GroupDetailScreen(groupId: id);
+          return _buildIosPushPage(
+              state.pageKey, GroupDetailScreen(groupId: id));
         },
       ),
       GoRoute(
         path: AppRoutes.tags,
         name: 'tags',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const TagsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const TagsScreen()),
       ),
       GoRoute(
         path: AppRoutes.spriteSettings,
         name: 'spriteSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const SpriteSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const SpriteSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.characterSprites,
         name: 'characterSprites',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
           final name = state.uri.queryParameters['name'] ?? 'Character';
-          return CharacterSpritesScreen(characterId: id, characterName: name);
+          return _buildIosPushPage(state.pageKey,
+              CharacterSpritesScreen(characterId: id, characterName: name));
         },
       ),
       GoRoute(
         path: AppRoutes.ttsSettings,
         name: 'ttsSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const TTSSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const TTSSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.sttSettings,
         name: 'sttSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const STTSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const STTSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.translationSettings,
         name: 'translationSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const TranslationSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const TranslationSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.imageGenSettings,
         name: 'imageGenSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const ImageGenSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const ImageGenSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.regexSettings,
         name: 'regexSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const RegexSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const RegexSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.variablesSettings,
         name: 'variablesSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final chatId = state.uri.queryParameters['chatId'];
-          return VariablesSettingsScreen(chatId: chatId);
+          return _buildIosPushPage(
+              state.pageKey, VariablesSettingsScreen(chatId: chatId));
         },
       ),
       GoRoute(
         path: AppRoutes.logitBiasSettings,
         name: 'logitBiasSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const LogitBiasSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const LogitBiasSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.cfgScaleSettings,
         name: 'cfgScaleSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final characterId = state.uri.queryParameters['characterId'];
           final chatId = state.uri.queryParameters['chatId'];
-          return CFGScaleSettingsScreen(
-            characterId: characterId,
-            chatId: chatId,
+          return _buildIosPushPage(
+            state.pageKey,
+            CFGScaleSettingsScreen(characterId: characterId, chatId: chatId),
           );
         },
       ),
@@ -432,37 +488,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.logprobsSettings,
         name: 'logprobsSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const LogprobsSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const LogprobsSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.tokenizerSettings,
         name: 'tokenizerSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const TokenizerSettingsScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const TokenizerSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.vectorStorageSettings,
         name: 'vectorStorageSettings',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const VectorStorageSettingsScreen(),
+        pageBuilder: (context, state) => _buildIosPushPage(
+            state.pageKey, const VectorStorageSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.llmTest,
         name: 'llmTest',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const LlmTestScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const LlmTestScreen()),
       ),
       GoRoute(
         path: AppRoutes.llmConfigList,
         name: 'llmConfigList',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const LlmConfigListScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const LlmConfigListScreen()),
       ),
       GoRoute(
         path: AppRoutes.modelDetection,
         name: 'modelDetection',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const ModelDetectionScreen(),
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const ModelDetectionScreen()),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
