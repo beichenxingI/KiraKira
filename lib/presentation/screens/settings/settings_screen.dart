@@ -146,12 +146,12 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               KiraListTile(
-                // TODO(Block5): About 页路由由 Block5 接管,此处仅占位
+                // Block5:About 页路由已接管(/about)
                 icon: Icons.info_outline,
                 title: l10n.about,
                 trailing: const Icon(Icons.chevron_right,
                     color: DesignTokens.textMuted),
-                onTap: null,
+                onTap: () => context.push(AppRoutes.about),
               ),
             ],
           ),
