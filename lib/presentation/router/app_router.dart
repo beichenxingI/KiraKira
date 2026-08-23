@@ -31,6 +31,7 @@ import 'package:kirakira/presentation/screens/settings/logit_bias_settings_scree
 import 'package:kirakira/presentation/screens/settings/cfg_scale_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/tokenizer_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/vector_storage_settings_screen.dart';
+import 'package:kirakira/presentation/screens/settings/log_view_screen.dart';
 import 'package:kirakira/presentation/widgets/chat/logprobs_panel.dart';
 import 'package:kirakira/presentation/screens/ai_config/ai_config_screen.dart';
 import 'package:kirakira/presentation/screens/import/import_screen.dart';
@@ -59,39 +60,41 @@ abstract class AppRoutes {
   static const chat = '/chat/:id';
   static const settings = '/settings';
   static const aiConfig = '/ai-config';
-  static const promptManager = '/prompt-manager';
-  static const advancedSettings = '/advanced-settings';
-  static const backgroundSettings = '/background-settings';
-  static const homeAppearance = '/home-appearance';
-  static const themeSettings = '/theme-settings';
-  static const statistics = '/statistics';
-  static const advanced = '/advanced';
+  // ===== 设置树二层化(B-T3,宪法 §五.5 层级 ≤3)=====
+  static const promptManager = '/settings/ai/prompt-manager';
+  static const advancedSettings = '/settings/ai/advanced';
+  static const backgroundSettings = '/settings/appearance/background';
+  static const homeAppearance = '/settings/appearance/home';
+  static const themeSettings = '/settings/appearance/theme';
+  static const statistics = '/settings/data/statistics';
+  static const settingsLogs = '/settings/data/logs';
+  static const advanced = '/advanced'; // 极客 Core:独立仪表盘,不进 /settings 树
   static const chatStatistics = '/chat/:id/statistics';
-  static const aiPresets = '/ai-presets';
+  static const aiPresets = '/settings/ai/presets';
   static const import_ = '/import';
   static const personas = '/personas';
   static const worldInfo = '/world-info';
   static const groups = '/groups';
   static const groupDetail = '/groups/:id';
   static const tags = '/tags';
-  static const spriteSettings = '/sprite-settings';
+  static const spriteSettings = '/settings/appearance/sprites';
   static const characterSprites = '/characters/:id/sprites';
   static const characterRegex = '/characters/:id/regex';
-  static const ttsSettings = '/tts-settings';
-  static const sttSettings = '/stt-settings';
-  static const translationSettings = '/translation-settings';
-  static const imageGenSettings = '/image-gen-settings';
-  static const regexSettings = '/regex-settings';
-  static const variablesSettings = '/variables-settings';
-  static const mvuSettings = '/mvu-settings';
-  static const logitBiasSettings = '/logit-bias-settings';
-  static const cfgScaleSettings = '/cfg-scale-settings';
-  static const logprobsSettings = '/logprobs-settings';
-  static const tokenizerSettings = '/tokenizer-settings';
-  static const vectorStorageSettings = '/vector-storage-settings';
-  static const llmTest = '/llm-test';
-  static const llmConfigList = '/llm-config-list';
-  static const modelDetection = '/model-detection';
+  static const ttsSettings = '/settings/tools/tts';
+  static const sttSettings = '/settings/tools/stt';
+  static const translationSettings = '/settings/tools/translation';
+  static const imageGenSettings = '/settings/tools/image-gen';
+  static const regexSettings = '/settings/tools/regex';
+  static const variablesSettings = '/settings/tools/variables';
+  static const mvuSettings = '/settings/ai/mvu';
+  static const logitBiasSettings = '/settings/ai/logit-bias';
+  static const cfgScaleSettings = '/settings/ai/cfg-scale';
+  static const logprobsSettings = '/logprobs-settings'; // 调试工具,保留原路径
+  static const tokenizerSettings = '/settings/ai/tokenizer';
+  static const vectorStorageSettings = '/settings/tools/vector-storage';
+  static const llmTest = '/llm-test'; // 调试页,保留原路径
+  static const llmConfigList = '/llm-config-list'; // 工程页,保留原路径
+  static const modelDetection = '/model-detection'; // 独立沉浸页,保留原路径
   static const webviewStage = '/webview-stage/:id';
   static const about = '/about';
 }
@@ -518,6 +521,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) =>
             _buildIosPushPage(state.pageKey, const LlmConfigListScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.settingsLogs,
+        name: 'settingsLogs',
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (context, state) =>
+            _buildIosPushPage(state.pageKey, const LogViewScreen()),
+      ),
+      // 遗留路径兜底(聊天域 push '/image-gen-settings' 指向这里;
+      // 禁区文件禁改,redirect 保活旧跳转)
+      GoRoute(
+        path: '/image-gen-settings',
+        redirect: (context, state) => AppRoutes.imageGenSettings,
       ),
       GoRoute(
         path: AppRoutes.modelDetection,

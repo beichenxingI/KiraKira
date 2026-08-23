@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kirakira/presentation/providers/cfg_scale_providers.dart';
@@ -306,7 +307,7 @@ class GeekDashboardScreen extends ConsumerWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
-                  onPressed: () => context.push('/advanced-settings'),
+                  onPressed: () => context.push(AppRoutes.advancedSettings),
                   icon: const Icon(Icons.more_horiz, size: 18),
                   label: const Text('更多采样参数'),
                 ),
@@ -342,7 +343,7 @@ class GeekDashboardScreen extends ConsumerWidget {
             onChanged: (v) =>
                 ref.read(cfgScaleSettingsProvider.notifier).setEnabled(v),
           ),
-          onTap: () => context.push('/cfg-scale-settings'),
+          onTap: () => context.push(AppRoutes.cfgScaleSettings),
         ),
         // 向量 RAG（半宽，与 CFG 对称）
         _StatusCard(
@@ -356,7 +357,7 @@ class GeekDashboardScreen extends ConsumerWidget {
                 .read(vectorStorageSettingsProvider.notifier)
                 .setEnabled(v),
           ),
-          onTap: () => context.push('/vector-storage-settings'),
+          onTap: () => context.push(AppRoutes.vectorStorageSettings),
         ),
         // 流式输出（半宽，纯开关，无子页面）
         _StatusCard(
@@ -394,7 +395,7 @@ class GeekDashboardScreen extends ConsumerWidget {
             onChanged: (v) =>
                 ref.read(logitBiasSettingsProvider.notifier).setEnabled(v),
           ),
-          onTap: () => context.push('/logit-bias-settings'),
+          onTap: () => context.push(AppRoutes.logitBiasSettings),
         ),
         // 分词器状态卡（半宽）
         _StatusCard(
@@ -410,7 +411,7 @@ class GeekDashboardScreen extends ConsumerWidget {
                 .read(tokenizerSettingsProvider.notifier)
                 .setShowTokenCount(v),
           ),
-          onTap: () => context.push('/tokenizer-settings'),
+          onTap: () => context.push(AppRoutes.tokenizerSettings),
         ),
       ],
     );
@@ -419,19 +420,19 @@ class GeekDashboardScreen extends ConsumerWidget {
   // ── 第三层：入口网格（必须独立页面的功能）──
   Widget _entryGridSection(BuildContext context) {
     const entries = <_GeekEntry>[
-      _GeekEntry(Icons.tune, 'API 高级', '/advanced-settings'),
-      _GeekEntry(Icons.auto_awesome, 'AI 预设', '/ai-presets'),
-      _GeekEntry(Icons.reorder, '提示词管理', '/prompt-manager'),
-      _GeekEntry(Icons.code, '正则系统', '/regex-settings'),
-      _GeekEntry(Icons.storage, '向量 RAG', '/vector-storage-settings'),
-      _GeekEntry(Icons.record_voice_over, 'TTS 合成', '/tts-settings'),
-      _GeekEntry(Icons.mic, 'STT 识别', '/stt-settings'),
-      _GeekEntry(Icons.translate, '翻译', '/translation-settings'),
-      _GeekEntry(Icons.image, '图像生成', '/image-gen-settings'),
-      _GeekEntry(Icons.emoji_emotions, '精灵图', '/sprite-settings'),
-      _GeekEntry(Icons.data_object, '变量管理', '/variables-settings'),
-      _GeekEntry(Icons.analytics, '日志统计', '/statistics'),
-      _GeekEntry(Icons.extension, 'MVU 变量框架', '/mvu-settings'),
+      _GeekEntry(Icons.tune, 'API 高级', AppRoutes.advancedSettings),
+      _GeekEntry(Icons.auto_awesome, 'AI 预设', AppRoutes.aiPresets),
+      _GeekEntry(Icons.reorder, '提示词管理', AppRoutes.promptManager),
+      _GeekEntry(Icons.code, '正则系统', AppRoutes.regexSettings),
+      _GeekEntry(Icons.storage, '向量 RAG', AppRoutes.vectorStorageSettings),
+      _GeekEntry(Icons.record_voice_over, 'TTS 合成', AppRoutes.ttsSettings),
+      _GeekEntry(Icons.mic, 'STT 识别', AppRoutes.sttSettings),
+      _GeekEntry(Icons.translate, '翻译', AppRoutes.translationSettings),
+      _GeekEntry(Icons.image, '图像生成', AppRoutes.imageGenSettings),
+      _GeekEntry(Icons.emoji_emotions, '精灵图', AppRoutes.spriteSettings),
+      _GeekEntry(Icons.data_object, '变量管理', AppRoutes.variablesSettings),
+      _GeekEntry(Icons.analytics, '日志统计', AppRoutes.statistics),
+      _GeekEntry(Icons.extension, 'MVU 变量框架', AppRoutes.mvuSettings),
     ];
 
     return KiraSection(
