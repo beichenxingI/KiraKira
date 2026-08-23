@@ -42,7 +42,7 @@ class _DebugFloatingBallState extends State<DebugFloatingBall> {
         onPanEnd: (_) => setState(() => _isDragging = false),
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: const Duration(milliseconds: DesignTokens.durationXs),
           width: 56,
           height: 56,
           decoration: BoxDecoration(
@@ -71,7 +71,7 @@ class _DebugFloatingBallState extends State<DebugFloatingBall> {
                   right: 4,
                   top: 4,
                   child: Container(
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(DesignTokens.spaceXs),
                     decoration: const BoxDecoration(
                       color: Colors.red,
                       shape: BoxShape.circle,
@@ -84,7 +84,7 @@ class _DebugFloatingBallState extends State<DebugFloatingBall> {
                       widget.logCount > 99 ? '99+' : '${widget.logCount}',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 10,
+                        fontSize: DesignTokens.fontSizeCaption,
                         fontWeight: FontWeight.bold,
                       ),
                       textAlign: TextAlign.center,
@@ -126,7 +126,7 @@ class _DebugLogViewerState extends ConsumerState<DebugLogViewer> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: DesignTokens.durationSm),
           curve: DesignTokens.curveFade,
         );
       });
@@ -179,16 +179,19 @@ class _DebugLogViewerState extends ConsumerState<DebugLogViewer> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey.shade900,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(DesignTokens.radiusLg)),
       ),
       child: Column(
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spaceMd,
+              vertical: DesignTokens.spaceMd,
+            ),
             decoration: BoxDecoration(
               color: Colors.grey.shade800,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(DesignTokens.radiusLg)),
             ),
             child: Column(
               children: [
@@ -196,21 +199,21 @@ class _DebugLogViewerState extends ConsumerState<DebugLogViewer> {
                 Container(
                   width: 40,
                   height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
+                  margin: const EdgeInsets.only(bottom: DesignTokens.spaceSm),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade600,
-                    borderRadius: BorderRadius.circular(2),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
                   ),
                 ),
                 Row(
                   children: [
                     const Icon(Icons.bug_report, color: Colors.orange),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: DesignTokens.spaceSm),
                     Text(
                       l10n.debugLog,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: DesignTokens.fontSizeLg,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -260,7 +263,10 @@ class _DebugLogViewerState extends ConsumerState<DebugLogViewer> {
           ),
           // Filter bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spaceMd,
+              vertical: DesignTokens.spaceSm,
+            ),
             color: Colors.grey.shade800,
             child: Row(
               children: [
@@ -293,7 +299,7 @@ class _DebugLogViewerState extends ConsumerState<DebugLogViewer> {
                     );
                   },
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: DesignTokens.spaceMd),
                 // Search field
                 Expanded(
                   child: TextField(
@@ -319,8 +325,8 @@ class _DebugLogViewerState extends ConsumerState<DebugLogViewer> {
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                        horizontal: DesignTokens.spaceMd,
+                        vertical: DesignTokens.spaceSm,
                       ),
                     ),
                     onChanged: (value) {
@@ -328,7 +334,7 @@ class _DebugLogViewerState extends ConsumerState<DebugLogViewer> {
                     },
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: DesignTokens.spaceSm),
                 // Log count
                 Text(
                   '${filteredLogs.length}/${logs.length}',
@@ -349,7 +355,7 @@ class _DebugLogViewerState extends ConsumerState<DebugLogViewer> {
                 : ListView.builder(
                     controller: _scrollController,
                     reverse: true,  // Show newest logs at the top
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(DesignTokens.spaceSm),
                     itemCount: filteredLogs.length,
                     itemBuilder: (context, index) {
                       // Reverse the index to show newest first
@@ -389,11 +395,11 @@ class _LogEntryTile extends StatelessWidget {
     final levelColor = _getLevelColor(log.level);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(bottom: DesignTokens.spaceXs),
+      padding: const EdgeInsets.all(DesignTokens.spaceSm),
       decoration: BoxDecoration(
         color: Colors.grey.shade800.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
         border: Border(
           left: BorderSide(color: levelColor, width: 3),
         ),
@@ -411,24 +417,27 @@ class _LogEntryTile extends StatelessWidget {
                   fontFamily: 'monospace',
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: DesignTokens.spaceSm),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceSm,
+                  vertical: DesignTokens.spaceXxs,
+                ),
                 decoration: BoxDecoration(
                   color: levelColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
                 ),
                 child: Text(
                   log.level,
                   style: TextStyle(
                     color: levelColor,
-                    fontSize: 10,
+                    fontSize: DesignTokens.fontSizeCaption,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
               if (log.source != null) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: DesignTokens.spaceSm),
                 Text(
                   log.source!,
                   style: TextStyle(
@@ -456,17 +465,17 @@ class _LogEntryTile extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: DesignTokens.spaceXs),
           SelectableText(
             log.message,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 12,
+              fontSize: DesignTokens.fontSizeXs,
               fontFamily: 'monospace',
             ),
           ),
           if (log.error != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: DesignTokens.spaceXs),
             SelectableText(
               'Error: ${log.error}',
               style: const TextStyle(
@@ -477,7 +486,7 @@ class _LogEntryTile extends StatelessWidget {
             ),
           ],
           if (log.stackTrace != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: DesignTokens.spaceXs),
             ExpansionTile(
               title: Text(
                 'Stack Trace',
@@ -487,13 +496,13 @@ class _LogEntryTile extends StatelessWidget {
                 ),
               ),
               tilePadding: EdgeInsets.zero,
-              childrenPadding: const EdgeInsets.only(top: 4),
+              childrenPadding: const EdgeInsets.only(top: DesignTokens.spaceXs),
               children: [
                 SelectableText(
                   log.stackTrace.toString(),
                   style: TextStyle(
                     color: Colors.grey.shade400,
-                    fontSize: 10,
+                    fontSize: DesignTokens.fontSizeCaption,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -536,7 +545,7 @@ class _DebugLogViewerInlineState extends ConsumerState<DebugLogViewerInline> {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
             _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: DesignTokens.durationSm),
             curve: DesignTokens.curveFade,
           );
         }
@@ -593,20 +602,23 @@ class _DebugLogViewerInlineState extends ConsumerState<DebugLogViewerInline> {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spaceMd,
+              vertical: DesignTokens.spaceMd,
+            ),
             decoration: BoxDecoration(
               color: Colors.grey.shade800,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(DesignTokens.radiusLg)),
             ),
             child: Row(
               children: [
                 const Icon(Icons.bug_report, color: Colors.orange),
-                const SizedBox(width: 8),
+                const SizedBox(width: DesignTokens.spaceSm),
                 Text(
                   l10n.debugLog,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: DesignTokens.fontSizeLg,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -650,7 +662,10 @@ class _DebugLogViewerInlineState extends ConsumerState<DebugLogViewerInline> {
           ),
           // Filter bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spaceMd,
+              vertical: DesignTokens.spaceSm,
+            ),
             color: Colors.grey.shade800,
             child: Row(
               children: [
@@ -682,7 +697,7 @@ class _DebugLogViewerInlineState extends ConsumerState<DebugLogViewerInline> {
                     );
                   },
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: DesignTokens.spaceMd),
                 Expanded(
                   child: TextField(
                     controller: _searchController,
@@ -707,8 +722,8 @@ class _DebugLogViewerInlineState extends ConsumerState<DebugLogViewerInline> {
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                        horizontal: DesignTokens.spaceMd,
+                        vertical: DesignTokens.spaceSm,
                       ),
                     ),
                     onChanged: (value) {
@@ -716,7 +731,7 @@ class _DebugLogViewerInlineState extends ConsumerState<DebugLogViewerInline> {
                     },
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: DesignTokens.spaceSm),
                 Text(
                   '${filteredLogs.length}/${logs.length}',
                   style: TextStyle(color: Colors.grey.shade400),
@@ -736,7 +751,7 @@ class _DebugLogViewerInlineState extends ConsumerState<DebugLogViewerInline> {
                 : ListView.builder(
                     controller: _scrollController,
                     reverse: true,  // Show newest logs at the top
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(DesignTokens.spaceSm),
                     itemCount: filteredLogs.length,
                     itemBuilder: (context, index) {
                       // Reverse the index to show newest first
@@ -762,7 +777,7 @@ void showDebugLogViewer(BuildContext context) {
       useRootNavigator: true,
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
+        insetPadding: const EdgeInsets.all(DesignTokens.spaceMd),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
           child: SizedBox(
