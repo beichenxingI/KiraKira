@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/core/logger/logger.dart';
@@ -93,7 +93,7 @@ class _LogViewScreenState extends State<LogViewScreen> {
                   itemBuilder: (ctx, i) {
                     final e = _entries[i];
                     return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: DesignTokens.spaceXs),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -101,13 +101,13 @@ class _LogViewScreenState extends State<LogViewScreen> {
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(color: _color(e.level).withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
-                                child: Text(e.level, style: TextStyle(color: _color(e.level), fontSize: 10, fontWeight: FontWeight.bold)),
+                                decoration: BoxDecoration(color: _color(e.level).withValues(alpha: 0.2), borderRadius: BorderRadius.circular(DesignTokens.radiusXs)),
+                                child: Text(e.level, style: TextStyle(color: _color(e.level), fontSize: DesignTokens.fontSizeCaption, fontWeight: FontWeight.bold)),
                               ),
                               const SizedBox(width: 8),
                               Text(e.tag, style: const TextStyle(color: AppTheme.textSecondary, fontSize: DesignTokens.fontSizeCaption)),
                               const Spacer(),
-                              Text(_fmt(e.timestamp), style: const TextStyle(color: AppTheme.textMuted, fontSize: 10)),
+                              Text(_fmt(e.timestamp), style: const TextStyle(color: AppTheme.textMuted, fontSize: DesignTokens.fontSizeCaption)),
                             ],
                           ),
                           const SizedBox(height: 2),

@@ -1,4 +1,4 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,7 +32,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // Enable/Disable toggle
           _buildSection(
@@ -280,7 +280,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
             title: AppLocalizations.of(context)!.negativePrompt,
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(DesignTokens.spaceMd),
                 child: TextField(
                   controller: TextEditingController(text: settings.defaultNegativePrompt),
                   decoration: InputDecoration(
@@ -474,11 +474,11 @@ class ImageGenSettingsScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: DesignTokens.fontSizeBodyMedium,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.accentColor,
               ),
@@ -509,7 +509,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           if (fetchedState.error != null)
             Text(
               'Error fetching models',
-              style: TextStyle(color: Colors.orange, fontSize: 12),
+              style: TextStyle(color: Colors.orange, fontSize: DesignTokens.fontSizeXs),
             ),
         ],
       ),
@@ -663,7 +663,7 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
     final genState = ref.watch(imageGenStateProvider);
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(DesignTokens.spaceMd),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -737,7 +737,7 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
                       Text(
                         AppLocalizations.of(context)!.generationComplete,
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: DesignTokens.fontSizeXs,
                           color: AppTheme.accentColor,
                         ),
                       ),
@@ -748,7 +748,7 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
                   Text(
                     'Seed: ${genState.result!.seed}',
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: DesignTokens.fontSizeXs,
                       color: AppTheme.textMuted,
                     ),
                   ),
@@ -757,7 +757,7 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
                     Text(
                       '${genState.result!.images.length} image(s) generated',
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: DesignTokens.fontSizeXs,
                         color: AppTheme.textMuted,
                       ),
                     ),
@@ -771,7 +771,7 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
                         itemBuilder: (context, index) {
                           final imageData = genState.result!.images[index];
                           return Padding(
-                            padding: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.only(right: DesignTokens.spaceSm),
                             child: GestureDetector(
                               onTap: () => _showFullScreenImage(context, imageData),
                               child: ClipRRect(

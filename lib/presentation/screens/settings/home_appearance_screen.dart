@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:kirakira/data/models/chat_background.dart';
@@ -100,7 +101,7 @@ class HomeAppearanceScreen extends ConsumerWidget {
 
   Widget _sectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceSm, DesignTokens.spaceMd, DesignTokens.spaceXs),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
