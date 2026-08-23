@@ -43,6 +43,7 @@ import 'package:kirakira/presentation/widgets/common/app_shell.dart';
 import 'package:kirakira/presentation/screens/chat/webview_chat_stage.dart';
 import 'package:kirakira/presentation/screens/settings/geek_dashboard_screen.dart';
 import 'package:kirakira/presentation/screens/settings/mvu_settings_screen.dart';
+import 'package:kirakira/presentation/screens/about/about_screen.dart';
 
 /// Route paths
 import '../screens/ai_config/model_detection_screen.dart';
@@ -92,6 +93,7 @@ abstract class AppRoutes {
   static const llmConfigList = '/llm-config-list';
   static const modelDetection = '/model-detection';
   static const webviewStage = '/webview-stage/:id';
+  static const about = '/about';
 }
 
 /// Navigation keys for nested navigation
@@ -118,17 +120,18 @@ class _NavObserver extends NavigatorObserver {
     KiraLogger().route('REPLACE:  -> ');
   }
 }
-/// tab 页转场：交叉淡入 + 轻微上浮，250ms，顺滑不拖沓。
+/// tab 页转场：交叉淡入 + 轻微上浮,durationMd(300ms) + curveSlide(宪法统一档)。
 CustomTransitionPage<void> _buildTabPage(LocalKey key, Widget child) {
   return CustomTransitionPage<void>(
     key: key,
     child: child,
-    transitionDuration: const Duration(milliseconds: 250),
-    reverseTransitionDuration: const Duration(milliseconds: 250),
+    transitionDuration: const Duration(milliseconds: DesignTokens.durationMd),
+    reverseTransitionDuration:
+        const Duration(milliseconds: DesignTokens.durationMd),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       final curved = CurvedAnimation(
         parent: animation,
-        curve: DesignTokens.curveStandard,
+        curve: DesignTokens.curveSlide,
       );
       return FadeTransition(
         opacity: curved,
@@ -193,6 +196,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final isGlobal = state.uri.queryParameters['isGlobal'] == 'true';
           return WorldInfoScreen(characterId: cid, isGlobal: isGlobal);
         },
+      ),
+      // Block5:关于页(接管 Block3 占位入口)
+      GoRoute(
+        path: AppRoutes.about,
+        name: 'about',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AboutScreen(),
       ),
       GoRoute(
         path: AppRoutes.characterRegex,
