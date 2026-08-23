@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 
 /// Advanced settings screen for full sampler control
 class AdvancedSettingsScreen extends ConsumerWidget {
@@ -25,7 +26,7 @@ class AdvancedSettingsScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSm),
         children: [
           // Basic Sampling
           _buildSectionHeader(context, l10n.basicSampling),
@@ -218,7 +219,7 @@ class AdvancedSettingsScreen extends ConsumerWidget {
 
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceSm, DesignTokens.spaceMd, DesignTokens.spaceSm),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -255,7 +256,7 @@ class AdvancedSettingsScreen extends ConsumerWidget {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(subtitle, style: const TextStyle(fontSize: 12)),
+          Text(subtitle, style: const TextStyle(fontSize: DesignTokens.fontSizeXs)),
           Slider(
             value: value.clamp(min, max),
             min: min,
@@ -293,7 +294,7 @@ class AdvancedSettingsScreen extends ConsumerWidget {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(subtitle, style: const TextStyle(fontSize: 12)),
+          Text(subtitle, style: const TextStyle(fontSize: DesignTokens.fontSizeXs)),
           Slider(
             value: value.toDouble().clamp(min.toDouble(), max.toDouble()),
             min: min.toDouble(),
@@ -448,7 +449,7 @@ class AdvancedSettingsScreen extends ConsumerWidget {
           children: [
             const Text(
               '指定用于自动总结的模型（可填便宜的小模型省成本）。留空则沿用主聊天模型。',
-              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+              style: TextStyle(fontSize: DesignTokens.fontSizeXs, color: AppTheme.textMuted),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -502,7 +503,7 @@ class AdvancedSettingsScreen extends ConsumerWidget {
           children: [
             const Text(
               '自定义总结时的指令。留空则使用内置中文提示词（保留剧情、关系、时间线、状态等）。',
-              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+              style: TextStyle(fontSize: DesignTokens.fontSizeXs, color: AppTheme.textMuted),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -551,7 +552,7 @@ class AdvancedSettingsScreen extends ConsumerWidget {
           children: [
             Text(
               l10n.stopSequencesDescription,
-              style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+              style: const TextStyle(fontSize: DesignTokens.fontSizeXs, color: AppTheme.textMuted),
             ),
             const SizedBox(height: 16),
             TextField(

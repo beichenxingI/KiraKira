@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/ai_preset.dart';
 import '../../../data/models/regex_script.dart';
@@ -74,7 +75,7 @@ class _AIPresetEditScreenState extends ConsumerState<AIPresetEditScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // 基本信息
           Text('基本信息',
@@ -122,7 +123,7 @@ class _AIPresetEditScreenState extends ConsumerState<AIPresetEditScreen> {
           DropdownButtonFormField<String?>(
             value: _selectedPromptPresetId,
             decoration: const InputDecoration(
-              border: OutlineInputBorder(),contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              border: OutlineInputBorder(),contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: DesignTokens.spaceSm),
             ),
             hint: const Text('不绑定（使用全局激活的提示词预设）'),
             items: [
@@ -173,7 +174,7 @@ class _AIPresetEditScreenState extends ConsumerState<AIPresetEditScreen> {
 
           if (allRegexScripts.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceMd),
               child: Text(
                 '暂无全局正则脚本',
                 style: Theme.of(context)
@@ -198,17 +199,17 @@ class _AIPresetEditScreenState extends ConsumerState<AIPresetEditScreen> {
         value: selected,
         title: Text(
           script.scriptName,
-          style: const TextStyle(fontSize: 14),
+          style: const TextStyle(fontSize: DesignTokens.fontSizeBodyMedium),
         ),
         subtitle: script.description != null
             ? Text(
                 script.description!,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),maxLines: 1,
+                style: const TextStyle(fontSize: DesignTokens.fontSizeXs, color: AppTheme.textSecondary),maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               )
             : null,
         secondary: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: DesignTokens.spaceXxs),
           decoration: BoxDecoration(
             color: script.disabled
                 ? AppTheme.darkCard
@@ -218,7 +219,7 @@ class _AIPresetEditScreenState extends ConsumerState<AIPresetEditScreen> {
           child: Text(
             script.disabled ? '已禁用' : '启用',
             style: TextStyle(
-              fontSize: 10,
+              fontSize: DesignTokens.fontSizeCaption,
               color: script.disabled ? AppTheme.textMuted : AppTheme.primaryColor,
             ),
           ),
@@ -233,7 +234,7 @@ class _AIPresetEditScreenState extends ConsumerState<AIPresetEditScreen> {
           });
         },
         activeColor: AppTheme.primaryColor,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: DesignTokens.spaceXxs),
         dense: true,
       );
     }).toList();

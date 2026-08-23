@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -71,7 +71,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // Character Avatar Background Setting (only for global settings)
           if (!isCharacterSpecific) ...[
@@ -131,7 +131,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
     
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -222,8 +222,8 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
   Widget _buildQuoteColorCard() {
     final state = ref.watch(quoteColorStateProvider);
     return Container(
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(top: DesignTokens.spaceMd),
+      padding: const EdgeInsets.all(DesignTokens.spaceMd),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
       ),
@@ -235,12 +235,12 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
               Icon(Icons.format_quote, color: AppTheme.accentColor),
               SizedBox(width: 8),
               Text('对话染色',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: DesignTokens.fontSizeBodyLarge, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 4),
           const Text('引号、括号内文字的高亮颜色',
-              style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+              style: TextStyle(fontSize: DesignTokens.fontSizeXs, color: AppTheme.textMuted)),
           const SizedBox(height: 12),
           // 引号主色
           _quoteColorRow(
@@ -273,7 +273,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
   Widget _quoteColorRow(String label, Color current, void Function(Color) onPick) {
     return Row(
       children: [
-        Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
+        Expanded(child: Text(label, style: const TextStyle(fontSize: DesignTokens.fontSizeBodyMedium))),
         GestureDetector(
           onTap: () => _showQuoteColorPicker(current, onPick),
           child: Container(
@@ -368,7 +368,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: DesignTokens.spaceSm),
                     decoration: BoxDecoration(
                       color: AppTheme.darkCard.withValues(alpha: _currentBackground.bubbleOpacity),
                       borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
@@ -382,7 +382,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
                   Align(
                     alignment: Alignment.centerRight,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: DesignTokens.spaceSm),
                       decoration: BoxDecoration(
                         color: AppTheme.accentColor.withValues(alpha: _currentBackground.bubbleOpacity),
                         borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
@@ -480,7 +480,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
   Widget _buildAdjustments() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         child: Column(
           children: [
             

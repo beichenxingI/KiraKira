@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -55,11 +55,11 @@ class AIPresetsScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         children: [
           // Info banner
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(DesignTokens.spaceMd),
             decoration: BoxDecoration(
               color: AppTheme.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
@@ -502,7 +502,7 @@ class _PresetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: DesignTokens.spaceSm),
       color: isActive ? AppTheme.primaryColor.withValues(alpha: 0.15) : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
@@ -514,7 +514,7 @@ class _PresetCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(DesignTokens.spaceMd),
           child: Row(
             children: [
               // Icon
@@ -550,8 +550,8 @@ class _PresetCard extends StatelessWidget {
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
+                              horizontal: DesignTokens.spaceSm,
+                              vertical: DesignTokens.spaceXxs,
                             ),
                             decoration: BoxDecoration(
                               color: AppTheme.primaryColor,
@@ -564,7 +564,7 @@ class _PresetCard extends StatelessWidget {
                                   l10n.active,
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 10,
+                                    fontSize: DesignTokens.fontSizeCaption,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 );
@@ -695,7 +695,7 @@ class _SettingChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceSm, vertical: DesignTokens.spaceXs),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
       ),
