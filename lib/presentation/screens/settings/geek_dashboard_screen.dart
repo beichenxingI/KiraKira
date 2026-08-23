@@ -37,13 +37,13 @@ class GeekDashboardScreen extends ConsumerWidget {
         ),
         children: [
           // Hero 指标区(宪法 §六.3:可视化优先)
-          _heroMetricsSection(context, ref),
+          _SectionEntrance(index: 0, child: _heroMetricsSection(context, ref)),
           const SizedBox(height: DesignTokens.spaceLg),
-          _quickAdjustSection(context, ref),
+          _SectionEntrance(index: 1, child: _quickAdjustSection(context, ref)),
           const SizedBox(height: DesignTokens.spaceLg),
-          _statusCardSection(context, ref),
+          _SectionEntrance(index: 2, child: _statusCardSection(context, ref)),
           const SizedBox(height: DesignTokens.spaceLg),
-          _entryGridSection(context),
+          _SectionEntrance(index: 3, child: _entryGridSection(context)),
         ],
       ),
     );
@@ -829,16 +829,22 @@ class _RingGauge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 56,
-      height: 56,
-      child: CustomPaint(
-        painter: _RingPainter(
-          value: value,
-          color: color,
-          trackColor: isDark
-              ? DesignTokens.darkSurface
-              : DesignTokens.lightDivider,
+    // 环形进度刷新动画:durationMd + curveEmphasized
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: value.clamp(0.0, 1.0)),
+      duration: const Duration(milliseconds: DesignTokens.durationMd),
+      curve: DesignTokens.curveEmphasized,
+      builder: (context, v, _) => SizedBox(
+        width: 56,
+        height: 56,
+        child: CustomPaint(
+          painter: _RingPainter(
+            value: v,
+            color: color,
+            trackColor: isDark
+                ? DesignTokens.darkSurface
+                : DesignTokens.lightDivider,
+          ),
         ),
       ),
     );
@@ -912,6 +918,34 @@ class _CapsuleProgressBar extends StatelessWidget {
           valueColor: AlwaysStoppedAnimation(color),
         ),
       ),
+    );
+  }
+}
+
+/// 分区入场:错峰 50ms 淡入上移(宪法 §五)
+class _SectionEntrance extends StatelessWidget {
+  final int index;
+  final Widget child;
+
+  const _SectionEntrance({required this.index, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    const duration = DesignTokens.durationMd;
+    final delay = index.clamp(0, 12) * 50;
+    final total = duration + delay;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: total),
+      curve: Interval(delay / total, 1, curve: DesignTokens.curveDecelerate),
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - t)),
+          child: child,
+        ),
+      ),
+      child: child,
     );
   }
 }
