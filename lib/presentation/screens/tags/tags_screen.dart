@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/tag.dart';
@@ -56,7 +56,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           final usageCounts = usageCountsAsync.valueOrNull ?? {};
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: DesignTokens.paddingCard,
             itemCount: tags.length,
             itemBuilder: (context, index) {
               final tag = tags[index];
@@ -88,7 +88,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           Text(
             AppLocalizations.of(context)!.noTagsYet,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: DesignTokens.fontSizeLg, fontWeight: DesignTokens.weightSemibold,
               color: AppTheme.textSecondary,
             ),
           ),
@@ -194,7 +194,7 @@ class _TagListItem extends StatelessWidget {
             child: tag.icon != null && tag.icon!.isNotEmpty
                 ? Text(
                     tag.icon!,
-                    style: const TextStyle(fontSize: 20),
+                    style: const TextStyle(fontSize: 20) // emoji 渲染尺寸,工程值不进 token,
                   )
                 : Icon(
                     Icons.label,
@@ -324,7 +324,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
             Text(
               AppLocalizations.of(context)!.color,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: DesignTokens.fontSizeXs,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -365,7 +365,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
             const SizedBox(height: 16),
             // Preview
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: DesignTokens.paddingCard,
               decoration: BoxDecoration(
                 color: AppTheme.darkCard,
                 borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
@@ -499,7 +499,7 @@ class TagChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (tag.icon != null && tag.icon!.isNotEmpty) ...[
-              Text(tag.icon!, style: const TextStyle(fontSize: 14)),
+              Text(tag.icon!, style: const TextStyle(fontSize: 14)) // emoji 渲染尺寸,工程值,
               const SizedBox(width: 4),
             ],
             Text(
