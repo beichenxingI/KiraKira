@@ -21,6 +21,7 @@ import 'package:drift/drift.dart' as drift;
 import '../../../data/database/database.dart';
 import 'package:kirakira/presentation/widgets/common/kira_components.dart';
 import 'package:kirakira/presentation/widgets/common/kira_button.dart';
+import 'package:kirakira/presentation/widgets/common/kira_grouped_tile.dart';
 
 /// Provider for China region detection
 final isChinaRegionProvider = FutureProvider<bool>((ref) async {
@@ -827,7 +828,7 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('拉取模型失败：${next.errorMessage ?? "请检查地址和密钥"}'),
-            backgroundColor: Colors.red,
+            backgroundColor: DesignTokens.statusError,
           ),
         );
       }
@@ -838,10 +839,8 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.3),
-        ),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
+        border: Border.all(color: theme.dividerColor, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1100,42 +1099,64 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
     );
   }
 
-  /// 接口类型下拉：默认 OpenAI 兼容，覆盖绝大多数第三方中转 API。
+  /// 接口类型:G-T1 Step2 → KiraGroupedTile 行 + CupertinoActionSheet 选型
   Widget _buildProviderSelector(LLMConfig config) {
-    return InputDecorator(
-      decoration: const InputDecoration(
-        labelText: '接口类型',
-        prefixIcon: Icon(Icons.hub),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<LLMProvider>(
-          isExpanded: true,
-          value: config.provider,
-          items: const [
-            DropdownMenuItem(
-              value: LLMProvider.openAICompatible,
-              child: Text('OpenAI 兼容（推荐，多数中转选这个）'),
+    final theme = Theme.of(context);
+    const options = <LLMProvider, String>{
+      LLMProvider.openAICompatible: 'OpenAI 兼容(推荐,多数中转选这个)',
+      LLMProvider.openai: 'OpenAI 官方',
+      LLMProvider.claude: 'Claude',
+      LLMProvider.gemini: 'Gemini',
+      LLMProvider.deepSeek: 'DeepSeek',
+      LLMProvider.qwen: '通义千问',
+      LLMProvider.ollama: 'Ollama(本地)',
+    };
+    final current = options[config.provider] ?? 'OpenAI 兼容';
+    final isDark = theme.brightness == Brightness.dark;
+
+    return KiraGroupedTile(
+      icon: CupertinoIcons.link,
+      iconBg: theme.colorScheme.primary.withValues(alpha: 0.12),
+      title: '接口类型',
+      subtitle: current,
+      onTap: () {
+        showCupertinoModalPopup<void>(
+          context: context,
+          builder: (sheetCtx) => CupertinoTheme(
+            data: CupertinoThemeData(
+              brightness: isDark ? Brightness.dark : Brightness.light,
             ),
-            DropdownMenuItem(
-                value: LLMProvider.openai, child: Text('OpenAI 官方')),
-            DropdownMenuItem(
-                value: LLMProvider.claude, child: Text('Claude')),
-            DropdownMenuItem(
-                value: LLMProvider.gemini, child: Text('Gemini')),
-            DropdownMenuItem(
-                value: LLMProvider.deepSeek, child: Text('DeepSeek')),
-            DropdownMenuItem(value: LLMProvider.qwen, child: Text('通义千问')),
-            DropdownMenuItem(
-                value: LLMProvider.ollama, child: Text('Ollama（本地）')),
-          ],
-          onChanged: (v) {
-            if (v != null) {
-              ref.read(llmConfigProvider.notifier).updateProvider(v);
-            }
-          },
-        ),
-      ),
+            child: CupertinoActionSheet(
+              title: const Text('接口类型'),
+              actions: [
+                for (final e in options.entries)
+                  CupertinoActionSheetAction(
+                    onPressed: () {
+                      ref
+                          .read(llmConfigProvider.notifier)
+                          .updateProvider(e.key);
+                      Navigator.pop(sheetCtx);
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(child: Text(e.value)),
+                        if (e.key == config.provider) ...[
+                          const SizedBox(width: 6),
+                          const Icon(CupertinoIcons.checkmark, size: 16),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+              cancelButton: CupertinoActionSheetAction(
+                onPressed: () => Navigator.pop(sheetCtx),
+                child: const Text('取消'),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1166,7 +1187,7 @@ class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
                     return ListTile(
                       title: Text(m),
                       trailing: m == current
-                          ? const Icon(Icons.check, color: Colors.green)
+                          ? const Icon(Icons.check, color: DesignTokens.statusSuccess)
                           : null,
                       onTap: () {
                         ref.read(llmConfigProvider.notifier).updateModel(m);
