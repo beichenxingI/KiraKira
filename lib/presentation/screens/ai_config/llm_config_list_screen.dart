@@ -1,8 +1,15 @@
-import 'package:drift/drift.dart' as drift;
+// lib/presentation/screens/ai_config/llm_config_list_screen.dart
+/// LLM 配置管理(G-T4):Sliver 化 + KiraGroupedTile 行 + 编辑 push 子页
+library;
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/widgets/common/common.dart';
 import '../../../data/database/database.dart';
 import '../../providers/llm_configs_provider.dart';
+import 'llm_config_edit_screen.dart';
 
 class LlmConfigListScreen extends ConsumerWidget {
   const LlmConfigListScreen({super.key});
@@ -12,169 +19,129 @@ class LlmConfigListScreen extends ConsumerWidget {
     final state = ref.watch(llmConfigsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('AI Config Manager')),
-      body: state.loading
-          ? const Center(child: CircularProgressIndicator())
-          : state.configs.isEmpty
-              ? const Center(child: Text('No configs yet. Tap + to create.'))
-              : ListView.builder(
-                  itemCount: state.configs.length,
-                  itemBuilder: (context, i) {
-                    final c = state.configs[i];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: ListTile(
-                        leading: Icon(
-                          c.isDefault ? Icons.check_circle : Icons.circle_outlined,
-                          color: c.isDefault ? Colors.green : null,
-                        ),
-                        title: Text(c.name),
-                        subtitle: Text(
-                          '${c.provider}  ${c.model ?? "no model"}\n${c.endpoint}',
-                        ),
-                        isThreeLine: true,
-                        onTap: () => _openEditor(context, ref, existing: c),
-                        trailing: PopupMenuButton<String>(
-                          onSelected: (v) async {
-                            if (v == 'activate') {
-                              await ref.read(llmConfigsProvider.notifier).setActive(c.id);
-                            } else if (v == 'edit') {
-                              _openEditor(context, ref, existing: c);
-                            } else if (v == 'delete') {
-                              await ref.read(llmConfigsProvider.notifier).delete(c.id);
-                            }
-                          },
-                          itemBuilder: (_) => [
-                            if (!c.isDefault)
-                              const PopupMenuItem(value: 'activate', child: Text('Activate')),
-                            const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                            const PopupMenuItem(value: 'delete', child: Text('Delete')),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+      body: CustomScrollView(
+        slivers: [
+          // G-T4:Sliver 化;英文页名改中文(工程页,保留直白)
+          SliverAppBar.large(
+            title: Text(
+              'LLM 配置管理', // TODO(i18n): 待补 l10n key
+              style: Theme.of(context).textTheme.displayLarge,
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(CupertinoIcons.add),
+                tooltip: '新建配置',
+                onPressed: () => _openEditor(context, ref),
+              ),
+              const SizedBox(width: DesignTokens.spaceSm),
+            ],
+          ),
+          if (state.loading)
+            const SliverFillRemaining(
+              child: Center(child: CupertinoActivityIndicator()),
+            )
+          else if (state.configs.isEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Text(
+                  '暂无配置。点右上角 + 新建。',
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openEditor(context, ref),
-        child: const Icon(Icons.add),
+              ),
+            )
+          else
+            // 一份 inset-grouped 卡内列全部配置
+            SliverToBoxAdapter(
+              child: KiraSection(
+                title: '全部配置',
+                children: [
+                  for (final c in state.configs)
+                    _ConfigTile(config: c),
+                ],
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+        ],
       ),
     );
   }
 
   void _openEditor(BuildContext context, WidgetRef ref, {LlmConfig? existing}) {
-    showDialog(
-      context: context,
-      builder: (_) => _ConfigEditorDialog(existing: existing),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LlmConfigEditScreen(existing: existing),
+      ),
     );
   }
 }
 
-class _ConfigEditorDialog extends ConsumerStatefulWidget {
-  final LlmConfig? existing;
-  const _ConfigEditorDialog({this.existing});
+/// 单条配置行(inset-grouped 内,KiraGroupedTile 规格)
+class _ConfigTile extends ConsumerWidget {
+  const _ConfigTile({required this.config});
+
+  final LlmConfig config;
 
   @override
-  ConsumerState<_ConfigEditorDialog> createState() => _ConfigEditorDialogState();
-}
-
-class _ConfigEditorDialogState extends ConsumerState<_ConfigEditorDialog> {
-  late final TextEditingController _name;
-  late final TextEditingController _endpoint;
-  late final TextEditingController _apiKey;
-  late final TextEditingController _model;
-  late String _provider;
-
-  static const _providers = ['custom', 'deepseek', 'openai', 'claude'];
-
-  @override
-  void initState() {
-    super.initState();
-    final e = widget.existing;
-    _name = TextEditingController(text: e?.name ?? '');
-    _endpoint = TextEditingController(text: e?.endpoint ?? '');
-    _apiKey = TextEditingController(text: e?.apiKey ?? '');
-    _model = TextEditingController(text: e?.model ?? '');
-    _provider = e?.provider ?? 'custom';
-    if (!_providers.contains(_provider)) _provider = 'custom';
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _endpoint.dispose();
-    _apiKey.dispose();
-    _model.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final now = DateTime.now();
-    final id = widget.existing?.id ?? now.millisecondsSinceEpoch.toString();
-    final companion = LlmConfigsCompanion(
-      id: drift.Value(id),
-      name: drift.Value(_name.text.trim().isEmpty ? 'Unnamed' : _name.text.trim()),
-      provider: drift.Value(_provider),
-      endpoint: drift.Value(_endpoint.text.trim()),
-      apiKey: drift.Value(_apiKey.text.trim()),
-      model: drift.Value(_model.text.trim().isEmpty ? null : _model.text.trim()),
-      createdAt: drift.Value(widget.existing?.createdAt ?? now),
-      modifiedAt: drift.Value(now),
-    );
-    await ref.read(llmConfigsProvider.notifier).upsert(companion);
-    if (mounted) Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.existing == null ? 'New Config' : 'Edit Config'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _name,
-              decoration: const InputDecoration(labelText: 'Name'),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              value: _provider,
-              decoration: const InputDecoration(labelText: 'Provider'),
-              items: _providers
-                  .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                  .toList(),
-              onChanged: (v) => setState(() => _provider = v ?? 'custom'),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _endpoint,
-              decoration: const InputDecoration(
-                labelText: 'Base URL',
-                hintText: 'https://api.deepseek.com',
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final c = config;
+    return KiraGroupedTile(
+      icon: c.isDefault
+          ? CupertinoIcons.checkmark_circle_fill
+          : CupertinoIcons.circle,
+      iconColor: c.isDefault
+          ? DesignTokens.statusSuccess
+          : theme.textTheme.bodySmall?.color,
+      title: c.name,
+      subtitle:
+          '${c.provider} · ${c.model ?? "no model"} · ${c.endpoint}',
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => LlmConfigEditScreen(existing: c)),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (c.isDefault)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: DesignTokens.statusSuccess.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
+              ),
+              child: const Text(
+                '当前',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeXs,
+                  color: DesignTokens.statusSuccess,
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _apiKey,
-              decoration: const InputDecoration(labelText: 'API Key'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _model,
-              decoration: const InputDecoration(labelText: 'Model (optional)'),
-            ),
-          ],
-        ),
+          PopupMenuButton<String>(
+            icon: const Icon(CupertinoIcons.ellipsis_circle, size: 18),
+            onSelected: (v) async {
+              if (v == 'activate') {
+                await ref.read(llmConfigsProvider.notifier).setActive(c.id);
+              } else if (v == 'edit') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => LlmConfigEditScreen(existing: c)),
+                );
+              } else if (v == 'delete') {
+                await ref.read(llmConfigsProvider.notifier).delete(c.id);
+              }
+            },
+            itemBuilder: (_) => [
+              if (!c.isDefault)
+                const PopupMenuItem(value: 'activate', child: Text('设为当前')),
+              const PopupMenuItem(value: 'edit', child: Text('编辑')),
+              const PopupMenuItem(value: 'delete', child: Text('删除')),
+            ],
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(onPressed: _save, child: const Text('Save')),
-      ],
     );
   }
 }
