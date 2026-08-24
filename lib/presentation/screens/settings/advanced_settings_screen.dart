@@ -1,9 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
-import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/widgets/common/common.dart';
 
 /// Advanced settings screen for full sampler control
 class AdvancedSettingsScreen extends ConsumerWidget {
@@ -15,218 +16,370 @@ class AdvancedSettingsScreen extends ConsumerWidget {
     final config = ref.watch(llmConfigProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.advancedSettings),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.restore),
-            tooltip: l10n.resetToDefaults,
-            onPressed: () => _showResetConfirmation(context, ref),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSm),
-        children: [
-          // Basic Sampling
-          _buildSectionHeader(context, l10n.basicSampling),
-          _buildSliderTile(
-            context: context,
-            title: l10n.temperature,
-            subtitle: l10n.temperatureDescription,
-            value: config.temperature,
-            min: 0.0,
-            max: 2.0,
-            divisions: 40,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateTemperature(v),
-          ),
-          _buildSliderTile(
-            context: context,
-            title: l10n.topPNucleusSampling,
-            subtitle: l10n.topPDescription,
-            value: config.topP,
-            min: 0.0,
-            max: 1.0,
-            divisions: 20,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateTopP(v),
-          ),
-          _buildIntSliderTile(
-            context: context,
-            title: l10n.topK,
-            subtitle: l10n.topKDescription,
-            value: config.topK,
-            min: 0,
-            max: 200,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateTopK(v),
-          ),
-
-          const Divider(height: 32),
-          _buildSectionHeader(context, l10n.advancedSampling),
-          _buildSliderTile(
-            context: context,
-            title: l10n.minP,
-            subtitle: l10n.minPDescription,
-            value: config.minP,
-            min: 0.0,
-            max: 1.0,
-            divisions: 20,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateMinP(v),
-          ),
-          _buildSliderTile(
-            context: context,
-            title: l10n.typicalP,
-            subtitle: l10n.typicalPDescription,
-            value: config.typicalP,
-            min: 0.0,
-            max: 1.0,
-            divisions: 20,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateTypicalP(v),
-          ),
-          _buildSliderTile(
-            context: context,
-            title: l10n.topA,
-            subtitle: l10n.topADescription,
-            value: config.topA,
-            min: 0.0,
-            max: 1.0,
-            divisions: 20,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateTopA(v),
-          ),
-          _buildSliderTile(
-            context: context,
-            title: l10n.tailFreeSamplingTfs,
-            subtitle: l10n.tfsDescription,
-            value: config.tailFreeSampling,
-            min: 0.0,
-            max: 1.0,
-            divisions: 20,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateTailFreeSampling(v),
-          ),
-
-          const Divider(height: 32),
-          _buildSectionHeader(context, l10n.repetitionControl),
-          _buildSliderTile(
-            context: context,
-            title: l10n.repetitionPenalty,
-            subtitle: l10n.repetitionPenaltyDescription,
-            value: config.repetitionPenalty,
-            min: 1.0,
-            max: 2.0,
-            divisions: 20,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateRepetitionPenalty(v),
-          ),
-          _buildIntSliderTile(
-            context: context,
-            title: l10n.repetitionPenaltyRange,
-            subtitle: l10n.repetitionPenaltyRangeDescription,
-            value: config.repetitionPenaltyRange,
-            min: 0,
-            max: 4096,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateRepetitionPenaltyRange(v),
-          ),
-          _buildSliderTile(
-            context: context,
-            title: l10n.frequencyPenalty,
-            subtitle: l10n.frequencyPenaltyDescription,
-            value: config.frequencyPenalty,
-            min: 0.0,
-            max: 2.0,
-            divisions: 40,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateFrequencyPenalty(v),
-          ),
-          _buildSliderTile(
-            context: context,
-            title: l10n.presencePenalty,
-            subtitle: l10n.presencePenaltyDescription,
-            value: config.presencePenalty,
-            min: 0.0,
-            max: 2.0,
-            divisions: 40,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updatePresencePenalty(v),
-          ),
-
-          const Divider(height: 32),
-          _buildSectionHeader(context, l10n.mirostatLocalModels),
-          _buildMirostatModeTile(context, ref, config.mirostatMode),
-          if (config.mirostatMode > 0) ...[
-            _buildSliderTile(
-              context: context,
-              title: l10n.mirostatTau,
-              subtitle: l10n.mirostatTauDescription,
-              value: config.mirostatTau,
-              min: 0.0,
-              max: 10.0,
-              divisions: 20,
-              onChanged: (v) => ref.read(llmConfigProvider.notifier).updateMirostatTau(v),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              l10n.advancedSettings,
+              style: Theme.of(context).textTheme.displayLarge,
             ),
-            _buildSliderTile(
-              context: context,
-              title: l10n.mirostatEta,
-              subtitle: l10n.mirostatEtaDescription,
-              value: config.mirostatEta,
-              min: 0.0,
-              max: 1.0,
-              divisions: 20,
-              onChanged: (v) => ref.read(llmConfigProvider.notifier).updateMirostatEta(v),
-            ),
-          ],
-
-          const Divider(height: 32),
-          _buildSectionHeader(context, l10n.contextManagement),
-          _buildAutoSummarizeTile(context, ref, config.autoSummarizeEnabled),
-          if (config.autoSummarizeEnabled)
-            _buildSliderTile(
-              context: context,
-              title: l10n.autoSummarizeThreshold,
-              subtitle: l10n.autoSummarizeThresholdDescription,
-              value: config.autoSummarizeThreshold,
-              min: 0.5,
-              max: 0.95,
-              divisions: 9,
-              onChanged: (v) => ref.read(llmConfigProvider.notifier).updateAutoSummarizeThreshold(v),
-            ),
-
-          if (config.autoSummarizeEnabled)
-            _buildSummaryModelTile(context, ref, config.summaryModel),
-          if (config.autoSummarizeEnabled)
-            _buildSummaryPromptTile(context, ref, config.summaryPrompt),
-
-          const Divider(height: 32),
-          _buildSectionHeader(context, l10n.generationControl),
-          _buildIntInputTile(
-            context: context,
-            ref: ref,
-            title: l10n.maxTokens,
-            subtitle: l10n.maxTokensDescription,
-            value: config.maxTokens,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateMaxTokens(v),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.restore),
+                tooltip: l10n.resetToDefaults,
+                onPressed: () => _showResetConfirmation(context, ref),
+              ),
+            ],
           ),
-          _buildIntInputTile(
-            context: context,
-            ref: ref,
-            title: l10n.seed,
-            subtitle: l10n.seedDescription,
-            value: config.seed,
-            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateSeed(v),
-          ),
-          _buildStopSequencesTile(context, ref, config.stopSequences),
+          SliverToBoxAdapter(
+            child: Column(
+              children: [
+                // ── 采样子组:基础采样 ──
+                KiraSection.plain(
+                  title: l10n.basicSampling,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSliderTile(
+                        context: context,
+                        title: l10n.temperature,
+                        subtitle: l10n.temperatureDescription,
+                        value: config.temperature,
+                        min: 0.0,
+                        max: 2.0,
+                        divisions: 40,
+                        onChanged: (v) => ref
+                            .read(llmConfigProvider.notifier)
+                            .updateTemperature(v),
+                      ),
+                      _rowDivider(context),
+                      _buildSliderTile(
+                        context: context,
+                        title: l10n.topPNucleusSampling,
+                        subtitle: l10n.topPDescription,
+                        value: config.topP,
+                        min: 0.0,
+                        max: 1.0,
+                        divisions: 20,
+                        onChanged: (v) => ref
+                            .read(llmConfigProvider.notifier)
+                            .updateTopP(v),
+                      ),
+                      _rowDivider(context),
+                      _buildIntSliderTile(
+                        context: context,
+                        title: l10n.topK,
+                        subtitle: l10n.topKDescription,
+                        value: config.topK,
+                        min: 0,
+                        max: 200,
+                        onChanged: (v) => ref
+                            .read(llmConfigProvider.notifier)
+                            .updateTopK(v),
+                      ),
+                    ],
+                  ),
+                ),
 
-          const SizedBox(height: 32),
+                // ── 采样子组:高级采样 ──
+                KiraSection.plain(
+                  title: l10n.advancedSampling,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSliderTile(
+                        context: context,
+                        title: l10n.minP,
+                        subtitle: l10n.minPDescription,
+                        value: config.minP,
+                        min: 0.0,
+                        max: 1.0,
+                        divisions: 20,
+                        onChanged: (v) => ref
+                            .read(llmConfigProvider.notifier)
+                            .updateMinP(v),
+                      ),
+                      _rowDivider(context),
+                      _buildSliderTile(
+                        context: context,
+                        title: l10n.typicalP,
+                        subtitle: l10n.typicalPDescription,
+                        value: config.typicalP,
+                        min: 0.0,
+                        max: 1.0,
+                        divisions: 20,
+                        onChanged: (v) => ref
+                            .read(llmConfigProvider.notifier)
+                            .updateTypicalP(v),
+                      ),
+                      _rowDivider(context),
+                      _buildSliderTile(
+                        context: context,
+                        title: l10n.topA,
+                        subtitle: l10n.topADescription,
+                        value: config.topA,
+                        min: 0.0,
+                        max: 1.0,
+                        divisions: 20,
+                        onChanged: (v) => ref
+                            .read(llmConfigProvider.notifier)
+                            .updateTopA(v),
+                      ),
+                      _rowDivider(context),
+                      _buildSliderTile(
+                        context: context,
+                        title: l10n.tailFreeSamplingTfs,
+                        subtitle: l10n.tfsDescription,
+                        value: config.tailFreeSampling,
+                        min: 0.0,
+                        max: 1.0,
+                        divisions: 20,
+                        onChanged: (v) => ref
+                            .read(llmConfigProvider.notifier)
+                            .updateTailFreeSampling(v),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── 采样子组:重复控制 ──
+                KiraSection.plain(
+                  title: l10n.repetitionControl,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSliderTile(
+                        context: context,
+                        title: l10n.repetitionPenalty,
+                        subtitle: l10n.repetitionPenaltyDescription,
+                        value: config.repetitionPenalty,
+                        min: 1.0,
+                        max: 2.0,
+                        divisions: 20,
+                        onChanged: (v) => ref
+                            .read(llmConfigProvider.notifier)
+                            .updateRepetitionPenalty(v),
+                      ),
+                      _rowDivider(context),
+                      _buildIntSliderTile(
+                        context: context,
+                        title: l10n.repetitionPenaltyRange,
+                        subtitle: l10n.repetitionPenaltyRangeDescription,
+                        value: config.repetitionPenaltyRange,
+                        min: 0,
+                        max: 4096,
+                        onChanged: (v) => ref
+                            .read(llmConfigProvider.notifier)
+                            .updateRepetitionPenaltyRange(v),
+                      ),
+                      _rowDivider(context),
+                      _buildSliderTile(
+                        context: context,
+                        title: l10n.frequencyPenalty,
+                        subtitle: l10n.frequencyPenaltyDescription,
+                        value: config.frequencyPenalty,
+                        min: 0.0,
+                        max: 2.0,
+                        divisions: 40,
+                        onChanged: (v) => ref
+                            .read(llmConfigProvider.notifier)
+                            .updateFrequencyPenalty(v),
+                      ),
+                      _rowDivider(context),
+                      _buildSliderTile(
+                        context: context,
+                        title: l10n.presencePenalty,
+                        subtitle: l10n.presencePenaltyDescription,
+                        value: config.presencePenalty,
+                        min: 0.0,
+                        max: 2.0,
+                        divisions: 40,
+                        onChanged: (v) => ref
+                            .read(llmConfigProvider.notifier)
+                            .updatePresencePenalty(v),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Mirostat 组 ──
+                KiraSection.plain(
+                  title: l10n.mirostatLocalModels,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.mirostatMode,
+                              style: TextStyle(
+                                fontSize: DesignTokens.fontSizeBodyLarge,
+                                color:
+                                    Theme.of(context).textTheme.bodyLarge?.color,
+                              ),
+                            ),
+                            const SizedBox(height: DesignTokens.spaceXxs),
+                            Text(
+                              l10n.adaptiveSamplingForLocalModels,
+                              style: const TextStyle(
+                                fontSize: DesignTokens.fontSizeSm,
+                                color: DesignTokens.darkTextSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: DesignTokens.spaceSm),
+                            SizedBox(
+                              width: double.infinity,
+                              child: CupertinoSlidingSegmentedControl<int>(
+                                groupValue: config.mirostatMode,
+                                children: {
+                                  0: Text(l10n.off),
+                                  1: const Text('v1'),
+                                  2: const Text('v2'),
+                                },
+                                onValueChanged: (v) {
+                                  if (v != null) {
+                                    ref
+                                        .read(llmConfigProvider.notifier)
+                                        .updateMirostatMode(v);
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (config.mirostatMode > 0) ...[
+                        _rowDivider(context),
+                        _buildSliderTile(
+                          context: context,
+                          title: l10n.mirostatTau,
+                          subtitle: l10n.mirostatTauDescription,
+                          value: config.mirostatTau,
+                          min: 0.0,
+                          max: 10.0,
+                          divisions: 20,
+                          onChanged: (v) => ref
+                              .read(llmConfigProvider.notifier)
+                              .updateMirostatTau(v),
+                        ),
+                        _rowDivider(context),
+                        _buildSliderTile(
+                          context: context,
+                          title: l10n.mirostatEta,
+                          subtitle: l10n.mirostatEtaDescription,
+                          value: config.mirostatEta,
+                          min: 0.0,
+                          max: 1.0,
+                          divisions: 20,
+                          onChanged: (v) => ref
+                              .read(llmConfigProvider.notifier)
+                              .updateMirostatEta(v),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // ── 总结组 ──
+                KiraSection(
+                  title: l10n.contextManagement,
+                  children: [
+                    KiraSwitchTile(
+                      icon: Icons.compress,
+                      title: l10n.autoSummarize,
+                      subtitle: l10n.autoSummarizeDescription,
+                      value: config.autoSummarizeEnabled,
+                      onChanged: (value) {
+                        ref
+                            .read(llmConfigProvider.notifier)
+                            .updateAutoSummarizeEnabled(value);
+                      },
+                    ),
+                    if (config.autoSummarizeEnabled) ...[
+                      _buildSliderTile(
+                        context: context,
+                        title: l10n.autoSummarizeThreshold,
+                        subtitle: l10n.autoSummarizeThresholdDescription,
+                        value: config.autoSummarizeThreshold,
+                        min: 0.5,
+                        max: 0.95,
+                        divisions: 9,
+                        onChanged: (v) => ref
+                            .read(llmConfigProvider.notifier)
+                            .updateAutoSummarizeThreshold(v),
+                      ),
+                      KiraGroupedTile(
+                        title: '总结模型',
+                        subtitle: config.summaryModel.isEmpty
+                            ? '沿用主聊天模型'
+                            : config.summaryModel,
+                        onTap: () => _showSummaryModelSheet(
+                            context, ref, config.summaryModel),
+                      ),
+                      KiraGroupedTile(
+                        title: '自定义总结提示词',
+                        subtitle: config.summaryPrompt.isEmpty
+                            ? '使用默认中文提示词'
+                            : config.summaryPrompt,
+                        onTap: () => _showSummaryPromptSheet(
+                            context, ref, config.summaryPrompt),
+                      ),
+                    ],
+                  ],
+                ),
+
+                // ── 生成控制 ──
+                KiraSection(
+                  title: l10n.generationControl,
+                  children: [
+                    _buildIntInputTile(
+                      context: context,
+                      title: l10n.maxTokens,
+                      subtitle: l10n.maxTokensDescription,
+                      value: config.maxTokens,
+                      onChanged: (v) => ref
+                          .read(llmConfigProvider.notifier)
+                          .updateMaxTokens(v),
+                    ),
+                    _buildIntInputTile(
+                      context: context,
+                      title: l10n.seed,
+                      subtitle: l10n.seedDescription,
+                      value: config.seed,
+                      onChanged: (v) => ref
+                          .read(llmConfigProvider.notifier)
+                          .updateSeed(v),
+                    ),
+                    KiraGroupedTile(
+                      title: l10n.stopSequences,
+                      subtitle: config.stopSequences.isEmpty
+                          ? l10n.noStopSequencesConfigured
+                          : config.stopSequences.join(', '),
+                      onTap: () => _showStopSequencesSheet(
+                          context, ref, config.stopSequences),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: DesignTokens.spaceXl),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceSm, DesignTokens.spaceMd, DesignTokens.spaceSm),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppTheme.accentColor,
-              fontWeight: FontWeight.bold,
-            ),
-      ),
+  /// 组内行分隔线(0.5、indent 16,与 KiraSection 默认分隔线同规格)
+  Widget _rowDivider(BuildContext context) {
+    return Divider(
+      height: 0.5,
+      thickness: 0.5,
+      indent: DesignTokens.spaceMd,
+      color: Theme.of(context).dividerColor,
     );
   }
 
@@ -240,23 +393,43 @@ class AdvancedSettingsScreen extends ConsumerWidget {
     required int divisions,
     required ValueChanged<double> onChanged,
   }) {
-    return ListTile(
-      title: Row(
-        children: [
-          Expanded(child: Text(title)),
-          Text(
-            value.toStringAsFixed(2),
-            style: TextStyle(
-              color: AppTheme.accentColor,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesignTokens.spaceMd,
+        vertical: DesignTokens.spaceSm,
       ),
-      subtitle: Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(subtitle, style: const TextStyle(fontSize: DesignTokens.fontSizeXs)),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeBodyLarge,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                  ),
+                ),
+              ),
+              Text(
+                value.toStringAsFixed(2),
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeBodyMedium,
+                  color: DesignTokens.primary,
+                  fontWeight: DesignTokens.weightSemibold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DesignTokens.spaceXxs),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: DesignTokens.fontSizeSm,
+              color: DesignTokens.darkTextSecondary,
+            ),
+          ),
           Slider(
             value: value.clamp(min, max),
             min: min,
@@ -278,23 +451,43 @@ class AdvancedSettingsScreen extends ConsumerWidget {
     required int max,
     required ValueChanged<int> onChanged,
   }) {
-    return ListTile(
-      title: Row(
-        children: [
-          Expanded(child: Text(title)),
-          Text(
-            value.toString(),
-            style: TextStyle(
-              color: AppTheme.accentColor,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesignTokens.spaceMd,
+        vertical: DesignTokens.spaceSm,
       ),
-      subtitle: Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(subtitle, style: const TextStyle(fontSize: DesignTokens.fontSizeXs)),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeBodyLarge,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                  ),
+                ),
+              ),
+              Text(
+                value.toString(),
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeBodyMedium,
+                  color: DesignTokens.primary,
+                  fontWeight: DesignTokens.weightSemibold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DesignTokens.spaceXxs),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: DesignTokens.fontSizeSm,
+              color: DesignTokens.darkTextSecondary,
+            ),
+          ),
           Slider(
             value: value.toDouble().clamp(min.toDouble(), max.toDouble()),
             min: min.toDouble(),
@@ -307,233 +500,240 @@ class AdvancedSettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMirostatModeTile(BuildContext context, WidgetRef ref, int mode) {
-    final l10n = AppLocalizations.of(context);
-    return ListTile(
-      title: Text(l10n.mirostatMode),
-      subtitle: Text(l10n.adaptiveSamplingForLocalModels),
-      trailing: SegmentedButton<int>(
-        segments: [
-          ButtonSegment(value: 0, label: Text(l10n.off)),
-          const ButtonSegment(value: 1, label: Text('v1')),
-          const ButtonSegment(value: 2, label: Text('v2')),
-        ],
-        selected: {mode},
-        onSelectionChanged: (selected) {
-          ref.read(llmConfigProvider.notifier).updateMirostatMode(selected.first);
-        },
-      ),
-    );
-  }
-
-  Widget _buildAutoSummarizeTile(BuildContext context, WidgetRef ref, bool enabled) {
-    final l10n = AppLocalizations.of(context);
-    return SwitchListTile(
-      secondary: const Icon(Icons.compress),
-      title: Text(l10n.autoSummarize),
-      subtitle: Text(l10n.autoSummarizeDescription),
-      value: enabled,
-      onChanged: (value) {
-        ref.read(llmConfigProvider.notifier).updateAutoSummarizeEnabled(value);
-      },
-    );
-  }
-
   Widget _buildIntInputTile({
     required BuildContext context,
-    required WidgetRef ref,
     required String title,
     required String subtitle,
     required int value,
     required ValueChanged<int> onChanged,
   }) {
-    return ListTile(
-      title: Text(title),
-      subtitle: Text(subtitle),
-      trailing: SizedBox(
-        width: 100,
-        child: Text(
-          value.toString(),
-          style: TextStyle(
-            color: AppTheme.accentColor,
-            fontWeight: FontWeight.bold,
-          ),
-          textAlign: TextAlign.end,
+    return KiraGroupedTile(
+      title: title,
+      subtitle: subtitle,
+      trailing: Text(
+        value.toString(),
+        style: const TextStyle(
+          fontSize: DesignTokens.fontSizeBodyMedium,
+          color: DesignTokens.primary,
+          fontWeight: DesignTokens.weightSemibold,
         ),
       ),
-      onTap: () => _showIntInputDialog(context, title, value, onChanged),
+      onTap: () => _showIntInputSheet(context, title, value, onChanged),
     );
   }
 
-  void _showIntInputDialog(
+  /// 单字段输入(整数)→ 底部 Sheet(D-T2 规则 2,照抄 ai_presets_screen)
+  void _showIntInputSheet(
     BuildContext context,
     String title,
     int currentValue,
     ValueChanged<int> onChanged,
   ) {
-    final controller = TextEditingController(text: currentValue.toString());
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text);
-              if (value != null) {
-                onChanged(value);
-              }
-              Navigator.pop(context);
-            },
-            child: const Text('保存'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStopSequencesTile(
-    BuildContext context,
-    WidgetRef ref,
-    List<String> sequences,
-  ) {
     final l10n = AppLocalizations.of(context);
-    return ListTile(
-      title: Text(l10n.stopSequences),
-      subtitle: Text(
-        sequences.isEmpty
-            ? l10n.noStopSequencesConfigured
-            : sequences.join(', '),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => _showStopSequencesDialog(context, ref, sequences),
-    );
-  }
-
-  Widget _buildSummaryModelTile(BuildContext context, WidgetRef ref, String model) {
-    return ListTile(
-      title: const Text('总结模型'),
-      subtitle: Text(
-        model.isEmpty ? '沿用主聊天模型' : model,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => _showSummaryModelDialog(context, ref, model),
-    );
-  }
-
-  void _showSummaryModelDialog(BuildContext context, WidgetRef ref, String current) {
-    final controller = TextEditingController(text: current);
-    showDialog(
+    final controller = TextEditingController(text: currentValue.toString());
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('总结模型'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '指定用于自动总结的模型（可填便宜的小模型省成本）。留空则沿用主聊天模型。',
-              style: TextStyle(fontSize: DesignTokens.fontSizeXs, color: AppTheme.textMuted),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: '例如 gpt-4o-mini',
-              ),
-            ),
-          ],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    final value = int.tryParse(controller.text);
+                    if (value != null) {
+                      onChanged(value);
+                    }
+                    Navigator.pop(sheetCtx);
+                  },
+                  child: Text(l10n.save),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              ref.read(llmConfigProvider.notifier).updateSummaryModel(controller.text.trim());
-              Navigator.pop(context);
-            },
-            child: const Text('保存'),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildSummaryPromptTile(BuildContext context, WidgetRef ref, String prompt) {
-    return ListTile(
-      title: const Text('自定义总结提示词'),
-      subtitle: Text(
-        prompt.isEmpty ? '使用默认中文提示词' : prompt,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => _showSummaryPromptDialog(context, ref, prompt),
-    );
-  }
-
-  void _showSummaryPromptDialog(BuildContext context, WidgetRef ref, String current) {
+  /// 单字段输入(总结模型)→ 底部 Sheet
+  void _showSummaryModelSheet(
+      BuildContext context, WidgetRef ref, String current) {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController(text: current);
-    showDialog(
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('自定义总结提示词'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '自定义总结时的指令。留空则使用内置中文提示词（保留剧情、关系、时间线、状态等）。',
-              style: TextStyle(fontSize: DesignTokens.fontSizeXs, color: AppTheme.textMuted),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              maxLines: 8,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: '例如：用中文总结，重点保留好感度与时间线……',
-              ),
-            ),
-          ],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '总结模型',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '指定用于自动总结的模型（可填便宜的小模型省成本）。留空则沿用主聊天模型。',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeSm,
+                  color: DesignTokens.darkTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: controller,
+                autofocus: true,
+                placeholder: '例如 gpt-4o-mini',
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    ref
+                        .read(llmConfigProvider.notifier)
+                        .updateSummaryModel(controller.text.trim());
+                    Navigator.pop(sheetCtx);
+                  },
+                  child: Text(l10n.save),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              ref.read(llmConfigProvider.notifier).updateSummaryPrompt(controller.text.trim());
-              Navigator.pop(context);
-            },
-            child: const Text('保存'),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  void _showStopSequencesDialog(
+  /// 单字段输入(自定义总结提示词)→ 底部 Sheet
+  void _showSummaryPromptSheet(
+      BuildContext context, WidgetRef ref, String current) {
+    final l10n = AppLocalizations.of(context);
+    final controller = TextEditingController(text: current);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
+        ),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '自定义总结提示词',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '自定义总结时的指令。留空则使用内置中文提示词（保留剧情、关系、时间线、状态等）。',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeSm,
+                  color: DesignTokens.darkTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: controller,
+                maxLines: 8,
+                placeholder: '例如：用中文总结，重点保留好感度与时间线……',
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    ref
+                        .read(llmConfigProvider.notifier)
+                        .updateSummaryPrompt(controller.text.trim());
+                    Navigator.pop(sheetCtx);
+                  },
+                  child: Text(l10n.save),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 单字段输入(停止序列)→ 底部 Sheet
+  void _showStopSequencesSheet(
     BuildContext context,
     WidgetRef ref,
     List<String> currentSequences,
@@ -542,67 +742,96 @@ class AdvancedSettingsScreen extends ConsumerWidget {
     final controller = TextEditingController(
       text: currentSequences.join('\n'),
     );
-    showDialog(
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.stopSequences),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.stopSequencesDescription,
-              style: const TextStyle(fontSize: DesignTokens.fontSizeXs, color: AppTheme.textMuted),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'e.g.\n\\n\\n\n[END]\n</s>',
-              ),
-            ),
-          ],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.stopSequences,
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.stopSequencesDescription,
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeSm,
+                  color: DesignTokens.darkTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: controller,
+                autofocus: true,
+                maxLines: 5,
+                placeholder: 'e.g.\n\\n\\n\n[END]\n</s>',
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    final sequences = controller.text
+                        .split('\n')
+                        .map((s) => s.trim())
+                        .where((s) => s.isNotEmpty)
+                        .toList();
+                    ref
+                        .read(llmConfigProvider.notifier)
+                        .updateStopSequences(sequences);
+                    Navigator.pop(sheetCtx);
+                  },
+                  child: Text(l10n.save),
+                ),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () {
-              final sequences = controller.text
-                  .split('\n')
-                  .map((s) => s.trim())
-                  .where((s) => s.isNotEmpty)
-                  .toList();
-              ref.read(llmConfigProvider.notifier).updateStopSequences(sequences);
-              Navigator.pop(context);
-            },
-            child: Text(l10n.save),
-          ),
-        ],
+        ),
       ),
     );
   }
 
+  /// 破坏确认(恢复默认)→ CupertinoAlertDialog(D-T2 规则 1)
   void _showResetConfirmation(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    showDialog(
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => CupertinoAlertDialog(
         title: Text(l10n.resetToDefaults),
         content: Text(l10n.resetConfirmation),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx),
             child: Text(l10n.cancel),
           ),
-          FilledButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () {
               ref.read(llmConfigProvider.notifier).resetToDefaults();
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(l10n.settingsResetToDefaults)),
               );
