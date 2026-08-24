@@ -1,5 +1,7 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/widgets/common/common.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -10,6 +12,7 @@ import 'package:kirakira/presentation/providers/regex_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/widgets/regex/regex_widgets.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'regex_script_edit_screen.dart';
 
 /// Screen for managing regex scripts
 class RegexSettingsScreen extends ConsumerWidget {
@@ -21,66 +24,74 @@ class RegexSettingsScreen extends ConsumerWidget {
     final scripts = ref.watch(globalRegexScriptsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.regexScripts),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)!.addScript,
-            onPressed: () => _showScriptEditor(context, ref, null),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) => _handleMenuAction(context, ref, value),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'add_presets',
-                child: ListTile(
-                  leading: const Icon(Icons.auto_awesome),
-                  title: Text(AppLocalizations.of(context)!.addPresets),
-                  contentPadding: EdgeInsets.zero,
-                ),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              AppLocalizations.of(context)!.regexScripts,
+              style: Theme.of(context).textTheme.displayLarge,
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.add),
+                tooltip: AppLocalizations.of(context)!.addScript,
+                onPressed: () => _showScriptEditor(context, ref, null),
               ),
-              PopupMenuItem(
-                value: 'import',
-                child: ListTile(
-                  leading: const Icon(Icons.file_download),
-                  title: Text(AppLocalizations.of(context)!.import),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem(
-                value: 'export',
-                child: ListTile(
-                  leading: const Icon(Icons.file_upload),
-                  title: Text(AppLocalizations.of(context)!.export),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: 'clear_all',
-                child: ListTile(
-                  leading: const Icon(Icons.delete_sweep, color: Colors.red),
-                  title: Text(AppLocalizations.of(context)!.clearAll, style: const TextStyle(color: Colors.red)),
-                  contentPadding: EdgeInsets.zero,
-                ),
+              PopupMenuButton<String>(
+                icon: const Icon(CupertinoIcons.ellipsis_circle),
+                onSelected: (value) => _handleMenuAction(context, ref, value),
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'add_presets',
+                    child: ListTile(
+                      leading: const Icon(Icons.auto_awesome),
+                      title: Text(AppLocalizations.of(context)!.addPresets),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'import',
+                    child: ListTile(
+                      leading: const Icon(Icons.file_download),
+                      title: Text(AppLocalizations.of(context)!.import),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'export',
+                    child: ListTile(
+                      leading: const Icon(Icons.file_upload),
+                      title: Text(AppLocalizations.of(context)!.export),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                    value: 'clear_all',
+                    child: ListTile(
+                      leading: const Icon(Icons.delete_sweep,
+                          color: DesignTokens.statusError),
+                      title: Text(AppLocalizations.of(context)!.clearAll,
+                          style:
+                              const TextStyle(color: DesignTokens.statusError)),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        children: [
+          SliverList(
+            delegate: SliverChildListDelegate([
           // Enable/Disable toggle
           _buildSection(
             context: context,
             title: AppLocalizations.of(context)!.general,
             children: [
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.enableRegexScripts),
-                subtitle: Text(AppLocalizations.of(context)!.applyFindReplacePatterns),
-                value: settings.enabled,
+              KiraSwitchTile(
+                  title: AppLocalizations.of(context)!.enableRegexScripts,
+                  subtitle: AppLocalizations.of(context)!.applyFindReplacePatterns,
+                  value: settings.enabled,
                 onChanged: (value) {
                   ref.read(regexSettingsProvider.notifier).setEnabled(value);
                 },
@@ -95,40 +106,40 @@ class RegexSettingsScreen extends ConsumerWidget {
             context: context,
             title: AppLocalizations.of(context)!.applyTo,
             children: [
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.userInput),
-                subtitle: Text(AppLocalizations.of(context)!.applyBeforeSending),
-                value: settings.applyToUserInput,
+              KiraSwitchTile(
+                  title: AppLocalizations.of(context)!.userInput,
+                  subtitle: AppLocalizations.of(context)!.applyBeforeSending,
+                  value: settings.applyToUserInput,
                 onChanged: settings.enabled
                     ? (value) {
                         ref.read(regexSettingsProvider.notifier).setApplyToUserInput(value);
                       }
                     : null,
               ),
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.aiOutput),
-                subtitle: Text(AppLocalizations.of(context)!.applyToAiResponses),
-                value: settings.applyToAiOutput,
+              KiraSwitchTile(
+                  title: AppLocalizations.of(context)!.aiOutput,
+                  subtitle: AppLocalizations.of(context)!.applyToAiResponses,
+                  value: settings.applyToAiOutput,
                 onChanged: settings.enabled
                     ? (value) {
                         ref.read(regexSettingsProvider.notifier).setApplyToAiOutput(value);
                       }
                     : null,
               ),
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.slashCommandsLabel),
-                subtitle: Text(AppLocalizations.of(context)!.applyDuringCommandProcessing),
-                value: settings.applyToSlashCommands,
+              KiraSwitchTile(
+                  title: AppLocalizations.of(context)!.slashCommandsLabel,
+                  subtitle: AppLocalizations.of(context)!.applyDuringCommandProcessing,
+                  value: settings.applyToSlashCommands,
                 onChanged: settings.enabled
                     ? (value) {
                         ref.read(regexSettingsProvider.notifier).setApplyToSlashCommands(value);
                       }
                     : null,
               ),
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.worldInfoLabel),
-                subtitle: Text(AppLocalizations.of(context)!.applyToWorldInfoEntries),
-                value: settings.applyToWorldInfo,
+              KiraSwitchTile(
+                  title: AppLocalizations.of(context)!.worldInfoLabel,
+                  subtitle: AppLocalizations.of(context)!.applyToWorldInfoEntries,
+                  value: settings.applyToWorldInfo,
                 onChanged: settings.enabled
                     ? (value) {
                         ref.read(regexSettingsProvider.notifier).setApplyToWorldInfo(value);
@@ -228,6 +239,9 @@ class RegexSettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
+        ]),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     );
@@ -238,25 +252,8 @@ class RegexSettingsScreen extends ConsumerWidget {
     required String title,
     required List<Widget> children,
   }) {
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: DesignTokens.fontSizeBodyMedium,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.accentColor,
-              ),
-            ),
-          ),
-          ...children,
-        ],
-      ),
-    );
+    // D-T0:inset-grouped 一组一张卡
+    return KiraSection(title: title, children: children);
   }
 
   void _handleMenuAction(BuildContext context, WidgetRef ref, String action) {
@@ -279,42 +276,33 @@ class RegexSettingsScreen extends ConsumerWidget {
     }
   }
 
+  /// D-T2 规则 3:多字段脚本编辑 → push 子页(内部自足写库)
   void _showScriptEditor(BuildContext context, WidgetRef ref, RegexScript? script) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppTheme.darkCard,
-      builder: (context) => RegexScriptEditor(
-        script: script,
-        onSave: (newScript) {
-          if (script == null) {
-            ref.read(globalRegexScriptsProvider.notifier).addScript(newScript);
-          } else {
-            ref.read(globalRegexScriptsProvider.notifier).updateScript(newScript);
-          }
-          Navigator.pop(context);
-        },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RegexScriptEditScreen(script: script),
       ),
     );
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, RegexScript script) {
-    showDialog(
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => CupertinoAlertDialog(
         title: Text(AppLocalizations.of(context)!.deleteScript),
         content: Text(AppLocalizations.of(context)!.deleteScriptQuestion(script.scriptName)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx),
             child: Text(AppLocalizations.of(context)!.cancel),
           ),
-          ElevatedButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () {
               ref.read(globalRegexScriptsProvider.notifier).removeScript(script.id);
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
@@ -323,22 +311,22 @@ class RegexSettingsScreen extends ConsumerWidget {
   }
 
   void _confirmClearAll(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => CupertinoAlertDialog(
         title: Text(AppLocalizations.of(context)!.clearAllScripts),
         content: Text(AppLocalizations.of(context)!.clearAllScriptsQuestion),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx),
             child: Text(AppLocalizations.of(context)!.cancel),
           ),
-          ElevatedButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () {
               ref.read(globalRegexScriptsProvider.notifier).clearAll();
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: Text(AppLocalizations.of(context)!.clearAll),
           ),
         ],
@@ -377,43 +365,86 @@ class RegexSettingsScreen extends ConsumerWidget {
 
   void _showExportDialog(BuildContext context, WidgetRef ref) {
     final json = ref.read(globalRegexScriptsProvider.notifier).exportScripts();
-    
-    showDialog(
+
+    // D-T2:信息展示类 → 底部 Sheet(圆角 14,内容可滚)
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.exportScripts),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(DesignTokens.spaceSm),
-              decoration: BoxDecoration(
-                color: AppTheme.darkBackground,
-                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
-              ),
-              child: SelectableText(
-                json,
-                style: const TextStyle(fontSize: DesignTokens.fontSizeXs, fontFamily: 'monospace'),
-              ),
-            ),
-          ],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.close),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppLocalizations.of(context)!.exportScripts,
+                  style: const TextStyle(
+                    fontSize: DesignTokens.fontSizeHeadline,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(maxHeight: 380),
+                    padding: const EdgeInsets.all(DesignTokens.spaceSm),
+                    decoration: BoxDecoration(
+                      color: Theme.of(sheetCtx).scaffoldBackgroundColor,
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusSm),
+                    ),
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        json,
+                        style: const TextStyle(
+                            fontSize: DesignTokens.fontSizeXs,
+                            fontFamily: 'monospace'),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(sheetCtx),
+                        child: Text(AppLocalizations.of(context)!.close),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: json));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(AppLocalizations.of(context)!
+                                    .copiedToClipboard)),
+                          );
+                          Navigator.pop(sheetCtx);
+                        },
+                        icon: const Icon(Icons.copy),
+                        label: Text(AppLocalizations.of(context)!.copy),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: json));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)!.copiedToClipboard)),
-              );
-            },
-            icon: const Icon(Icons.copy),
-            label: Text(AppLocalizations.of(context)!.copy),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -500,10 +531,10 @@ class _RegexTestWidgetState extends ConsumerState<_RegexTestWidget> {
               decoration: BoxDecoration(
                 color: _result!.success
                     ? AppTheme.accentColor.withValues(alpha: 0.1)
-                    : Colors.red.withValues(alpha: 0.1),
+                    : DesignTokens.statusError.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                 border: Border.all(
-                  color: _result!.success ? AppTheme.accentColor : Colors.red,
+                  color: _result!.success ? AppTheme.accentColor : DesignTokens.statusError,
                 ),
               ),
               child: Column(
@@ -514,7 +545,7 @@ class _RegexTestWidgetState extends ConsumerState<_RegexTestWidget> {
                       Icon(
                         _result!.success ? Icons.check : Icons.error,
                         size: 16,
-                        color: _result!.success ? AppTheme.accentColor : Colors.red,
+                        color: _result!.success ? AppTheme.accentColor : DesignTokens.statusError,
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -522,7 +553,7 @@ class _RegexTestWidgetState extends ConsumerState<_RegexTestWidget> {
                             ? '${_result!.matches.length} match(es)'
                             : 'Error',
                         style: TextStyle(
-                          color: _result!.success ? AppTheme.accentColor : Colors.red,
+                          color: _result!.success ? AppTheme.accentColor : DesignTokens.statusError,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -532,7 +563,7 @@ class _RegexTestWidgetState extends ConsumerState<_RegexTestWidget> {
                     const SizedBox(height: 8),
                     Text(
                       _result!.error!,
-                      style: const TextStyle(color: Colors.red),
+                      style: const TextStyle(color: DesignTokens.statusError),
                     ),
                   ],
                   if (_result!.success) ...[
