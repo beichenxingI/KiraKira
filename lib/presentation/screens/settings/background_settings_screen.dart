@@ -12,6 +12,7 @@ import '../../providers/settings_providers.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/chat/chat_background_widget.dart';
 import '../../providers/quote_color_providers.dart';
+import '../../widgets/common/kira_components.dart';
 
 /// Screen for managing chat backgrounds
 class BackgroundSettingsScreen extends ConsumerStatefulWidget {
@@ -59,55 +60,89 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
     final isCharacterSpecific = widget.characterId != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isCharacterSpecific ? l10n.characterBackground : l10n.chatBackground),
-        actions: [
-          if (_currentBackground.type != BackgroundType.none)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: l10n.clearBackground,
-              onPressed: () => _saveBackground(ChatBackground.none),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              isCharacterSpecific ? l10n.characterBackground : l10n.chatBackground,
+              style: Theme.of(context).textTheme.displayLarge,
             ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        children: [
+            actions: [
+              if (_currentBackground.type != BackgroundType.none)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: l10n.clearBackground,
+                  onPressed: () => _saveBackground(ChatBackground.none),
+                ),
+            ],
+          ),
+          SliverList(
+            delegate: SliverChildListDelegate([
           // Character Avatar Background Setting (only for global settings)
           if (!isCharacterSpecific) ...[
-            _buildCharacterAvatarSetting(),
+            Padding(
+              padding: DesignTokens.paddingScreen,
+              child: _buildCharacterAvatarSetting(),
+            ),
             const SizedBox(height: 24),
-          _buildQuoteColorCard(),
+          Padding(
+            padding: DesignTokens.paddingScreen,
+            child: _buildQuoteColorCard(),
+          ),
           ],
-          
+
           // Preview
-          _buildPreviewSection(),
+          Padding(
+            padding: DesignTokens.paddingScreen,
+            child: _buildPreviewSection(),
+          ),
           const SizedBox(height: 24),
 
           // Preset gradients
-          _buildSectionHeader(l10n.gradientPresets),
+          Padding(
+            padding: DesignTokens.paddingScreen,
+            child: _buildSectionHeader(l10n.gradientPresets),
+          ),
           const SizedBox(height: 8),
           _buildGradientPresets(),
           const SizedBox(height: 24),
 
           // Solid colors
-          _buildSectionHeader(l10n.solidColors),
+          Padding(
+            padding: DesignTokens.paddingScreen,
+            child: _buildSectionHeader(l10n.solidColors),
+          ),
           const SizedBox(height: 8),
           _buildColorPresets(),
           const SizedBox(height: 24),
 
           // Custom image
-          _buildSectionHeader(l10n.customImage),
+          Padding(
+            padding: DesignTokens.paddingScreen,
+            child: _buildSectionHeader(l10n.customImage),
+          ),
           const SizedBox(height: 8),
-          _buildImageSection(),
+          Padding(
+            padding: DesignTokens.paddingScreen,
+            child: _buildImageSection(),
+          ),
           const SizedBox(height: 24),
 
           // Adjustments
           if (_currentBackground.type != BackgroundType.none) ...[
-            _buildSectionHeader(l10n.adjustments),
+            Padding(
+              padding: DesignTokens.paddingScreen,
+              child: _buildSectionHeader(l10n.adjustments),
+            ),
             const SizedBox(height: 8),
-            _buildAdjustments(),
+            Padding(
+              padding: DesignTokens.paddingScreen,
+              child: _buildAdjustments(),
+            ),
           ],
+          const SizedBox(height: 32),
+        ]),
+          ),
         ],
       ),
     );
@@ -152,14 +187,13 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
             const SizedBox(height: 16),
             
             // Use character avatar toggle
-            SwitchListTile(
-              title: const Text('使用角色卡图片作为背景'),
-              subtitle: const Text('如果角色卡有头像图片，将自动作为聊天背景'),
-              value: useCharacterAvatar,
+            KiraSwitchTile(
+                title: '使用角色卡图片作为背景',
+                subtitle: '如果角色卡有头像图片，将自动作为聊天背景',
+                value: useCharacterAvatar,
               onChanged: (value) {
                 ref.read(appSettingsProvider.notifier).updateUseCharacterAvatarAsBackground(value);
               },
-              contentPadding: EdgeInsets.zero,
             ),
             
             const Divider(height: 24),
@@ -194,14 +228,13 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
             const Divider(height: 24),
             
             // Background blur toggle
-            SwitchListTile(
-              title: const Text('启用背景模糊效果'),
-              subtitle: const Text('应用模糊效果到所有图片背景'),
-              value: enableBlur,
+            KiraSwitchTile(
+                title: '启用背景模糊效果',
+                subtitle: '应用模糊效果到所有图片背景',
+                value: enableBlur,
               onChanged: (value) {
                 ref.read(appSettingsProvider.notifier).updateEnableBackgroundBlur(value);
               },
-              contentPadding: EdgeInsets.zero,
             ),
             
             const SizedBox(height: 8),
@@ -301,7 +334,7 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.darkCard,
+        
         title: const Text('选择颜色'),
         content: Wrap(
           spacing: 10,
