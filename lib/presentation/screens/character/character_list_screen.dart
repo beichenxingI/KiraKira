@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/providers/character_grid_provider.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
@@ -34,6 +35,10 @@ class CharacterListScreen extends ConsumerStatefulWidget {
 class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+
+  /// C-T6 内存分页:已加载批数(每批 = 每页数量设置)
+  int _loadedPages = 1;
+  final ScrollController _scrollController = ScrollController();
   // ── 多选状态（仅标准网格支持）──
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
@@ -307,8 +312,29 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   static String _two(int n) => n.toString().padLeft(2, '0');
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScrollLoadMore);
+  }
+
+  /// 触底续批(C-T6):剩余 <600px 且还有未渲染角色时追加一批
+  void _onScrollLoadMore() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.pixels > pos.maxScrollExtent - 600) {
+      final pageSize = ref.read(characterGridPageSizeProvider);
+      final total =
+          ref.read(characterListProvider).valueOrNull?.length ?? 0;
+      if (_loadedPages * pageSize < total) {
+        setState(() => _loadedPages++);
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -316,6 +342,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final charactersAsync = ref.watch(characterListProvider);
+    final pageSize = ref.watch(characterGridPageSizeProvider);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 不透明底，避免透出 shell 的聊天壁纸
@@ -325,6 +352,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
           ref.read(characterListProvider.notifier).refresh();
         },
         child: CustomScrollView(
+          controller: _scrollController,
           slivers: [
             // ── 常态:Large Title;选择态:收缩小标题(同一 CustomScrollView)──
             if (_selectionMode)
@@ -377,6 +405,12 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                       }
                     },
                   ),
+                  // C-T6:每页数量档位(4/8/12/16)
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.square_grid_2x2),
+                    tooltip: '每页数量',
+                    onPressed: () => _showPageSizeSheet(context),
+                  ),
                   const SizedBox(width: DesignTokens.spaceSm),
                 ],
               ),
@@ -385,8 +419,14 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
               child: KiraSearchBar(
                 controller: _searchController,
                 hintText: l10n.searchCharacters,
-                onChanged: (value) => setState(() => _searchQuery = value),
-                onClear: () => setState(() => _searchQuery = ''),
+                onChanged: (value) => setState(() {
+                  _searchQuery = value;
+                  _loadedPages = 1; // 搜索词变化回到第一批(C-T6)
+                }),
+                onClear: () => setState(() {
+                  _searchQuery = '';
+                  _loadedPages = 1;
+                }),
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceSm)),
@@ -406,9 +446,13 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                   ];
                 }
 
+                // C-T6:内存切片——首屏 pageSize 个,触底续批
+                final visible =
+                    filtered.take(pageSize * _loadedPages).toList();
+
                 return [
                   _CharacterGridView(
-                    characters: filtered,
+                    characters: visible,
                     selectionMode: _selectionMode,
                     selectedIds: _selectedIds,
                     onTap: (id) {
@@ -492,6 +536,47 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
           cancelButton: CupertinoActionSheetAction(
             onPressed: () => Navigator.pop(sheetCtx),
             child: Text(l10n.cancel),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// C-T6:每页数量档位选择(4/8/12/16,持久化 character_grid_page_size)
+  void _showPageSizeSheet(BuildContext context) {
+    final current = ref.read(characterGridPageSizeProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetCtx) => CupertinoTheme(
+        data: CupertinoThemeData(
+          brightness: isDark ? Brightness.dark : Brightness.light,
+        ),
+        child: CupertinoActionSheet(
+          title: const Text('每页显示'),
+          actions: [
+            for (final n in CharacterGridPageSizeNotifier.kChoices)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  ref.read(characterGridPageSizeProvider.notifier).set(n);
+                  setState(() => _loadedPages = 1); // 档位变了回到第一批
+                  Navigator.pop(sheetCtx);
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('$n 个'),
+                    if (n == current) ...[
+                      const SizedBox(width: 6),
+                      const Icon(CupertinoIcons.checkmark, size: 16),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(sheetCtx),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
         ),
       ),
