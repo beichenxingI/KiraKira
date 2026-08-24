@@ -388,7 +388,7 @@ class _PresetSelector extends StatelessWidget {
               TextButton.icon(
                 icon: const Icon(Icons.delete, size: 18),
                 label: Text(AppLocalizations.of(context)!.delete),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                style: TextButton.styleFrom(foregroundColor: DesignTokens.statusError),
                 onPressed: () => onDeletePreset(activePresetId!),
               ),
             ],
@@ -551,10 +551,11 @@ class _BiasEntryCardState extends ConsumerState<_BiasEntryCard> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Enable toggle
-                Switch(
+                // Enable toggle(D-T0:CupertinoSwitch)
+                CupertinoSwitch(
                   value: widget.entry.enabled,
                   onChanged: (_) => widget.onToggle(),
+                  activeTrackColor: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
                 // Text input
@@ -638,14 +639,14 @@ class _BiasEntryCardState extends ConsumerState<_BiasEntryCard> {
                   Icon(
                     Icons.warning_amber,
                     size: 14,
-                    color: Colors.orange[700],
+                    color: DesignTokens.statusWarning,
                   ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       validation.warnings.first,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.orange[700],
+                            color: DesignTokens.statusWarning,
                           ),
                     ),
                   ),

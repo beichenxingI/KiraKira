@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -599,45 +600,73 @@ class _BackgroundSettingsScreenState extends ConsumerState<BackgroundSettingsScr
     final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
 
-    showDialog(
+    // D-T2 规则 2:单字段 URL 输入 → 底部 Sheet
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.imageUrl),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: l10n.enterImageUrl,
-            hintText: 'https://example.com/image.jpg',
-            border: const OutlineInputBorder(),
-          ),
-          autofocus: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.imageUrl,
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: controller,
+                autofocus: true,
+                placeholder: 'https://example.com/image.jpg',
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    final url = controller.text.trim();
+                    if (url.isNotEmpty) {
+                      final enableBlur = ref.read(appSettingsProvider
+                          .select((s) => s.enableBackgroundBlur));
+                      final opacity = ref.read(appSettingsProvider
+                          .select((s) => s.backgroundOpacity));
+
+                      _saveBackground(ChatBackground.imageUrl(
+                        url,
+                        opacity: opacity,
+                        blur: enableBlur,
+                        blurAmount: 10.0,
+                        bubbleOpacity: _currentBackground.bubbleOpacity,
+                      ));
+                      Navigator.pop(sheetCtx);
+                    }
+                  },
+                  child: Text(l10n.save),
+                ),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () {
-              final url = controller.text.trim();
-              if (url.isNotEmpty) {
-                // Get global settings
-                final enableBlur = ref.read(appSettingsProvider.select((s) => s.enableBackgroundBlur));
-                final opacity = ref.read(appSettingsProvider.select((s) => s.backgroundOpacity));
-                
-                _saveBackground(ChatBackground.imageUrl(
-                  url,
-                  opacity: opacity,
-                  blur: enableBlur,
-                  blurAmount: 10.0,
-                  bubbleOpacity: _currentBackground.bubbleOpacity,
-                ));
-                Navigator.pop(context);
-              }
-            },
-            child: Text(l10n.apply),
-          ),
-        ],
+        ),
       ),
     );
   }
