@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,8 @@ import 'package:kirakira/domain/services/variables_service.dart';
 import 'package:kirakira/presentation/providers/variables_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/widgets/common/kira_components.dart';
+import 'variable_edit_screen.dart';
 
 /// Screen for managing variables
 class VariablesSettingsScreen extends ConsumerWidget {
@@ -19,41 +22,46 @@ class VariablesSettingsScreen extends ConsumerWidget {
     final localVars = chatId != null ? ref.watch(localVariablesProvider(chatId!)) : <String, dynamic>{};
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(chatId != null ? AppLocalizations.of(context)!.chatVariables : AppLocalizations.of(context)!.variables),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)!.addVariable,
-            onPressed: () => _showAddVariableDialog(context, ref),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) => _handleMenuAction(context, ref, value),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'clear_global',
-                child: ListTile(
-                  leading: Icon(Icons.delete_sweep),
-                  title: Text('清除全局变量'),
-                  contentPadding: EdgeInsets.zero,
-                ),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              chatId != null ? AppLocalizations.of(context)!.chatVariables : AppLocalizations.of(context)!.variables,
+              style: Theme.of(context).textTheme.displayLarge,
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.add),
+                tooltip: AppLocalizations.of(context)!.addVariable,
+                onPressed: () => _showAddVariableDialog(context, ref),
               ),
-              if (chatId != null)
-                const PopupMenuItem(
-                  value: 'clear_local',
-                  child: ListTile(
-                    leading: Icon(Icons.delete_sweep),
-                    title: Text('清除本地变量'),
-                    contentPadding: EdgeInsets.zero,
+              PopupMenuButton<String>(
+                icon: const Icon(CupertinoIcons.ellipsis_circle),
+                onSelected: (value) => _handleMenuAction(context, ref, value),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'clear_global',
+                    child: ListTile(
+                      leading: Icon(Icons.delete_sweep),
+                      title: Text('清除全局变量'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
                   ),
-                ),
+                  if (chatId != null)
+                    const PopupMenuItem(
+                      value: 'clear_local',
+                      child: ListTile(
+                        leading: Icon(Icons.delete_sweep),
+                        title: Text('清除本地变量'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        children: [
+          SliverList(
+            delegate: SliverChildListDelegate([
           // Info section
           _buildSection(
             title: '关于变量',
@@ -160,6 +168,9 @@ class VariablesSettingsScreen extends ConsumerWidget {
               _VariableTestWidget(chatId: chatId),
             ],
           ),
+        ]),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     );
@@ -169,25 +180,8 @@ class VariablesSettingsScreen extends ConsumerWidget {
     required String title,
     required List<Widget> children,
   }) {
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: DesignTokens.fontSizeBodyMedium,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.accentColor,
-              ),
-            ),
-          ),
-          ...children,
-        ],
-      ),
-    );
+    // D-T0:inset-grouped 一组一张卡
+    return KiraSection(title: title, children: children);
   }
 
   void _handleMenuAction(BuildContext context, WidgetRef ref, String action) {
@@ -203,138 +197,53 @@ class VariablesSettingsScreen extends ConsumerWidget {
     }
   }
 
+  /// D-T2 规则 3:添加变量(含作用域选择)→ push 子页
   void _showAddVariableDialog(BuildContext context, WidgetRef ref) {
-    final nameController = TextEditingController();
-    final valueController = TextEditingController();
-    bool isGlobal = true;
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('添加变量'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: '变量名',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: valueController,
-                decoration: const InputDecoration(
-                  labelText: '值',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (chatId != null)
-                Row(
-                  children: [
-                    const Text('Scope: '),
-                    ChoiceChip(
-                      label: const Text('Global'),
-                      selected: isGlobal,
-                      onSelected: (selected) => setState(() => isGlobal = true),
-                    ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text('Local'),
-                      selected: !isGlobal,
-                      onSelected: (selected) => setState(() => isGlobal = false),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                final value = valueController.text;
-                if (name.isNotEmpty) {
-                  if (isGlobal) {
-                    ref.read(globalVariablesProvider.notifier).setVariable(name, value);
-                  } else if (chatId != null) {
-                    ref.read(localVariablesProvider(chatId!).notifier).setVariable(name, value);
-                  }
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('添加'),
-            ),
-          ],
-        ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VariableEditScreen(chatId: chatId),
       ),
     );
   }
 
+  /// D-T2:编辑变量 → push 子页
   void _showEditVariableDialog(BuildContext context, WidgetRef ref, String name, dynamic value, bool isGlobal) {
-    final valueController = TextEditingController(text: value?.toString() ?? '');
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('编辑"$name"'),
-        content: TextField(
-          controller: valueController,
-          decoration: const InputDecoration(
-            labelText: '值',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 3,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VariableEditScreen(
+          chatId: chatId,
+          initialName: name,
+          initialValue: value?.toString() ?? '',
+          initialIsGlobal: isGlobal,
+          allowScopeChoice: false,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final newValue = valueController.text;
-              if (isGlobal) {
-                ref.read(globalVariablesProvider.notifier).setVariable(name, newValue);
-              } else if (chatId != null) {
-                ref.read(localVariablesProvider(chatId!).notifier).setVariable(name, newValue);
-              }
-              Navigator.pop(context);
-            },
-            child: const Text('保存'),
-          ),
-        ],
       ),
     );
   }
 
   void _confirmDeleteVariable(BuildContext context, WidgetRef ref, String name, bool isGlobal) {
-    showDialog(
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => CupertinoAlertDialog(
         title: const Text('删除变量'),
         content: Text('删除"$name"？'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('取消'),
           ),
-          ElevatedButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () {
               if (isGlobal) {
                 ref.read(globalVariablesProvider.notifier).deleteVariable(name);
               } else if (chatId != null) {
                 ref.read(localVariablesProvider(chatId!).notifier).deleteVariable(name);
               }
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('删除'),
           ),
         ],
@@ -343,26 +252,26 @@ class VariablesSettingsScreen extends ConsumerWidget {
   }
 
   void _confirmClearVariables(BuildContext context, WidgetRef ref, bool isGlobal) {
-    showDialog(
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Clear ${isGlobal ? 'Global' : 'Local'} Variables'),
-        content: Text('This will delete all ${isGlobal ? 'global' : 'local'} variables. This cannot be undone.'),
+      builder: (dialogCtx) => CupertinoAlertDialog(
+        title: Text('清空${isGlobal ? '全局' : '本地'}变量'),
+        content: Text('将删除全部${isGlobal ? '全局' : '本地'}变量,此操作不可撤销。'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('取消'),
           ),
-          ElevatedButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () {
               if (isGlobal) {
                 ref.read(globalVariablesProvider.notifier).clearAll();
               } else if (chatId != null) {
                 ref.read(localVariablesProvider(chatId!).notifier).clearAll();
               }
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('清除全部'),
           ),
         ],
@@ -411,7 +320,7 @@ class _VariableTile extends StatelessWidget {
     return ListTile(
       leading: Icon(
         isGlobal ? Icons.public : Icons.chat_bubble_outline,
-        color: isGlobal ? AppTheme.accentColor : Colors.orange,
+        color: isGlobal ? AppTheme.accentColor : DesignTokens.statusWarning,
       ),
       title: Row(
         children: [
@@ -461,7 +370,7 @@ class _VariableTile extends StatelessWidget {
             tooltip: 'Edit',
           ),
           IconButton(
-            icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+            icon: const Icon(Icons.delete, size: 18, color: DesignTokens.statusError),
             onPressed: onDelete,
             tooltip: 'Delete',
           ),
