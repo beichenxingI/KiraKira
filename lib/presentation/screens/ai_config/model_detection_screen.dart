@@ -5,6 +5,7 @@ import '../../../domain/services/model_fingerprint_service.dart';
 import '../../providers/fingerprint_providers.dart';
 import '../../providers/llm_configs_provider.dart';
 import 'fingerprint_result_widget.dart';
+import 'package:kirakira/presentation/widgets/common/kira_button.dart';
 
 /// 极客Probe - 模型深度检测页面
 class ModelDetectionScreen extends ConsumerStatefulWidget {
@@ -15,26 +16,29 @@ class ModelDetectionScreen extends ConsumerStatefulWidget {
       _ModelDetectionScreenState();
 }
 
+/// 档位识别色(G-T2):一档=accent 青 / 二档=primary 星海紫 / 三档=AF52DE。
+/// 渐变两端成对,色板豁免(品牌渐变,非应用主题色)。
+List<Color> _gradientFor(DetectionLevel level) {
+  switch (level) {
+    case DetectionLevel.quick:
+      return const [DesignTokens.accent, Color(0xFF7FE0D8)];
+    case DetectionLevel.normal:
+      return const [DesignTokens.primary, Color(0xFF9F9DF8)];
+    case DetectionLevel.deep:
+      return const [Color(0xFFAF52DE), Color(0xFFC97BEB)];
+  }
+}
+
 class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
   DetectionLevel _selectedLevel = DetectionLevel.normal;
-
-  List<Color> _gradientFor(DetectionLevel level) {
-    switch (level) {
-      case DetectionLevel.quick:
-        return const [Color(0xFF0A84FF), Color(0xFF5AC8FA)];
-      case DetectionLevel.normal:
-        return const [Color(0xFF007AFF), Color(0xFF5856D6)];
-      case DetectionLevel.deep:
-        return const [Color(0xFF5856D6), Color(0xFFAF52DE)];
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(fingerprintProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF000000),
+      // G-T2:统一走 token(纯黑 → 星海近黑)
+      backgroundColor: DesignTokens.darkBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -54,7 +58,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
               style: TextStyle(
                 fontSize: DesignTokens.fontSizeSm,
                 fontWeight: FontWeight.w400,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
               ),
             ),
           ],
@@ -99,20 +103,20 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
   Widget _buildInfoSection() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E).withOpacity(0.4),
+        color: DesignTokens.darkCard.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          iconColor: Colors.white.withOpacity(0.5),
-          collapsedIconColor: Colors.white.withOpacity(0.5),
+          iconColor: Colors.white.withValues(alpha: 0.5),
+          collapsedIconColor: Colors.white.withValues(alpha: 0.5),
           title: Text(
             '检测原理与声明',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
             ),
           ),
           childrenPadding:
@@ -126,7 +130,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
               style: TextStyle(
                 fontSize: 12,
                 height: 1.6,
-                color: Colors.white.withOpacity(0.55),
+                color: Colors.white.withValues(alpha: 0.55),
               ),
             ),
           ],
@@ -148,7 +152,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.science_rounded,
-                size: 48, color: gradient[1].withOpacity(0.9)),
+                size: 48, color: gradient[1].withValues(alpha: 0.9)),
             const SizedBox(height: 24),
             _ScanningProgressBar(progress: progress, gradient: gradient),
             const SizedBox(height: 20),
@@ -188,13 +192,13 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E).withOpacity(0.6),
+        color: DesignTokens.darkCard.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: ListTile(
         leading:
-            Icon(Icons.gavel_rounded, color: Colors.white.withOpacity(0.6)),
+            Icon(Icons.gavel_rounded, color: Colors.white.withValues(alpha: 0.6)),
         title: const Text(
           '裁判模型',
           style: TextStyle(
@@ -203,10 +207,10 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
         subtitle: Text(
           judgeName ?? '未设置（自评模式，可信度低）',
           style: TextStyle(
-              color: Colors.white.withOpacity(0.5), fontSize: DesignTokens.fontSizeSm),
+              color: Colors.white.withValues(alpha: 0.5), fontSize: DesignTokens.fontSizeSm),
         ),
         trailing:
-            Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.3)),
+            Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.3)),
         onTap: _pickJudge,
       ),
     );
@@ -216,7 +220,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     final configs = ref.read(llmConfigsProvider).configs;
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: DesignTokens.darkSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -230,7 +234,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                 width: 36,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -243,7 +247,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
               const SizedBox(height: 8),
               ListTile(
                 leading: Icon(Icons.person_off_rounded,
-                    color: Colors.white.withOpacity(0.6)),
+                    color: Colors.white.withValues(alpha: 0.6)),
                 title: const Text('不使用裁判（自评）',
                     style: TextStyle(color: Colors.white)),
                 onTap: () {
@@ -259,13 +263,13 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                   children: configs
                       .map((c) => ListTile(
                             leading: Icon(Icons.smart_toy_rounded,
-                                color: Colors.white.withOpacity(0.6)),
+                                color: Colors.white.withValues(alpha: 0.6)),
                             title: Text(c.name,
                                 style:
                                     const TextStyle(color: Colors.white)),
                             subtitle: Text(c.model ?? '',
                                 style: TextStyle(
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: Colors.white.withValues(alpha: 0.5),
                                     fontSize: 12)),
                             onTap: () {
                               ref
@@ -293,7 +297,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
   Future<void> _pickJudgeModel(String configId) async {
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: DesignTokens.darkSurface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -311,7 +315,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                     width: 36,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -332,7 +336,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                         padding: const EdgeInsets.all(24),
                         child: Text('拉取模型失败：$e',
                             style: TextStyle(
-                                color: Colors.white.withOpacity(0.6))),
+                                color: Colors.white.withValues(alpha: 0.6))),
                       ),
                       data: (models) {
                         if (models.isEmpty) {
@@ -340,7 +344,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                             padding: const EdgeInsets.all(24),
                             child: Text('该配置未返回任何模型',
                                 style: TextStyle(
-                                    color: Colors.white.withOpacity(0.6))),
+                                    color: Colors.white.withValues(alpha: 0.6))),
                           );
                         }
                         return ListView(
@@ -348,7 +352,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                           children: models
                               .map((m) => ListTile(
                                     leading: Icon(Icons.memory_rounded,
-                                        color: Colors.white.withOpacity(0.6)),
+                                        color: Colors.white.withValues(alpha: 0.6)),
                                     title: Text(m,
                                         style: const TextStyle(
                                             color: Colors.white)),
@@ -384,7 +388,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
           style: TextStyle(
             fontSize: DesignTokens.fontSizeBodyLarge,
             fontWeight: FontWeight.w600,
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
           ),
         ),
         const SizedBox(height: 12),
@@ -443,23 +447,23 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
           decoration: BoxDecoration(
             gradient: isSelected
                 ? LinearGradient(
-                    colors: gradient.map((c) => c.withOpacity(0.85)).toList(),
+                    colors: gradient.map((c) => c.withValues(alpha: 0.85)).toList(),
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
                 : null,
-            color: isSelected ? null : const Color(0xFF2C2C2E).withOpacity(0.6),
-            borderRadius: BorderRadius.circular(20),
+            color: isSelected ? null : DesignTokens.darkCard.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
             border: Border.all(
               color: isSelected
-                  ? Colors.white.withOpacity(0.4)
-                  : Colors.white.withOpacity(0.1),
+                  ? Colors.white.withValues(alpha: 0.4)
+                  : Colors.white.withValues(alpha: 0.1),
               width: isSelected ? 2 : 1,
             ),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: gradient[0].withOpacity(0.25),
+                      color: gradient[0].withValues(alpha: 0.25),
                       blurRadius: 12,
                       offset: const Offset(0, 8),
                     ),
@@ -471,14 +475,14 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
             children: [
               Icon(icon,
                   size: 32,
-                  color: Colors.white.withOpacity(isSelected ? 1.0 : 0.6)),
+                  color: Colors.white.withValues(alpha: isSelected ? 1.0 : 0.6)),
               const SizedBox(height: 12),
               Text(
                 title,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white.withOpacity(isSelected ? 1.0 : 0.8),
+                  color: Colors.white.withValues(alpha: isSelected ? 1.0 : 0.8),
                 ),
               ),
               const SizedBox(height: 4),
@@ -488,7 +492,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
-                  color: Colors.white.withOpacity(isSelected ? 0.85 : 0.5),
+                  color: Colors.white.withValues(alpha: isSelected ? 0.85 : 0.5),
                 ),
               ),
               AnimatedSize(
@@ -503,7 +507,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                           style: TextStyle(
                             fontSize: DesignTokens.fontSizeCaption,
                             height: 1.4,
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                       )
@@ -528,20 +532,13 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
   }
 
   Widget _buildStartButton() {
-    return ElevatedButton(
+    // G-T2.7:ElevatedButton(0xFF007AFF iOS 蓝) → KiraButton(filled,星海紫)
+    return KiraButton(
       onPressed: () {
         ref
             .read(fingerprintProvider.notifier)
             .start(level: _selectedLevel);
       },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF007AFF),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
-        elevation: 0,
-      ),
       child: const Text(
         '开始检测',
         style: TextStyle(fontSize: DesignTokens.fontSizeXl, fontWeight: FontWeight.w600),
@@ -569,7 +566,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                   ref.read(fingerprintProvider.notifier).reset(),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
-                side: BorderSide(color: Colors.white.withOpacity(0.25)),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.25)),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
@@ -595,7 +592,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline_rounded,
-                size: 48, color: Colors.redAccent.withOpacity(0.8)),
+                size: 48, color: Colors.redAccent.withValues(alpha: 0.8)),
             const SizedBox(height: 20),
             const Text(
               '检测失败',
@@ -611,7 +608,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
               style: TextStyle(
                 fontSize: DesignTokens.fontSizeSm,
                 height: 1.5,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 24),
@@ -620,7 +617,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                   ref.read(fingerprintProvider.notifier).reset(),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
-                side: BorderSide(color: Colors.white.withOpacity(0.25)),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.25)),
                 padding: const EdgeInsets.symmetric(
                     horizontal: 32, vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -715,7 +712,7 @@ class _ScanningProgressBarState extends State<_ScanningProgressBar>
       child: Container(
         height: 8,
         decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
+          color: DesignTokens.darkSurface,
           borderRadius: BorderRadius.circular(4),
         ),
         child: LayoutBuilder(
@@ -750,9 +747,9 @@ class _ScanningProgressBarState extends State<_ScanningProgressBar>
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              Colors.white.withOpacity(0.0),
-                              Colors.white.withOpacity(0.45),
-                              Colors.white.withOpacity(0.0),
+                              Colors.white.withValues(alpha: 0.0),
+                              Colors.white.withValues(alpha: 0.45),
+                              Colors.white.withValues(alpha: 0.0),
                             ],
                           ),
                         ),
