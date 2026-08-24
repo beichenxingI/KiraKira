@@ -9,6 +9,7 @@ import 'package:kirakira/data/repositories/character_repository.dart';
 import 'package:kirakira/data/repositories/chat_repository.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
+import 'package:kirakira/presentation/providers/chat_history_provider.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
@@ -69,6 +70,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     );
   }
 
+  /// 返工条目6:聊天每页条数档位(10/20/30/50,持久化 chat_history_page_size)
+  void _showPageSizeSheet(BuildContext context) {
+    final current = ref.read(chatHistoryPageSizeProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetCtx) => CupertinoTheme(
+        data: CupertinoThemeData(
+          brightness: isDark ? Brightness.dark : Brightness.light,
+        ),
+        child: CupertinoActionSheet(
+          title: const Text('每页显示'),
+          actions: [
+            for (final n in ChatHistoryPageSizeNotifier.kChoices)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  ref.read(chatHistoryPageSizeProvider.notifier).set(n);
+                  Navigator.pop(sheetCtx);
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('$n 条'),
+                    if (n == current) ...[
+                      const SizedBox(width: 6),
+                      const Icon(CupertinoIcons.checkmark, size: 16),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(sheetCtx),
+            child: Text(AppLocalizations.of(context).cancel),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -88,6 +129,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 child: Row(
                   children: [
                     Expanded(child: _buildSearchBar(context)),
+                    // 返工条目6:每页条数档位(10/20/30/50)
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.square_grid_2x2, size: 22),
+                      tooltip: '每页条数',
+                      onPressed: () => _showPageSizeSheet(context),
+                    ),
                     IconButton(
                       icon: const Icon(CupertinoIcons.square_pencil),
                       tooltip: l10n.newChat,
@@ -110,40 +157,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 }
 
 /// 聊天列表 sliver 段(C-T2:嵌套滚动问题 → 必须 sliver 化)
-class _ChatListSliver extends ConsumerWidget {
+/// 返工条目6:每页 M 条 + PageView 左右滑翻 + 页码指示
+class _ChatListSliver extends ConsumerStatefulWidget {
   final String searchQuery;
 
   const _ChatListSliver({this.searchQuery = ''});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ChatListSliver> createState() => _ChatListSliverState();
+}
+
+class _ChatListSliverState extends ConsumerState<_ChatListSliver> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+  String _lastQuery = '';
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final chatsAsync = ref.watch(allChatsProvider);
+    final pageSize = ref.watch(chatHistoryPageSizeProvider);
 
-    return chatsAsync.when(
-      loading: () => const SliverFillRemaining(
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (error, stack) => SliverFillRemaining(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: DesignTokens.statusError),
-              const SizedBox(height: 16),
-              Text(l10n.errorLoadingChats(error.toString())),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(allChatsProvider),
-                child: Text(l10n.retry),
-              ),
-            ],
+    // 搜索词变化 → 回第 1 页
+    if (widget.searchQuery != _lastQuery) {
+      _lastQuery = widget.searchQuery;
+      _currentPage = 0;
+      if (_pageController.hasClients) _pageController.jumpToPage(0);
+    }
+
+    // 分支返回 List<Widget> slivers,由 SliverMainAxisGroup 聚合成单 sliver
+    return SliverMainAxisGroup(
+      slivers: chatsAsync.when(
+      loading: () => const [
+        SliverFillRemaining(
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ],
+      error: (error, stack) => [
+        SliverFillRemaining(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: DesignTokens.statusError),
+                const SizedBox(height: 16),
+                Text(l10n.errorLoadingChats(error.toString())),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(allChatsProvider),
+                  child: Text(l10n.retry),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
+      ],
       data: (chats) {
-        // 修复死参:搜索词真正生效(标题过滤)
-        final q = searchQuery.trim().toLowerCase();
+        // 搜索词过滤(标题)
+        final q = widget.searchQuery.trim().toLowerCase();
         final filtered = q.isEmpty
             ? chats
             : chats
@@ -151,9 +228,10 @@ class _ChatListSliver extends ConsumerWidget {
                 .toList();
 
         if (filtered.isEmpty) {
-          return SliverFillRemaining(
-            child: Center(
-              child: Column(
+          return [
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
@@ -184,25 +262,61 @@ class _ChatListSliver extends ConsumerWidget {
                 ],
               ),
             ),
-          );
+          ),
+        ];
+      }
+
+        // 返工条目6:按 pageSize 切多页
+        final pageCount = (filtered.length + pageSize - 1) ~/ pageSize;
+        if (_currentPage > pageCount - 1) {
+          _currentPage = pageCount - 1; // 数据收缩后收敛
         }
 
-        return SliverPadding(
-          padding: const EdgeInsets.all(DesignTokens.spaceSm),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final chat = filtered[index];
-                return _StaggeredEntrance(
-                  index: index,
-                  child: _ChatListTile(chat: chat),
+        return [
+          // 页码指示 `2/4`
+          if (pageCount > 1)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: DesignTokens.spaceXs),
+                child: Text(
+                  '${_currentPage + 1}/$pageCount',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeSm,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                  ),
+                ),
+              ),
+            ),
+          SliverFillRemaining(
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: pageCount,
+              onPageChanged: (i) => setState(() => _currentPage = i),
+              itemBuilder: (context, pageIndex) {
+                final start = pageIndex * pageSize;
+                final pageItems =
+                    filtered.skip(start).take(pageSize).toList();
+                return ListView.builder(
+                  padding: const EdgeInsets.all(DesignTokens.spaceSm),
+                  itemCount: pageItems.length,
+                  itemBuilder: (context, index) {
+                    final chat = pageItems[index];
+                    return _StaggeredEntrance(
+                      index: index,
+                      child: _ChatListTile(chat: chat),
+                    );
+                  },
                 );
               },
-              childCount: filtered.length,
             ),
           ),
-        );
+        ];
       },
+      ),
     );
   }
 }
