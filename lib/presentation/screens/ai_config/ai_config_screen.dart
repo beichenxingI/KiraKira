@@ -20,6 +20,7 @@ import '../../providers/llm_configs_provider.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../../data/database/database.dart';
 import 'package:kirakira/presentation/widgets/common/kira_components.dart';
+import 'package:kirakira/presentation/widgets/common/kira_button.dart';
 
 /// Provider for China region detection
 final isChinaRegionProvider = FutureProvider<bool>((ref) async {
@@ -565,10 +566,11 @@ class _StreamingTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(llmConfigProvider);
 
-    return SwitchListTile(
-      secondary: const Icon(Icons.stream),
-      title: Text(AppLocalizations.of(context)!.streaming),
-      subtitle: Text(AppLocalizations.of(context)!.showResponseAsItGenerates),
+    // G-T1 Step4:CupertinoSwitch 化
+    return KiraSwitchTile(
+      icon: Icons.stream,
+      title: AppLocalizations.of(context)!.streaming,
+      subtitle: AppLocalizations.of(context)!.showResponseAsItGenerates,
       value: config.streamEnabled,
       onChanged: (value) {
         ref.read(llmConfigProvider.notifier).updateStreamEnabled(value);
@@ -590,19 +592,19 @@ class _ConnectionStatusCard extends ConsumerWidget {
     final String statusText;
     switch (metrics.status) {
       case MetricsStatus.success:
-        dotColor = const Color(0xFF34C759);
+        dotColor = DesignTokens.statusSuccess;
         statusText = '已连接';
         break;
       case MetricsStatus.measuring:
-        dotColor = const Color(0xFFFF9F0A);
+        dotColor = DesignTokens.statusWarning;
         statusText = '测试中';
         break;
       case MetricsStatus.error:
-        dotColor = const Color(0xFFFF453A);
+        dotColor = DesignTokens.statusError;
         statusText = '连接失败';
         break;
       case MetricsStatus.idle:
-        dotColor = const Color(0xFF8E8E93);
+        dotColor = DesignTokens.darkTextTertiary;
         statusText = '未测试';
         break;
     }
@@ -698,63 +700,30 @@ class _ConnectionStatusCard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              GestureDetector(
-                onTap: metrics.status == MetricsStatus.measuring
+              // G-T1 Step3:手绘按钮 → KiraButton(填实)
+              KiraButton(
+                onPressed: metrics.status == MetricsStatus.measuring
                     ? null
                     : () => ref
                         .read(connectionMetricsProvider.notifier)
                         .measure(config),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    metrics.status == MetricsStatus.measuring ? '测试中…' : '测试连接',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
+                child: Text(
+                  metrics.status == MetricsStatus.measuring ? '测试中…' : '测试连接',
                 ),
               ),
               const SizedBox(height: 10),
-              GestureDetector(
-                onTap: metrics.stabilityStatus == MetricsStatus.measuring
+              // 深度检测 → KiraButton(描边)
+              KiraButton(
+                variant: KiraButtonVariant.outlined,
+                onPressed: metrics.stabilityStatus == MetricsStatus.measuring
                     ? null
                     : () => ref
                         .read(connectionMetricsProvider.notifier)
                         .measureStability(config),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.4),
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    metrics.stabilityStatus == MetricsStatus.measuring
-                        ? '深度检测中…'
-                        : '深度检测（3次采样）',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
+                child: Text(
+                  metrics.stabilityStatus == MetricsStatus.measuring
+                      ? '深度检测中…'
+                      : '深度检测(3次采样)',
                 ),
               ),
               const SizedBox(height: 8),
