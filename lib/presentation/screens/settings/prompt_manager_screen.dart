@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/widgets/common/common.dart';
 import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -10,6 +12,7 @@ import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'prompt_section_edit_screen.dart';
 
 /// Screen for managing prompt section order and visibility
 class PromptManagerScreen extends ConsumerWidget {
@@ -22,11 +25,16 @@ class PromptManagerScreen extends ConsumerWidget {
     final allPresets = ref.watch(allPresetsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.promptManager),
-        actions: [
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              AppLocalizations.of(context)!.promptManager,
+              style: Theme.of(context).textTheme.displayLarge,
+            ),
+            actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
+            icon: const Icon(CupertinoIcons.ellipsis_circle),
             tooltip: AppLocalizations.of(context)!.moreOptions,
             onSelected: (value) {
               switch (value) {
@@ -104,48 +112,56 @@ class PromptManagerScreen extends ConsumerWidget {
             ],
           ),
         ],
-      ),
-      body: Column(
-        children: [
+          ),
+
           // Info banner
-          Container(
-            padding: const EdgeInsets.all(DesignTokens.spaceMd),
-            color: AppTheme.primaryColor.withOpacity(0.1),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: AppTheme.primaryColor,
-                  size: 20,
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: DesignTokens.paddingScreen,
+              child: Container(
+                padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    AppLocalizations.of(context)!.dragToReorder,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
-                  ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      color: AppTheme.primaryColor,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(context)!.dragToReorder,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
 
-          // Reorderable list
-          Expanded(
-            child: ReorderableListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSm),
-              itemCount: sortedSections.length,
-              onReorder: (oldIndex, newIndex) {
-                ref.read(promptManagerProvider.notifier).reorder(oldIndex, newIndex);
-              },
-              itemBuilder: (context, index) {
-                final section = sortedSections[index];
-                // Use a unique key that includes identifier for custom prompts
-                final key = section.identifier != null
-                    ? ValueKey('${section.identifier}_$index')
-                    : ValueKey('${section.type.name}_$index');
-                return _PromptSectionTile(
+          // Reorderable list(sliver 化)
+          SliverReorderableList(
+            itemCount: sortedSections.length,
+            onReorder: (oldIndex, newIndex) {
+              ref.read(promptManagerProvider.notifier).reorder(oldIndex, newIndex);
+            },
+            itemBuilder: (context, index) {
+              final section = sortedSections[index];
+              // Use a unique key that includes identifier for custom prompts
+              final key = section.identifier != null
+                  ? ValueKey('${section.identifier}_$index')
+                  : ValueKey('${section.type.name}_$index');
+              return ReorderableDelayedDragStartListener(
+                key: key,
+                index: index,
+                child: _PromptSectionTile(
                   key: key,
                   section: section,
                   index: index,
@@ -158,13 +174,24 @@ class PromptManagerScreen extends ConsumerWidget {
                     }
                   },
                   onEdit: section.isEditable
-                      ? () => _showEditContentDialog(context, ref, section, index)
+                      ? () => _openSectionEditor(context, section, index)
                       : null,
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
+          const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceXl)),
         ],
+      ),
+    );
+  }
+
+  /// 段落编辑:push 子页(Block D 批2;原大表单弹窗)
+  void _openSectionEditor(BuildContext context, PromptSection section, int index) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PromptSectionEditScreen(section: section, index: index),
       ),
     );
   }
@@ -292,28 +319,56 @@ class PromptManagerScreen extends ConsumerWidget {
   Future<void> _exportPreset(BuildContext context, WidgetRef ref) async {
     final nameController = TextEditingController(text: 'My Prompt Preset');
 
-    final name = await showDialog<String>(
+    // D-T2 规则 2:单字段输入 → 底部 Sheet(键盘顶起)
+    final name = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.exportPresetTitle),
-        content: TextField(
-          controller: nameController,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.presetNameLabel,
-            border: OutlineInputBorder(),
-          ),
-          autofocus: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppLocalizations.of(sheetCtx)!.exportPresetTitle,
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: nameController,
+                autofocus: true,
+                placeholder: AppLocalizations.of(sheetCtx)!.presetNameLabel,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () =>
+                      Navigator.pop(sheetCtx, nameController.text.trim()),
+                  child: Text(AppLocalizations.of(sheetCtx)!.export),
+                ),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, nameController.text.trim()),
-            child: Text(AppLocalizations.of(context)!.export),
-          ),
-        ],
+        ),
       ),
     );
 
@@ -347,53 +402,81 @@ class PromptManagerScreen extends ConsumerWidget {
     final nameController = TextEditingController();
     final descController = TextEditingController();
 
-    final result = await showDialog<Map<String, String>>(
+    // D-T2:双字段表单 → 底部 Sheet(isScrollControlled + 键盘避让)
+    final result = await showModalBottomSheet<Map<String, String>>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.saveAsPreset),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.presetName,
-                border: OutlineInputBorder(),
-              ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descController,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.descriptionOptional,
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-          ],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppLocalizations.of(sheetCtx)!.saveAsPreset,
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: nameController,
+                autofocus: true,
+                placeholder: AppLocalizations.of(sheetCtx)!.presetName,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 12),
+              CupertinoTextField(
+                controller: descController,
+                placeholder: AppLocalizations.of(sheetCtx)!.descriptionOptional,
+                maxLines: 2,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    if (nameController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(AppLocalizations.of(context)!
+                              .pleaseEnterNameMessage),
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.pop(sheetCtx, {
+                      'name': nameController.text.trim(),
+                      'description': descController.text.trim(),
+                    });
+                  },
+                  child: Text(AppLocalizations.of(sheetCtx)!.save),
+                ),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () {
-              if (nameController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(AppLocalizations.of(context)!.pleaseEnterNameMessage)),
-                );
-                return;
-              }
-              Navigator.pop(context, {
-                'name': nameController.text.trim(),
-                'description': descController.text.trim(),
-              });
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
+        ),
       ),
     );
 
@@ -423,21 +506,23 @@ class PromptManagerScreen extends ConsumerWidget {
   }
 
   void _showResetConfirmation(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+    // D-T2 规则 1:破坏确认 → CupertinoAlertDialog
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => CupertinoAlertDialog(
         title: Text(AppLocalizations.of(context)!.resetToDefault),
         content: Text(AppLocalizations.of(context)!.resetToDefaultQuestion),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx),
             child: Text(AppLocalizations.of(context)!.cancel),
           ),
-          FilledButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () {
               ref.read(promptManagerProvider.notifier).resetToDefault();
               ref.read(activePresetIdProvider.notifier).setActivePreset(null);
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(AppLocalizations.of(context)!.resetToDefaultConfig)),
               );
@@ -450,21 +535,43 @@ class PromptManagerScreen extends ConsumerWidget {
   }
 
   void _showHelpDialog(BuildContext context) {
-    showDialog(
+    // D-T2 规则 3:信息帮助 → 底部 Sheet
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.help_outline, color: AppTheme.primaryColor),
-            const SizedBox(width: 8),
-            Text(AppLocalizations.of(context)!.promptManagerHelp),
-          ],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        content: const SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
+      ),
+      builder: (sheetCtx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (sheetCtx, scrollController) => ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.help_outline, color: AppTheme.primaryColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    AppLocalizations.of(sheetCtx)!.promptManagerHelp,
+                    style: const TextStyle(
+                      fontSize: DesignTokens.fontSizeHeadline,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Text(
                 'What is the Prompt Manager?',
                 style: TextStyle(fontWeight: FontWeight.bold),
@@ -498,167 +605,22 @@ class PromptManagerScreen extends ConsumerWidget {
               Text('• Sections at the top have higher priority'),
               Text('• Disable sections you don\'t need to save tokens'),
               Text('• Experiment with order for different results'),
-            ],
-          ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.ok),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditContentDialog(BuildContext context, WidgetRef ref, PromptSection section, int index) {
-    final contentController = TextEditingController(
-      text: section.content ?? PromptSection.getDefaultContent(section.type),
-    );
-    final nameController = TextEditingController(text: section.name);
-
-    final displayName = section.isCustom ? section.name : PromptSection.getDisplayName(section.type);
-    final description = section.isCustom
-        ? 'Custom prompt from imported preset'
-        : PromptSection.getDescription(section.type);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              section.isCustom ? Icons.code : Icons.edit,
-              color: section.isCustom ? AppTheme.accentColor : AppTheme.primaryColor,
+              ],
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Edit $displayName',
-                overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(sheetCtx),
+                child: Text(AppLocalizations.of(sheetCtx)!.ok),
               ),
             ),
           ],
         ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Show name editor for custom prompts
-                if (section.isCustom) ...[
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: '提示词名称',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                Text(
-                  description,
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: DesignTokens.fontSizeXs,
-                  ),
-                ),
-                if (section.identifier != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'ID: ${section.identifier}',
-                    style: TextStyle(
-                      color: AppTheme.textMuted,
-                      fontSize: DesignTokens.fontSizeCaption,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ],
-                if (section.role != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Role: ${section.role}',
-                    style: TextStyle(
-                      color: AppTheme.textMuted,
-                      fontSize: DesignTokens.fontSizeCaption,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                Text(
-                  'Supports macros: {{user}}, {{char}}, {{time}}, {{date}}, etc.',
-                  style: TextStyle(
-                    color: AppTheme.textMuted,
-                    fontSize: DesignTokens.fontSizeCaption,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 300),
-                  child: TextField(
-                    controller: contentController,
-                    maxLines: null,
-                    minLines: 5,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: '输入提示词内容...',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          if (!section.isCustom)
-            TextButton(
-              onPressed: () {
-                // Reset to default
-                contentController.text = PromptSection.getDefaultContent(section.type);
-              },
-              child: const Text('重置为默认'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          FilledButton(
-            onPressed: () {
-              final newContent = contentController.text.trim();
-              final newName = nameController.text.trim();
-              
-              if (section.isCustom) {
-                // Update custom prompt with new name and content
-                ref.read(promptManagerProvider.notifier).updateSectionByIndex(
-                  index,
-                  section.copyWith(
-                    name: newName.isNotEmpty ? newName : section.name,
-                    content: newContent,
-                  ),
-                );
-              } else {
-                // Update built-in prompt content
-                ref.read(promptManagerProvider.notifier).updateSectionContent(
-                  section.type,
-                  newContent,
-                );
-              }
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Updated ${section.isCustom ? newName : displayName}'),
-                ),
-              );
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
       ),
     );
   }
+
 }
 
 class _PromptSectionTile extends StatelessWidget {
@@ -740,7 +702,7 @@ class _PromptSectionTile extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceMd, vertical: DesignTokens.spaceXs),
       color: section.enabled
           ? colorScheme.surface
-          : colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
       child: ListTile(
         leading: ReorderableDragStartListener(
           index: index,
@@ -780,7 +742,7 @@ class _PromptSectionTile extends StatelessWidget {
                 margin: const EdgeInsets.only(left: DesignTokens.spaceXs),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: DesignTokens.spaceXxs),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentColor.withOpacity(0.2),
+                  color: AppTheme.accentColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
                 ),
                 child: Text(
@@ -824,10 +786,9 @@ class _PromptSectionTile extends StatelessWidget {
                 onPressed: section.enabled ? onEdit : null,
                 tooltip: AppLocalizations.of(context)!.edit,
               ),
-            Switch(
+            KiraSwitch(
               value: section.enabled,
               onChanged: (_) => onToggle(),
-              activeColor: AppTheme.primaryColor,
             ),
           ],
         ),
