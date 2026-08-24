@@ -1,9 +1,11 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/stt_service.dart';
 import 'package:kirakira/presentation/providers/stt_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/widgets/common/kira_components.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Screen for STT settings
@@ -17,87 +19,106 @@ class STTSettingsScreen extends ConsumerWidget {
     final availableAsync = ref.watch(sttAvailableProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.speechToText),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.restore),
-            tooltip: AppLocalizations.of(context)!.resetToDefaults,
-            onPressed: () {
-              ref.read(sttSettingsProvider.notifier).reset();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)!.settingsResetToDefaults)),
-              );
-            },
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              AppLocalizations.of(context)!.speechToText,
+              style: Theme.of(context).textTheme.displayLarge,
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.restore),
+                tooltip: AppLocalizations.of(context)!.resetToDefaults,
+                onPressed: () {
+                  ref.read(sttSettingsProvider.notifier).reset();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(AppLocalizations.of(context)!.settingsResetToDefaults)),
+                  );
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        children: [
-          // Availability status
-          availableAsync.when(
-            data: (available) => available
-                ? const SizedBox.shrink()
-                : Card(
-                    color: Colors.orange.withValues(alpha: 0.2),
-                    child: Padding(
-                      padding: const EdgeInsets.all(DesignTokens.spaceMd),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.warning, color: Colors.orange),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              AppLocalizations.of(context)!.speechRecognitionNotAvailable,
-                              style: const TextStyle(color: Colors.orange),
-                            ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: DesignTokens.paddingScreen,
+              child: availableAsync.when(
+                data: (available) => available
+                    ? const SizedBox.shrink()
+                    : Container(
+                        margin: const EdgeInsets.only(top: DesignTokens.spaceSm),
+                        padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                        decoration: BoxDecoration(
+                          // D-T0 色清:权限警告橙 → statusWarning
+                          color: DesignTokens.statusWarning.withValues(alpha: 0.14),
+                          borderRadius:
+                              BorderRadius.circular(DesignTokens.radiusCard),
+                          border: Border.all(
+                            color: DesignTokens.statusWarning
+                                .withValues(alpha: 0.5),
+                            width: 0.5,
                           ),
-                        ],
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_rounded,
+                                color: DesignTokens.statusWarning),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                AppLocalizations.of(context)!
+                                    .speechRecognitionNotAvailable,
+                                style: const TextStyle(
+                                    color: DesignTokens.statusWarning),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+            ),
           ),
-
+          SliverList(
+            delegate: SliverChildListDelegate([
           // Enable/Disable toggle
           _buildSection(
             context,
             title: AppLocalizations.of(context)!.general,
             children: [
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.enableStt),
-                subtitle: Text(AppLocalizations.of(context)!.useVoiceInputForMessages),
-                value: settings.enabled,
+              KiraSwitchTile(
+                  title: AppLocalizations.of(context)!.enableStt,
+                  subtitle: AppLocalizations.of(context)!.useVoiceInputForMessages,
+                  value: settings.enabled,
                 onChanged: (value) {
                   ref.read(sttSettingsProvider.notifier).setEnabled(value);
                 },
               ),
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.autoSendStt),
-                subtitle: Text(AppLocalizations.of(context)!.automaticallySendAfterSpeaking),
-                value: settings.autoSend,
+              KiraSwitchTile(
+                  title: AppLocalizations.of(context)!.autoSendStt,
+                  subtitle: AppLocalizations.of(context)!.automaticallySendAfterSpeaking,
+                  value: settings.autoSend,
                 onChanged: settings.enabled
                     ? (value) {
                         ref.read(sttSettingsProvider.notifier).setAutoSend(value);
                       }
                     : null,
               ),
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.continuousListening),
-                subtitle: Text(AppLocalizations.of(context)!.keepListeningAfterPhrase),
-                value: settings.continuousListening,
+              KiraSwitchTile(
+                  title: AppLocalizations.of(context)!.continuousListening,
+                  subtitle: AppLocalizations.of(context)!.keepListeningAfterPhrase,
+                  value: settings.continuousListening,
                 onChanged: settings.enabled
                     ? (value) {
                         ref.read(sttSettingsProvider.notifier).setContinuousListening(value);
                       }
                     : null,
               ),
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.showPartialResults),
-                subtitle: Text(AppLocalizations.of(context)!.displayTextAsYouSpeak),
-                value: settings.showPartialResults,
+              KiraSwitchTile(
+                  title: AppLocalizations.of(context)!.showPartialResults,
+                  subtitle: AppLocalizations.of(context)!.displayTextAsYouSpeak,
+                  value: settings.showPartialResults,
                 onChanged: settings.enabled
                     ? (value) {
                         ref.read(sttSettingsProvider.notifier).setShowPartialResults(value);
@@ -193,7 +214,7 @@ class STTSettingsScreen extends ConsumerWidget {
               ListTile(
                 leading: Icon(
                   isListening ? Icons.mic : Icons.mic_none,
-                  color: isListening ? Colors.red : AppTheme.accentColor,
+                  color: isListening ? DesignTokens.statusError : AppTheme.accentColor,
                 ),
                 title: Text(isListening ? AppLocalizations.of(context)!.stopListening : AppLocalizations.of(context)!.testVoiceInput),
                 subtitle: Text(
@@ -298,6 +319,10 @@ class STTSettingsScreen extends ConsumerWidget {
                 ),
             ],
           ),
+        ]),
+          ),
+          // root push 子页,无胶囊底栏,保留呼吸位
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     );
@@ -308,55 +333,68 @@ class STTSettingsScreen extends ConsumerWidget {
     required String title,
     required List<Widget> children,
   }) {
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: DesignTokens.fontSizeBodyMedium,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.accentColor,
-              ),
-            ),
-          ),
-          ...children,
-        ],
-      ),
-    );
+    // D-T0:inset-grouped 一组一张卡
+    return KiraSection(title: title, children: children);
   }
 
   void _showApiKeyDialog(BuildContext context, WidgetRef ref, STTSettings settings) {
     final controller = TextEditingController(text: settings.apiKey);
-    
-    showDialog(
+    final l10n = AppLocalizations.of(context)!;
+
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${settings.provider.displayName} ${AppLocalizations.of(context)!.apiKey}'),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.apiKey,
-            hintText: AppLocalizations.of(context)!.enterApiKey,
-          ),
-          obscureText: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${settings.provider.displayName} ${l10n.apiKey}',
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: controller,
+                obscureText: true,
+                autofocus: true,
+                placeholder: l10n.enterApiKey,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    ref
+                        .read(sttSettingsProvider.notifier)
+                        .setApiKey(controller.text);
+                    Navigator.pop(sheetCtx);
+                  },
+                  child: Text(l10n.save),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(sttSettingsProvider.notifier).setApiKey(controller.text);
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -392,7 +430,7 @@ class VoiceInputButton extends ConsumerWidget {
       icon: Icon(
         isListening ? Icons.mic : Icons.mic_none,
         size: size,
-        color: isListening ? Colors.red : null,
+        color: isListening ? DesignTokens.statusError : null,
       ),
       tooltip: isListening ? AppLocalizations.of(context)!.stopListening : AppLocalizations.of(context)!.voiceInput,
       onPressed: () async {
@@ -477,18 +515,17 @@ class _AnimatedVoiceInputButtonState extends ConsumerState<AnimatedVoiceInputBut
               height: widget.size,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isListening
-                    ? Colors.red.withValues(alpha: 0.2)
+                color: isListening? DesignTokens.statusError.withValues(alpha: 0.14)
                     : AppTheme.accentColor.withValues(alpha: 0.2),
                 border: Border.all(
-                  color: isListening ? Colors.red : AppTheme.accentColor,
+                  color: isListening ? DesignTokens.statusError : AppTheme.accentColor,
                   width: 2,
                 ),
               ),
               child: Icon(
                 isListening ? Icons.mic : Icons.mic_none,
                 size: widget.size * 0.5,
-                color: isListening ? Colors.red : AppTheme.accentColor,
+                color: isListening ? DesignTokens.statusError : AppTheme.accentColor,
               ),
             ),
           );
