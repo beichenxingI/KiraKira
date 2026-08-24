@@ -51,13 +51,6 @@ const kSettingsIndex = <SettingsIndexEntry>[
 
   // ══ 外观 ══
   SettingsIndexEntry(
-    title: '主题',
-    keywords: '主题 配色 自定义 肤色 theme color 外观',
-    route: AppRoutes.themeSettings,
-    icon: CupertinoIcons.paintbrush,
-    section: '外观',
-  ),
-  SettingsIndexEntry(
     title: '聊天背景',
     keywords: '聊天背景 壁纸 背景图 background wallpaper 气泡',
     route: AppRoutes.backgroundSettings,

@@ -17,7 +17,6 @@ import 'package:kirakira/presentation/screens/settings/advanced_settings_screen.
 import 'package:kirakira/presentation/screens/ai_config/llm_test_screen.dart';
 import 'package:kirakira/presentation/screens/ai_config/llm_config_list_screen.dart';
 import 'package:kirakira/presentation/screens/settings/background_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/theme_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/statistics_screen.dart';
 import 'package:kirakira/presentation/screens/settings/ai_presets_screen.dart';
 import 'package:kirakira/presentation/screens/settings/sprite_settings_screen.dart';
@@ -65,7 +64,7 @@ abstract class AppRoutes {
   static const advancedSettings = '/settings/ai/advanced';
   static const backgroundSettings = '/settings/appearance/background';
   static const homeAppearance = '/settings/appearance/home';
-  static const themeSettings = '/settings/appearance/theme';
+
   static const statistics = '/settings/data/statistics';
   static const settingsLogs = '/settings/data/logs';
   static const advanced = '/advanced'; // 极客 Core:独立仪表盘,不进 /settings 树
@@ -334,13 +333,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) =>
             _buildIosPushPage(state.pageKey, const BackgroundSettingsScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.themeSettings,
-        name: 'themeSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const ThemeSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.advanced,
