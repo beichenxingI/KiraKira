@@ -108,35 +108,38 @@ class KiraSection extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: DesignTokens.spaceLg),
+      padding: EdgeInsets.only(
+          top: title.isEmpty ? DesignTokens.spaceSm : DesignTokens.spaceLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 组头:13pt、次级色、w600、letterSpacing 0.5(左距 = 边距 16 + 12)
-          Padding(
-            padding: const EdgeInsets.only(
-              left: DesignTokens.spaceMd + 12,
-              right: DesignTokens.spaceMd,
-              bottom: DesignTokens.spaceSm,
-            ),
-            child: Row(
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 14, color: labelColor),
-                  const SizedBox(width: DesignTokens.spaceXs),
-                ],
-                Text(
-                  title.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: DesignTokens.fontSizeSm,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                    color: labelColor,
+          // title 为空 = 置顶高频组无组头(C-T4)
+          if (title.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: DesignTokens.spaceMd + 12,
+                right: DesignTokens.spaceMd,
+                bottom: DesignTokens.spaceSm,
+              ),
+              child: Row(
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: 14, color: labelColor),
+                    const SizedBox(width: DesignTokens.spaceXs),
+                  ],
+                  Text(
+                    title.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: DesignTokens.fontSizeSm,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                      color: labelColor,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           // 一组一张卡
           Container(
             margin: DesignTokens.paddingScreen,
@@ -289,6 +292,8 @@ class KiraSwitch extends StatelessWidget {
 /// 在分组卡内使用请用 KiraGroupedTile(trailing: KiraSwitch(...))。
 class KiraSwitchTile extends StatelessWidget {
   final IconData? icon;
+  final Color? iconBg;
+  final Color? iconColor;
   final String title;
   final String? subtitle;
   final bool value;
@@ -297,6 +302,8 @@ class KiraSwitchTile extends StatelessWidget {
   const KiraSwitchTile({
     super.key,
     this.icon,
+    this.iconBg,
+    this.iconColor,
     required this.title,
     this.subtitle,
     required this.value,
@@ -307,6 +314,8 @@ class KiraSwitchTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return KiraGroupedTile(
       icon: icon,
+      iconBg: iconBg,
+      iconColor: iconColor,
       title: title,
       subtitle: subtitle,
       trailing: KiraSwitch(value: value, onChanged: onChanged),
