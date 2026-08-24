@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/widgets/common/kira_search_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,52 +72,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    
+
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l10n.appTitle),
-            Text(
-              '基于 NativeTavern',
-              style: TextStyle(
-                fontSize: DesignTokens.fontSizeCaption,
-                fontWeight: FontWeight.w400,
-                color: Theme.of(context).textTheme.bodySmall?.color
-                    ?.withValues(alpha: 0.55),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(allChatsProvider);
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // C-T2:Large Title"聊天";品牌副标题删除(移至关于页)
+            SliverAppBar.large(
+              title: Text(
+                '聊天',
+                style: Theme.of(context).textTheme.displayLarge,
               ),
+              actions: [
+                // iOS 信息"写新信息"语义:右上角笔图标
+                IconButton(
+                  icon: const Icon(CupertinoIcons.square_pencil),
+                  tooltip: l10n.newChat,
+                  onPressed: () => context.push(AppRoutes.characters),
+                ),
+                const SizedBox(width: DesignTokens.spaceSm),
+              ],
             ),
+            SliverToBoxAdapter(child: _buildSearchBar(context)),
+            const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceXs)),
+            _ChatListSliver(searchQuery: _searchQuery),
+            // 避让底部胶囊导航
+            const SliverToBoxAdapter(child: SizedBox(height: 96)),
           ],
         ),
-       ),
-      body: Column(
-        children: [
-          _buildSearchBar(context),
-          Expanded(
-            child: _ChatListView(searchQuery: _searchQuery),
-          ),
-        ],
       ),
-      floatingActionButton: Padding(
-        // FAB 避让底栏(工程尺寸,不进 token)
-        padding: const EdgeInsets.only(bottom: 80),
-        child: FloatingActionButton.extended(
-          onPressed: () => context.push(AppRoutes.characters),
-          icon: const Icon(Icons.add),
-          label: Text(l10n.newChat),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 }
 
-class _ChatListView extends ConsumerWidget {
+/// 聊天列表 sliver 段(C-T2:嵌套滚动问题 → 必须 sliver 化)
+class _ChatListSliver extends ConsumerWidget {
   final String searchQuery;
 
-  const _ChatListView({this.searchQuery = ''});
+  const _ChatListSliver({this.searchQuery = ''});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -124,73 +121,85 @@ class _ChatListView extends ConsumerWidget {
     final chatsAsync = ref.watch(allChatsProvider);
 
     return chatsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(l10n.errorLoadingChats(error.toString())),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => ref.invalidate(allChatsProvider),
-              child: Text(l10n.retry),
-            ),
-          ],
+      loading: () => const SliverFillRemaining(
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, stack) => SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: DesignTokens.statusError),
+              const SizedBox(height: 16),
+              Text(l10n.errorLoadingChats(error.toString())),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(allChatsProvider),
+                child: Text(l10n.retry),
+              ),
+            ],
+          ),
         ),
       ),
       data: (chats) {
-        if (chats.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.chat_bubble_outline,
-                  size: 80,
-                  color: AppTheme.textMuted,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  l10n.noChatsYet,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  l10n.startNewConversation,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.textMuted,
-                      ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: () => context.push(AppRoutes.characters),
-                  icon: const Icon(Icons.people),
-                  label: Text(l10n.browseCharacters),
-                ),
-              ],
+        // 修复死参:搜索词真正生效(标题过滤)
+        final q = searchQuery.trim().toLowerCase();
+        final filtered = q.isEmpty
+            ? chats
+            : chats
+                .where((c) => c.title.toLowerCase().contains(q))
+                .toList();
+
+        if (filtered.isEmpty) {
+          return SliverFillRemaining(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.chat_bubble_outline,
+                    size: 80,
+                    color: AppTheme.darkTextTertiary,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    l10n.noChatsYet,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: AppTheme.darkTextSecondary,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.startNewConversation,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.darkTextTertiary,
+                        ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: () => context.push(AppRoutes.characters),
+                    icon: const Icon(Icons.people),
+                    label: Text(l10n.browseCharacters),
+                  ),
+                ],
+              ),
             ),
           );
         }
 
-        return RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(allChatsProvider);
-          },
-          child: ListView.builder(
-            padding: const EdgeInsets.all(DesignTokens.spaceSm),
-            cacheExtent: 1200,
-            itemCount: chats.length,
-            itemBuilder: (context, index) {
-              final chat = chats[index];
-              return _StaggeredEntrance(
-                index: index,
-                child: _ChatListTile(chat: chat),
-              );
-            },
+        return SliverPadding(
+          padding: const EdgeInsets.all(DesignTokens.spaceSm),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final chat = filtered[index];
+                return _StaggeredEntrance(
+                  index: index,
+                  child: _ChatListTile(chat: chat),
+                );
+              },
+              childCount: filtered.length,
+            ),
           ),
         );
       },
@@ -275,9 +284,10 @@ class _ChatListTile extends ConsumerWidget {
                   value: 'delete',
                   child: Row(
                     children: [
-                      const Icon(Icons.delete, color: Colors.red),
+                      const Icon(Icons.delete, color: DesignTokens.statusError),
                       const SizedBox(width: 8),
-                      Text(l10n.delete, style: const TextStyle(color: Colors.red)),
+                      Text(l10n.delete,
+                          style: const TextStyle(color: DesignTokens.statusError)),
                     ],
                   ),
                 ),
@@ -349,7 +359,7 @@ class _ChatListTile extends ConsumerWidget {
                 );
               }
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: DesignTokens.statusError),
             child: Text(l10n.delete),
           ),
         ],
