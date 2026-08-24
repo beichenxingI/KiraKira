@@ -1,10 +1,11 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/widgets/common/common.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/cfg_scale.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/providers/cfg_scale_providers.dart';
-import 'package:kirakira/presentation/theme/app_theme.dart';
 
 /// Settings screen for CFG Scale configuration
 class CFGScaleSettingsScreen extends ConsumerWidget {
@@ -23,145 +24,203 @@ class CFGScaleSettingsScreen extends ConsumerWidget {
     final settings = ref.watch(cfgScaleSettingsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.cfgScale),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: () => _showHelpDialog(context),
-            tooltip: l10n.help,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.read(cfgScaleSettingsProvider.notifier).resetToDefaults();
-            },
-            tooltip: l10n.resetToDefaults,
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        children: [
-          // Enable toggle
-          SwitchListTile(
-            title: Text(l10n.enableCfgScale),
-            subtitle: Text(l10n.cfgScaleDescription),
-            value: settings.enabled,
-            onChanged: (value) {
-              ref.read(cfgScaleSettingsProvider.notifier).setEnabled(value);
-            },
-          ),
-          const Divider(height: 32),
-
-          // Global settings
-          _buildSectionHeader(context, l10n.globalSettings),
-          const SizedBox(height: 16),
-          _GuidanceScaleSlider(
-            value: settings.globalGuidanceScale,
-            onChanged: settings.enabled
-                ? (value) {
-                    ref.read(cfgScaleSettingsProvider.notifier).setGlobalGuidanceScale(value);
-                  }
-                : null,
-          ),
-          const SizedBox(height: 16),
-          _PromptTextField(
-            label: l10n.negativePrompt,
-            hint: l10n.textToSteerAwayFrom,
-            value: settings.globalNegativePrompt,
-            enabled: settings.enabled,
-            onChanged: (value) {
-              ref.read(cfgScaleSettingsProvider.notifier).setGlobalNegativePrompt(value);
-            },
-          ),
-          const SizedBox(height: 16),
-          _PromptTextField(
-            label: l10n.positivePromptOptional,
-            hint: l10n.textToEnhanceInOutput,
-            value: settings.globalPositivePrompt,
-            enabled: settings.enabled,
-            onChanged: (value) {
-              ref.read(cfgScaleSettingsProvider.notifier).setGlobalPositivePrompt(value);
-            },
-          ),
-
-          // Character-specific settings (if characterId provided)
-          if (characterId != null) ...[
-            const Divider(height: 32),
-            _CharacterCFGSection(
-              characterId: characterId!,
-              globalEnabled: settings.enabled,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              l10n.cfgScale,
+              style: Theme.of(context).textTheme.displayLarge,
             ),
-          ],
+            actions: [
+              IconButton(
+                icon: const Icon(CupertinoIcons.question_circle),
+                onPressed: () => _showHelpSheet(context),
+                tooltip: l10n.help,
+              ),
+              IconButton(
+                icon: const Icon(CupertinoIcons.refresh),
+                onPressed: () => _confirmReset(context, ref),
+                tooltip: l10n.resetToDefaults,
+              ),
+            ],
+          ),
 
-          // Chat-specific settings (if chatId provided)
-          if (chatId != null) ...[
-            const Divider(height: 32),
-            _ChatCFGSection(
-              chatId: chatId!,
-              globalEnabled: settings.enabled,
+          // 启用开关(置顶高频组,无组头)
+          SliverToBoxAdapter(
+            child: KiraSection(
+              title: '',
+              children: [
+                KiraSwitchTile(
+                  title: l10n.enableCfgScale,
+                  subtitle: l10n.cfgScaleDescription,
+                  value: settings.enabled,
+                  onChanged: (value) {
+                    ref.read(cfgScaleSettingsProvider.notifier).setEnabled(value);
+                  },
+                ),
+              ],
             ),
-          ],
+          ),
 
-          const SizedBox(height: 32),
-
-          // Info card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(DesignTokens.spaceMd),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        l10n.aboutCfgScale,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(l10n.aboutCfgScaleDescription),
-                ],
+          // 全局设置
+          SliverToBoxAdapter(
+            child: KiraSection.plain(
+              title: l10n.globalSettings,
+              child: Padding(
+                padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _GuidanceScaleSlider(
+                      value: settings.globalGuidanceScale,
+                      onChanged: settings.enabled
+                          ? (value) {
+                              ref
+                                  .read(cfgScaleSettingsProvider.notifier)
+                                  .setGlobalGuidanceScale(value);
+                            }
+                          : null,
+                    ),
+                    const SizedBox(height: DesignTokens.spaceMd),
+                    _PromptTextField(
+                      label: l10n.negativePrompt,
+                      hint: l10n.textToSteerAwayFrom,
+                      value: settings.globalNegativePrompt,
+                      enabled: settings.enabled,
+                      onChanged: (value) {
+                        ref
+                            .read(cfgScaleSettingsProvider.notifier)
+                            .setGlobalNegativePrompt(value);
+                      },
+                    ),
+                    const SizedBox(height: DesignTokens.spaceMd),
+                    _PromptTextField(
+                      label: l10n.positivePromptOptional,
+                      hint: l10n.textToEnhanceInOutput,
+                      value: settings.globalPositivePrompt,
+                      enabled: settings.enabled,
+                      onChanged: (value) {
+                        ref
+                            .read(cfgScaleSettingsProvider.notifier)
+                            .setGlobalPositivePrompt(value);
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
+
+          // Character-specific settings (if characterId provided)
+          if (characterId != null)
+            SliverToBoxAdapter(
+              child: _CharacterCFGSection(
+                characterId: characterId!,
+                globalEnabled: settings.enabled,
+              ),
+            ),
+
+          // Chat-specific settings (if chatId provided)
+          if (chatId != null)
+            SliverToBoxAdapter(
+              child: _ChatCFGSection(
+                chatId: chatId!,
+                globalEnabled: settings.enabled,
+              ),
+            ),
+
+          // Info section
+          SliverToBoxAdapter(
+            child: KiraSection.plain(
+              title: l10n.aboutCfgScale,
+              child: Padding(
+                padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                child: Text(
+                  l10n.aboutCfgScaleDescription,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ),
+          ),
+
+          // 留呼吸
+          const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceXl)),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: AppTheme.accentColor,
-            fontWeight: FontWeight.bold,
-          ),
-    );
-  }
-
-  void _showHelpDialog(BuildContext context) {
+  /// 重置 = 破坏操作 → CupertinoAlertDialog 确认
+  Future<void> _confirmReset(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
-    showDialog(
+    final confirm = await showCupertinoDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.cfgScaleHelp),
-        content: SingleChildScrollView(
-          child: Text(l10n.cfgScaleHelpContent),
-        ),
+      builder: (dialogCtx) => CupertinoAlertDialog(
+        title: Text(l10n.resetToDefaults),
+        // TODO(i18n): 待补 l10n key
+        content: const Text('将所有 CFG 比例设置恢复为默认值？'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.close),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text(l10n.cancel),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: Text(l10n.resetToDefaults),
           ),
         ],
+      ),
+    );
+    if (confirm != true) return;
+    ref.read(cfgScaleSettingsProvider.notifier).resetToDefaults();
+  }
+
+  /// 信息帮助类 → 底部 Sheet(圆角 14,内容可滚)
+  void _showHelpSheet(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
+        ),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.cfgScaleHelp,
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Text(
+                    l10n.cfgScaleHelpContent,
+                    style: Theme.of(sheetCtx).textTheme.bodyMedium,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(sheetCtx),
+                  child: Text(l10n.close),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -194,13 +253,14 @@ class _GuidanceScaleSlider extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: DesignTokens.spaceXs),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
               ),
               child: Text(
                 value.toStringAsFixed(2),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
               ),
             ),
@@ -256,7 +316,7 @@ class _PresetChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSelected = (currentValue - value).abs() < 0.01;
-    
+
     return FilterChip(
       label: Text(label),
       selected: isSelected,
@@ -336,61 +396,68 @@ class _CharacterCFGSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final settings = ref.watch(cfgScaleSettingsProvider);
     final charSettings = settings.characterSettings.firstWhere(
       (s) => s.characterId == characterId,
       orElse: () => CharacterCFGSettings.empty(characterId),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          AppLocalizations.of(context).characterSettings,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppTheme.accentColor,
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: 8),
-        SwitchListTile(
-          title: Text(AppLocalizations.of(context).useCharacterSpecificSettings),
-          subtitle: Text(AppLocalizations.of(context).overrideGlobalForCharacter),
-          value: charSettings.useCharacterSettings,
-          onChanged: globalEnabled
-              ? (value) {
-                  ref.read(cfgScaleSettingsProvider.notifier).updateCharacterSettings(
-                        charSettings.copyWith(useCharacterSettings: value),
-                      );
-                }
-              : null,
-        ),
-        if (charSettings.useCharacterSettings) ...[
-          const SizedBox(height: 16),
-          _GuidanceScaleSlider(
-            value: charSettings.guidanceScale ?? 1.0,
+    return KiraSection.plain(
+      title: l10n.characterSettings,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          KiraSwitchTile(
+            title: l10n.useCharacterSpecificSettings,
+            subtitle: l10n.overrideGlobalForCharacter,
+            value: charSettings.useCharacterSettings,
             onChanged: globalEnabled
                 ? (value) {
                     ref.read(cfgScaleSettingsProvider.notifier).updateCharacterSettings(
-                          charSettings.copyWith(guidanceScale: value),
+                          charSettings.copyWith(useCharacterSettings: value),
                         );
                   }
                 : null,
           ),
-          const SizedBox(height: 16),
-          _PromptTextField(
-            label: AppLocalizations.of(context).characterNegativePrompt,
-            hint: AppLocalizations.of(context).overrideGlobalNegativePrompt,
-            value: charSettings.negativePrompt ?? '',
-            enabled: globalEnabled,
-            onChanged: (value) {
-              ref.read(cfgScaleSettingsProvider.notifier).updateCharacterSettings(
-                    charSettings.copyWith(negativePrompt: value),
-                  );
-            },
-          ),
+          if (charSettings.useCharacterSettings)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                DesignTokens.spaceMd,
+                DesignTokens.spaceSm,
+                DesignTokens.spaceMd,
+                DesignTokens.spaceMd,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _GuidanceScaleSlider(
+                    value: charSettings.guidanceScale ?? 1.0,
+                    onChanged: globalEnabled
+                        ? (value) {
+                            ref.read(cfgScaleSettingsProvider.notifier).updateCharacterSettings(
+                                  charSettings.copyWith(guidanceScale: value),
+                                );
+                          }
+                        : null,
+                  ),
+                  const SizedBox(height: DesignTokens.spaceMd),
+                  _PromptTextField(
+                    label: l10n.characterNegativePrompt,
+                    hint: l10n.overrideGlobalNegativePrompt,
+                    value: charSettings.negativePrompt ?? '',
+                    enabled: globalEnabled,
+                    onChanged: (value) {
+                      ref.read(cfgScaleSettingsProvider.notifier).updateCharacterSettings(
+                            charSettings.copyWith(negativePrompt: value),
+                          );
+                    },
+                  ),
+                ],
+              ),
+            ),
         ],
-      ],
+      ),
     );
   }
 }
@@ -410,90 +477,136 @@ class _ChatCFGSection extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final chatSettings = ref.watch(chatCFGSettingsProvider(chatId));
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              l10n.chatSettings,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppTheme.accentColor,
-                    fontWeight: FontWeight.bold,
+    return KiraSection.plain(
+      title: l10n.chatSettings,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              DesignTokens.spaceMd,
+              DesignTokens.spaceSm,
+              DesignTokens.spaceSm,
+              0,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.chatSettingsDescription,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
+                ),
+                TextButton(
+                  onPressed: globalEnabled
+                      ? () => _confirmClear(context, ref)
+                      : null,
+                  child: Text(l10n.clear),
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: globalEnabled
-                  ? () {
-                      ref.read(chatCFGSettingsProvider(chatId).notifier).clearSettings();
-                    }
-                  : null,
-              child: Text(l10n.clear),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          l10n.chatSettingsDescription,
-          style: const TextStyle(color: Colors.grey),
-        ),
-        const SizedBox(height: 16),
-        _GuidanceScaleSlider(
-          value: chatSettings.guidanceScale ?? 1.0,
-          onChanged: globalEnabled
-              ? (value) {
-                  ref.read(chatCFGSettingsProvider(chatId).notifier).setGuidanceScale(value);
-                }
-              : null,
-        ),
-        const SizedBox(height: 16),
-        _PromptTextField(
-          label: l10n.chatNegativePrompt,
-          hint: l10n.overrideForThisChat,
-          value: chatSettings.negativePrompt ?? '',
-          enabled: globalEnabled,
-          onChanged: (value) {
-            ref.read(chatCFGSettingsProvider(chatId).notifier).setNegativePrompt(value);
-          },
-        ),
-        const SizedBox(height: 16),
-        _PromptTextField(
-          label: l10n.chatPositivePrompt,
-          hint: l10n.enhancementForThisChat,
-          value: chatSettings.positivePrompt ?? '',
-          enabled: globalEnabled,
-          onChanged: (value) {
-            ref.read(chatCFGSettingsProvider(chatId).notifier).setPositivePrompt(value);
-          },
-        ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<PromptCombineMode>(
-          value: chatSettings.promptCombineMode,
-          decoration: InputDecoration(
-            labelText: l10n.promptCombineMode,
-            border: const OutlineInputBorder(),
           ),
-          items: PromptCombineMode.values.map((mode) {
-            return DropdownMenuItem(
-              value: mode,
-              child: Text(_getCombineModeLabel(context, mode)),
-            );
-          }).toList(),
-          onChanged: globalEnabled
-              ? (mode) {
-                  if (mode != null) {
-                    ref.read(chatCFGSettingsProvider(chatId).notifier).setPromptCombineMode(mode);
-                  }
-                }
-              : null,
-        ),
-      ],
+          Padding(
+            padding: const EdgeInsets.all(DesignTokens.spaceMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _GuidanceScaleSlider(
+                  value: chatSettings.guidanceScale ?? 1.0,
+                  onChanged: globalEnabled
+                      ? (value) {
+                          ref.read(chatCFGSettingsProvider(chatId).notifier).setGuidanceScale(value);
+                        }
+                      : null,
+                ),
+                const SizedBox(height: DesignTokens.spaceMd),
+                _PromptTextField(
+                  label: l10n.chatNegativePrompt,
+                  hint: l10n.overrideForThisChat,
+                  value: chatSettings.negativePrompt ?? '',
+                  enabled: globalEnabled,
+                  onChanged: (value) {
+                    ref.read(chatCFGSettingsProvider(chatId).notifier).setNegativePrompt(value);
+                  },
+                ),
+                const SizedBox(height: DesignTokens.spaceMd),
+                _PromptTextField(
+                  label: l10n.chatPositivePrompt,
+                  hint: l10n.enhancementForThisChat,
+                  value: chatSettings.positivePrompt ?? '',
+                  enabled: globalEnabled,
+                  onChanged: (value) {
+                    ref.read(chatCFGSettingsProvider(chatId).notifier).setPositivePrompt(value);
+                  },
+                ),
+                const SizedBox(height: DesignTokens.spaceMd),
+                // 合并模式:单选 → CupertinoActionSheet
+                KiraGroupedTile(
+                  title: l10n.promptCombineMode,
+                  subtitle: _getCombineModeLabel(l10n, chatSettings.promptCombineMode),
+                  onTap: globalEnabled
+                      ? () => _pickCombineMode(context, ref)
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  String _getCombineModeLabel(BuildContext context, PromptCombineMode mode) {
+  /// 清除 = 破坏操作 → CupertinoAlertDialog 确认
+  Future<void> _confirmClear(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
+    final confirm = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => CupertinoAlertDialog(
+        title: Text(l10n.clear),
+        // TODO(i18n): 待补 l10n key
+        content: const Text('将清除此聊天的 CFG 覆盖设置，回到角色/全局设置？'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text(l10n.cancel),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: Text(l10n.clear),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    ref.read(chatCFGSettingsProvider(chatId).notifier).clearSettings();
+  }
+
+  /// 单选合并模式 → CupertinoActionSheet(iOS 常规选择器)
+  Future<void> _pickCombineMode(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
+    final selected = await showCupertinoModalPopup<PromptCombineMode>(
+      context: context,
+      builder: (sheetCtx) => CupertinoActionSheet(
+        title: Text(l10n.promptCombineMode),
+        actions: PromptCombineMode.values.map((mode) {
+          return CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(sheetCtx, mode),
+            child: Text(_getCombineModeLabel(l10n, mode)),
+          );
+        }).toList(),
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(sheetCtx),
+          child: Text(l10n.cancel),
+        ),
+      ),
+    );
+    if (selected == null) return; // 取消
+    ref.read(chatCFGSettingsProvider(chatId).notifier).setPromptCombineMode(selected);
+  }
+
+  String _getCombineModeLabel(AppLocalizations l10n, PromptCombineMode mode) {
     switch (mode) {
       case PromptCombineMode.replace:
         return l10n.replaceChatPromptOnly;
