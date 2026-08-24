@@ -2,17 +2,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
-import 'package:figma_squircle/figma_squircle.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../data/models/instruct_template.dart';
 import '../../../domain/services/llm_service.dart';
 import '../../../domain/services/region_service.dart';
 import '../../providers/ai_preset_providers.dart';
-import '../../providers/instruct_providers.dart';
 import '../../providers/settings_providers.dart';
-import '../../providers/fingerprint_providers.dart';
-import 'fingerprint_result_widget.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
@@ -109,49 +104,8 @@ class AIConfigScreen extends ConsumerWidget {
               ),
             ),
 
-          // 三个分组卡片平铺(C-T3 不动内部 tile;Block G 再精修)
-          SliverToBoxAdapter(
-            child: KiraSection(
-              title: AppLocalizations.of(context)!.presetsAndTemplates,
-              // 返工条目2:原 AppBar actions 的"导入预设"挪到组头右上
-              headerTrailing: CupertinoButton(
-                padding: EdgeInsets.zero,
-                minSize: 28,
-                onPressed: () => context.push(AppRoutes.aiPresets),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(CupertinoIcons.square_arrow_down,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.primary),
-                    const SizedBox(width: 4),
-                    Text(
-                      AppLocalizations.of(context)!.importPreset,
-                      style: TextStyle(
-                        fontSize: DesignTokens.fontSizeSm,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              children: [
-                KiraListTile(
-                  icon: Icons.auto_awesome,
-                  title: AppLocalizations.of(context)!.aiPresets,
-                  subtitle: activePreset?.name ?? AppLocalizations.of(context)!.noPresetSelected,
-                  onTap: () => context.push(AppRoutes.aiPresets),
-                ),
-                const _InstructTemplateTile(),
-                KiraListTile(
-                  icon: Icons.reorder,
-                  title: AppLocalizations.of(context)!.promptManager,
-                  subtitle: AppLocalizations.of(context)!.orderAndTogglePromptSections,
-                  onTap: () => context.push(AppRoutes.promptManager),
-                ),
-              ],
-            ),
-          ),
+          // 返工条目8:极限压缩——预设/提示词/生成参数已归 Core,此处只留
+          // 连接三件套(测试/Probe/世界书),配合 QuickSetup ≈ 一屏
           SliverToBoxAdapter(
             child: KiraSection(
               title: AppLocalizations.of(context)!.llmConnection,
@@ -172,24 +126,6 @@ class AIConfigScreen extends ConsumerWidget {
               ],
             ),
           ),
-          SliverToBoxAdapter(
-            child: KiraSection(
-              title: AppLocalizations.of(context)!.generationSettings,
-              children: [
-                const _ContextLengthTile(),
-                const _MaxTokensTile(),
-                const _TemperatureTile(),
-                const _TopPTile(),
-                const _StreamingTile(),
-                KiraListTile(
-                  icon: Icons.tune,
-                  title: AppLocalizations.of(context)!.advancedSamplerSettings,
-                  subtitle: AppLocalizations.of(context)!.fullControlOverSampling,
-                  onTap: () => context.push(AppRoutes.advancedSettings),
-                ),
-              ],
-            ),
-          ),
 
           // 避让底栏
           const SliverToBoxAdapter(child: SizedBox(height: 96)),
@@ -198,104 +134,6 @@ class AIConfigScreen extends ConsumerWidget {
     );
   }
 }
-
-class _InstructTemplateTile extends ConsumerWidget {
-  const _InstructTemplateTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final activeTemplate = ref.watch(activeInstructTemplateProvider);
-    final allTemplates = ref.watch(allInstructTemplatesProvider);
-
-    return ListTile(
-      leading: const Icon(Icons.code),
-      title: Text(AppLocalizations.of(context)!.instructTemplate),
-      subtitle: Text(activeTemplate.name),
-      onTap: () => _showTemplatePicker(context, ref, activeTemplate, allTemplates),
-    );
-  }
-
-  void _showTemplatePicker(
-    BuildContext context,
-    WidgetRef ref,
-    InstructTemplate activeTemplate,
-    List<InstructTemplate> allTemplates,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.3,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  AppLocalizations.of(context)!.selectInstructTemplate,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  AppLocalizations.of(context)!.instructTemplateDescription,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textMuted,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  itemCount: allTemplates.length,
-                  itemBuilder: (context, index) {
-                    final template = allTemplates[index];
-                    final isSelected = template.id == activeTemplate.id;
-
-                    return ListTile(
-                      leading: Icon(
-                        isSelected ? Icons.check_circle : Icons.circle_outlined,
-                        color: isSelected ? AppTheme.primaryColor : AppTheme.textMuted,
-                      ),
-                      title: Text(
-                        template.name,
-                        style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                      subtitle: Text(
-                        template.description,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      onTap: () {
-                        ref.read(activeInstructTemplateIdProvider.notifier).state =
-                            template.id;
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
-
-
 
 class _ConnectionTestTile extends ConsumerWidget {
   const _ConnectionTestTile();
@@ -367,229 +205,6 @@ class _ConnectionTestTile extends ConsumerWidget {
 }
 
 /// Context Length tile - shows the context window size (input tokens)
-class _ContextLengthTile extends ConsumerWidget {
-  const _ContextLengthTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-    final contextValue = '${config.contextLength}';
-
-    return ListTile(
-      leading: const Icon(Icons.memory),
-      title: Text(AppLocalizations.of(context)!.contextLength),
-      subtitle: Text('$contextValue tokens'),
-      onTap: () => _showContextLengthDialog(context, ref, config),
-      onLongPress: () => _copyToClipboard(context, contextValue),
-    );
-  }
-
-  void _copyToClipboard(BuildContext context, String text) {
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${AppLocalizations.of(context)!.copiedToClipboard}: $text'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showContextLengthDialog(BuildContext context, WidgetRef ref, LLMConfig config) {
-    final controller = TextEditingController(text: config.contextLength.toString());
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.contextLength),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.contextWindowSize,
-                hintText: '1000000',
-              ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              AppLocalizations.of(context)!.contextLengthDescription,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textMuted,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text);
-              if (value != null && value > 0) {
-                ref.read(llmConfigProvider.notifier).updateContextLength(value);
-              }
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Max Tokens tile - shows the maximum output tokens
-class _MaxTokensTile extends ConsumerWidget {
-  const _MaxTokensTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-    final tokenValue = '${config.maxTokens}';
-
-    return ListTile(
-      leading: const Icon(Icons.format_list_numbered),
-      title: Text(AppLocalizations.of(context)!.maxTokens),
-      subtitle: Text('$tokenValue tokens'),
-      onTap: () => _showMaxTokensDialog(context, ref, config),
-      onLongPress: () => _copyToClipboard(context, tokenValue),
-    );
-  }
-
-  void _copyToClipboard(BuildContext context, String text) {
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${AppLocalizations.of(context)!.copiedToClipboard}: $text'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showMaxTokensDialog(BuildContext context, WidgetRef ref, LLMConfig config) {
-    final controller = TextEditingController(text: config.maxTokens.toString());
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.maxTokens),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.maximumTokensToGenerate,
-                hintText: '512',
-              ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              AppLocalizations.of(context)!.maxTokensDescription,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textMuted,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text);
-              if (value != null && value > 0) {
-                ref.read(llmConfigProvider.notifier).updateMaxTokens(value);
-              }
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TemperatureTile extends ConsumerWidget {
-  const _TemperatureTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-
-    return ListTile(
-      leading: const Icon(Icons.thermostat),
-      title: Text(AppLocalizations.of(context)!.temperature),
-      subtitle: Slider(
-        value: config.temperature,
-        min: 0.0,
-        max: 2.0,
-        divisions: 40,
-        label: config.temperature.toStringAsFixed(2),
-        onChanged: (value) {
-          ref.read(llmConfigProvider.notifier).updateTemperature(value);
-        },
-      ),
-    );
-  }
-}
-
-class _TopPTile extends ConsumerWidget {
-  const _TopPTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-
-    return ListTile(
-      leading: const Icon(Icons.pie_chart),
-      title: Text(AppLocalizations.of(context)!.topP),
-      subtitle: Slider(
-        value: config.topP,
-        min: 0.0,
-        max: 1.0,
-        divisions: 20,
-        label: config.topP.toStringAsFixed(2),
-        onChanged: (value) {
-          ref.read(llmConfigProvider.notifier).updateTopP(value);
-        },
-      ),
-    );
-  }
-}
-
-class _StreamingTile extends ConsumerWidget {
-  const _StreamingTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-
-    // G-T1 Step4:CupertinoSwitch 化
-    return KiraSwitchTile(
-      icon: Icons.stream,
-      title: AppLocalizations.of(context)!.streaming,
-      subtitle: AppLocalizations.of(context)!.showResponseAsItGenerates,
-      value: config.streamEnabled,
-      onChanged: (value) {
-        ref.read(llmConfigProvider.notifier).updateStreamEnabled(value);
-      },
-    );
-  }
-}
-
 /// Model selection sheet with search functionality
 class _ConnectionStatusCard extends ConsumerWidget {
   const _ConnectionStatusCard();
