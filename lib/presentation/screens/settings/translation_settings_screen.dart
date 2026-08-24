@@ -1,9 +1,11 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/translation_service.dart';
 import 'package:kirakira/presentation/providers/translation_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/widgets/common/common.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 
 /// Screen for translation settings
@@ -12,301 +14,342 @@ class TranslationSettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final settings = ref.watch(translationSettingsProvider);
+    final iconBg = Theme.of(context).colorScheme.primary.withValues(alpha: 0.12);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.translationSettings),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.restore),
-            tooltip: AppLocalizations.of(context)!.resetToDefaults,
-            onPressed: () {
-              ref.read(translationSettingsProvider.notifier).reset();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)!.settingsResetToDefaults)),
-              );
-            },
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        children: [
-          // Enable/Disable toggle
-          _buildSection(
-            context,
-            title: AppLocalizations.of(context)!.general,
-            children: [
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.enableTranslation),
-                subtitle: Text(AppLocalizations.of(context)!.translateMessagesAutomatically),
-                value: settings.enabled,
-                onChanged: (value) {
-                  ref.read(translationSettingsProvider.notifier).setEnabled(value);
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              l10n.translationSettings,
+              style: Theme.of(context).textTheme.displayLarge,
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.restore),
+                tooltip: l10n.resetToDefaults,
+                onPressed: () {
+                  ref.read(translationSettingsProvider.notifier).reset();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l10n.settingsResetToDefaults)),
+                  );
                 },
-              ),
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.translateAiResponses),
-                subtitle: Text(AppLocalizations.of(context)!.translateAiResponses),
-                value: settings.autoTranslateIncoming,
-                onChanged: settings.enabled
-                    ? (value) {
-                        ref.read(translationSettingsProvider.notifier).setAutoTranslateIncoming(value);
-                      }
-                    : null,
-              ),
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.translateUserMessages),
-                subtitle: Text(AppLocalizations.of(context)!.translateUserMessages),
-                value: settings.autoTranslateOutgoing,
-                onChanged: settings.enabled
-                    ? (value) {
-                        ref.read(translationSettingsProvider.notifier).setAutoTranslateOutgoing(value);
-                      }
-                    : null,
-              ),
-              SwitchListTile(
-                title: const Text('显示原文'),
-                subtitle: const Text('在翻译旁显示原文'),
-                value: settings.showOriginal,
-                onChanged: settings.enabled
-                    ? (value) {
-                        ref.read(translationSettingsProvider.notifier).setShowOriginal(value);
-                      }
-                    : null,
               ),
             ],
           ),
 
-          const SizedBox(height: 16),
-
-          // Provider selection
-          _buildSection(
-            context,
-            title: AppLocalizations.of(context)!.provider,
-            children: [
-              ListTile(
-                title: Text(AppLocalizations.of(context)!.translationProvider),
-                subtitle: Text(settings.provider.displayName),
-                trailing: DropdownButton<TranslationProvider>(
-                  value: settings.provider,
+          // ── 通用 ──
+          SliverToBoxAdapter(
+            child: KiraSection(
+              title: l10n.general,
+              children: [
+                KiraSwitchTile(
+                  title: l10n.enableTranslation,
+                  subtitle: l10n.translateMessagesAutomatically,
+                  value: settings.enabled,
+                  onChanged: (value) {
+                    ref.read(translationSettingsProvider.notifier).setEnabled(value);
+                  },
+                ),
+                KiraSwitchTile(
+                  title: l10n.translateAiResponses,
+                  subtitle: l10n.translateAiResponses,
+                  value: settings.autoTranslateIncoming,
                   onChanged: settings.enabled
                       ? (value) {
-                          if (value != null) {
-                            ref.read(translationSettingsProvider.notifier).setProvider(value);
-                          }
+                          ref.read(translationSettingsProvider.notifier).setAutoTranslateIncoming(value);
                         }
                       : null,
-                  items: TranslationProvider.values.map((provider) {
-                    return DropdownMenuItem(
-                      value: provider,
-                      child: Text(provider.displayName),
-                    );
-                  }).toList(),
                 ),
-              ),
-              if (settings.provider != TranslationProvider.libre) ...[
-                ListTile(
-                  title: Text(AppLocalizations.of(context)!.apiKey),
-                  subtitle: Text(
-                    settings.apiKey?.isNotEmpty == true
-                        ? '••••••••${settings.apiKey!.substring(settings.apiKey!.length - 4)}'
-                        : AppLocalizations.of(context)!.notConfigured,
-                  ),
-                  trailing: const Icon(Icons.edit),
-                  onTap: settings.enabled
-                      ? () => _showApiKeyDialog(context, ref, settings)
+                KiraSwitchTile(
+                  title: l10n.translateUserMessages,
+                  subtitle: l10n.translateUserMessages,
+                  value: settings.autoTranslateOutgoing,
+                  onChanged: settings.enabled
+                      ? (value) {
+                          ref.read(translationSettingsProvider.notifier).setAutoTranslateOutgoing(value);
+                        }
+                      : null,
+                ),
+                KiraSwitchTile(
+                  title: '显示原文',
+                  subtitle: '在翻译旁显示原文',
+                  value: settings.showOriginal,
+                  onChanged: settings.enabled
+                      ? (value) {
+                          ref.read(translationSettingsProvider.notifier).setShowOriginal(value);
+                        }
                       : null,
                 ),
               ],
-            ],
+            ),
           ),
 
-          const SizedBox(height: 16),
-
-          // Language selection
-          _buildSection(
-            context,
-            title: AppLocalizations.of(context)!.language,
-            children: [
-              // Source language
-              ListTile(
-                title: Text(AppLocalizations.of(context)!.sourceLanguage),
-                subtitle: Text(
-                  TranslationLanguage.fromCode(settings.sourceLanguage)?.name ?? 
-                  settings.sourceLanguage,
-                ),
-                trailing: DropdownButton<String>(
-                  value: settings.sourceLanguage,
-                  onChanged: settings.enabled
-                      ? (value) {
-                          if (value != null) {
-                            ref.read(translationSettingsProvider.notifier).setSourceLanguage(value);
+          // ── 提供商 ──
+          SliverToBoxAdapter(
+            child: KiraSection(
+              title: l10n.provider,
+              children: [
+                KiraGroupedTile(
+                  title: l10n.translationProvider,
+                  subtitle: settings.provider.displayName,
+                  trailing: DropdownButton<TranslationProvider>(
+                    value: settings.provider,
+                    underline: const SizedBox.shrink(),
+                    onChanged: settings.enabled
+                        ? (value) {
+                            if (value != null) {
+                              ref.read(translationSettingsProvider.notifier).setProvider(value);
+                            }
                           }
-                        }
-                      : null,
-                  items: TranslationLanguage.supportedLanguages.map((lang) {
-                    return DropdownMenuItem(
-                      value: lang.code,
-                      child: Text(lang.name),
-                    );
-                  }).toList(),
+                        : null,
+                    items: TranslationProvider.values.map((provider) {
+                      return DropdownMenuItem(
+                        value: provider,
+                        child: Text(provider.displayName),
+                      );
+                    }).toList(),
+                  ),
                 ),
-              ),
+                if (settings.provider != TranslationProvider.libre)
+                  KiraGroupedTile(
+                    title: l10n.apiKey,
+                    subtitle: settings.apiKey?.isNotEmpty == true
+                        ? '••••••••${settings.apiKey!.substring(settings.apiKey!.length - 4)}'
+                        : l10n.notConfigured,
+                    onTap: settings.enabled
+                        ? () => _showApiKeySheet(context, ref, settings)
+                        : null,
+                  ),
+              ],
+            ),
+          ),
 
-              // Swap button
-              Center(
-                child: IconButton(
-                  icon: const Icon(Icons.swap_vert),
-                  tooltip: '交换语言',
-                  onPressed: settings.enabled && settings.sourceLanguage != 'auto'
+          // ── 语言 ──
+          SliverToBoxAdapter(
+            child: KiraSection(
+              title: l10n.language,
+              children: [
+                KiraGroupedTile(
+                  title: l10n.sourceLanguage,
+                  trailing: DropdownButton<String>(
+                    value: settings.sourceLanguage,
+                    underline: const SizedBox.shrink(),
+                    onChanged: settings.enabled
+                        ? (value) {
+                            if (value != null) {
+                              ref.read(translationSettingsProvider.notifier).setSourceLanguage(value);
+                            }
+                          }
+                        : null,
+                    items: TranslationLanguage.supportedLanguages.map((lang) {
+                      return DropdownMenuItem(
+                        value: lang.code,
+                        child: Text(lang.name),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                KiraGroupedTile(
+                  icon: CupertinoIcons.arrow_up_arrow_down,
+                  iconBg: iconBg,
+                  title: '交换语言',
+                  onTap: settings.enabled && settings.sourceLanguage != 'auto'
                       ? () {
                           ref.read(translationSettingsProvider.notifier).swapLanguages();
                         }
                       : null,
                 ),
-              ),
-
-              // Target language
-              ListTile(
-                title: Text(AppLocalizations.of(context)!.targetLanguage),
-                subtitle: Text(
-                  TranslationLanguage.fromCode(settings.targetLanguage)?.name ?? 
-                  settings.targetLanguage,
-                ),
-                trailing: DropdownButton<String>(
-                  value: settings.targetLanguage,
-                  onChanged: settings.enabled
-                      ? (value) {
-                          if (value != null) {
-                            ref.read(translationSettingsProvider.notifier).setTargetLanguage(value);
+                KiraGroupedTile(
+                  title: l10n.targetLanguage,
+                  trailing: DropdownButton<String>(
+                    value: settings.targetLanguage,
+                    underline: const SizedBox.shrink(),
+                    onChanged: settings.enabled
+                        ? (value) {
+                            if (value != null) {
+                              ref.read(translationSettingsProvider.notifier).setTargetLanguage(value);
+                            }
                           }
-                        }
-                      : null,
-                  items: TranslationLanguage.targetLanguages.map((lang) {
-                    return DropdownMenuItem(
-                      value: lang.code,
-                      child: Text(lang.name),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // Test section
-          _buildSection(
-            context,
-            title: AppLocalizations.of(context)!.test,
-            children: [
-              _TranslationTestWidget(enabled: settings.enabled),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // Info section
-          _buildSection(
-            context,
-            title: AppLocalizations.of(context)!.information,
-            children: [
-              const ListTile(
-                leading: Icon(Icons.info_outline, color: AppTheme.accentColor),
-                title: Text('关于翻译'),
-                subtitle: Text(
-                  'Translation allows you to communicate in different languages. '
-                  'Messages can be automatically translated or translated on demand.',
-                ),
-              ),
-              if (settings.provider == TranslationProvider.google)
-                const ListTile(
-                  leading: Icon(Icons.cloud, color: AppTheme.textMuted),
-                  title: Text('Google Translate'),
-                  subtitle: Text(
-                    'Uses Google Cloud Translation API. '
-                    'Requires an API key from Google Cloud Console.',
+                        : null,
+                    items: TranslationLanguage.targetLanguages.map((lang) {
+                      return DropdownMenuItem(
+                        value: lang.code,
+                        child: Text(lang.name),
+                      );
+                    }).toList(),
                   ),
                 ),
-              if (settings.provider == TranslationProvider.deepl)
-                const ListTile(
-                  leading: Icon(Icons.cloud, color: AppTheme.textMuted),
-                  title: Text('DeepL'),
-                  subtitle: Text(
-                    'High-quality neural machine translation. '
-                    'Requires an API key from deepl.com',
-                  ),
-                ),
-              if (settings.provider == TranslationProvider.libre)
-                const ListTile(
-                  leading: Icon(Icons.public, color: AppTheme.textMuted),
-                  title: Text('LibreTranslate'),
-                  subtitle: Text(
-                    'Free and open-source translation. '
-                    'Can be self-hosted or use public instances.',
-                  ),
-                ),
-            ],
+              ],
+            ),
           ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildSection(
-    BuildContext context, {
-    required String title,
-    required List<Widget> children,
-  }) {
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: DesignTokens.fontSizeBodyMedium,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.accentColor,
+          // ── 测试 ──
+          SliverToBoxAdapter(
+            child: KiraSection.plain(
+              title: l10n.test,
+              child: _TranslationTestWidget(enabled: settings.enabled),
+            ),
+          ),
+
+          // ── 信息 ──
+          SliverToBoxAdapter(
+            child: KiraSection.plain(
+              title: l10n.information,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spaceMd,
+                  vertical: DesignTokens.spaceSm,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _InfoRow(
+                      icon: CupertinoIcons.info,
+                      title: '关于翻译',
+                      text: 'Translation allows you to communicate in different languages. '
+                          'Messages can be automatically translated or translated on demand.',
+                    ),
+                    if (settings.provider == TranslationProvider.google)
+                      const _InfoRow(
+                        icon: CupertinoIcons.cloud,
+                        title: 'Google Translate',
+                        text: 'Uses Google Cloud Translation API. '
+                            'Requires an API key from Google Cloud Console.',
+                      ),
+                    if (settings.provider == TranslationProvider.deepl)
+                      const _InfoRow(
+                        icon: CupertinoIcons.cloud,
+                        title: 'DeepL',
+                        text: 'High-quality neural machine translation. '
+                            'Requires an API key from deepl.com',
+                      ),
+                    if (settings.provider == TranslationProvider.libre)
+                      const _InfoRow(
+                        icon: CupertinoIcons.globe,
+                        title: 'LibreTranslate',
+                        text: 'Free and open-source translation. '
+                            'Can be self-hosted or use public instances.',
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
-          ...children,
+
+          const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceXl)),
         ],
       ),
     );
   }
 
-  void _showApiKeyDialog(BuildContext context, WidgetRef ref, TranslationSettings settings) {
+  /// API Key 单字段表单 → 底部 Sheet(isScrollControlled + 键盘避让,抄 ai_presets_screen)
+  void _showApiKeySheet(BuildContext context, WidgetRef ref, TranslationSettings settings) {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController(text: settings.apiKey);
-    
-    showDialog(
+
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${settings.provider.displayName} ${AppLocalizations.of(context)!.apiKey}'),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.apiKey,
-            hintText: AppLocalizations.of(context)!.enterApiKey,
-          ),
-          obscureText: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${settings.provider.displayName} ${l10n.apiKey}',
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: DesignTokens.spaceMd),
+              CupertinoTextField(
+                controller: controller,
+                autofocus: true,
+                obscureText: true,
+                placeholder: l10n.enterApiKey,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: DesignTokens.spaceMd),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    // 写入逻辑与原 AlertDialog 完全一致
+                    ref.read(translationSettingsProvider.notifier).setApiKey(controller.text);
+                    Navigator.pop(sheetCtx);
+                  },
+                  child: Text(l10n.save),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(translationSettingsProvider.notifier).setApiKey(controller.text);
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
+        ),
+      ),
+    );
+  }
+}
+
+/// 信息行:图标 + 标题 + 多行说明(分组卡内,替代原 ListTile)
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String text;
+
+  const _InfoRow({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 22, color: theme.textTheme.bodyMedium?.color),
+          const SizedBox(width: DesignTokens.spaceSm + 4),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeBodyLarge,
+                    color: theme.textTheme.bodyLarge?.color,
+                  ),
+                ),
+                const SizedBox(height: DesignTokens.spaceXxs),
+                Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeSm,
+                    color: theme.textTheme.bodyMedium?.color,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -335,6 +378,7 @@ class _TranslationTestWidgetState extends ConsumerState<_TranslationTestWidget> 
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final translationState = ref.watch(translationStateProvider);
 
     return Padding(
@@ -345,15 +389,15 @@ class _TranslationTestWidgetState extends ConsumerState<_TranslationTestWidget> 
           TextField(
             controller: _controller,
             decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.enterTextToTokenize,
-              hintText: AppLocalizations.of(context)!.enterTextToTokenize,
+              labelText: l10n.enterTextToTokenize,
+              hintText: l10n.enterTextToTokenize,
               border: const OutlineInputBorder(),
             ),
             maxLines: 3,
             enabled: widget.enabled,
           ),
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
+          const SizedBox(height: DesignTokens.spaceSm + DesignTokens.spaceXs),
+          FilledButton.icon(
             onPressed: widget.enabled && _controller.text.isNotEmpty
                 ? () {
                     ref.read(translationStateProvider.notifier).translate(_controller.text);
@@ -366,12 +410,12 @@ class _TranslationTestWidgetState extends ConsumerState<_TranslationTestWidget> 
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.translate),
-            label: Text(AppLocalizations.of(context)!.translation),
+            label: Text(l10n.translation),
           ),
           if (translationState.result != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: DesignTokens.spaceMd),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(DesignTokens.spaceSm + DesignTokens.spaceXs),
               decoration: BoxDecoration(
                 color: AppTheme.darkBackground,
                 borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
@@ -383,17 +427,14 @@ class _TranslationTestWidgetState extends ConsumerState<_TranslationTestWidget> 
                   Row(
                     children: [
                       const Icon(Icons.check, size: 16, color: AppTheme.accentColor),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: DesignTokens.spaceSm),
                       Text(
                         '${translationState.result!.sourceLanguage} → ${translationState.result!.targetLanguage}',
-                        style: const TextStyle(
-                          fontSize: DesignTokens.fontSizeXs,
-                          color: AppTheme.textMuted,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: DesignTokens.spaceSm),
                   Text(
                     translationState.result!.translatedText,
                     style: const TextStyle(fontSize: DesignTokens.fontSizeBodyLarge),
@@ -403,22 +444,22 @@ class _TranslationTestWidgetState extends ConsumerState<_TranslationTestWidget> 
             ),
           ],
           if (translationState.error != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: DesignTokens.spaceMd),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(DesignTokens.spaceSm + DesignTokens.spaceXs),
               decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.1),
+                color: DesignTokens.statusError.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
-                border: Border.all(color: Colors.red),
+                border: Border.all(color: DesignTokens.statusError),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error, size: 16, color: Colors.red),
-                  const SizedBox(width: 8),
+                  const Icon(Icons.error, size: 16, color: DesignTokens.statusError),
+                  const SizedBox(width: DesignTokens.spaceSm),
                   Expanded(
                     child: Text(
                       translationState.error!,
-                      style: const TextStyle(color: Colors.red),
+                      style: const TextStyle(color: DesignTokens.statusError),
                     ),
                   ),
                 ],
@@ -489,7 +530,7 @@ class TranslationDisplay extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.translate, size: 14, color: AppTheme.accentColor),
-              const SizedBox(width: 4),
+              const SizedBox(width: DesignTokens.spaceXs),
               Text(
                 'Translated from ${_getLanguageName(result.sourceLanguage)}',
                 style: const TextStyle(
@@ -499,10 +540,10 @@ class TranslationDisplay extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: DesignTokens.spaceXs),
           Text(result.translatedText),
           if (showOriginal) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: DesignTokens.spaceSm),
             Text(
               'Original: ${result.originalText}',
               style: const TextStyle(

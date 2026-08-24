@@ -1,11 +1,22 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/tokenizer.dart';
 import 'package:kirakira/domain/services/tokenizer_service.dart';
 import 'package:kirakira/presentation/providers/tokenizer_providers.dart';
-import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/widgets/common/common.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+
+// 豁免:样本条配色(Token 可视化样本色谱,属于可视化取色,非主题色,不随明暗主题变化)
+const _kSampleColors = <Color>[
+  Colors.blue,
+  Colors.green,
+  Colors.orange,
+  Colors.purple,
+  Colors.teal,
+  Colors.pink,
+];
 
 /// Settings and visualization screen for tokenizer
 class TokenizerSettingsScreen extends ConsumerStatefulWidget {
@@ -27,152 +38,190 @@ class _TokenizerSettingsScreenState extends ConsumerState<TokenizerSettingsScree
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final settings = ref.watch(tokenizerSettingsProvider);
     final service = ref.watch(tokenizerServiceProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.tokenizerSettings),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: () => _showHelpDialog(context, service),
-            tooltip: AppLocalizations.of(context)!.tokenizerHelp,
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        children: [
-          // Settings section
-          _buildSectionHeader(context, 'Settings'),
-          const SizedBox(height: 8),
-          
-          // Tokenizer selector
-          DropdownButtonFormField<TokenizerType>(
-            value: settings.selectedTokenizer,
-            decoration: const InputDecoration(
-              labelText: '分词器',
-              border: OutlineInputBorder(),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              l10n.tokenizerSettings,
+              style: Theme.of(context).textTheme.displayLarge,
             ),
-            items: TokenizerType.values.map((type) {
-              return DropdownMenuItem(
-                value: type,
-                child: Text(type.displayName),
-              );
-            }).toList(),
-            onChanged: (type) {
-              if (type != null) {
-                ref.read(tokenizerSettingsProvider.notifier).setSelectedTokenizer(type);
-              }
-            },
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.help_outline),
+                onPressed: () => _showHelpSheet(context, service),
+                tooltip: l10n.tokenizerHelp,
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            settings.selectedTokenizer.description,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
+
+          // ── 设置 ──
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                KiraSection(
+                  title: '设置',
+                  children: [
+                    KiraGroupedTile(
+                      title: '分词器',
+                      trailing: DropdownButton<TokenizerType>(
+                        value: settings.selectedTokenizer,
+                        underline: const SizedBox.shrink(),
+                        onChanged: (type) {
+                          if (type != null) {
+                            ref.read(tokenizerSettingsProvider.notifier).setSelectedTokenizer(type);
+                          }
+                        },
+                        items: TokenizerType.values.map((type) {
+                          return DropdownMenuItem(
+                            value: type,
+                            child: Text(type.displayName),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    KiraSwitchTile(
+                      title: '显示 Token 计数',
+                      subtitle: '在聊天输入中显示 Token 计数',
+                      value: settings.showTokenCount,
+                      onChanged: (value) {
+                        ref.read(tokenizerSettingsProvider.notifier).setShowTokenCount(value);
+                      },
+                    ),
+                    KiraSwitchTile(
+                      title: '显示 Token 可视化',
+                      subtitle: '高亮显示每个 Token',
+                      value: settings.showTokenVisualization,
+                      onChanged: (value) {
+                        ref.read(tokenizerSettingsProvider.notifier).setShowTokenVisualization(value);
+                      },
+                    ),
+                    KiraSwitchTile(
+                      title: '缓存结果',
+                      subtitle: '缓存分词结果以提升性能',
+                      value: settings.cacheResults,
+                      onChanged: (value) {
+                        ref.read(tokenizerSettingsProvider.notifier).setCacheResults(value);
+                      },
+                    ),
+                  ],
                 ),
-          ),
-          const SizedBox(height: 16),
-
-          SwitchListTile(
-            title: const Text('显示 Token 计数'),
-            subtitle: const Text('在聊天输入中显示 Token 计数'),
-            value: settings.showTokenCount,
-            onChanged: (value) {
-              ref.read(tokenizerSettingsProvider.notifier).setShowTokenCount(value);
-            },
-          ),
-          SwitchListTile(
-            title: const Text('显示 Token 可视化'),
-            subtitle: const Text('高亮显示每个 Token'),
-            value: settings.showTokenVisualization,
-            onChanged: (value) {
-              ref.read(tokenizerSettingsProvider.notifier).setShowTokenVisualization(value);
-            },
-          ),
-          SwitchListTile(
-            title: const Text('缓存结果'),
-            subtitle: const Text('缓存分词结果以提升性能'),
-            value: settings.cacheResults,
-            onChanged: (value) {
-              ref.read(tokenizerSettingsProvider.notifier).setCacheResults(value);
-            },
-          ),
-
-          const Divider(height: 32),
-
-          // Visualization section
-          _buildSectionHeader(context, 'Token Visualization'),
-          const SizedBox(height: 16),
-          
-          // Input text field
-          TextField(
-            controller: _textController,
-            decoration: const InputDecoration(
-              labelText: '输入要分词的文本',
-              hintText: '在此输入或粘贴文本...',
-              border: OutlineInputBorder(),
+                // 组尾说明:当前分词器描述
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: DesignTokens.spaceMd + 12,
+                    right: DesignTokens.spaceMd,
+                    top: DesignTokens.spaceSm,
+                  ),
+                  child: Text(
+                    settings.selectedTokenizer.description,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
             ),
-            maxLines: 5,
-            onChanged: (value) {
-              setState(() {
-                _inputText = value;
-              });
-            },
           ),
-          const SizedBox(height: 16),
 
-          // Quick estimate
-          if (_inputText.isNotEmpty) ...[
-            _QuickEstimate(text: _inputText),
-            const SizedBox(height: 16),
-          ],
+          // ── Token 可视化(输入 + 快速估计)──
+          SliverToBoxAdapter(
+            child: KiraSection.plain(
+              title: 'Token 可视化',
+              child: Padding(
+                padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: _textController,
+                      decoration: const InputDecoration(
+                        labelText: '输入要分词的文本',
+                        hintText: '在此输入或粘贴文本...',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 5,
+                      onChanged: (value) {
+                        setState(() {
+                          _inputText = value;
+                        });
+                      },
+                    ),
+                    if (_inputText.isNotEmpty) ...[
+                      const SizedBox(height: DesignTokens.spaceMd),
+                      _QuickEstimate(text: _inputText),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
 
-          // Tokenization result
+          // 分词结果(统计 + 明细)
           if (_inputText.isNotEmpty)
-            _TokenizationResultView(
-              text: _inputText,
-              tokenizer: settings.selectedTokenizer,
+            SliverToBoxAdapter(
+              child: _TokenizationResultView(
+                text: _inputText,
+                tokenizer: settings.selectedTokenizer,
+              ),
             ),
 
-          const SizedBox(height: 32),
+          const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceXl)),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: AppTheme.accentColor,
-            fontWeight: FontWeight.bold,
-          ),
-    );
-  }
-
-  void _showHelpDialog(BuildContext context, TokenizerService service) {
-    showDialog(
+  /// 帮助 → 底部 Sheet(圆角 14)
+  void _showHelpSheet(BuildContext context, TokenizerService service) {
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('分词器帮助'),
-        content: SingleChildScrollView(
-          child: Text(service.getHelpText()),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
+      ),
+      builder: (sheetCtx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        builder: (_, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '分词器帮助',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: DesignTokens.spaceMd),
+              Text(service.getHelpText()),
+              const SizedBox(height: DesignTokens.spaceMd),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(sheetCtx),
+                  child: const Text('关闭'),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Quick token count estimate widget
+/// Quick token count estimate widget(嵌在 Token 可视化分组卡内,不带自有卡面)
 class _QuickEstimate extends ConsumerWidget {
   final String text;
 
@@ -182,39 +231,32 @@ class _QuickEstimate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final estimate = ref.watch(tokenCountEstimateProvider(text));
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        child: Row(
-          children: [
-            Icon(
-              Icons.speed,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Quick Estimate'),
-                  Text(
-                    '~$estimate tokens',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              '${text.length} chars',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-            ),
-          ],
+    return Row(
+      children: [
+        Icon(
+          Icons.speed,
+          color: Theme.of(context).textTheme.bodyMedium?.color,
         ),
-      ),
+        const SizedBox(width: DesignTokens.spaceSm + 4),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Quick Estimate'),
+              Text(
+                '~$estimate tokens',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          '${text.length} chars',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     );
   }
 }
@@ -238,23 +280,30 @@ class _TokenizationResultView extends ConsumerWidget {
       loading: () => const Center(
         child: Padding(
           padding: EdgeInsets.all(DesignTokens.spaceXl),
-          child: CircularProgressIndicator(),
+          child: CupertinoActivityIndicator(),
         ),
       ),
-      error: (error, _) => Card(
-        color: Theme.of(context).colorScheme.errorContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(DesignTokens.spaceMd),
-          child: Text('Error: $error'),
+      error: (error, _) => Container(
+        margin: DesignTokens.marginCard,
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
+        decoration: BoxDecoration(
+          color: DesignTokens.statusError.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
+          border: Border.all(
+            color: DesignTokens.statusError.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Text(
+          'Error: $error',
+          style: const TextStyle(color: DesignTokens.statusError),
         ),
       ),
       data: (result) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Statistics card
+          // Statistics
           _StatisticsCard(result: result),
-          const SizedBox(height: 16),
-          
+
           // Token visualization
           _TokenVisualization(result: result),
         ],
@@ -274,17 +323,13 @@ class _StatisticsCard extends ConsumerWidget {
     final service = ref.watch(tokenizerServiceProvider);
     final stats = service.getStatistics(result);
 
-    return Card(
+    return KiraSection.plain(
+      title: '统计',
       child: Padding(
         padding: const EdgeInsets.all(DesignTokens.spaceMd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Statistics',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
             Row(
               children: [
                 _StatItem(
@@ -304,7 +349,7 @@ class _StatisticsCard extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: DesignTokens.spaceSm + DesignTokens.spaceXs),
             Row(
               children: [
                 _StatItem(
@@ -325,15 +370,15 @@ class _StatisticsCard extends ConsumerWidget {
               ],
             ),
             if (stats.tokenFrequency.isNotEmpty) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: DesignTokens.spaceMd),
               Text(
                 'Most Common Tokens',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: DesignTokens.spaceSm),
               Wrap(
-                spacing: 8,
-                runSpacing: 4,
+                spacing: DesignTokens.spaceSm,
+                runSpacing: DesignTokens.spaceXs,
                 children: stats.getTopTokens(10).map((entry) {
                   return Chip(
                     label: Text(
@@ -376,8 +421,12 @@ class _StatItem extends StatelessWidget {
     return Expanded(
       child: Column(
         children: [
-          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(height: 4),
+          Icon(
+            icon,
+            size: 20,
+            color: Theme.of(context).textTheme.bodyMedium?.color,
+          ),
+          const SizedBox(height: DesignTokens.spaceXs),
           Text(
             value,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -386,9 +435,7 @@ class _StatItem extends StatelessWidget {
           ),
           Text(
             label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
@@ -408,31 +455,21 @@ class _TokenVisualization extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Card(
+    return KiraSection.plain(
+      title: 'Token 明细',
       child: Padding(
         padding: const EdgeInsets.all(DesignTokens.spaceMd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Token Breakdown',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Text(
-                  '${result.tokens.length} tokens',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                ),
-              ],
+            Text(
+              '${result.tokens.length} tokens',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: DesignTokens.spaceSm + DesignTokens.spaceXs),
             Wrap(
-              spacing: 4,
-              runSpacing: 4,
+              spacing: DesignTokens.spaceXs,
+              runSpacing: DesignTokens.spaceXs,
               children: result.tokens.asMap().entries.map((entry) {
                 final index = entry.key;
                 final token = entry.value;
@@ -461,15 +498,8 @@ class _TokenChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = [
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.pink,
-    ];
-    final color = colors[index % colors.length];
+    // 豁免:样本条配色(见文件顶部 _kSampleColors)
+    final color = _kSampleColors[index % _kSampleColors.length];
 
     return Tooltip(
       message: 'Token ID: ${token.id}\nLength: ${token.text.length} chars',
