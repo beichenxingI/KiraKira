@@ -13,13 +13,29 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:kirakira/presentation/providers/theme_providers.dart';
 import 'package:kirakira/data/models/app_theme_config.dart';
 import 'package:kirakira/presentation/widgets/common/common.dart';
+import 'settings_search_index.dart';
 
-/// 设置主页(C-T4):Large Title + 6 组 inset-grouped(iOS 设置 App 信息架构)
-class SettingsScreen extends ConsumerWidget {
+
+/// 设置主页(C-T4 + E-T2):Large Title + 6 组 inset-grouped + 设置内搜索
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final iconBg = Theme.of(context).colorScheme.primary.withValues(alpha: 0.12);
 
@@ -32,14 +48,29 @@ class SettingsScreen extends ConsumerWidget {
               style: Theme.of(context).textTheme.displayLarge,
             ),
           ),
-          // ── 顶部搜索框(占位,真功能 Block E;先聚焦即有键盘)──
+          // ── 设置内搜索(E-T2 落地;C-T4 的占位)──
           SliverToBoxAdapter(
             child: KiraSearchBar(
+              controller: _searchController,
               hintText: '搜索设置',
-              // TODO(Block E): 接设置内搜索 overlay(E-T2 落地)
+              onChanged: (q) => setState(() => _query = q.trim()),
+              onClear: () => setState(() => _query = ''),
             ),
           ),
+          ...(_query.isNotEmpty
+              ? _searchSlivers()
+              : _homeSlivers(context, l10n, iconBg)),
+          // 避让底栏
+          const SliverToBoxAdapter(child: SizedBox(height: 96)),
+        ],
+      ),
+    );
+  }
 
+  /// 主页 6 组(C-T4 信息架构,原样)
+  List<Widget> _homeSlivers(
+      BuildContext context, AppLocalizations l10n, Color iconBg) {
+    return [
           // ══ 置顶高频组(无组头)══
           SliverToBoxAdapter(
             child: KiraSection(
@@ -247,12 +278,51 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
           ),
+    ];
+  }
 
-          // 避让底栏
-          const SliverToBoxAdapter(child: SizedBox(height: 96)),
-        ],
+  /// E-T2 搜索态:过滤索引出结果列表;空态给文案
+  List<Widget> _searchSlivers() {
+    final q = _query.toLowerCase();
+    final hits = kSettingsIndex
+        .where((e) =>
+            e.title.toLowerCase().contains(q) ||
+            e.keywords.toLowerCase().contains(q))
+        .toList();
+
+    if (hits.isEmpty) {
+      return [
+        SliverFillRemaining(
+          child: Center(
+            child: Text(
+              '无“$_query”相关设置',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ),
+      ];
+    }
+
+    return [
+      SliverToBoxAdapter(
+        child: KiraSection(
+          title: '搜索结果',
+          children: [
+            for (final e in hits)
+              KiraGroupedTile(
+                icon: e.icon,
+                iconBg: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.12),
+                title: e.title,
+                subtitle: e.section,
+                onTap: () => context.push(e.route),
+              ),
+          ],
+        ),
       ),
-    );
+    ];
   }
 }
 
