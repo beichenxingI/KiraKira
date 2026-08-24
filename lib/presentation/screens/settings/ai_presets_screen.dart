@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/widgets/common/common.dart';
 import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -31,115 +33,150 @@ class AIPresetsScreen extends ConsumerWidget {
     final customPresets = allPresets.where((p) => !p.isBuiltIn).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.aiPresets),
-        actions: [
-          if (activePresetId != null)
-            TextButton.icon(
-              icon: const Icon(Icons.cancel_outlined, size: 18),
-              label: const Text('取消使用'),
-              onPressed: () async {
-                await ref.read(activeAIPresetIdProvider.notifier).setActivePreset(null);
-                await ref.read(promptManagerProvider.notifier).resetToDefault();
-                // 取消使用预设时，同步禁用所有全局正则，避免残留生效。
-                await ref
-                    .read(globalRegexScriptsProvider.notifier)
-                    .setActiveScripts([]);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('已取消使用预设，提示词与正则已恢复默认')),
-                  );
-                }
-              },
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              l10n.aiPresets,
+              style: Theme.of(context).textTheme.displayLarge,
             ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        children: [
-          // Info banner
-          Container(
-            padding: const EdgeInsets.all(DesignTokens.spaceMd),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, color: AppTheme.primaryColor, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    l10n.aiPresetsDescription,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
-                  ),
+            actions: [
+              if (activePresetId != null)
+                TextButton.icon(
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: const Text('取消使用'), // TODO(i18n): 待补 l10n key
+                  onPressed: () async {
+                    await ref.read(activeAIPresetIdProvider.notifier).setActivePreset(null);
+                    await ref.read(promptManagerProvider.notifier).resetToDefault();
+                    // 取消使用预设时，同步禁用所有全局正则，避免残留生效。
+                    await ref
+                        .read(globalRegexScriptsProvider.notifier)
+                        .setActiveScripts([]);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('已取消使用预设，提示词与正则已恢复默认')),
+                      );
+                    }
+                  },
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _importPreset(context, ref),
-                  icon: const Icon(Icons.file_download, size: 20),
-                  label: Text(l10n.importPreset),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _exportCurrentSettings(context, ref),
-                  icon: const Icon(Icons.file_upload, size: 20),
-                  label: Text(l10n.export),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _saveCurrentAsPreset(context, ref),
-                  icon: const Icon(Icons.save, size: 20),
-                  label: Text(l10n.saveAs),
-                ),
-              ),
             ],
           ),
-          const SizedBox(height: 24),
-
-          // Built-in presets
-          _buildSectionHeader(context, l10n.builtInPresets),
-          const SizedBox(height: 12),
-          ...builtInPresets.map((preset) => _PresetCard(
-                preset: preset,
-                isActive: preset.id == activePresetId,
-                onTap: () => _applyPreset(context, ref, preset),
-              )),
-
-          if (customPresets.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            _buildSectionHeader(context, l10n.customPresets),
-            const SizedBox(height: 12),
-            ...customPresets.map((preset) => _PresetCard(
-                  preset: preset,
-                  isActive: preset.id == activePresetId,
-                  onTap: () => _applyPreset(context, ref, preset),
-                  onExport: () => _exportPreset(context, preset),
-                  onDelete: () => _deletePreset(context, ref, preset),
-                  onEdit: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AIPresetEditScreen(preset: preset),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: DesignTokens.paddingScreen,
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  // Info banner
+                  Container(
+                    padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline, color: AppTheme.primaryColor, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            l10n.aiPresetsDescription,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppTheme.darkTextSecondary,
+                                ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                )),
+                  const SizedBox(height: 16),
+                  // Action buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _importPreset(context, ref),
+                          icon: const Icon(Icons.file_download, size: 20),
+                          label: Text(l10n.importPreset),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _exportCurrentSettings(context, ref),
+                          icon: const Icon(Icons.file_upload, size: 20),
+                          label: Text(l10n.export),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => _saveCurrentAsPreset(context, ref),
+                          icon: const Icon(Icons.save, size: 20),
+                          label: Text(l10n.saveAs),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Built-in presets
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: DesignTokens.paddingScreen,
+              child: _buildSectionHeader(context, l10n.builtInPresets),
+            ),
+          ),
+          SliverPadding(
+            padding: DesignTokens.paddingScreen,
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => _PresetCard(
+                  preset: builtInPresets[i],
+                  isActive: builtInPresets[i].id == activePresetId,
+                  onTap: () => _applyPreset(context, ref, builtInPresets[i]),
+                ),
+                childCount: builtInPresets.length,
+              ),
+            ),
+          ),
+
+          if (customPresets.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    DesignTokens.spaceMd, 24, DesignTokens.spaceMd, 0),
+                child: _buildSectionHeader(context, l10n.customPresets),
+              ),
+            ),
+            SliverPadding(
+              padding: DesignTokens.paddingScreen,
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) => _PresetCard(
+                    preset: customPresets[i],
+                    isActive: customPresets[i].id == activePresetId,
+                    onTap: () => _applyPreset(context, ref, customPresets[i]),
+                    onExport: () => _exportPreset(context, customPresets[i]),
+                    onDelete: () => _deletePreset(context, ref, customPresets[i]),
+                    onEdit: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AIPresetEditScreen(preset: customPresets[i]),
+                      ),
+                    ),
+                  ),
+                  childCount: customPresets.length,
+                ),
+              ),
+            ),
           ],
 
-          const SizedBox(height: 32),
+          // 顶部 AppBar 已是 root push,无需避让底栏,但留呼吸
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     );
@@ -273,28 +310,55 @@ class AIPresetsScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final nameController = TextEditingController(text: 'My AI Preset');
 
-    final name = await showDialog<String>(
+    // D-T2 规则 2:单字段输入 → 底部 Sheet(键盘顶起)
+    final name = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.exportCurrentSettings),
-        content: TextField(
-          controller: nameController,
-          decoration: InputDecoration(
-            labelText: l10n.presetName,
-            border: const OutlineInputBorder(),
-          ),
-          autofocus: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.exportCurrentSettings,
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: nameController,
+                autofocus: true,
+                placeholder: l10n.presetName,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () =>
+                      Navigator.pop(sheetCtx, nameController.text.trim()),
+                  child: Text(l10n.export),
+                ),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, nameController.text.trim()),
-            child: Text(l10n.export),
-          ),
-        ],
+        ),
       ),
     );
 
@@ -328,53 +392,78 @@ class AIPresetsScreen extends ConsumerWidget {
     final nameController = TextEditingController();
     final descController = TextEditingController();
 
-    final result = await showDialog<Map<String, String>>(
+    // D-T2:双字段表单 → 底部 Sheet(isScrollControlled + 键盘避让)
+    final result = await showModalBottomSheet<Map<String, String>>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.saveAsPreset),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                labelText: l10n.presetName,
-                border: const OutlineInputBorder(),
-              ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descController,
-              decoration: InputDecoration(
-                labelText: l10n.descriptionOptional,
-                border: const OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-          ],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.saveAsPreset,
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: nameController,
+                autofocus: true,
+                placeholder: l10n.presetName,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 12),
+              CupertinoTextField(
+                controller: descController,
+                placeholder: l10n.descriptionOptional,
+                maxLines: 2,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    if (nameController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(l10n.pleaseEnterAName)),
+                      );
+                      return;
+                    }
+                    Navigator.pop(sheetCtx, {
+                      'name': nameController.text.trim(),
+                      'description': descController.text.trim(),
+                    });
+                  },
+                  child: Text(l10n.save),
+                ),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () {
-              if (nameController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.pleaseEnterAName)),
-                );
-                return;
-              }
-              Navigator.pop(context, {
-                'name': nameController.text.trim(),
-                'description': descController.text.trim(),
-              });
-            },
-            child: Text(l10n.save),
-          ),
-        ],
+        ),
       ),
     );
 
@@ -429,18 +518,20 @@ class AIPresetsScreen extends ConsumerWidget {
 
   Future<void> _deletePreset(BuildContext context, WidgetRef ref, AIPreset preset) async {
     final l10n = AppLocalizations.of(context);
-    final confirm = await showDialog<bool>(
+    // D-T2 规则 1:破坏确认 → CupertinoAlertDialog
+    final confirm = await showCupertinoDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => CupertinoAlertDialog(
         title: Text(l10n.deletePreset),
         content: Text(l10n.deletePresetConfirmation(preset.name)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx, false),
             child: Text(l10n.cancel),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(dialogCtx, true),
             child: Text(l10n.delete),
           ),
         ],
@@ -648,8 +739,8 @@ class _PresetCard extends StatelessWidget {
                       PopupMenuItem(
                         value: 'delete',
                         child: ListTile(
-                          leading: const Icon(Icons.delete, color: Colors.red),
-                          title: Text(l10n.delete, style: const TextStyle(color: Colors.red)),
+                          leading: const Icon(Icons.delete, color: DesignTokens.statusError),
+                          title: Text(l10n.delete, style: const TextStyle(color: DesignTokens.statusError)),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
