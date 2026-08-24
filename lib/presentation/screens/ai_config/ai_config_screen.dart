@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:figma_squircle/figma_squircle.dart';
@@ -34,135 +35,152 @@ class AIConfigScreen extends ConsumerWidget {
     final activePreset = ref.watch(activeAIPresetProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.aiConfiguration),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.file_download),
-            tooltip: AppLocalizations.of(context)!.importPreset,
-            onPressed: () => context.push(AppRoutes.aiPresets),
-          ),
-        ],
-      ),
-      body: ListView(
-        children: [
-          const QuickSetupCard(),
-          // Active Preset Banner
-          if (activePreset != null)
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                    Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.08),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
-                ),
+      body: CustomScrollView(
+        slivers: [
+          // C-T3:Large Title 外壳
+          SliverAppBar.large(
+            title: Text(
+              AppLocalizations.of(context)!.aiConfiguration,
+              style: Theme.of(context).textTheme.displayLarge,
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.file_download),
+                tooltip: AppLocalizations.of(context)!.importPreset,
+                onPressed: () => context.push(AppRoutes.aiPresets),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-                    ),
-                    child: const Icon(
-                      Icons.auto_awesome,
-                      color: Colors.white,
-                    ),
+              const SizedBox(width: DesignTokens.spaceSm),
+            ],
+          ),
+          const SliverToBoxAdapter(child: QuickSetupCard()),
+          // Active Preset Banner:iOS 化——纯色面 + 左侧 3pt primary VIP 竖条
+          if (activePreset != null)
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor,
+                    width: 0.5,
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          AppLocalizations.of(context)!.activePreset,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).textTheme.bodySmall?.color,
-                          ),
+                ),
+                child: IntrinsicHeight(
+                  child: Row(
+                    children: [
+                      // 左侧 3pt primary 竖条(iOS 邮件 VIP 标记感)
+                      Container(
+                        width: 3,
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          borderRadius: BorderRadius.circular(2),
                         ),
-                        Text(
-                          activePreset.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      ),
+                      const SizedBox(width: 14),
+                      Icon(
+                        Icons.auto_awesome,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              AppLocalizations.of(context)!.activePreset,
+                              style: TextStyle(
+                                fontSize: DesignTokens.fontSizeSm,
+                                color: Theme.of(context).textTheme.bodyMedium?.color,
+                              ),
+                            ),
+                            Text(
+                              activePreset.name,
+                              style: const TextStyle(
+                                fontSize: DesignTokens.fontSizeHeadline,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      CupertinoButton(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: DesignTokens.spaceMd),
+                        minSize: 32,
+                        onPressed: () => context.push(AppRoutes.aiPresets),
+                        child: Text(AppLocalizations.of(context)!.change),
+                      ),
+                    ],
                   ),
-                  TextButton(
-                    onPressed: () => context.push(AppRoutes.aiPresets),
-                    child: Text(AppLocalizations.of(context)!.change),
-                  ),
-                ],
+                ),
               ),
             ),
 
-          // 三个分组卡片平铺（去掉外层大卡，恢复懒加载 + 减嵌套）
-          KiraSection(
-            title: AppLocalizations.of(context)!.presetsAndTemplates,
-            children: [
-              KiraListTile(
-                icon: Icons.auto_awesome,
-                title: AppLocalizations.of(context)!.aiPresets,
-                subtitle: activePreset?.name ?? AppLocalizations.of(context)!.noPresetSelected,
-                onTap: () => context.push(AppRoutes.aiPresets),
-              ),
-              const _InstructTemplateTile(),
-              KiraListTile(
-                icon: Icons.reorder,
-                title: AppLocalizations.of(context)!.promptManager,
-                subtitle: AppLocalizations.of(context)!.orderAndTogglePromptSections,
-                onTap: () => context.push(AppRoutes.promptManager),
-              ),
-            ],
+          // 三个分组卡片平铺(C-T3 不动内部 tile;Block G 再精修)
+          SliverToBoxAdapter(
+            child: KiraSection(
+              title: AppLocalizations.of(context)!.presetsAndTemplates,
+              children: [
+                KiraListTile(
+                  icon: Icons.auto_awesome,
+                  title: AppLocalizations.of(context)!.aiPresets,
+                  subtitle: activePreset?.name ?? AppLocalizations.of(context)!.noPresetSelected,
+                  onTap: () => context.push(AppRoutes.aiPresets),
+                ),
+                const _InstructTemplateTile(),
+                KiraListTile(
+                  icon: Icons.reorder,
+                  title: AppLocalizations.of(context)!.promptManager,
+                  subtitle: AppLocalizations.of(context)!.orderAndTogglePromptSections,
+                  onTap: () => context.push(AppRoutes.promptManager),
+                ),
+              ],
+            ),
           ),
-          KiraSection(
-            title: AppLocalizations.of(context)!.llmConnection,
-            children: [
-              const _ConnectionTestTile(),
-              KiraListTile(
-                icon: Icons.fingerprint_rounded,
-                title: '极客Probe',
-                subtitle: '模型深度检测',
-                onTap: () => context.push(AppRoutes.modelDetection),
-              ),
-              KiraListTile(
-                icon: Icons.public,
-                title: '全局世界书',
-                subtitle: '对所有角色生效的世界书',
-                onTap: () => context.push('/world-info?isGlobal=true'),
-              ),
-            ],
+          SliverToBoxAdapter(
+            child: KiraSection(
+              title: AppLocalizations.of(context)!.llmConnection,
+              children: [
+                const _ConnectionTestTile(),
+                KiraListTile(
+                  icon: Icons.fingerprint_rounded,
+                  title: '极客Probe', // TODO(i18n): 待补 l10n key
+                  subtitle: '模型深度检测',
+                  onTap: () => context.push(AppRoutes.modelDetection),
+                ),
+                KiraListTile(
+                  icon: Icons.public,
+                  title: '全局世界书', // TODO(i18n)
+                  subtitle: '对所有角色生效的世界书',
+                  onTap: () => context.push('/world-info?isGlobal=true'),
+                ),
+              ],
+            ),
           ),
-          KiraSection(
-            title: AppLocalizations.of(context)!.generationSettings,
-            children: [
-              const _ContextLengthTile(),
-              const _MaxTokensTile(),
-              const _TemperatureTile(),
-              const _TopPTile(),
-              const _StreamingTile(),
-              KiraListTile(
-                icon: Icons.tune,
-                title: AppLocalizations.of(context)!.advancedSamplerSettings,
-                subtitle: AppLocalizations.of(context)!.fullControlOverSampling,
-                onTap: () => context.push(AppRoutes.advancedSettings),
-              ),
-            ],
+          SliverToBoxAdapter(
+            child: KiraSection(
+              title: AppLocalizations.of(context)!.generationSettings,
+              children: [
+                const _ContextLengthTile(),
+                const _MaxTokensTile(),
+                const _TemperatureTile(),
+                const _TopPTile(),
+                const _StreamingTile(),
+                KiraListTile(
+                  icon: Icons.tune,
+                  title: AppLocalizations.of(context)!.advancedSamplerSettings,
+                  subtitle: AppLocalizations.of(context)!.fullControlOverSampling,
+                  onTap: () => context.push(AppRoutes.advancedSettings),
+                ),
+              ],
+            ),
           ),
 
-          const SizedBox(height: 32),
+          // 避让底栏
+          const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
       ),
     );
@@ -800,13 +818,13 @@ class _ConnectionTestTile extends ConsumerWidget {
   Color _getStatusColor(ConnectionStatus status) {
     switch (status) {
       case ConnectionStatus.idle:
-        return AppTheme.textMuted;
+        return DesignTokens.darkTextTertiary;
       case ConnectionStatus.testing:
         return AppTheme.accentColor;
       case ConnectionStatus.success:
-        return Colors.green;
+        return DesignTokens.statusSuccess;
       case ConnectionStatus.error:
-        return Colors.red;
+        return DesignTokens.statusError;
     }
   }
 
