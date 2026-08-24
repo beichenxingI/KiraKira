@@ -1,11 +1,13 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
+import 'package:kirakira/presentation/widgets/common/kira_pressable.dart';
 import '../../../data/models/app_theme_config.dart';
 import '../../providers/theme_providers.dart';
 import '../../theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'theme_edit_screen.dart';
 
 /// Screen for managing app themes
 class ThemeSettingsScreen extends ConsumerWidget {
@@ -23,37 +25,57 @@ class ThemeSettingsScreen extends ConsumerWidget {
     final userThemes = allThemes.where((t) => !t.isBuiltIn).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.themes),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)!.createCustomTheme,
-            onPressed: () => _showCreateThemeDialog(context, ref),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              AppLocalizations.of(context)!.themes,
+              style: Theme.of(context).textTheme.displayLarge,
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.add),
+                tooltip: AppLocalizations.of(context)!.createCustomTheme,
+                onPressed: () => _showCreateThemeDialog(context, ref),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        children: [
-          // Built-in themes
-          _buildSectionHeader(context, AppLocalizations.of(context)!.builtInThemes),
-          const SizedBox(height: 12),
-          _buildThemeGrid(context, ref, builtInThemes, activeThemeId),
-          
-          if (userThemes.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            _buildSectionHeader(context, 'Custom Themes'),
-            const SizedBox(height: 12),
-            _buildThemeGrid(context, ref, userThemes, activeThemeId, isCustom: true),
-          ],
-          
-          const SizedBox(height: 32),
-          
-          // Theme preview
-          _buildSectionHeader(context, 'Preview'),
-          const SizedBox(height: 12),
-          _buildThemePreview(context, ref),
+          SliverList(
+            delegate: SliverChildListDelegate([
+              Padding(
+                padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd,
+                    DesignTokens.spaceMd, DesignTokens.spaceMd, 0),
+                child: _buildSectionHeader(
+                    context, AppLocalizations.of(context)!.builtInThemes),
+              ),
+              Padding(
+                padding: DesignTokens.paddingScreen,
+                child: _buildThemeGrid(context, ref, builtInThemes, activeThemeId),
+              ),
+              if (userThemes.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd,
+                      24, DesignTokens.spaceMd, 0),
+                  child: _buildSectionHeader(context, 'Custom Themes'),
+                ),
+                Padding(
+                  padding: DesignTokens.paddingScreen,
+                  child: _buildThemeGrid(context, ref, userThemes, activeThemeId,
+                      isCustom: true),
+                ),
+              ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd,
+                    32, DesignTokens.spaceMd, 0),
+                child: _buildSectionHeader(context, 'Preview'),
+              ),
+              Padding(
+                padding: DesignTokens.paddingScreen,
+                child: _buildThemePreview(context, ref),
+              ),
+              const SizedBox(height: 32),
+            ]),
+          ),
         ],
       ),
     );
@@ -210,49 +232,43 @@ class ThemeSettingsScreen extends ConsumerWidget {
     );
   }
 
+  /// D-T2 规则 3:新建主题(多字段表单)→ push 子页
   void _showCreateThemeDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => _ThemeEditorDialog(
-        onSave: (AppThemeConfig theme) {
-          ref.read(customThemesProvider.notifier).addTheme(theme);
-          ref.read(activeThemeIdProvider.notifier).setActiveTheme(theme.id);
-        },
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ThemeEditScreen()),
     );
   }
 
+  /// D-T2 规则 3:编辑主题(多字段表单)→ push 子页
   void _showEditThemeDialog(BuildContext context, WidgetRef ref, AppThemeConfig theme) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => _ThemeEditorDialog(
-        theme: theme,
-        onSave: (AppThemeConfig updatedTheme) {
-          ref.read(customThemesProvider.notifier).updateTheme(updatedTheme);
-        },
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ThemeEditScreen(theme: theme)),
     );
   }
 
   void _showDeleteConfirmation(BuildContext context, WidgetRef ref, AppThemeConfig theme) {
-    showDialog<void>(
+    // D-T2 规则 1:破坏确认 → CupertinoAlertDialog
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => CupertinoAlertDialog(
         title: const Text('删除主题'),
         content: Text('确定要删除"${theme.name}"吗？'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('取消'),
           ),
-          TextButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () {
               final activeId = ref.read(activeThemeIdProvider);
               if (activeId == theme.id) {
                 ref.read(activeThemeIdProvider.notifier).setActiveTheme(BuiltInThemes.defaultDark.id);
               }
               ref.read(customThemesProvider.notifier).deleteTheme(theme.id);
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
             },
             child: const Text('删除'),
           ),
@@ -281,7 +297,8 @@ class _ThemeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    // D-T1#16:色卡按压 → KiraPressable(缩+暗,无水波)
+    return KiraPressable(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
@@ -392,228 +409,6 @@ class _ThemeCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ThemeEditorDialog extends StatefulWidget {
-  final AppThemeConfig? theme;
-  final void Function(AppThemeConfig) onSave;
-
-  const _ThemeEditorDialog({
-    this.theme,
-    required this.onSave,
-  });
-
-  @override
-  State<_ThemeEditorDialog> createState() => _ThemeEditorDialogState();
-}
-
-class _ThemeEditorDialogState extends State<_ThemeEditorDialog> {
-  late TextEditingController _nameController;
-  late bool _isDark;
-  late String _primaryColor;
-  late String _accentColor;
-  late String _backgroundColor;
-  late String _surfaceColor;
-  late String _cardColor;
-
-  @override
-  void initState() {
-    super.initState();
-    final theme = widget.theme ?? BuiltInThemes.defaultDark;
-    _nameController = TextEditingController(text: widget.theme?.name ?? 'My Theme');
-    _isDark = theme.isDark;
-    _primaryColor = theme.primaryColor;
-    _accentColor = theme.accentColor;
-    _backgroundColor = theme.backgroundColor;
-    _surfaceColor = theme.surfaceColor;
-    _cardColor = theme.cardColor;
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isEditing = widget.theme != null;
-
-    return AlertDialog(
-      title: Text(isEditing ? 'Edit Theme' : 'Create Theme'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: '主题名称',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              title: const Text('深色模式'),
-              value: _isDark,
-              onChanged: (value) => setState(() => _isDark = value),
-              contentPadding: EdgeInsets.zero,
-            ),
-            const SizedBox(height: 8),
-            _ColorPickerTile(
-              label: 'Primary Color',
-              color: _primaryColor,
-              onChanged: (color) => setState(() => _primaryColor = color),
-            ),
-            _ColorPickerTile(
-              label: 'Accent Color',
-              color: _accentColor,
-              onChanged: (color) => setState(() => _accentColor = color),
-            ),
-            _ColorPickerTile(
-              label: 'Background',
-              color: _backgroundColor,
-              onChanged: (color) => setState(() => _backgroundColor = color),
-            ),
-            _ColorPickerTile(
-              label: 'Surface',
-              color: _surfaceColor,
-              onChanged: (color) => setState(() => _surfaceColor = color),
-            ),
-            _ColorPickerTile(
-              label: 'Card',
-              color: _cardColor,
-              onChanged: (color) => setState(() => _cardColor = color),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () {
-            final theme = AppThemeConfig(
-              id: widget.theme?.id ?? const Uuid().v4(),
-              name: _nameController.text.trim(),
-              isDark: _isDark,
-              primaryColor: _primaryColor,
-              accentColor: _accentColor,
-              backgroundColor: _backgroundColor,
-              surfaceColor: _surfaceColor,
-              cardColor: _cardColor,
-              textPrimaryColor: _isDark ? '#FFFFFF' : '#171717',
-              textSecondaryColor: _isDark ? '#A3A3A3' : '#737373',
-              dividerColor: _isDark ? '#404040' : '#E5E5E5',
-              isBuiltIn: false,
-            );
-            widget.onSave(theme);
-            Navigator.pop(context);
-          },
-          child: Text(isEditing ? 'Save' : 'Create'),
-        ),
-      ],
-    );
-  }
-}
-
-class _ColorPickerTile extends StatelessWidget {
-  final String label;
-  final String color;
-  final void Function(String) onChanged;
-
-  const _ColorPickerTile({
-    required this.label,
-    required this.color,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceXs),
-      child: Row(
-        children: [
-          Text(label),
-          const Spacer(),
-          GestureDetector(
-            onTap: () => _showColorPicker(context),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppThemeConfig.hexToColor(color),
-                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
-                border: Border.all(color: Colors.grey),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showColorPicker(BuildContext context) {
-    final controller = TextEditingController(text: color);
-    
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('选择 $label'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                labelText: '十六进制色值',
-                hintText: '#RRGGBB',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                '#6366F1', '#8B5CF6', '#EC4899', '#EF4444',
-                '#F97316', '#EAB308', '#22C55E', '#06B6D4',
-                '#3B82F6', '#000000', '#1A1A1A', '#FFFFFF',
-              ].map((c) => GestureDetector(
-                onTap: () {
-                  controller.text = c;
-                },
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppThemeConfig.hexToColor(c),
-                    borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
-                    border: Border.all(color: Colors.grey),
-                  ),
-                ),
-              )).toList(),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              onChanged(controller.text);
-              Navigator.pop(context);
-            },
-            child: const Text('应用'),
-          ),
-        ],
       ),
     );
   }
