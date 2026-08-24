@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:kirakira/presentation/providers/home_background_providers.dart';
@@ -96,11 +97,14 @@ bool _loadingAnnouncement = false;
   Widget build(BuildContext context) {
     final timeStr = DateFormat('HH:mm').format(_now);
     final homeBg = ref.watch(homeBackgroundProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: DesignTokens.darkBackground,
-      body: Stack(
-        children: [
+    // C-T5 chrome:状态栏样式跟随主题(dark 底→亮图标,light 底→暗图标)
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      child: Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Stack(        children: [
           // ── 1. 背景层：视频 / 图片-GIF / 默认渐变 ──────────────────
           Positioned.fill(child: _buildBackground(homeBg)),
 
@@ -167,8 +171,10 @@ bool _loadingAnnouncement = false;
           ),
         ],
       ),
+      ),
     );
   }
+
   /// 手动打开公告：无视已读记录，主动拉取并弹窗。
   /// 用户手误点掉或想回看时用，拉不到给轻提示。
   Future<void> _openAnnouncementManually() async {
