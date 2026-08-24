@@ -67,6 +67,8 @@ class KiraSection extends StatelessWidget {
   final String title;
   final List<Widget> children;
   final IconData? icon;
+  /// 返工条目2:组头右上可挂操作(如"导入预设"图标)
+  final Widget? headerTrailing;
   final bool _plain;
 
   const KiraSection({
@@ -74,6 +76,7 @@ class KiraSection extends StatelessWidget {
     required this.title,
     required this.children,
     this.icon,
+    this.headerTrailing,
   }) : _plain = false;
 
   /// plain 形态:组内是一个整体(滑块组/表单),不自动插分隔线
@@ -82,6 +85,7 @@ class KiraSection extends StatelessWidget {
     required this.title,
     required Widget child,
     this.icon,
+    this.headerTrailing,
   })  : children = [child],
         _plain = true;
 
@@ -128,15 +132,18 @@ class KiraSection extends StatelessWidget {
                     Icon(icon, size: 14, color: labelColor),
                     const SizedBox(width: DesignTokens.spaceXs),
                   ],
-                  Text(
-                    title.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: DesignTokens.fontSizeSm,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                      color: labelColor,
+                  Expanded(
+                    child: Text(
+                      title.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: DesignTokens.fontSizeSm,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                        color: labelColor,
+                      ),
                     ),
                   ),
+                  if (headerTrailing != null) headerTrailing!,
                 ],
               ),
             ),

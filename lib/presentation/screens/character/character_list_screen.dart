@@ -357,7 +357,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
-            // ── 常态:Large Title;选择态:收缩小标题(同一 CustomScrollView)──
+            // ── 常态:Large Title 已砍(返工条目2);选择态:收缩小标题(同一 CustomScrollView)──
             if (_selectionMode)
               SliverAppBar(
                 pinned: true,
@@ -384,63 +384,59 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                     },
                   ),
                 ],
-              )
-            else
-              SliverAppBar.large(
-                title: Text(
-                  l10n.characters,
-                  style: Theme.of(context).textTheme.displayLarge,
-                ),
-                actions: [
-                  // iOS 风格 "+":导入/ZIP 导入/新建 合流进 CupertinoActionSheet
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.add),
-                    tooltip: l10n.createCharacter,
-                    onPressed: () => _showAddActionSheet(context),
-                  ),
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.checkmark_circle),
-                    tooltip: '选择',
-                    onPressed: () {
-                      final all = ref.read(characterListProvider).valueOrNull ?? [];
-                      if (all.isNotEmpty) {
-                        setState(() => _selectionMode = true);
-                      }
-                    },
-                  ),
-                  // C-T6:每页数量档位(4/8/12/16)
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.square_grid_2x2),
-                    tooltip: '每页数量',
-                    onPressed: () => _showPageSizeSheet(context),
-                  ),
-                  const SizedBox(width: DesignTokens.spaceSm),
-                ],
               ),
-            // ── 分段控件(C-T8):页面级导航,吸顶;选择模式隐藏 ──
+            // ── 搜索框接顶(SafeArea;选择态隐藏)──
+            if (!_selectionMode)
+              SliverToBoxAdapter(
+                child: SafeArea(
+                  bottom: false,
+                  child: KiraSearchBar(
+                    controller: _searchController,
+                    hintText: l10n.searchCharacters,
+                    onChanged: (value) => setState(() {
+                      _searchQuery = value;
+                      _loadedPages = 1; // 搜索词变化回到第一批(C-T6)
+                    }),
+                    onClear: () => setState(() {
+                      _searchQuery = '';
+                      _loadedPages = 1;
+                    }),
+                  ),
+                ),
+              ),
+            // ── 分段控件(C-T8):页面级导航,吸顶;选择模式隐藏;trailing 挂原 AppBar 三按钮(返工条目2)──
             if (!_selectionMode)
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _SegmentedHeaderDelegate(
                   tab: _tab,
                   onChanged: (v) => setState(() => _tab = v),
+                  trailing: [
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.add, size: 22),
+                      tooltip: l10n.createCharacter,
+                      onPressed: () => _showAddActionSheet(context),
+                    ),
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.checkmark_circle, size: 22),
+                      tooltip: '选择',
+                      onPressed: () {
+                        final all = ref.read(characterListProvider).valueOrNull ?? [];
+                        if (all.isNotEmpty) {
+                          setState(() => _selectionMode = true);
+                        }
+                      },
+                    ),
+                    // C-T6:每页数量档位(4/8/12/16)
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.square_grid_2x2, size: 22),
+                      tooltip: '每页数量',
+                      onPressed: () => _showPageSizeSheet(context),
+                    ),
+                    const SizedBox(width: DesignTokens.spaceXs),
+                  ],
                 ),
               ),
-            // ── 搜索框:跟随滚入(不做死 pinned,KISS)──
-            SliverToBoxAdapter(
-              child: KiraSearchBar(
-                controller: _searchController,
-                hintText: l10n.searchCharacters,
-                onChanged: (value) => setState(() {
-                  _searchQuery = value;
-                  _loadedPages = 1; // 搜索词变化回到第一批(C-T6)
-                }),
-                onClear: () => setState(() {
-                  _searchQuery = '';
-                  _loadedPages = 1;
-                }),
-              ),
-            ),
             const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceSm)),
             // ── 内容区:tab0 我的角色网格;tab1 角色市场占位 ──
             if (_tab == 1)
@@ -1010,10 +1006,16 @@ class _CharacterGridCard extends ConsumerWidget {
 
 /// 分段控件吸顶头(SliverPersistentHeader 委托)
 class _SegmentedHeaderDelegate extends SliverPersistentHeaderDelegate {
-  const _SegmentedHeaderDelegate({required this.tab, required this.onChanged});
+  const _SegmentedHeaderDelegate({
+    required this.tab,
+    required this.onChanged,
+    this.trailing = const [],
+  });
 
   final int tab;
   final ValueChanged<int> onChanged;
+  /// 返工条目2:Large Title 已砍,原 actions(+/选择/每页)挂在分段行右端
+  final List<Widget> trailing;
 
   @override
   double get minExtent => 48;
@@ -1029,33 +1031,40 @@ class _SegmentedHeaderDelegate extends SliverPersistentHeaderDelegate {
         horizontal: DesignTokens.spaceMd,
         vertical: 6,
       ),
-      child: CupertinoSlidingSegmentedControl<int>(
-        groupValue: tab,
-        // 槽背景按手册 dark=darkCard / light=lightFillTertiary;
-        // thumbColor 不传,交给 Cupertino SDK 自配(iOS 原生深浅语义)
-        backgroundColor: isDark
-            ? DesignTokens.darkCard
-            : DesignTokens.lightFillTertiary,
-        children: const {
-          0: Padding(
-            padding: EdgeInsets.symmetric(vertical: 6),
-            child: Text('我的角色'),
+      child: Row(
+        children: [
+          Flexible(
+            child: CupertinoSlidingSegmentedControl<int>(
+              groupValue: tab,
+              // 槽背景按手册 dark=darkCard / light=lightFillTertiary;
+              // thumbColor 不传,交给 Cupertino SDK 自配(iOS 原生深浅语义)
+              backgroundColor: isDark
+                  ? DesignTokens.darkCard
+                  : DesignTokens.lightFillTertiary,
+              children: const {
+                0: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                  child: Text('我的角色'),
+                ),
+                1: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                  child: Text('角色市场'),
+                ),
+              },
+              onValueChanged: (v) {
+                if (v != null) onChanged(v);
+              },
+            ),
           ),
-          1: Padding(
-            padding: EdgeInsets.symmetric(vertical: 6),
-            child: Text('角色市场'),
-          ),
-        },
-        onValueChanged: (v) {
-          if (v != null) onChanged(v);
-        },
+          ...trailing,
+        ],
       ),
     );
   }
 
   @override
   bool shouldRebuild(covariant _SegmentedHeaderDelegate oldDelegate) =>
-      oldDelegate.tab != tab;
+      oldDelegate.tab != tab || oldDelegate.trailing != trailing;
 }
 
 /// 角色市场占位(C-T8.3):纯空态,绝无网络/数据逻辑

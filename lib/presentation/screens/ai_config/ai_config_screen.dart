@@ -39,22 +39,10 @@ class AIConfigScreen extends ConsumerWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // C-T3:Large Title 外壳
-          SliverAppBar.large(
-            title: Text(
-              AppLocalizations.of(context)!.aiConfiguration,
-              style: Theme.of(context).textTheme.displayLarge,
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.file_download),
-                tooltip: AppLocalizations.of(context)!.importPreset,
-                onPressed: () => context.push(AppRoutes.aiPresets),
-              ),
-              const SizedBox(width: DesignTokens.spaceSm),
-            ],
-          ),
-          const SliverToBoxAdapter(child: QuickSetupCard()),
+          // 返工条目2:砍顶部大标题;importPreset 挪进 AI预设 组头;
+          // 内容上移,首个区块由 QuickSetup 承担(SafeArea)
+          const SliverToBoxAdapter(
+              child: SafeArea(bottom: false, child: QuickSetupCard())),
           // Active Preset Banner:iOS 化——纯色面 + 左侧 3pt primary VIP 竖条
           if (activePreset != null)
             SliverToBoxAdapter(
@@ -125,6 +113,28 @@ class AIConfigScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: KiraSection(
               title: AppLocalizations.of(context)!.presetsAndTemplates,
+              // 返工条目2:原 AppBar actions 的"导入预设"挪到组头右上
+              headerTrailing: CupertinoButton(
+                padding: EdgeInsets.zero,
+                minSize: 28,
+                onPressed: () => context.push(AppRoutes.aiPresets),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(CupertinoIcons.square_arrow_down,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      AppLocalizations.of(context)!.importPreset,
+                      style: TextStyle(
+                        fontSize: DesignTokens.fontSizeSm,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               children: [
                 KiraListTile(
                   icon: Icons.auto_awesome,

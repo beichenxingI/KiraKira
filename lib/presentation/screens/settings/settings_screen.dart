@@ -42,19 +42,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar.large(
-            title: Text(
-              l10n.settings,
-              style: Theme.of(context).textTheme.displayLarge,
-            ),
-          ),
-          // ── 设置内搜索(E-T2 落地;C-T4 的占位)──
+          // ── 返工条目2:砍顶部大标题,搜索框直接接顶(SafeArea)──
           SliverToBoxAdapter(
-            child: KiraSearchBar(
-              controller: _searchController,
-              hintText: '搜索设置',
-              onChanged: (q) => setState(() => _query = q.trim()),
-              onClear: () => setState(() => _query = ''),
+            child: SafeArea(
+              bottom: false,
+              child: KiraSearchBar(
+                controller: _searchController,
+                hintText: '搜索设置',
+                onChanged: (q) => setState(() => _query = q.trim()),
+                onClear: () => setState(() => _query = ''),
+              ),
             ),
           ),
           ...(_query.isNotEmpty

@@ -81,23 +81,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // C-T2:Large Title"聊天";品牌副标题删除(移至关于页)
-            SliverAppBar.large(
-              title: Text(
-                '聊天',
-                style: Theme.of(context).textTheme.displayLarge,
-              ),
-              actions: [
-                // iOS 信息"写新信息"语义:右上角笔图标
-                IconButton(
-                  icon: const Icon(CupertinoIcons.square_pencil),
-                  tooltip: l10n.newChat,
-                  onPressed: () => context.push(AppRoutes.characters),
+            // 返工条目2:砍顶部大标题"聊天",搜索+新写按钮接顶
+            SliverToBoxAdapter(
+              child: SafeArea(
+                bottom: false,
+                child: Row(
+                  children: [
+                    Expanded(child: _buildSearchBar(context)),
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.square_pencil),
+                      tooltip: l10n.newChat,
+                      onPressed: () => context.push(AppRoutes.characters),
+                    ),
+                    const SizedBox(width: DesignTokens.spaceSm),
+                  ],
                 ),
-                const SizedBox(width: DesignTokens.spaceSm),
-              ],
+              ),
             ),
-            SliverToBoxAdapter(child: _buildSearchBar(context)),
             const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceXs)),
             _ChatListSliver(searchQuery: _searchQuery),
             // 避让底部胶囊导航
