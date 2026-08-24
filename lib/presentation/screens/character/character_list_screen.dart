@@ -36,6 +36,9 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
+  /// C-T8:顶部分段 0=我的角色 1=角色市场(不落盘,进页回默认)
+  int _tab = 0;
+
   /// C-T6 内存分页:已加载批数(每批 = 每页数量设置)
   int _loadedPages = 1;
   final ScrollController _scrollController = ScrollController();
@@ -414,7 +417,16 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                   const SizedBox(width: DesignTokens.spaceSm),
                 ],
               ),
-            // ── 搜索框:跟随滚入(不做死 pinned,KISS;C-T8 分段控件另起吸顶)──
+            // ── 分段控件(C-T8):页面级导航,吸顶;选择模式隐藏 ──
+            if (!_selectionMode)
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _SegmentedHeaderDelegate(
+                  tab: _tab,
+                  onChanged: (v) => setState(() => _tab = v),
+                ),
+              ),
+            // ── 搜索框:跟随滚入(不做死 pinned,KISS)──
             SliverToBoxAdapter(
               child: KiraSearchBar(
                 controller: _searchController,
@@ -430,7 +442,12 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceSm)),
-            // ── 内容区 ──
+            // ── 内容区:tab0 我的角色网格;tab1 角色市场占位 ──
+            if (_tab == 1)
+              const SliverFillRemaining(
+                child: _MarketEmptyState(),
+              )
+            else
             ...charactersAsync.when(
               data: (characters) {
                 final filtered = _searchQuery.isEmpty
@@ -585,7 +602,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
 
 }
 
-class _CharacterGridView extends StatelessWidget {
+class _CharacterGridView extends ConsumerWidget {
   final List<Character> characters;
   final bool selectionMode;
   final Set<String> selectedIds;
@@ -601,7 +618,8 @@ class _CharacterGridView extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pageSize = ref.watch(characterGridPageSizeProvider);
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(
         DesignTokens.spaceMd,
@@ -612,7 +630,7 @@ class _CharacterGridView extends StatelessWidget {
       sliver: SliverGrid(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: 0.72,
+          childAspectRatio: 0.80, // C-T7:卡片矮化,一屏出更多
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
         ),
@@ -620,7 +638,8 @@ class _CharacterGridView extends StatelessWidget {
           (context, index) {
             final c = characters[index];
             return _StaggeredEntrance(
-              index: index,
+              // C-T7:错峰延迟按批内位置归一,避免续批后越滚越慢
+              index: index % pageSize,
               child: _CharacterGridCard(
                 character: c,
                 selectionMode: selectionMode,
@@ -696,7 +715,7 @@ class _SkeletonGrid extends StatelessWidget {
         ),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: 0.72,
+          childAspectRatio: 0.80, // C-T7:与正式网格同卡比
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
         ),
@@ -854,18 +873,21 @@ class _CharacterGridCard extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(flex: 4, child: _buildAvatar()),
+                  // C-T7:头像区占比 4→3,卡片矮化信息更聚
+                  Expanded(flex: 3, child: _buildAvatar()),
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: DesignTokens.spaceSm,
                       vertical: DesignTokens.spaceXs,
                     ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      // C-T7:名字/作者居中(iOS 照片网格感)
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           character.name,
+                          textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 fontSize: DesignTokens.fontSizeBodyMedium,
@@ -878,6 +900,7 @@ class _CharacterGridCard extends ConsumerWidget {
                             padding: const EdgeInsets.only(top: DesignTokens.spaceXxs),
                             child: Text(
                               'by ${character.creator}',
+                              textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     fontSize: DesignTokens.fontSizeCaption,
                                     color: Theme.of(context)
@@ -981,5 +1004,85 @@ class _CharacterGridCard extends ConsumerWidget {
       default:
         return const Color(0xFFF5AEB2); // KiraKira 粉,替代死蓝占位
     }
+  }
+}
+// ━━━ C-T8:顶部吸顶分段控件 ━━━
+
+/// 分段控件吸顶头(SliverPersistentHeader 委托)
+class _SegmentedHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _SegmentedHeaderDelegate({required this.tab, required this.onChanged});
+
+  final int tab;
+  final ValueChanged<int> onChanged;
+
+  @override
+  double get minExtent => 48;
+  @override
+  double get maxExtent => 48;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesignTokens.spaceMd,
+        vertical: 6,
+      ),
+      child: CupertinoSlidingSegmentedControl<int>(
+        groupValue: tab,
+        // 槽背景按手册 dark=darkCard / light=lightFillTertiary;
+        // thumbColor 不传,交给 Cupertino SDK 自配(iOS 原生深浅语义)
+        backgroundColor: isDark
+            ? DesignTokens.darkCard
+            : DesignTokens.lightFillTertiary,
+        children: const {
+          0: Padding(
+            padding: EdgeInsets.symmetric(vertical: 6),
+            child: Text('我的角色'),
+          ),
+          1: Padding(
+            padding: EdgeInsets.symmetric(vertical: 6),
+            child: Text('角色市场'),
+          ),
+        },
+        onValueChanged: (v) {
+          if (v != null) onChanged(v);
+        },
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _SegmentedHeaderDelegate oldDelegate) =>
+      oldDelegate.tab != tab;
+}
+
+/// 角色市场占位(C-T8.3):纯空态,绝无网络/数据逻辑
+class _MarketEmptyState extends StatelessWidget {
+  const _MarketEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tertiary = theme.textTheme.bodySmall?.color;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(CupertinoIcons.cloud_download, size: 56, color: tertiary),
+          const SizedBox(height: DesignTokens.spaceMd),
+          Text(
+            '敬请期待',
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: DesignTokens.spaceSm),
+          Text(
+            '角色市场建设中,未来可在线浏览与导入角色',
+            style: theme.textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
   }
 }
