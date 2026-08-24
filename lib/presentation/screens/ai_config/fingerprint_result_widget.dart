@@ -21,9 +21,9 @@ class FingerprintResultWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF1E1E2E),
+      color: Theme.of(context).cardColor,
       margin: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusCard)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: isLoading ? _buildLoading() : result != null ? _buildResult(context) : _buildEmpty(),
@@ -35,27 +35,27 @@ class FingerprintResultWidget extends StatelessWidget {
     return Column(mainAxisSize: MainAxisSize.min, children: [
       const CircularProgressIndicator(),
       const SizedBox(height: 16),
-      Text('检测中... $currentQuestion/$totalQuestions', style: const TextStyle(color: Colors.white70)),
+      Text('检测中... $currentQuestion/$totalQuestions', style: const TextStyle(color: DesignTokens.darkTextSecondary)),
       LinearProgressIndicator(value: totalQuestions > 0 ? currentQuestion / totalQuestions : 0),
     ]);
   }
 
   Widget _buildEmpty() {
-    return const Center(child: Text('点击"深度检测"开始', style: TextStyle(color: Colors.white54)));
+    return const Center(child: Text('点击"深度检测"开始', style: TextStyle(color: DesignTokens.darkTextTertiary)));
   }
 
   Widget _buildResult(BuildContext context) {
     final r = result!;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
       Row(children: [
-        const Text('模型能力画像', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text('模型能力画像', style: TextStyle(color: DesignTokens.darkTextPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
         const Spacer(),
-        if (onClose != null) IconButton(icon: const Icon(Icons.close, color: Colors.white54), onPressed: onClose),
+        if (onClose != null) IconButton(icon: const Icon(Icons.close, color: DesignTokens.darkTextTertiary), onPressed: onClose),
       ]),
       const SizedBox(height: 12),
       _buildScoreBars(r.dimensionScores),
       const SizedBox(height: 16),
-      Text('整体能力匹配度：${r.overallMatch.toStringAsFixed(0)}%', style: const TextStyle(color: Colors.white, fontSize: 16)),
+      Text('整体能力匹配度：${r.overallMatch.toStringAsFixed(0)}%', style: const TextStyle(color: DesignTokens.darkTextPrimary, fontSize: 16)),
       if (r.closestFamily != null) ...[
         const SizedBox(height: DesignTokens.spaceSm),
         Text('行为特征最接近：${r.closestFamily!.familyName} 家族 (${r.closestFamily!.confidence.name}置信度)',
@@ -64,11 +64,11 @@ class FingerprintResultWidget extends StatelessWidget {
       // 家族命中证据（为什么判成这个家族）
       if (r.closestFamily != null && r.closestFamily!.evidence.isNotEmpty) ...[
         const SizedBox(height: DesignTokens.spaceSm),
-        const Text('判定依据：', style: TextStyle(color: Colors.white70, fontSize: DesignTokens.fontSizeSm)),
+        const Text('判定依据：', style: TextStyle(color: DesignTokens.darkTextSecondary, fontSize: DesignTokens.fontSizeSm)),
         const SizedBox(height: 4),
         ...r.closestFamily!.evidence.map((e) => Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 2),
-              child: Text('· $e', style: const TextStyle(color: Colors.white60, fontSize: 12)),
+              child: Text('· $e', style: const TextStyle(color: DesignTokens.darkTextSecondary, fontSize: 12)),
             )),
       ],
       // 缩水判定
@@ -77,7 +77,7 @@ class FingerprintResultWidget extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF3a2a1a),
+            color: DesignTokens.statusWarning.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -96,12 +96,12 @@ class FingerprintResultWidget extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: r.suspectedMixedPool ? const Color(0xFF3a1a1a) : const Color(0xFF1a2a1a),
+            color: r.suspectedMixedPool ? DesignTokens.statusError.withValues(alpha: 0.14) : DesignTokens.statusSuccess.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Icon(r.suspectedMixedPool ? Icons.warning_amber : Icons.verified,
-                color: r.suspectedMixedPool ? const Color(0xFFef4444) : const Color(0xFF22c55e),
+                color: r.suspectedMixedPool ? DesignTokens.statusError : DesignTokens.statusSuccess,
                 size: 18),
             const SizedBox(width: 8),
             Expanded(
@@ -110,7 +110,7 @@ class FingerprintResultWidget extends StatelessWidget {
                     ? '疑似多模型混池（掺假）：多次同问回答一致性仅 ${(r.consistencyScore! * 100).round()}%，背后可能不是同一个模型。'
                     : '一致性检测通过：多次同问回答一致性 ${(r.consistencyScore! * 100).round()}%，未发现明显掺假迹象。',
                 style: TextStyle(
-                    color: r.suspectedMixedPool ? const Color(0xFFfca5a5) : const Color(0xFF86efac),
+                    color: r.suspectedMixedPool ? DesignTokens.statusError : DesignTokens.statusSuccess,
                     fontSize: 12),
               ),
             ),
@@ -119,7 +119,7 @@ class FingerprintResultWidget extends StatelessWidget {
       ],
       const SizedBox(height: 12),
       Text(r.disclaimer,
-          style: const TextStyle(color: Colors.white38, fontSize: DesignTokens.fontSizeCaption)),
+          style: const TextStyle(color: DesignTokens.darkTextDisabled, fontSize: DesignTokens.fontSizeCaption)),
     ]);
   }
 
@@ -128,15 +128,15 @@ class FingerprintResultWidget extends StatelessWidget {
     return Wrap(spacing: 8, runSpacing: 8, children: scores.entries.map((e) {
       final label = labels[e.key] ?? e.key;
       final val = e.value;
-      final color = val > 80 ? Colors.green : val > 50 ? Colors.orange : Colors.red;
+      final color = val > 80 ? DesignTokens.statusSuccess : val > 50 ? DesignTokens.statusWarning : DesignTokens.statusError;
       return SizedBox(width: 100, child: Column(children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        Text(label, style: const TextStyle(color: DesignTokens.darkTextSecondary, fontSize: 12)),
         const SizedBox(height: 4),
         Stack(children: [
-          Container(height: 6, decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(3))),
+          Container(height: 6, decoration: BoxDecoration(color: DesignTokens.darkCard, borderRadius: BorderRadius.circular(3))),
           FractionallySizedBox(widthFactor: val / 100, child: Container(height: 6, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)))),
         ]),
-        Text('${val.round()}分', style: TextStyle(color: Colors.white, fontSize: DesignTokens.fontSizeCaption)),
+        Text('${val.round()}分', style: TextStyle(color: DesignTokens.darkTextPrimary, fontSize: DesignTokens.fontSizeCaption)),
       ]));
     }).toList());
   }
