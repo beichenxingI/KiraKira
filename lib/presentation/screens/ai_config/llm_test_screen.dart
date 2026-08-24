@@ -1,4 +1,11 @@
+// lib/presentation/screens/ai_config/llm_test_screen.dart
+/// LLM Test 调试页(G-T4.2:保留,外观跟随主题即可)
+library;
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/widgets/common/kira_button.dart';
 import '../../../domain/providers/llm_provider.dart';
 import '../../../domain/providers/llm_provider_registry.dart';
 
@@ -64,46 +71,70 @@ class _LlmTestScreenState extends State<LlmTestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('LLM Test (Temp)')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextField(
-            controller: _urlController,
-            decoration: const InputDecoration(
-              labelText: 'Base URL',
-              hintText: 'e.g. https://api.deepseek.com',
-              border: OutlineInputBorder(),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              'LLM 测试(临时)',
+              style: theme.textTheme.displayLarge,
             ),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _keyController,
-            decoration: const InputDecoration(
-              labelText: 'API Key',
-              border: OutlineInputBorder(),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: DesignTokens.paddingScreen,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  CupertinoTextField(
+                    controller: _urlController,
+                    placeholder: 'Base URL',
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  CupertinoTextField(
+                    controller: _keyController,
+                    placeholder: 'API Key',
+                    obscureText: true,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius:
+                          BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  KiraButton(
+                    onPressed: _loading ? null : _runTest,
+                    child: Text(_loading ? '测试中…' : '测试连接'),
+                  ),
+                  const SizedBox(height: 24),
+                  Text('状态:$_status',
+                      style: theme.textTheme.titleMedium),
+                  if (_latency != null) ...[
+                    const SizedBox(height: 8),
+                    Text('延迟:$_latency ms', style: theme.textTheme.bodyMedium),
+                  ],
+                  const SizedBox(height: 16),
+                  Text('模型(${_models.length}):',
+                      style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  ..._models.map((m) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child:
+                            Text(' $m', style: theme.textTheme.bodySmall),
+                      )),
+                ],
+              ),
             ),
-            obscureText: true,
           ),
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: _loading ? null : _runTest,
-            child: Text(_loading ? 'Testing...' : 'Test Connection'),
-          ),
-          const SizedBox(height: 24),
-          Text('Status: $_status', style: const TextStyle(fontWeight: FontWeight.bold)),
-          if (_latency != null) ...[
-            const SizedBox(height: 8),
-            Text('Latency: $_latency ms'),
-          ],
-          const SizedBox(height: 16),
-          Text('Models (${_models.length}):', style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          ..._models.map((m) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Text(' $m'),
-              )),
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     );
