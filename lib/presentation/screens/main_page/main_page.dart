@@ -16,6 +16,7 @@ import 'package:kirakira/core/utils/path_utils.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/screens/splash/announcement_dialog.dart';
 import 'package:kirakira/presentation/providers/announcement_provider.dart';
+import 'daily_oracle_sheet.dart';
 import 'package:kirakira/presentation/screens/terms_dialog.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 
@@ -134,6 +135,12 @@ bool _loadingAnnouncement = false;
                 ),
               ],
             ),
+          ),
+          // ── 右下角：公告入口正上方：每日祈愿入口(返工条目9)────────
+          const Positioned(
+            bottom: 240, // 公告按钮(bottom:172)正上方
+            right: 24,
+            child: DailyOracleEntry(),
           ),
           // ── 右下角：公告入口（手动回看，无视已读记录）──────────────
           Positioned(
