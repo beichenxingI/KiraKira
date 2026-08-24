@@ -39,9 +39,6 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   /// C-T8:顶部分段 0=我的角色 1=角色市场(不落盘,进页回默认)
   int _tab = 0;
 
-  /// C-T6 内存分页:已加载批数(每批 = 每页数量设置)
-  int _loadedPages = 1;
-  final ScrollController _scrollController = ScrollController();
   // ── 多选状态（仅标准网格支持）──
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
@@ -314,31 +311,23 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   }
   static String _two(int n) => n.toString().padLeft(2, '0');
 
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScrollLoadMore);
-  }
-
-  /// 触底续批(C-T6):剩余 <600px 且还有未渲染角色时追加一批
-  void _onScrollLoadMore() {
-    if (!_scrollController.hasClients) return;
-    final pos = _scrollController.position;
-    if (pos.pixels > pos.maxScrollExtent - 600) {
-      final pageSize = ref.read(characterGridPageSizeProvider);
-      final total =
-          ref.read(characterListProvider).valueOrNull?.length ?? 0;
-      if (_loadedPages * pageSize < total) {
-        setState(() => _loadedPages++);
-      }
-    }
-  }
+  // 返工条目5:翻页 PageView —— PageController 取代 _loadedPages/_scrollController
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
 
   @override
   void dispose() {
     _searchController.dispose();
-    _scrollController.dispose();
+    _pageController.dispose();
     super.dispose();
+  }
+
+  /// 每页数量变 → 回第 1 页
+  void _resetPage() {
+    _currentPage = 0;
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(0);
+    }
   }
 
   @override
@@ -355,7 +344,6 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
           ref.read(characterListProvider.notifier).refresh();
         },
         child: CustomScrollView(
-          controller: _scrollController,
           slivers: [
             // ── 常态:Large Title 已砍(返工条目2);选择态:收缩小标题(同一 CustomScrollView)──
             if (_selectionMode)
@@ -395,11 +383,11 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                     hintText: l10n.searchCharacters,
                     onChanged: (value) => setState(() {
                       _searchQuery = value;
-                      _loadedPages = 1; // 搜索词变化回到第一批(C-T6)
+                      _resetPage(); // 搜索词变化回第 1 页(返工条目5)
                     }),
                     onClear: () => setState(() {
                       _searchQuery = '';
-                      _loadedPages = 1;
+                      _resetPage();
                     }),
                   ),
                 ),
@@ -459,37 +447,121 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                   ];
                 }
 
-                // C-T6:内存切片——首屏 pageSize 个,触底续批
-                final visible =
-                    filtered.take(pageSize * _loadedPages).toList();
+                // 返工条目5:按 pageSize 切多页,PageView 左右滑翻
+                final pageCount =
+                    (filtered.length + pageSize - 1) ~/ pageSize;
+                if (_currentPage > pageCount - 1) {
+                  _currentPage = pageCount - 1; // 数据收缩后收敛(下次 setState 落盘)
+                }
 
                 return [
-                  _CharacterGridView(
-                    characters: visible,
-                    selectionMode: _selectionMode,
-                    selectedIds: _selectedIds,
-                    onTap: (id) {
-                      if (_selectionMode) {
-                        _toggleSelect(id);
-                      } else {
-                        context.push('/characters/$id');
-                      }
-                    },
-                    onLongPress: (id) {
-                      if (!_selectionMode) _enterSelection(id);
-                      else _toggleSelect(id);
-                    },
+                  // 页码指示 `2/4`(搜索框下方)
+                  if (pageCount > 1)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: DesignTokens.spaceXs),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              CupertinoIcons.chevron_left,
+                              size: 12,
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.color,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${_currentPage + 1}/$pageCount',
+                              style: TextStyle(
+                                fontSize: DesignTokens.fontSizeSm,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.color,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              CupertinoIcons.chevron_right,
+                              size: 12,
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.color,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  SliverFillRemaining(
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: pageCount,
+                      onPageChanged: (i) =>
+                          setState(() => _currentPage = i),
+                      itemBuilder: (context, pageIndex) {
+                        final start = pageIndex * pageSize;
+                        final pageItems =
+                            filtered.skip(start).take(pageSize).toList();
+                        return GridView.builder(
+                          padding: const EdgeInsets.fromLTRB(
+                            DesignTokens.spaceMd,
+                            DesignTokens.spaceSm,
+                            DesignTokens.spaceMd,
+                            0,
+                          ),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.80, // C-T7:卡片矮化
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                          itemCount: pageItems.length,
+                          itemBuilder: (context, index) {
+                            final c = pageItems[index];
+                            return _StaggeredEntrance(
+                              index: index,
+                              child: _CharacterGridCard(
+                                character: c,
+                                selectionMode: _selectionMode,
+                                isSelected: _selectedIds.contains(c.id),
+                                onTap: () {
+                                  if (_selectionMode) {
+                                    _toggleSelect(c.id);
+                                  } else {
+                                    context.push('/characters/${c.id}');
+                                  }
+                                },
+                                onLongPress: () {
+                                  if (!_selectionMode) _enterSelection(c.id);
+                                  else _toggleSelect(c.id);
+                                },
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ];
               },
-              loading: () => const [_SkeletonGrid()],
+              loading: () => const [
+                SliverFillRemaining(child: _SkeletonGrid()),
+              ],
               error: (error, stack) => [
                 SliverFillRemaining(
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const Icon(Icons.error_outline,
+                            size: 48, color: DesignTokens.statusError),
                         const SizedBox(height: 16),
                         Text('${l10n.error}: $error'),
                         const SizedBox(height: 16),
@@ -571,8 +643,8 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
             for (final n in CharacterGridPageSizeNotifier.kChoices)
               CupertinoActionSheetAction(
                 onPressed: () {
-                  ref.read(characterGridPageSizeProvider.notifier).set(n);
-                  setState(() => _loadedPages = 1); // 档位变了回到第一批
+    ref.read(characterGridPageSizeProvider.notifier).set(n);
+    _resetPage(); // 档位变了回第 1 页(返工条目5)
                   Navigator.pop(sheetCtx);
                 },
                 child: Row(
@@ -598,61 +670,6 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
 
 }
 
-class _CharacterGridView extends ConsumerWidget {
-  final List<Character> characters;
-  final bool selectionMode;
-  final Set<String> selectedIds;
-  final void Function(String id) onTap;
-  final void Function(String id) onLongPress;
-
-  const _CharacterGridView({
-    required this.characters,
-    required this.selectionMode,
-    required this.selectedIds,
-    required this.onTap,
-    required this.onLongPress,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final pageSize = ref.watch(characterGridPageSizeProvider);
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(
-        DesignTokens.spaceMd,
-        DesignTokens.spaceSm,
-        DesignTokens.spaceMd,
-        0,
-      ),
-      sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.80, // C-T7:卡片矮化,一屏出更多
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final c = characters[index];
-            return _StaggeredEntrance(
-              // C-T7:错峰延迟按批内位置归一,避免续批后越滚越慢
-              index: index % pageSize,
-              child: _CharacterGridCard(
-                character: c,
-                selectionMode: selectionMode,
-                isSelected: selectedIds.contains(c.id),
-                onTap: () => onTap(c.id),
-                onLongPress: () => onLongPress(c.id),
-              ),
-            );
-          },
-          childCount: characters.length,
-        ),
-      ),
-    );
-  }
-}
-
-/// 列表项进场:错峰 50ms 淡入上移(宪法 §五)
 class _StaggeredEntrance extends StatelessWidget {
   final int index;
   final Widget child;
