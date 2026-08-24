@@ -1,88 +1,39 @@
+// lib/presentation/screens/settings/geek_dashboard_screen.dart
+/// 极客Core 仪表盘(返工条目4 v3:一张连续面板,分区聚合,控件全部就地)
+library;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:kirakira/presentation/theme/design_tokens.dart';
-import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kirakira/presentation/providers/cfg_scale_providers.dart';
-import 'package:kirakira/presentation/providers/settings_providers.dart';
-import 'package:kirakira/presentation/widgets/common/kira_components.dart';
-import 'package:kirakira/presentation/widgets/common/kira_grouped_tile.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
-import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
-import 'package:kirakira/presentation/providers/logit_bias_providers.dart';
-import 'package:kirakira/presentation/providers/tokenizer_providers.dart';
-import 'package:kirakira/presentation/providers/regex_providers.dart';
-import 'package:kirakira/presentation/providers/tts_providers.dart';
-import 'package:kirakira/presentation/providers/stt_providers.dart';
-import 'package:kirakira/presentation/providers/translation_providers.dart';
 import 'package:kirakira/presentation/providers/ai_preset_providers.dart';
+import 'package:kirakira/presentation/providers/cfg_scale_providers.dart';
+import 'package:kirakira/presentation/providers/logit_bias_providers.dart';
 import 'package:kirakira/presentation/providers/prompt_manager_providers.dart';
+import 'package:kirakira/presentation/providers/regex_providers.dart';
+import 'package:kirakira/presentation/providers/settings_providers.dart';
+import 'package:kirakira/presentation/providers/stt_providers.dart';
+import 'package:kirakira/presentation/providers/tokenizer_providers.dart';
+import 'package:kirakira/presentation/providers/translation_providers.dart';
+import 'package:kirakira/presentation/providers/tts_providers.dart';
+import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
+import 'package:kirakira/presentation/router/app_router.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 
-/// 极客Core 仪表盘(Block F v2:推翻网格,iOS 健康/设置 App 手法)
-///
-/// 结构(自上而下):
-///   0. Hero 摘要条(_HeroStrip)        —— 一行两区 inset-grouped 卡
-///   1. 功能 组(_FeatureCardsSection)  —— 7 张可展开功能卡(总开关+就地参数)
-///   2. 配置 组(_ConfigSection)        —— 3 行只读摘要 + 详情
-///   3. 快捷调整(_QuickAdjustSection)  —— 采样参数滑块自留地
-///   4. 更多 组(_MoreSection)          —— 剩余入口紧凑列表
 class GeekDashboardScreen extends ConsumerWidget {
   const GeekDashboardScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // F-T1:大标题
-          SliverAppBar.large(
-            title: Text(
-              '极客Core', // TODO(i18n): 待补 l10n key
-              style: Theme.of(context).textTheme.displayLarge,
-            ),
-            leading: IconButton(
-              icon: const Icon(CupertinoIcons.back),
-              onPressed: () => context.go('/settings'),
-            ),
-          ),
-          const SliverToBoxAdapter(
-            child: _SectionEntrance(index: 0, child: _HeroStrip()),
-          ),
-          const SliverToBoxAdapter(
-            child: _SectionEntrance(index: 1, child: _FeatureCardsSection()),
-          ),
-          const SliverToBoxAdapter(
-            child: _SectionEntrance(index: 2, child: _ConfigSection()),
-          ),
-          const SliverToBoxAdapter(
-            child: _SectionEntrance(index: 3, child: _QuickAdjustSection()),
-          ),
-          const SliverToBoxAdapter(
-            child: _SectionEntrance(index: 4, child: _MoreSection()),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 96)),
-        ],
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// F-T2 Hero 摘要条:一张 inset-grouped 卡,左右两区 + 中央 0.5 竖分隔
-// ═══════════════════════════════════════════════════════════════════════════
-class _HeroStrip extends ConsumerWidget {
-  const _HeroStrip();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final config = ref.watch(llmConfigProvider);
+
+    // ═══ Hero 数据准备 ═══
     final budgetRatio = config.contextLength <= 0
         ? 0.0
         : (config.maxTokens / config.contextLength).clamp(0.0, 1.0);
-
     final onlineCount = [
       ref.watch(isCFGActiveProvider),
       ref.watch(vectorStorageSettingsProvider).enabled,
@@ -91,8 +42,8 @@ class _HeroStrip extends ConsumerWidget {
       ref.watch(logitBiasSettingsProvider).enabled,
       ref.watch(tokenizerSettingsProvider).showTokenCount,
     ].where((e) => e).length;
+    final activePreset = ref.watch(activeAIPresetProvider);
 
-    // F-T2.3: 预算环语义色 —— 正常 accent(青) / >0.9 警告 / 超额错误
     final budgetColor = budgetRatio >= 1.0
         ? DesignTokens.statusError
         : budgetRatio > 0.9
@@ -101,757 +52,226 @@ class _HeroStrip extends ConsumerWidget {
     final onlineColor =
         onlineCount == 0 ? DesignTokens.statusError : DesignTokens.accent;
 
-    return Padding(
-      padding: DesignTokens.paddingScreen,
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(DesignTokens.radiusGroupedCard),
-          border: isDark
-              ? null
-              : Border.all(color: theme.dividerColor, width: 0.5),
-        ),
-        child: IntrinsicHeight(
-          child: Row(
-            children: [
-              // 左区:生成预算环 + maxTokens 大数字
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(DesignTokens.spaceMd),
-                  child: Row(
-                    children: [
-                      _RingGauge(
-                        value: budgetRatio,
-                        isDark: isDark,
-                        color: budgetColor,
-                      ),
-                      const SizedBox(width: DesignTokens.spaceMd),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '${config.maxTokens}',
-                              style: TextStyle(
-                                fontSize: DesignTokens.fontSizeDisplayLarge,
-                                fontWeight: DesignTokens.weightBold,
-                                color: budgetColor,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              'tokens / 次',
-                              style: TextStyle(
-                                fontSize: DesignTokens.fontSizeXs,
-                                color: theme.textTheme.bodySmall?.color,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              '极客Core', // TODO(i18n): 待补 l10n key
+              style: theme.textTheme.displayLarge,
+            ),
+            leading: IconButton(
+              icon: const Icon(CupertinoIcons.back),
+              onPressed: () => context.pop(),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: DesignTokens.paddingScreen,
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusCard),
+                  border: isDark
+                      ? null
+                      : Border.all(color: theme.dividerColor, width: 0.5),
                 ),
-              ),
-              // 中央竖分隔(0.5px separator)
-              VerticalDivider(
-                width: 0.5,
-                thickness: 0.5,
-                color: theme.dividerColor,
-                indent: 12,
-                endIndent: 12,
-              ),
-              // 右区:功能在线 + 胶囊进度
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(DesignTokens.spaceMd),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            '$onlineCount',
-                            style: TextStyle(
-                              fontSize: DesignTokens.fontSizeDisplayLarge,
-                              fontWeight: DesignTokens.weightBold,
-                              color: onlineColor,
-                            ),
-                          ),
-                          Text(
-                            ' / 6 项启用',
-                            style: TextStyle(
-                              fontSize: DesignTokens.fontSizeXs,
-                              color: theme.textTheme.bodySmall?.color,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: DesignTokens.spaceSm),
-                      _CapsuleProgressBar(
-                        value: onlineCount / 6,
-                        isDark: isDark,
-                        color: onlineColor,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// F-T3 功能组:7 张可展开功能卡
-// ═══════════════════════════════════════════════════════════════════════════
-class _FeatureCardsSection extends ConsumerWidget {
-  const _FeatureCardsSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final primaryDim = Theme.of(context).colorScheme.primary.withValues(alpha: 0.12);
-
-    final cfg = ref.watch(cfgScaleSettingsProvider);
-    final logit = ref.watch(logitBiasSettingsProvider);
-    final regex = ref.watch(regexSettingsProvider);
-    final scripts = ref.watch(globalRegexScriptsProvider);
-    final enabledScripts = scripts.where((s) => !s.disabled).length;
-    final rag = ref.watch(vectorStorageSettingsProvider);
-    final tts = ref.watch(ttsSettingsProvider);
-    final stt = ref.watch(sttSettingsProvider);
-    final trans = ref.watch(translationSettingsProvider);
-
-    return KiraSection.plain(
-      title: '功能',
-      child: Column(
-        children: [
-          // 1. CFG Scale
-          _FeatureCard(
-            icon: CupertinoIcons.speedometer,
-            iconBg: primaryDim,
-            title: 'CFG Scale',
-            enabled: cfg.enabled,
-            onToggle: (v) =>
-                ref.read(cfgScaleSettingsProvider.notifier).setEnabled(v),
-            summaryOn: 'Scale ${cfg.globalGuidanceScale.toStringAsFixed(1)}',
-            route: AppRoutes.cfgScaleSettings,
-            expanded: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: DesignTokens.spaceMd),
-              child: _DashboardSlider(
-                label: 'Scale',
-                value: cfg.globalGuidanceScale,
-                min: 0.1,
-                max: 30.0,
-                divisions: 299,
-                valueLabel: cfg.globalGuidanceScale.toStringAsFixed(1),
-                onChanged: (v) => ref
-                    .read(cfgScaleSettingsProvider.notifier)
-                    .setGlobalGuidanceScale(v),
-              ),
-            ),
-          ),
-          _cardGap(),
-          // 2. Logit 偏置
-          _FeatureCard(
-            icon: CupertinoIcons.line_horizontal_3_decrease,
-            iconBg: primaryDim,
-            title: 'Logit 偏置',
-            enabled: logit.enabled,
-            onToggle: (v) =>
-                ref.read(logitBiasSettingsProvider.notifier).setEnabled(v),
-            summaryOn: logit.activePreset != null
-                ? '已配置 ${logit.activePreset!.entries.length} 条偏置'
-                : '已启用',
-            route: AppRoutes.logitBiasSettings,
-          ),
-          _cardGap(),
-          // 3. 正则系统
-          _FeatureCard(
-            icon: CupertinoIcons.wand_stars,
-            iconBg: primaryDim,
-            title: '正则系统',
-            enabled: regex.enabled,
-            onToggle: (v) =>
-                ref.read(regexSettingsProvider.notifier).setEnabled(v),
-            summaryOn: '启用 $enabledScripts / 共 ${scripts.length} 个脚本',
-            route: AppRoutes.regexSettings,
-          ),
-          _cardGap(),
-          // 4. 向量 RAG
-          _FeatureCard(
-            icon: CupertinoIcons.square_stack_3d_up,
-            iconBg: primaryDim,
-            title: '向量 RAG',
-            enabled: rag.enabled,
-            onToggle: (v) =>
-                ref.read(vectorStorageSettingsProvider.notifier).setEnabled(v),
-            summaryOn:
-                'TopK ${rag.topK} · 阈值 ${rag.similarityThreshold.toStringAsFixed(2)}',
-            route: AppRoutes.vectorStorageSettings,
-            expanded: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: DesignTokens.spaceMd),
-              child: _DashboardSlider(
-                label: 'TopK',
-                value: rag.topK.toDouble(),
-                min: 1,
-                max: 20,
-                divisions: 19,
-                valueLabel: '${rag.topK}',
-                onChanged: (v) => ref
-                    .read(vectorStorageSettingsProvider.notifier)
-                    .setTopK(v.round().clamp(1, 20)),
-              ),
-            ),
-          ),
-          _cardGap(),
-          // 5. TTS 合成
-          _FeatureCard(
-            icon: CupertinoIcons.speaker_2,
-            iconBg: primaryDim,
-            title: 'TTS 合成',
-            enabled: tts.enabled,
-            onToggle: (v) =>
-                ref.read(ttsSettingsProvider.notifier).setEnabled(v),
-            summaryOn:
-                '语速 ${tts.rate.toStringAsFixed(1)}× · ${tts.voiceId ?? '默认声音'}',
-            route: AppRoutes.ttsSettings,
-            expanded: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: DesignTokens.spaceMd),
-              child: _DashboardSlider(
-                label: '语速',
-                value: tts.rate,
-                min: 0.5,
-                max: 2.0,
-                divisions: 30,
-                valueLabel: '${tts.rate.toStringAsFixed(1)}×',
-                onChanged: (v) =>
-                    ref.read(ttsSettingsProvider.notifier).setRate(v),
-              ),
-            ),
-          ),
-          _cardGap(),
-          // 6. STT 识别
-          _FeatureCard(
-            icon: CupertinoIcons.mic,
-            iconBg: primaryDim,
-            title: 'STT 识别',
-            enabled: stt.enabled,
-            onToggle: (v) =>
-                ref.read(sttSettingsProvider.notifier).setEnabled(v),
-            summaryOn:
-                '语言 ${stt.language}${stt.autoSend ? ' · 自动发送' : ''}',
-            route: AppRoutes.sttSettings,
-            expanded: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: DesignTokens.spaceMd),
-              child: KiraSwitchTile(
-                title: '自动发送',
-                subtitle: '说话结束后自动发送',
-                value: stt.autoSend,
-                onChanged: (v) =>
-                    ref.read(sttSettingsProvider.notifier).setAutoSend(v),
-              ),
-            ),
-          ),
-          _cardGap(),
-          // 7. 翻译
-          _FeatureCard(
-            icon: CupertinoIcons.globe,
-            iconBg: primaryDim,
-            title: '翻译',
-            enabled: trans.enabled,
-            onToggle: (v) =>
-                ref.read(translationSettingsProvider.notifier).setEnabled(v),
-            summaryOn:
-                '${trans.sourceLanguage} ⇄ ${trans.targetLanguage}${trans.autoTranslateIncoming ? ' · 入站自动' : ''}',
-            route: AppRoutes.translationSettings,
-            expanded: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: DesignTokens.spaceMd),
-              child: KiraSwitchTile(
-                title: '入站自动翻译',
-                subtitle: '收到消息时自动译为中文',
-                value: trans.autoTranslateIncoming,
-                onChanged: (v) => ref
-                    .read(translationSettingsProvider.notifier)
-                    .setAutoTranslateIncoming(v),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _cardGap() => const SizedBox(height: DesignTokens.spaceSm);
-}
-
-/// 可展开功能卡(F-T3 核心件)
-///
-/// 头行(44 高):彩块 icon 26×26 + 标题 17/w600 + 右侧 CupertinoSwitch;
-/// ON:头行+摘要行(13 secondary);OFF:头行+'已停用'(tertiary,整卡降低存在感);
-/// 点卡体非开关区 → 展开(250ms AnimatedSize),展开区 + 底部"高级设置 ›"推详情。
-class _FeatureCard extends StatefulWidget {
-  const _FeatureCard({
-    required this.icon,
-    required this.iconBg,
-    required this.title,
-    required this.enabled,
-    required this.onToggle,
-    required this.route,
-    this.summaryOn,
-    this.expanded,
-  });
-
-  final IconData icon;
-  final Color iconBg;
-  final String title;
-  final bool enabled;
-  final ValueChanged<bool> onToggle;
-  final String route;
-  final String? summaryOn;
-  final Widget? expanded;
-
-  @override
-  State<_FeatureCard> createState() => _FeatureCardState();
-}
-
-class _FeatureCardState extends State<_FeatureCard> {
-  bool _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(DesignTokens.radiusGroupedCard),
-        border: isDark
-            ? null
-            : Border.all(color: theme.dividerColor, width: 0.5),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ── 头行:icon + 标题 + 展开 chevron + 开关 ──
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => setState(() => _expanded = !_expanded),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  DesignTokens.spaceMd, 10, DesignTokens.spaceMd, 10,
-                ),
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: widget.iconBg,
-                        borderRadius: BorderRadius.circular(
-                            DesignTokens.radiusGroupedCard),
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(widget.icon,
-                          size: 15, color: theme.colorScheme.primary),
+                    // ── Hero 三合一状态带 ──
+                    _HeroBand(
+                      budgetRatio: budgetRatio,
+                      budgetColor: budgetColor,
+                      isDark: isDark,
+                      onlineCount: onlineCount,
+                      onlineColor: onlineColor,
+                      presetName: activePreset?.name,
                     ),
-                    const SizedBox(width: DesignTokens.spaceSm + 4),
-                    Expanded(
-                      child: Text(
-                        widget.title,
-                        style: TextStyle(
-                          fontSize: DesignTokens.fontSizeHeadline,
-                          fontWeight: FontWeight.w600,
-                          color: theme.textTheme.bodyLarge?.color,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      _expanded
-                          ? CupertinoIcons.chevron_up
-                          : CupertinoIcons.chevron_down,
-                      size: 14,
-                      color: theme.textTheme.bodySmall?.color,
-                    ),
-                    const SizedBox(width: DesignTokens.spaceSm),
-                    CupertinoSwitch(
-                      value: widget.enabled,
-                      onChanged: widget.onToggle,
-                      activeTrackColor: theme.colorScheme.primary,
-                    ),
+                    _vDivider(context),
+                    // ── ZONE 1 生成生成 ──
+                    const _ZoneLabel('生成生成'),
+                    const _SamplingBlock(),
+                    _vDivider(context),
+                    _linkMoreRow('更多采样参数',
+                        () => context.push(AppRoutes.advancedSettings)),
+                    _vDivider(context),
+                    // ── ZONE 2 工具链 ──
+                    const _ZoneLabel('工具链'),
+                    const _ToolchainBlock(),
+                    _vDivider(context),
+                    // ── ZONE 3 扩展 ──
+                    const _ZoneLabel('扩展'),
+                    const _ExtensionsBlock(),
                   ],
                 ),
               ),
             ),
           ),
-          // ── ON 摘要 / OFF 停用 / 展开区 ──
-          if (!widget.enabled)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  DesignTokens.spaceMd, 0, DesignTokens.spaceMd, 12),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '已停用',
-                  style: TextStyle(
-                    fontSize: DesignTokens.fontSizeSm,
-                    color: theme.textTheme.bodySmall?.color,
-                  ),
-                ),
-              ),
-            )
-          else if (!_expanded && widget.summaryOn != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  DesignTokens.spaceMd, 0, DesignTokens.spaceMd, 12),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  widget.summaryOn!,
-                  style: TextStyle(
-                    fontSize: DesignTokens.fontSizeSm,
-                    color: theme.textTheme.bodyMedium?.color,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          if (_expanded && widget.enabled) ...[
-            Divider(
-                height: 0.5, thickness: 0.5, color: theme.dividerColor),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  vertical: DesignTokens.spaceSm),
-              child: widget.expanded ?? const SizedBox.shrink(),
-            ),
-            // 进详情
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => context.push(widget.route),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd,
-                      DesignTokens.spaceSm, DesignTokens.spaceMd, DesignTokens.spaceSm),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '高级设置',
-                          style: TextStyle(
-                            fontSize: DesignTokens.fontSizeBodyMedium,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                      Icon(CupertinoIcons.chevron_forward,
-                          size: 16, color: theme.colorScheme.primary),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+          const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
       ),
     );
   }
-}
 
-// ═══════════════════════════════════════════════════════════════════════════
-// F-T4 配置组:3 行只读摘要 + 详情
-// ═══════════════════════════════════════════════════════════════════════════
-class _ConfigSection extends ConsumerWidget {
-  const _ConfigSection();
+  Widget _vDivider(BuildContext ctx) =>
+      Divider(height: 0.5, thickness: 0.5, color: Theme.of(ctx).dividerColor);
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-    final activePreset = ref.watch(activeAIPresetProvider);
-    final allPresets = ref.watch(allAIPresetsProvider);
-    final enabledPrompts = ref.watch(enabledPromptSectionsProvider);
-    final promptPreset = ref.watch(activePresetProvider);
-
-    final modelSub = (config.model.isEmpty)
-        ? '未选择模型 · maxTokens ${config.maxTokens}'
-        : '${config.model} · maxTokens ${config.maxTokens}';
-
-    return KiraSection(
-      title: '配置',
-      children: [
-        // API 高级参数(可展开行:流式输出 / 自动摘要两个真开关)
-        _ApiAdvancedTile(subtitle: modelSub),
-        KiraGroupedTile(
-          icon: CupertinoIcons.star,
-          iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-          title: 'AI 预设',
-          subtitle: activePreset == null
-              ? '未启用预设'
-              : '当前：${activePreset.name} · 共 ${allPresets.length} 套',
-          onTap: () => context.push(AppRoutes.aiPresets),
-        ),
-        KiraGroupedTile(
-          icon: CupertinoIcons.list_bullet,
-          iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-          title: '提示词管理',
-          subtitle: promptPreset == null
-              ? '启用 ${enabledPrompts.length} 段'
-              : '启用 ${enabledPrompts.length} 段 · 预设：${promptPreset.name}',
-          onTap: () => context.push(AppRoutes.promptManager),
-        ),
-      ],
-    );
-  }
-}
-
-/// API 高级参数:只读摘要行 + 展开区(流式输出/自动摘要 真开关,进详情)
-class _ApiAdvancedTile extends ConsumerStatefulWidget {
-  const _ApiAdvancedTile({required this.subtitle});
-
-  final String subtitle;
-
-  @override
-  ConsumerState<_ApiAdvancedTile> createState() => _ApiAdvancedTileState();
-}
-
-class _ApiAdvancedTileState extends ConsumerState<_ApiAdvancedTile> {
-  bool _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final config = ref.watch(llmConfigProvider);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        KiraGroupedTile(
-          icon: CupertinoIcons.slider_horizontal_3,
-          iconBg: theme.colorScheme.primary.withValues(alpha: 0.12),
-          title: 'API 高级参数',
-          subtitle: widget.subtitle,
-          trailing: Icon(
-            _expanded ? CupertinoIcons.chevron_up : CupertinoIcons.chevron_down,
-            size: 16,
-            color: theme.textTheme.bodySmall?.color,
-          ),
-          onTap: () => setState(() => _expanded = !_expanded),
-        ),
-        if (_expanded) ...[
-          Divider(height: 0.5, thickness: 0.5, color: theme.dividerColor),
-          KiraSwitchTile(
-            title: '流式输出',
-            subtitle: '实时显示生成内容',
-            value: config.streamEnabled,
-            onChanged: (v) =>
-                ref.read(llmConfigProvider.notifier).updateStreamEnabled(v),
-          ),
-          KiraSwitchTile(
-            title: '自动摘要',
-            subtitle: '长对话自动压缩上下文',
-            value: config.autoSummarizeEnabled,
-            onChanged: (v) =>
-                ref.read(llmConfigProvider.notifier).updateAutoSummarizeEnabled(v),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, 0,
-                DesignTokens.spaceMd, DesignTokens.spaceSm),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '自动摘要会额外消耗 API 额度',
+  Widget _linkMoreRow(String label, VoidCallback onTap) {
+    return Builder(builder: (context) {
+      final theme = Theme.of(context);
+      return InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spaceMd,
+              vertical: DesignTokens.spaceMd),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeBodyLarge,
+                    color: theme.textTheme.bodyLarge?.color,
+                  ),
+                ),
+              ),
+              Text(
+                '全部参数',
                 style: TextStyle(
                   fontSize: DesignTokens.fontSizeSm,
                   color: theme.textTheme.bodySmall?.color,
                 ),
               ),
-            ),
+              const SizedBox(width: 6),
+              Icon(CupertinoIcons.chevron_forward,
+                  size: 14, color: theme.textTheme.bodySmall?.color),
+            ],
           ),
-          KiraGroupedTile(
-            title: '更多采样参数',
-            trailing: Icon(CupertinoIcons.chevron_forward,
-                size: 16, color: theme.textTheme.bodySmall?.color),
-            onTap: () => context.push(AppRoutes.advancedSettings),
-          ),
-        ],
-      ],
-    );
+        ),
+      );
+    });
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// F-T5 快捷调整组:采样参数滑块自留地(沿 v1 结构,仅样式对齐)
+// Hero 三合一状态带:预算环·功能在线·预设名(无卡边,内部分区)
 // ═══════════════════════════════════════════════════════════════════════════
-class _QuickAdjustSection extends ConsumerWidget {
-  const _QuickAdjustSection();
+class _HeroBand extends StatelessWidget {
+  final double budgetRatio;
+  final Color budgetColor;
+  final bool isDark;
+  final int onlineCount;
+  final Color onlineColor;
+  final String? presetName;
+
+  const _HeroBand({
+    required this.budgetRatio,
+    required this.budgetColor,
+    required this.isDark,
+    required this.onlineCount,
+    required this.onlineColor,
+    required this.presetName,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-    final config = ref.watch(llmConfigProvider);
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tertiary = theme.textTheme.bodySmall?.color;
 
-    return KiraSection.plain(
-      title: '快捷调整',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: DesignTokens.spaceMd,
-          vertical: DesignTokens.spaceXs,
-        ),
-        child: Column(
+    return Padding(
+      padding: const EdgeInsets.all(DesignTokens.spaceMd),
+      child: IntrinsicHeight(
+        child: Row(
           children: [
-            _DashboardSlider(
-              label: l10n.temperature,
-              value: config.temperature,
-              min: 0.0,
-              max: 2.0,
-              divisions: 40,
-              onChanged: (v) =>
-                  ref.read(llmConfigProvider.notifier).updateTemperature(v),
-            ),
-            _DashboardSlider(
-              label: l10n.topPNucleusSampling,
-              value: config.topP,
-              min: 0.0,
-              max: 1.0,
-              divisions: 20,
-              onChanged: (v) =>
-                  ref.read(llmConfigProvider.notifier).updateTopP(v),
-            ),
-            _DashboardSlider(
-              label: l10n.topK,
-              value: config.topK.toDouble(),
-              min: 0,
-              max: 200,
-              divisions: 200,
-              valueLabel: config.topK.toString(),
-              onChanged: (v) =>
-                  ref.read(llmConfigProvider.notifier).updateTopK(v.round()),
-            ),
-            _CollapsibleSection(
-              label: '高级采样参数',
-              children: [
-                _DashboardSlider(
-                  label: l10n.minP,
-                  value: config.minP,
-                  min: 0.0,
-                  max: 1.0,
-                  divisions: 20,
-                  onChanged: (v) =>
-                      ref.read(llmConfigProvider.notifier).updateMinP(v),
-                ),
-                _DashboardSlider(
-                  label: l10n.typicalP,
-                  value: config.typicalP,
-                  min: 0.0,
-                  max: 1.0,
-                  divisions: 20,
-                  onChanged: (v) =>
-                      ref.read(llmConfigProvider.notifier).updateTypicalP(v),
-                ),
-                _DashboardSlider(
-                  label: l10n.topA,
-                  value: config.topA,
-                  min: 0.0,
-                  max: 1.0,
-                  divisions: 20,
-                  onChanged: (v) =>
-                      ref.read(llmConfigProvider.notifier).updateTopA(v),
-                ),
-                _DashboardSlider(
-                  label: l10n.tailFreeSamplingTfs,
-                  value: config.tailFreeSampling,
-                  min: 0.0,
-                  max: 1.0,
-                  divisions: 20,
-                  onChanged: (v) => ref
-                      .read(llmConfigProvider.notifier)
-                      .updateTailFreeSampling(v),
-                ),
-              ],
-            ),
-            _CollapsibleSection(
-              label: '重复惩罚',
-              children: [
-                _DashboardSlider(
-                  label: l10n.repetitionPenalty,
-                  value: config.repetitionPenalty,
-                  min: 1.0,
-                  max: 2.0,
-                  divisions: 20,
-                  onChanged: (v) => ref
-                      .read(llmConfigProvider.notifier)
-                      .updateRepetitionPenalty(v),
-                ),
-                _DashboardSlider(
-                  label: l10n.frequencyPenalty,
-                  value: config.frequencyPenalty,
-                  min: -2.0,
-                  max: 2.0,
-                  divisions: 40,
-                  onChanged: (v) => ref
-                      .read(llmConfigProvider.notifier)
-                      .updateFrequencyPenalty(v),
-                ),
-                _DashboardSlider(
-                  label: l10n.presencePenalty,
-                  value: config.presencePenalty,
-                  min: -2.0,
-                  max: 2.0,
-                  divisions: 40,
-                  onChanged: (v) => ref
-                      .read(llmConfigProvider.notifier)
-                      .updatePresencePenalty(v),
-                ),
-              ],
-            ),
-            _CollapsibleSection(
-              label: '生成控制',
-              children: [
-                _IntInputRow(
-                  label: l10n.maxTokens,
-                  value: config.maxTokens,
-                  onChanged: (v) =>
-                      ref.read(llmConfigProvider.notifier).updateMaxTokens(v),
-                ),
-                _IntInputRow(
-                  label: l10n.contextLength,
-                  value: config.contextLength,
-                  onChanged: (v) => ref
-                      .read(llmConfigProvider.notifier)
-                      .updateContextLength(v),
-                ),
-                _IntInputRow(
-                  label: l10n.seed,
-                  value: config.seed,
-                  onChanged: (v) =>
-                      ref.read(llmConfigProvider.notifier).updateSeed(v),
-                ),
-              ],
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => context.push(AppRoutes.advancedSettings),
-                icon: const Icon(Icons.more_horiz, size: 18),
-                label: const Text('更多采样参数'),
+            // 左:预算环 + 数字
+            SizedBox(
+              width: 72,
+              height: 72,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 72,
+                    height: 72,
+                    child: CircularProgressIndicator(
+                      value: budgetRatio,
+                      strokeWidth: 7,
+                      backgroundColor: isDark
+                          ? DesignTokens.darkCard
+                          : DesignTokens.lightFillTertiary,
+                      valueColor: AlwaysStoppedAnimation(budgetColor),
+                    ),
+                  ),
+                  Icon(CupertinoIcons.speedometer, size: 22, color: budgetColor),
+                ],
               ),
+            ),
+            const SizedBox(width: DesignTokens.spaceSm + 4),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${(budgetRatio * 100).round()}%',
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeXl,
+                    fontWeight: DesignTokens.weightBold,
+                    color: budgetColor,
+                  ),
+                ),
+                Text(
+                  'Token 预算',
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeXs,
+                    color: tertiary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  presetName == null ? '未启用预设' : presetName!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeXs,
+                    color: tertiary,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            // 中:功能在线计数
+            VerticalDivider(
+              width: 0.5,
+              thickness: 0.5,
+              indent: 8,
+              endIndent: 8,
+              color: theme.dividerColor,
+            ),
+            const Spacer(),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '$onlineCount',
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeDisplayLarge,
+                    fontWeight: DesignTokens.weightBold,
+                    color: onlineColor,
+                  ),
+                ),
+                Text(
+                  '/ 6 项启用',
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeXs,
+                    color: tertiary,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -861,53 +281,175 @@ class _QuickAdjustSection extends ConsumerWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// F-T6 更多组:剩余入口紧凑列表 + 分词器计数真开关
+// ZONE 1 生成生成:温度/TopP/TopK/maxTokens 滑块全部就地
 // ═══════════════════════════════════════════════════════════════════════════
-class _MoreSection extends ConsumerWidget {
-  const _MoreSection();
+class _SamplingBlock extends ConsumerWidget {
+  const _SamplingBlock();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final primaryDim =
-        Theme.of(context).colorScheme.primary.withValues(alpha: 0.12);
-    final showTokenCount =
-        ref.watch(tokenizerSettingsProvider).showTokenCount;
+    final l10n = AppLocalizations.of(context)!;
+    final config = ref.watch(llmConfigProvider);
+    final theme = Theme.of(context);
+    final accent = DesignTokens.accent;
 
-    return KiraSection(
-      title: '更多',
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          DesignTokens.spaceMd, 0, DesignTokens.spaceMd, DesignTokens.spaceSm),
+      child: Column(
+        children: [
+          _MiniSlider(
+            label: l10n.temperature,
+            value: config.temperature,
+            min: 0.0, max: 2.0, divisions: 40,
+            display: config.temperature.toStringAsFixed(2),
+            color: accent,
+            onChanged: (v) =>
+                ref.read(llmConfigProvider.notifier).updateTemperature(v),
+          ),
+          _MiniSlider(
+            label: l10n.topPNucleusSampling,
+            value: config.topP,
+            min: 0.0, max: 1.0, divisions: 20,
+            display: config.topP.toStringAsFixed(2),
+            color: accent,
+            onChanged: (v) =>
+                ref.read(llmConfigProvider.notifier).updateTopP(v),
+          ),
+          _MiniSlider(
+            label: 'Top K',
+            value: config.topK.toDouble(),
+            min: 0, max: 200, divisions: 200,
+            display: '${config.topK}',
+            color: accent,
+            onChanged: (v) =>
+                ref.read(llmConfigProvider.notifier).updateTopK(v.round()),
+          ),
+          _MiniSlider(
+            label: l10n.maxTokens,
+            value: config.maxTokens.toDouble(),
+            min: 64, max: 4096, divisions: 63,
+            display: '${config.maxTokens}',
+            color: accent,
+            onChanged: (v) =>
+                ref.read(llmConfigProvider.notifier).updateMaxTokens(v.round()),
+          ),
+          _MiniSlider(
+            label: l10n.contextLength,
+            value: config.contextLength.toDouble(),
+            min: 512, max: 131072, divisions: 32,
+            display: '${config.contextLength}',
+            color: accent,
+            onChanged: (v) => ref
+                .read(llmConfigProvider.notifier)
+                .updateContextLength(v.round()),
+          ),
+          Divider(
+              height: DesignTokens.spaceMd,
+              thickness: 0.5,
+              color: theme.dividerColor),
+          _InlineSwitch(
+            label: '流式输出',
+            subtitle: '实时显示生成内容',
+            value: config.streamEnabled,
+            onChanged: (v) =>
+                ref.read(llmConfigProvider.notifier).updateStreamEnabled(v),
+          ),
+          _InlineSwitch(
+            label: '自动摘要',
+            subtitle: '长对话自动压缩上下文',
+            value: config.autoSummarizeEnabled,
+            onChanged: (v) => ref
+                .read(llmConfigProvider.notifier)
+                .updateAutoSummarizeEnabled(v),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ZONE 2 工具链:icon·名称·就地开关·状态摘要·明显入口
+// ═══════════════════════════════════════════════════════════════════════════
+class _ToolchainBlock extends ConsumerWidget {
+  const _ToolchainBlock();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tts = ref.watch(ttsSettingsProvider);
+    final stt = ref.watch(sttSettingsProvider);
+    final trans = ref.watch(translationSettingsProvider);
+    final regex = ref.watch(regexSettingsProvider);
+    final scripts = ref.watch(globalRegexScriptsProvider);
+    final rag = ref.watch(vectorStorageSettingsProvider);
+    final enabledScripts = scripts.where((s) => !s.disabled).length;
+
+    return Column(
       children: [
-        KiraGroupedTile(
-          icon: CupertinoIcons.photo_on_rectangle, iconBg: primaryDim,
-          title: '图像生成',
+        _ToolchainRow(
+          icon: CupertinoIcons.speaker_2,
+          label: 'TTS 合成',
+          status: tts.enabled
+              ? '${tts.rate.toStringAsFixed(1)}× ${tts.voiceId ?? '默认'}'
+              : '已停用',
+          value: tts.enabled,
+          onToggle: (v) =>
+              ref.read(ttsSettingsProvider.notifier).setEnabled(v),
+          onTap: () => context.push(AppRoutes.ttsSettings),
+        ),
+        _ToolchainRow(
+          icon: CupertinoIcons.mic,
+          label: 'STT 识别',
+          status: stt.enabled
+              ? '${stt.language} · ${stt.autoSend ? '自动发送' : '手动'}'
+              : '已停用',
+          value: stt.enabled,
+          onToggle: (v) =>
+              ref.read(sttSettingsProvider.notifier).setEnabled(v),
+          onTap: () => context.push(AppRoutes.sttSettings),
+        ),
+        _ToolchainRow(
+          icon: CupertinoIcons.globe,
+          label: '翻译',
+          status: trans.enabled
+              ? '${trans.sourceLanguage}⇄${trans.targetLanguage}${trans.autoTranslateIncoming ? ' · 入站' : ''}'
+              : '已停用',
+          value: trans.enabled,
+          onToggle: (v) =>
+              ref.read(translationSettingsProvider.notifier).setEnabled(v),
+          onTap: () => context.push(AppRoutes.translationSettings),
+        ),
+        _ToolchainRow(
+          icon: CupertinoIcons.photo_on_rectangle,
+          label: '图片生成',
+          status: '未启用',
+          value: false,
+          onToggle: null,
           onTap: () => context.push(AppRoutes.imageGenSettings),
         ),
-        KiraGroupedTile(
-          icon: CupertinoIcons.smiley, iconBg: primaryDim,
-          title: '精灵图',
-          onTap: () => context.push(AppRoutes.spriteSettings),
+        _ToolchainRow(
+          icon: CupertinoIcons.wand_stars,
+          label: '正则系统',
+          status: regex.enabled
+              ? '$enabledScripts/${scripts.length} 脚本'
+              : '已停用',
+          value: regex.enabled,
+          onToggle: (v) =>
+              ref.read(regexSettingsProvider.notifier).setEnabled(v),
+          onTap: () => context.push(AppRoutes.regexSettings),
         ),
-        KiraGroupedTile(
-          icon: CupertinoIcons.square_list, iconBg: primaryDim,
-          title: '变量管理',
-          onTap: () => context.push(AppRoutes.variablesSettings),
-        ),
-        KiraGroupedTile(
-          icon: CupertinoIcons.chart_bar, iconBg: primaryDim,
-          title: '日志统计',
-          onTap: () => context.push(AppRoutes.statistics),
-        ),
-        KiraGroupedTile(
-          icon: CupertinoIcons.cube_box, iconBg: primaryDim,
-          title: 'MVU 变量框架',
-          onTap: () => context.push(AppRoutes.mvuSettings),
-        ),
-        KiraSwitchTile(
-          icon: CupertinoIcons.textformat_abc, iconBg: primaryDim,
-          title: '分词器计数',
-          subtitle: showTokenCount ? '已启用计数' : '计数关闭',
-          value: showTokenCount,
-          onChanged: (v) =>
-              ref.read(tokenizerSettingsProvider.notifier).setShowTokenCount(v),
+        _ToolchainRow(
+          icon: CupertinoIcons.square_stack_3d_up,
+          label: '向量 RAG',
+          status: rag.enabled
+              ? 'TopK ${rag.topK} · 阈值 ${rag.similarityThreshold.toStringAsFixed(2)}'
+              : '已停用',
+          value: rag.enabled,
+          onToggle: (v) =>
+              ref.read(vectorStorageSettingsProvider.notifier).setEnabled(v),
+          onTap: () => context.push(AppRoutes.vectorStorageSettings),
+          isLast: true,
         ),
       ],
     );
@@ -915,68 +457,242 @@ class _MoreSection extends ConsumerWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 小组件区(F-T5 沿用,样式对齐)
+// ZONE 3 扩展:剩余入口一行一行全部摆出来
 // ═══════════════════════════════════════════════════════════════════════════
+class _ExtensionsBlock extends ConsumerWidget {
+  const _ExtensionsBlock();
 
-/// 仪表盘紧凑滑块:标签 17,值 15/w600 primary,track 高 4(F-T5)
-class _DashboardSlider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activePreset = ref.watch(activeAIPresetProvider);
+    final enabledPrompts = ref.watch(enabledPromptSectionsProvider);
+    final promptPreset = ref.watch(activePresetProvider);
+    final cfg = ref.watch(cfgScaleSettingsProvider);
+    final logit = ref.watch(logitBiasSettingsProvider);
+    final showTokenCount = ref.watch(tokenizerSettingsProvider).showTokenCount;
+
+    return Column(
+      children: [
+        _ExtensionRow(
+          icon: CupertinoIcons.star,
+          label: 'AI 预设',
+          status: activePreset != null ? '当前:${activePreset.name}' : '未启用',
+          onTap: () => context.push(AppRoutes.aiPresets),
+        ),
+        _ExtensionRow(
+          icon: CupertinoIcons.list_bullet,
+          label: '提示词管理',
+          status:
+              '${enabledPrompts.length} 段${promptPreset != null ? ' · ${promptPreset.name}' : ''}',
+          onTap: () => context.push(AppRoutes.promptManager),
+        ),
+        _ExtensionRowWithSwitch(
+          icon: CupertinoIcons.speedometer,
+          label: 'CFG Scale',
+          status: cfg.enabled
+              ? 'Scale ${cfg.globalGuidanceScale.toStringAsFixed(1)}'
+              : '已停用',
+          value: cfg.enabled,
+          onToggle: (v) =>
+              ref.read(cfgScaleSettingsProvider.notifier).setEnabled(v),
+          onTap: () => context.push(AppRoutes.cfgScaleSettings),
+        ),
+        _ExtensionRowWithSwitch(
+          icon: CupertinoIcons.line_horizontal_3_decrease,
+          label: 'Logit 偏置',
+          status: logit.enabled
+              ? (logit.activePreset != null
+                  ? '${logit.activePreset!.entries.length} 条'
+                  : '已启用')
+              : '已停用',
+          value: logit.enabled,
+          onToggle: (v) =>
+              ref.read(logitBiasSettingsProvider.notifier).setEnabled(v),
+          onTap: () => context.push(AppRoutes.logitBiasSettings),
+        ),
+        _ExtensionRow(
+          icon: CupertinoIcons.cube_box,
+          label: 'MVU 变量框架',
+          status: '',
+          onTap: () => context.push(AppRoutes.mvuSettings),
+        ),
+        _ExtensionRowWithSwitch(
+          icon: CupertinoIcons.textformat_abc,
+          label: '分词器计数',
+          status: showTokenCount ? '输入框旁显示' : '已停用',
+          value: showTokenCount,
+          onToggle: (v) =>
+              ref.read(tokenizerSettingsProvider.notifier).setShowTokenCount(v),
+          onTap: () => context.push(AppRoutes.tokenizerSettings),
+        ),
+        _ExtensionRow(
+          icon: CupertinoIcons.square_list,
+          label: '变量管理',
+          status: '',
+          onTap: () => context.push(AppRoutes.variablesSettings),
+        ),
+        _ExtensionRow(
+          icon: CupertinoIcons.chart_bar,
+          label: '日志统计',
+          status: '',
+          onTap: () => context.push(AppRoutes.statistics),
+        ),
+        _ExtensionRow(
+          icon: CupertinoIcons.doc_text,
+          label: '日志查看器',
+          status: '',
+          onTap: () => context.push(AppRoutes.settingsLogs),
+          isLast: true,
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 组件:区段标签大写小灰字
+// ═══════════════════════════════════════════════════════════════════════════
+class _ZoneLabel extends StatelessWidget {
+  final String text;
+  const _ZoneLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          DesignTokens.spaceMd, 4, DesignTokens.spaceMd, 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          text.toUpperCase(),
+          style: TextStyle(
+            fontSize: DesignTokens.fontSizeSm,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.6,
+            color: Theme.of(context).textTheme.bodySmall?.color,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 组件:迷你滑块行(label · 数值 inline ·Track 4)
+// ═══════════════════════════════════════════════════════════════════════════
+class _MiniSlider extends StatelessWidget {
   final String label;
   final double value;
   final double min;
   final double max;
   final int divisions;
-  final String? valueLabel;
+  final String display;
+  final Color color;
   final ValueChanged<double> onChanged;
 
-  const _DashboardSlider({
+  const _MiniSlider({
     required this.label,
     required this.value,
     required this.min,
     required this.max,
     required this.divisions,
+    required this.display,
+    required this.color,
     required this.onChanged,
-    this.valueLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeBodyLarge,
+                  color: theme.textTheme.bodyLarge?.color,
+                ),
+              ),
+            ),
+            Text(
+              display,
+              style: TextStyle(
+                fontSize: DesignTokens.fontSizeBodyMedium,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 4,
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+            activeTrackColor: color,
+            inactiveTrackColor:
+                theme.textTheme.bodySmall?.color?.withValues(alpha: 0.18),
+            thumbColor: color,
+          ),
+          child: Slider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            divisions: divisions,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 组件:摆地开关行(标签 · 说明 · 开关)
+// ═══════════════════════════════════════════════════════════════════════════
+class _InlineSwitch extends StatelessWidget {
+  final String label;
+  final String? subtitle;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  const _InlineSwitch({
+    required this.label,
+    this.subtitle,
+    required this.value,
+    required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: DesignTokens.spaceSm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(label,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
                     style: TextStyle(
-                      fontSize: DesignTokens.fontSizeBodyLarge,
-                      color: theme.textTheme.bodyLarge?.color,
-                    )),
-              ),
-              Text(
-                valueLabel ?? value.toStringAsFixed(2),
-                style: TextStyle(
-                  fontSize: DesignTokens.fontSizeBodyMedium,
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+                        fontSize: DesignTokens.fontSizeBodyLarge,
+                        color: theme.textTheme.bodyLarge?.color)),
+                if (subtitle != null)
+                  Text(subtitle!,
+                      style: TextStyle(
+                          fontSize: DesignTokens.fontSizeXs,
+                          color: theme.textTheme.bodySmall?.color)),
+              ],
+            ),
           ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 4,
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-            ),
-            child: Slider(
-              value: value.clamp(min, max),
-              min: min,
-              max: max,
-              divisions: divisions,
-              onChanged: onChanged,
-            ),
+          CupertinoSwitch(
+            value: value,
+            onChanged: onChanged,
+            activeTrackColor: theme.colorScheme.primary,
           ),
         ],
       ),
@@ -984,295 +700,261 @@ class _DashboardSlider extends StatelessWidget {
   }
 }
 
-/// 可折叠区域(F-T5):箭头换 Cupertino,色次级
-class _CollapsibleSection extends StatefulWidget {
+// ═══════════════════════════════════════════════════════════════════════════
+// 组件:工具链行(icon + 名称 + 状态 + 就地开关 + 明显入口)
+// ═══════════════════════════════════════════════════════════════════════════
+class _ToolchainRow extends StatelessWidget {
+  final IconData icon;
   final String label;
-  final List<Widget> children;
-  const _CollapsibleSection({required this.label, required this.children});
+  final String status;
+  final bool value;
+  final ValueChanged<bool>? onToggle;
+  final VoidCallback onTap;
+  final bool isLast;
 
-  @override
-  State<_CollapsibleSection> createState() => _CollapsibleSectionState();
-}
-
-class _CollapsibleSectionState extends State<_CollapsibleSection> {
-  bool _expanded = false;
+  const _ToolchainRow({
+    required this.icon,
+    required this.label,
+    required this.status,
+    required this.value,
+    required this.onToggle,
+    required this.onTap,
+    this.isLast = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final sub = theme.textTheme.bodySmall?.color;
+    final primaryDim = theme.colorScheme.primary.withValues(alpha: 0.12);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        InkWell(
-          onTap: () => setState(() => _expanded = !_expanded),
-          borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSm),
-            child: Row(
-              children: [
-                Icon(
-                  _expanded
-                      ? CupertinoIcons.chevron_up
-                      : CupertinoIcons.chevron_down,
-                  size: 16,
-                  color: sub,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              DesignTokens.spaceMd, 6, DesignTokens.spaceSm, 6),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: primaryDim,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(width: 4),
-                Text(widget.label,
-                    style: TextStyle(
-                      color: theme.textTheme.bodyMedium?.color,
-                      fontWeight: FontWeight.w600,
-                    )),
-              ],
-            ),
+                alignment: Alignment.center,
+                child: Icon(icon,
+                    size: 16, color: theme.colorScheme.primary),
+              ),
+              const SizedBox(width: DesignTokens.spaceSm + 4),
+              Expanded(
+                child: InkWell(
+                  onTap: onTap,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: TextStyle(
+                              fontSize: DesignTokens.fontSizeBodyLarge,
+                              fontWeight: FontWeight.w600,
+                              color: theme.textTheme.bodyLarge?.color)),
+                      Text(status,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: DesignTokens.fontSizeXs,
+                              color: theme.textTheme.bodySmall?.color)),
+                    ],
+                  ),
+                ),
+              ),
+              if (onToggle != null)
+                CupertinoSwitch(
+                  value: value,
+                  onChanged: onToggle,
+                  activeTrackColor: theme.colorScheme.primary,
+                )
+              else
+                Icon(CupertinoIcons.chevron_forward,
+                    size: 16, color: theme.textTheme.bodySmall?.color),
+              const SizedBox(width: 4),
+              Icon(CupertinoIcons.chevron_forward,
+                  size: 14, color: theme.textTheme.bodySmall?.color),
+            ],
           ),
         ),
-        if (_expanded) ...widget.children,
+        if (!isLast)
+          Divider(
+              height: 0.5,
+              thickness: 0.5,
+              indent: DesignTokens.spaceMd + 42,
+              color: theme.dividerColor),
       ],
     );
   }
 }
 
-/// 整数输入行(F-T5):点击 → 底部 Sheet 输入(不弹 AlertDialog)
-class _IntInputRow extends StatelessWidget {
+// ═══════════════════════════════════════════════════════════════════════════
+// 组件:扩展入口行(无开关,纯入口)
+// ═══════════════════════════════════════════════════════════════════════════
+class _ExtensionRow extends StatelessWidget {
+  final IconData icon;
   final String label;
-  final int value;
-  final ValueChanged<int> onChanged;
+  final String status;
+  final VoidCallback onTap;
+  final bool isLast;
 
-  const _IntInputRow({
+  const _ExtensionRow({
+    required this.icon,
     required this.label,
-    required this.value,
-    required this.onChanged,
+    required this.status,
+    required this.onTap,
+    this.isLast = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: () => _showSheet(context),
-      borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceSm),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(label,
-                  style: TextStyle(
-                    fontSize: DesignTokens.fontSizeBodyLarge,
-                    color: theme.textTheme.bodyLarge?.color,
-                  )),
+    final primaryDim = theme.colorScheme.primary.withValues(alpha: 0.12);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                DesignTokens.spaceMd, 10, DesignTokens.spaceSm, 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: primaryDim,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(icon,
+                      size: 16, color: theme.colorScheme.primary),
+                ),
+                const SizedBox(width: DesignTokens.spaceSm + 4),
+                Expanded(
+                  child: Text(label,
+                      style: TextStyle(
+                          fontSize: DesignTokens.fontSizeBodyLarge,
+                          fontWeight: FontWeight.w600,
+                          color: theme.textTheme.bodyLarge?.color)),
+                ),
+                if (status.isNotEmpty) ...[
+                  Text(status,
+                      style: TextStyle(
+                          fontSize: DesignTokens.fontSizeXs,
+                          color: theme.textTheme.bodySmall?.color)),
+                  const SizedBox(width: 6),
+                ],
+                Icon(CupertinoIcons.chevron_forward,
+                    size: 14, color: theme.textTheme.bodySmall?.color),
+              ],
             ),
-            Text(
-              value.toString(),
-              style: TextStyle(
-                fontSize: DesignTokens.fontSizeBodyMedium,
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(CupertinoIcons.pencil,
-                size: 14, color: theme.textTheme.bodySmall?.color),
-          ],
+          ),
         ),
-      ),
+        if (!isLast)
+          Divider(
+              height: 0.5,
+              thickness: 0.5,
+              indent: DesignTokens.spaceMd + 42,
+              color: theme.dividerColor),
+      ],
     );
   }
+}
 
-  Future<void> _showSheet(BuildContext context) async {
-    final controller = TextEditingController(text: value.toString());
-    final result = await showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(DesignTokens.radiusBottomSheet),
-        ),
-      ),
-      builder: (sheetCtx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+// ═══════════════════════════════════════════════════════════════════════════
+// 组件:扩展入口行带开关(CFG / Logit / 分词器 等)
+// ═══════════════════════════════════════════════════════════════════════════
+class _ExtensionRowWithSwitch extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String status;
+  final bool value;
+  final ValueChanged<bool>? onToggle;
+  final VoidCallback onTap;
+  final bool isLast;
+
+  const _ExtensionRowWithSwitch({
+    required this.icon,
+    required this.label,
+    required this.status,
+    required this.value,
+    required this.onToggle,
+    required this.onTap,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryDim = theme.colorScheme.primary.withValues(alpha: 0.12);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              DesignTokens.spaceMd, 6, DesignTokens.spaceSm, 6),
+          child: Row(
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: DesignTokens.fontSizeHeadline,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              CupertinoTextField(
-                controller: controller,
-                keyboardType: TextInputType.number,
-                autofocus: true,
-                padding: const EdgeInsets.all(12),
+              Container(
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
-                  color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
-                  borderRadius:
-                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                  color: primaryDim,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon,
+                    size: 16, color: theme.colorScheme.primary),
+              ),
+              const SizedBox(width: DesignTokens.spaceSm + 4),
+              Expanded(
+                child: InkWell(
+                  onTap: onTap,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: TextStyle(
+                              fontSize: DesignTokens.fontSizeBodyLarge,
+                              fontWeight: FontWeight.w600,
+                              color: theme.textTheme.bodyLarge?.color)),
+                      Text(status,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: DesignTokens.fontSizeXs,
+                              color: theme.textTheme.bodySmall?.color)),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () {
-                    final parsed = int.tryParse(controller.text.trim());
-                    Navigator.pop(sheetCtx, parsed);
-                  },
-                  child: const Text('确定'),
+              if (onToggle != null) ...[
+                CupertinoSwitch(
+                  value: value,
+                  onChanged: onToggle,
+                  activeTrackColor: theme.colorScheme.primary,
                 ),
-              ),
+                const SizedBox(width: 4),
+              ],
+              Icon(CupertinoIcons.chevron_forward,
+                  size: 14, color: theme.textTheme.bodySmall?.color),
             ],
           ),
         ),
-      ),
-    );
-    if (result != null) onChanged(result);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// 保留的可视化件
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// 环形进度(F-T2:环宽 8、尺寸 64、动画 curveSpring 温和回弹)
-class _RingGauge extends StatelessWidget {
-  final double value; // 0.0~1.0
-  final Color color;
-  final bool isDark;
-
-  const _RingGauge({
-    required this.value,
-    required this.color,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: value.clamp(0.0, 1.0)),
-      duration: const Duration(milliseconds: 350),
-      curve: DesignTokens.curveSpring,
-      builder: (context, v, _) => SizedBox(
-        width: 64,
-        height: 64,
-        child: CustomPaint(
-          painter: _RingPainter(
-            value: v,
-            color: color,
-            trackColor: isDark
-                ? DesignTokens.darkCard
-                : DesignTokens.lightFillTertiary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RingPainter extends CustomPainter {
-  final double value;
-  final Color color;
-  final Color trackColor;
-
-  _RingPainter({
-    required this.value,
-    required this.color,
-    required this.trackColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const strokeWidth = 8.0;
-    final center = size.center(Offset.zero);
-    final radius = (size.shortestSide - strokeWidth) / 2;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-
-    final trackPaint = Paint()
-      ..color = trackColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-    canvas.drawCircle(center, radius, trackPaint);
-
-    final valuePaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(rect, -3.14159265 / 2, 2 * 3.14159265 * value, false, valuePaint);
-  }
-
-  @override
-  bool shouldRepaint(_RingPainter old) =>
-      old.value != value || old.color != color || old.trackColor != trackColor;
-}
-
-/// 胶囊进度条(功能在线等)
-class _CapsuleProgressBar extends StatelessWidget {
-  final double value;
-  final Color color;
-  final bool isDark;
-
-  const _CapsuleProgressBar({
-    required this.value,
-    required this.color,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: value.clamp(0.0, 1.0)),
-      duration: const Duration(milliseconds: DesignTokens.durationMd),
-      curve: DesignTokens.curveEmphasized,
-      builder: (context, v, _) => ClipRRect(
-        borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-        child: LinearProgressIndicator(
-          value: v,
-          minHeight: 6,
-          backgroundColor: isDark
-              ? DesignTokens.darkCard
-              : DesignTokens.lightFillTertiary,
-          valueColor: AlwaysStoppedAnimation(color),
-        ),
-      ),
-    );
-  }
-}
-
-/// 分区入场:错峰 50ms 淡入上移(保留,F-T1)
-class _SectionEntrance extends StatelessWidget {
-  final int index;
-  final Widget child;
-
-  const _SectionEntrance({required this.index, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    const duration = DesignTokens.durationMd;
-    final delay = index.clamp(0, 12) * 50;
-    final total = duration + delay;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: total),
-      curve: Interval(delay / total, 1, curve: DesignTokens.curveDecelerate),
-      builder: (context, t, child) => Opacity(
-        opacity: t,
-        child: Transform.translate(
-          offset: Offset(0, 12 * (1 - t)),
-          child: child,
-        ),
-      ),
-      child: child,
+        if (!isLast)
+          Divider(
+              height: 0.5,
+              thickness: 0.5,
+              indent: DesignTokens.spaceMd + 42,
+              color: theme.dividerColor),
+      ],
     );
   }
 }

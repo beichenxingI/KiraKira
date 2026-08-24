@@ -70,13 +70,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       BuildContext context, AppLocalizations l10n, Color iconBg) {
     return [
       // ══ 通用 ══
-      const SliverToBoxAdapter(
+      SliverToBoxAdapter(
         child: KiraSection(
           title: '通用',
-          children: [
+          children: const [
             _DarkModeTile(),
             _LanguageTile(),
             _PersonaTile(),
+            _CoreTile(),
           ],
         ),
       ),
@@ -371,6 +372,22 @@ class _VersionTile extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// 极客Core 入口(通用组尾;条目3 分工后设置→Core 唯一桥)
+class _CoreTile extends StatelessWidget {
+  const _CoreTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return KiraGroupedTile(
+      icon: CupertinoIcons.command,
+      iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+      title: '极客Core',
+      subtitle: '高级功能集中地 · 仪表盘',
+      onTap: () => context.push(AppRoutes.advanced),
     );
   }
 }
