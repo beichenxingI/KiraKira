@@ -1,11 +1,13 @@
 import 'dart:typed_data';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
 import 'package:kirakira/presentation/providers/image_gen_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/widgets/common/kira_components.dart';
 
 /// Screen for image generation settings
 class ImageGenSettingsScreen extends ConsumerWidget {
@@ -16,33 +18,37 @@ class ImageGenSettingsScreen extends ConsumerWidget {
     final settings = ref.watch(imageGenSettingsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.imageGeneration),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.restore),
-            tooltip: AppLocalizations.of(context)!.resetToDefaults,
-            onPressed: () {
-              ref.read(imageGenSettingsProvider.notifier).reset();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)!.settingsResetToDefaults)),
-              );
-            },
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              AppLocalizations.of(context)!.imageGeneration,
+              style: Theme.of(context).textTheme.displayLarge,
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.restore),
+                tooltip: AppLocalizations.of(context)!.resetToDefaults,
+                onPressed: () {
+                  ref.read(imageGenSettingsProvider.notifier).reset();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(AppLocalizations.of(context)!.settingsResetToDefaults)),
+                  );
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        children: [
+          SliverList(
+            delegate: SliverChildListDelegate([
           // Enable/Disable toggle
           _buildSection(
             context: context,
             title: AppLocalizations.of(context)!.general,
             children: [
-              SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.enableImageGeneration),
-                subtitle: Text(AppLocalizations.of(context)!.generateImagesUsingAi),
-                value: settings.enabled,
+              KiraSwitchTile(
+                  title: AppLocalizations.of(context)!.enableImageGeneration,
+                  subtitle: AppLocalizations.of(context)!.generateImagesUsingAi,
+                  value: settings.enabled,
                 onChanged: (value) {
                   ref.read(imageGenSettingsProvider.notifier).setEnabled(value);
                 },
@@ -305,20 +311,20 @@ class ImageGenSettingsScreen extends ConsumerWidget {
               context: context,
               title: 'NovelAI 设置',
               children: [
-                SwitchListTile(
-                  title: const Text('Anlas 保护'),
-                  subtitle: const Text('限制图片尺寸和步数以降低成本'),
-                  value: settings.novelaiAnlasGuard,
+                KiraSwitchTile(
+                    title: 'Anlas 保护',
+                    subtitle: '限制图片尺寸和步数以降低成本',
+                    value: settings.novelaiAnlasGuard,
                   onChanged: settings.enabled
                       ? (value) {
                           ref.read(imageGenSettingsProvider.notifier).setNovelaiAnlasGuard(value);
                         }
                       : null,
                 ),
-                SwitchListTile(
-                  title: const Text('SM (SMEA)'),
-                  subtitle: const Text('增强采样以获得更好细节'),
-                  value: settings.novelaiSm,
+                KiraSwitchTile(
+                    title: 'SM (SMEA)',
+                    subtitle: '增强采样以获得更好细节',
+                    value: settings.novelaiSm,
                   onChanged: settings.enabled
                       ? (value) {
                           ref.read(imageGenSettingsProvider.notifier).setNovelaiSm(value);
@@ -326,30 +332,30 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                       : null,
                 ),
                 if (settings.novelaiSm)
-                  SwitchListTile(
-                    title: const Text('SM DYN'),
-                    subtitle: const Text('动态 SMEA（更富创意）'),
-                    value: settings.novelaiSmDyn,
+                  KiraSwitchTile(
+                      title: 'SM DYN',
+                      subtitle: '动态 SMEA（更富创意）',
+                      value: settings.novelaiSmDyn,
                     onChanged: settings.enabled
                         ? (value) {
                             ref.read(imageGenSettingsProvider.notifier).setNovelaiSmDyn(value);
                           }
                         : null,
                   ),
-                SwitchListTile(
-                  title: const Text('Decrisper'),
-                  subtitle: const Text('减少图片过度饱和'),
-                  value: settings.novelaiDecrisper,
+                KiraSwitchTile(
+                    title: 'Decrisper',
+                    subtitle: '减少图片过度饱和',
+                    value: settings.novelaiDecrisper,
                   onChanged: settings.enabled
                       ? (value) {
                           ref.read(imageGenSettingsProvider.notifier).setNovelaiDecrisper(value);
                         }
                       : null,
                 ),
-                SwitchListTile(
-                  title: const Text('Variety+'),
-                  subtitle: const Text('生成图片的更高多样性'),
-                  value: settings.novelaiVarietyBoost,
+                KiraSwitchTile(
+                    title: 'Variety+',
+                    subtitle: '生成图片的更高多样性',
+                    value: settings.novelaiVarietyBoost,
                   onChanged: settings.enabled
                       ? (value) {
                           ref.read(imageGenSettingsProvider.notifier).setNovelaiVarietyBoost(value);
@@ -459,6 +465,10 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                 ),
             ],
           ),
+        ]),
+          ),
+          // root push 子页,无胶囊底栏,保留呼吸位
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     );
@@ -469,27 +479,10 @@ class ImageGenSettingsScreen extends ConsumerWidget {
     required String title,
     required List<Widget> children,
   }) {
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: DesignTokens.fontSizeBodyMedium,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.accentColor,
-              ),
-            ),
-          ),
-          ...children,
-        ],
-      ),
-    );
+    // D-T0:inset-grouped 一组一张卡(A-T4b 语义)
+    return KiraSection(title: title, children: children);
   }
-  
+
   Widget _buildModelSelector(BuildContext context, WidgetRef ref, ImageGenSettings settings) {
     final availableModels = ref.watch(availableModelsProvider);
     final fetchedState = ref.watch(fetchedModelsProvider);
@@ -509,7 +502,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           if (fetchedState.error != null)
             Text(
               'Error fetching models',
-              style: TextStyle(color: Colors.orange, fontSize: DesignTokens.fontSizeXs),
+              style: TextStyle(color: DesignTokens.statusWarning, fontSize: DesignTokens.fontSizeXs),
             ),
         ],
       ),
@@ -557,63 +550,125 @@ class ImageGenSettingsScreen extends ConsumerWidget {
 
   void _showApiKeyDialog(BuildContext context, WidgetRef ref, ImageGenSettings settings) {
     final controller = TextEditingController(text: settings.apiKey);
-    
-    showDialog(
+    final l10n = AppLocalizations.of(context)!;
+
+    // D-T2 规则 2:单字段输入 → 底部 Sheet(键盘顶起)
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.apiKey),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.apiKey,
-            hintText: AppLocalizations.of(context)!.enterApiKey,
-          ),
-          obscureText: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.apiKey,
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: controller,
+                obscureText: true,
+                autofocus: true,
+                placeholder: l10n.enterApiKey,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    ref
+                        .read(imageGenSettingsProvider.notifier)
+                        .setApiKey(controller.text);
+                    Navigator.pop(sheetCtx);
+                  },
+                  child: Text(l10n.save),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(imageGenSettingsProvider.notifier).setApiKey(controller.text);
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   void _showEndpointDialog(BuildContext context, WidgetRef ref, ImageGenSettings settings) {
     final controller = TextEditingController(text: settings.apiEndpoint);
-    
-    showDialog(
+    final l10n = AppLocalizations.of(context)!;
+
+    // D-T2 规则 2:单字段输入 → 底部 Sheet
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.apiEndpoint),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.apiEndpointUrl,
-            hintText: _getEndpointHint(settings.provider),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
+        ),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.apiEndpoint,
+                style: const TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: controller,
+                autofocus: true,
+                placeholder: _getEndpointHint(settings.provider),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    ref
+                        .read(imageGenSettingsProvider.notifier)
+                        .setApiEndpoint(controller.text);
+                    Navigator.pop(sheetCtx);
+                  },
+                  child: Text(l10n.save),
+                ),
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(imageGenSettingsProvider.notifier).setApiEndpoint(controller.text);
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
       ),
     );
   }
@@ -807,18 +862,18 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.1),
+                color: DesignTokens.statusError.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
-                border: Border.all(color: Colors.red),
+                border: Border.all(color: DesignTokens.statusError.withValues(alpha: 0.5)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error, size: 16, color: Colors.red),
+                  const Icon(Icons.error, size: 16, color: DesignTokens.statusError),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       genState.error!,
-                      style: const TextStyle(color: Colors.red),
+                      style: const TextStyle(color: DesignTokens.statusError),
                     ),
                   ),
                 ],
