@@ -1,11 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/chat_statistics.dart';
 import '../../providers/statistics_providers.dart';
-import '../../theme/app_theme.dart';
-import 'package:kirakira/l10n/generated/app_localizations.dart';
-import '../../widgets/common/kira_button.dart';
+import '../../widgets/common/common.dart';
 
 /// Screen for viewing app and chat statistics
 class StatisticsScreen extends ConsumerWidget {
@@ -16,41 +15,49 @@ class StatisticsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(chatId != null ? 'Chat Statistics' : 'App Statistics'),
-        actions: [
-          if (chatId == null)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: '重置统计数据',
-              onPressed: () => _showResetConfirmation(context, ref),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              chatId != null ? '会话统计' : '应用统计',
+              style: Theme.of(context).textTheme.displayLarge,
             ),
+            actions: [
+              if (chatId == null)
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: '重置统计数据',
+                  onPressed: () => _showResetConfirmation(context, ref),
+                ),
+            ],
+          ),
+          if (chatId != null)
+            SliverToBoxAdapter(child: _ChatStatisticsView(chatId: chatId!))
+          else
+            const SliverToBoxAdapter(child: _AppStatisticsView()),
+          const SliverToBoxAdapter(
+              child: SizedBox(height: DesignTokens.spaceXl)),
         ],
       ),
-      body: chatId != null
-          ? _ChatStatisticsView(chatId: chatId!)
-          : const _AppStatisticsView(),
     );
   }
 
   void _showResetConfirmation(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => CupertinoAlertDialog(
         title: const Text('重置统计数据'),
-        content: const Text(
-          'Are you sure you want to reset all statistics? This cannot be undone.',
-        ),
+        content: const Text('确定要重置全部统计数据吗？此操作无法撤销。'),
         actions: [
-          KiraButton(
-            variant: KiraButtonVariant.text,
-            onPressed: () => Navigator.pop(context),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('取消'),
           ),
-          KiraButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () {
               ref.read(appStatisticsProvider.notifier).reset();
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('统计数据已重置')),
               );
@@ -71,81 +78,77 @@ class _AppStatisticsView extends ConsumerWidget {
     final stats = ref.watch(appStatisticsProvider);
     final summary = ref.watch(statisticsSummaryProvider);
 
-    return ListView(
-      padding: const EdgeInsets.all(DesignTokens.spaceMd),
+    return Column(
       children: [
-        // Overview card
-        _StatisticsCard(
+        // 总览
+        KiraSection(
           title: '总览',
           icon: Icons.dashboard,
           children: [
             _StatRow(
-              label: 'First Used',
+              label: '首次使用',
               value: stats.appFirstUsed != null
                   ? _formatDate(stats.appFirstUsed!)
-                  : 'Unknown',
+                  : '未知',
             ),
             _StatRow(
-              label: 'Total Characters',
+              label: '累计字符数',
               value: summary.characterCount.toString(),
             ),
             _StatRow(
-              label: 'Total Chats',
+              label: '聊天总数',
               value: stats.totalChats.toString(),
             ),
             _StatRow(
-              label: 'Total Groups',
+              label: '群组总数',
               value: stats.totalGroups.toString(),
             ),
           ],
         ),
-        const SizedBox(height: 16),
 
-        // Messages card
-        _StatisticsCard(
+        // 消息
+        KiraSection(
           title: '消息',
           icon: Icons.message,
           children: [
             _StatRow(
-              label: 'Total Messages',
+              label: '消息总数',
               value: _formatNumber(stats.totalMessages),
             ),
             _StatRow(
-              label: 'Total Generations',
+              label: '生成次数',
               value: _formatNumber(stats.totalGenerations),
             ),
           ],
         ),
-        const SizedBox(height: 16),
 
-        // Tokens card
-        _StatisticsCard(
+        // Token 用量
+        KiraSection(
           title: 'Token 用量',
           icon: Icons.token,
           children: [
             _StatRow(
-              label: 'Total Tokens Used',
+              label: '累计 Token',
               value: _formatNumber(stats.totalTokensUsed),
             ),
             _StatRow(
-              label: 'Avg Tokens/Generation',
+              label: '平均 Token/次生成',
               value: stats.averageTokensPerGeneration.toStringAsFixed(1),
             ),
           ],
         ),
-        const SizedBox(height: 16),
 
-        // Performance card
-        _StatisticsCard(
+        // 性能
+        KiraSection(
           title: '性能',
           icon: Icons.speed,
           children: [
             _StatRow(
-              label: 'Total Generation Time',
+              label: '累计生成耗时',
               value: _formatDuration(stats.totalGenerationTime),
             ),
             _StatRow(
-              label: 'Avg Generation Time',
+              label: '平均生成耗时',
               value: _formatDuration(stats.averageGenerationTime),
             ),
           ],
@@ -167,104 +170,100 @@ class _ChatStatisticsView extends ConsumerWidget {
     return statsAsync.when(
       data: (stats) => _buildStatsList(context, stats),
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => Center(child: Text('加载失败: $e')),
     );
   }
 
   Widget _buildStatsList(BuildContext context, ChatStatistics stats) {
-    return ListView(
-      padding: const EdgeInsets.all(DesignTokens.spaceMd),
+    return Column(
       children: [
-        // Messages card
-        _StatisticsCard(
+        // 消息
+        KiraSection(
           title: '消息',
           icon: Icons.message,
           children: [
             _StatRow(
-              label: 'Total Messages',
+              label: '消息总数',
               value: stats.totalMessages.toString(),
             ),
             _StatRow(
-              label: 'User Messages',
+              label: '用户消息',
               value: stats.userMessages.toString(),
             ),
             _StatRow(
-              label: 'Assistant Messages',
+              label: '助手消息',
               value: stats.assistantMessages.toString(),
             ),
             _StatRow(
-              label: 'System Messages',
+              label: '系统消息',
               value: stats.systemMessages.toString(),
             ),
           ],
         ),
-        const SizedBox(height: 16),
 
-        // Timeline card
-        _StatisticsCard(
+        // 时间线
+        KiraSection(
           title: '时间线',
           icon: Icons.timeline,
           children: [
             _StatRow(
-              label: 'First Message',
+              label: '首条消息',
               value: stats.firstMessageAt != null
                   ? _formatDateTime(stats.firstMessageAt!)
-                  : 'N/A',
+                  : '暂无',
             ),
             _StatRow(
-              label: 'Last Message',
+              label: '最近消息',
               value: stats.lastMessageAt != null
                   ? _formatDateTime(stats.lastMessageAt!)
-                  : 'N/A',
+                  : '暂无',
             ),
             _StatRow(
-              label: 'Chat Duration',
+              label: '会话时长',
               value: _formatDuration(stats.chatDuration),
             ),
           ],
         ),
-        const SizedBox(height: 16),
 
-        // Tokens card
-        _StatisticsCard(
+        // Token 用量
+        KiraSection(
           title: 'Token 用量',
           icon: Icons.token,
           children: [
             _StatRow(
-              label: 'Total Tokens',
+              label: '累计 Token',
               value: _formatNumber(stats.totalTokensUsed),
             ),
             _StatRow(
-              label: 'Prompt Tokens',
+              label: '输入 Token',
               value: _formatNumber(stats.promptTokens),
             ),
             _StatRow(
-              label: 'Completion Tokens',
+              label: '输出 Token',
               value: _formatNumber(stats.completionTokens),
             ),
             _StatRow(
-              label: 'Avg Tokens/Message',
+              label: '平均 Token/条',
               value: stats.averageTokensPerMessage.toStringAsFixed(1),
             ),
           ],
         ),
-        const SizedBox(height: 16),
 
-        // Performance card
-        _StatisticsCard(
+        // 生成性能
+        KiraSection(
           title: '生成性能',
           icon: Icons.speed,
           children: [
             _StatRow(
-              label: 'Total Generations',
+              label: '生成次数',
               value: stats.generationCount.toString(),
             ),
             _StatRow(
-              label: 'Total Generation Time',
+              label: '累计生成耗时',
               value: _formatDuration(stats.totalGenerationTime),
             ),
             _StatRow(
-              label: 'Avg Generation Time',
+              label: '平均生成耗时',
               value: _formatDuration(stats.averageGenerationTime),
             ),
           ],
@@ -274,46 +273,7 @@ class _ChatStatisticsView extends ConsumerWidget {
   }
 }
 
-class _StatisticsCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Widget> children;
-
-  const _StatisticsCard({
-    required this.title,
-    required this.icon,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: AppTheme.accentColor, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
+/// 统计行:iOS 设置式「左标签 + 右值」纯信息行
 class _StatRow extends StatelessWidget {
   final String label;
   final String value;
@@ -325,24 +285,11 @@ class _StatRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: DesignTokens.spaceXs),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.textMuted,
-            ),
-          ),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+    return KiraGroupedTile(
+      title: label,
+      trailing: Text(
+        value,
+        style: Theme.of(context).textTheme.bodyMedium,
       ),
     );
   }
