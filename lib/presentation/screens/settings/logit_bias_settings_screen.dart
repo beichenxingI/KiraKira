@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,8 @@ import 'package:kirakira/presentation/providers/logit_bias_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/widgets/common/kira_components.dart';
+import 'logit_bias_preset_edit_screen.dart';
 
 /// Settings screen for Logit Bias configuration
 class LogitBiasSettingsScreen extends ConsumerStatefulWidget {
@@ -33,75 +36,109 @@ class _LogitBiasSettingsScreenState extends ConsumerState<LogitBiasSettingsScree
     final service = ref.watch(logitBiasServiceProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.logitBias),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: () => _showHelpDialog(context, service),
-            tooltip: AppLocalizations.of(context)!.help,
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(DesignTokens.spaceMd),
-        children: [
-          // Enable toggle
-          SwitchListTile(
-            title: Text(AppLocalizations.of(context)!.enableLogitBias),
-            subtitle: Text(AppLocalizations.of(context)!.adjustTokenProbabilities),
-            value: settings.enabled,
-            onChanged: (value) {
-              ref.read(logitBiasSettingsProvider.notifier).setEnabled(value);
-            },
-          ),
-          const Divider(height: 32),
-
-          // Preset selector
-          _buildSectionHeader(context, AppLocalizations.of(context)!.presets),
-          const SizedBox(height: 8),
-          _PresetSelector(
-            presets: settings.presets,
-            activePresetId: settings.activePresetId,
-            onPresetSelected: (id) {
-              ref.read(logitBiasSettingsProvider.notifier).setActivePreset(id);
-            },
-            onAddPreset: () => _showAddPresetDialog(context),
-            onEditPreset: (preset) => _showEditPresetDialog(context, preset),
-            onDeletePreset: (id) => _confirmDeletePreset(context, id),
-            onDuplicatePreset: (id) {
-              ref.read(logitBiasSettingsProvider.notifier).duplicatePreset(id);
-            },
-            onExportPreset: (id) => _exportPreset(context, id),
-            onImportPreset: () => _importPreset(context),
-          ),
-
-          if (settings.activePreset != null) ...[
-            const Divider(height: 32),
-            _buildSectionHeader(context, AppLocalizations.of(context)!.biasEntries),
-            const SizedBox(height: 8),
-            _BiasEntriesList(
-              entries: settings.activePreset!.entries,
-              onAddEntry: () {
-                final entry = LogitBiasEntry.create();
-                ref.read(logitBiasSettingsProvider.notifier).addEntry(entry);
-              },
-              onUpdateEntry: (entry) {
-                ref.read(logitBiasSettingsProvider.notifier).updateEntry(entry);
-              },
-              onDeleteEntry: (id) {
-                ref.read(logitBiasSettingsProvider.notifier).deleteEntry(id);
-              },
-              onToggleEntry: (id) {
-                ref.read(logitBiasSettingsProvider.notifier).toggleEntry(id);
-              },
-              onReorder: (oldIndex, newIndex) {
-                ref.read(logitBiasSettingsProvider.notifier).reorderEntries(oldIndex, newIndex);
-              },
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              AppLocalizations.of(context)!.logitBias,
+              style: Theme.of(context).textTheme.displayLarge,
             ),
-          ],
+            actions: [
+              IconButton(
+                icon: const Icon(CupertinoIcons.question_circle),
+                onPressed: () => _showHelpDialog(context, service),
+                tooltip: AppLocalizations.of(context)!.help,
+              ),
+            ],
+          ),
+          SliverList(
+            delegate: SliverChildListDelegate([
+              // Enable toggle
+              KiraSection(
+                title: '',
+                children: [
+                  KiraSwitchTile(
+                    title: AppLocalizations.of(context)!.enableLogitBias,
+                    subtitle:
+                        AppLocalizations.of(context)!.adjustTokenProbabilities,
+                    value: settings.enabled,
+                    onChanged: (value) {
+                      ref
+                          .read(logitBiasSettingsProvider.notifier)
+                          .setEnabled(value);
+                    },
+                  ),
+                ],
+              ),
 
-          const SizedBox(height: 32),
+              // Preset selector
+              Padding(
+                padding: DesignTokens.paddingScreen,
+                child: _buildSectionHeader(
+                    context, AppLocalizations.of(context)!.presets),
+              ),
+              const SizedBox(height: 8),
+              _PresetSelector(
+                presets: settings.presets,
+                activePresetId: settings.activePresetId,
+                onPresetSelected: (id) {
+                  ref
+                      .read(logitBiasSettingsProvider.notifier)
+                      .setActivePreset(id);
+                },
+                onAddPreset: () => _showAddPresetDialog(context),
+                onEditPreset: (preset) =>
+                    _showEditPresetDialog(context, preset),
+                onDeletePreset: (id) => _confirmDeletePreset(context, id),
+                onDuplicatePreset: (id) {
+                  ref
+                      .read(logitBiasSettingsProvider.notifier)
+                      .duplicatePreset(id);
+                },
+                onExportPreset: (id) => _exportPreset(context, id),
+                onImportPreset: () => _importPreset(context),
+              ),
+
+              if (settings.activePreset != null) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      DesignTokens.spaceMd, 24, DesignTokens.spaceMd, 0),
+                  child: _buildSectionHeader(
+                      context, AppLocalizations.of(context)!.biasEntries),
+                ),
+                const SizedBox(height: 8),
+                _BiasEntriesList(
+                  entries: settings.activePreset!.entries,
+                  onAddEntry: () {
+                    final entry = LogitBiasEntry.create();
+                    ref.read(logitBiasSettingsProvider.notifier).addEntry(entry);
+                  },
+                  onUpdateEntry: (entry) {
+                    ref
+                        .read(logitBiasSettingsProvider.notifier)
+                        .updateEntry(entry);
+                  },
+                  onDeleteEntry: (id) {
+                    ref
+                        .read(logitBiasSettingsProvider.notifier)
+                        .deleteEntry(id);
+                  },
+                  onToggleEntry: (id) {
+                    ref
+                        .read(logitBiasSettingsProvider.notifier)
+                        .toggleEntry(id);
+                  },
+                  onReorder: (oldIndex, newIndex) {
+                    ref
+                        .read(logitBiasSettingsProvider.notifier)
+                        .reorderEntries(oldIndex, newIndex);
+                  },
+                ),
+              ],
+
+              const SizedBox(height: 32),
+            ]),
+          ),
         ],
       ),
     );
@@ -118,108 +155,100 @@ class _LogitBiasSettingsScreenState extends ConsumerState<LogitBiasSettingsScree
   }
 
   void _showHelpDialog(BuildContext context, LogitBiasService service) {
-    showDialog(
+    // D-T2 规则 4:帮助/说明 → 底部 Sheet(半屏,内容可滚)
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.logitBiasHelp),
-        content: SingleChildScrollView(
-          child: Text(service.getHelpText()),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.close),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (ctx, scrollCtrl) => Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                child: Text(
+                  AppLocalizations.of(context)!.logitBiasHelp,
+                  style: const TextStyle(
+                    fontSize: DesignTokens.fontSizeHeadline,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Divider(height: 0.5),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollCtrl,
+                  padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                  child: Text(service.getHelpText()),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(sheetCtx),
+                    child: Text(AppLocalizations.of(context)!.close),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
+  /// D-T2 规则 3:新建预设(单字段)→ push 子页
   void _showAddPresetDialog(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.newPreset),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.presetName,
-            hintText: AppLocalizations.of(context)!.enterPresetName,
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                final preset = LogitBiasPreset.create(name: controller.text.trim());
-                ref.read(logitBiasSettingsProvider.notifier).addPreset(preset);
-                ref.read(logitBiasSettingsProvider.notifier).setActivePreset(preset.id);
-                Navigator.pop(context);
-              }
-            },
-            child: Text(AppLocalizations.of(context)!.create),
-          ),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            const LogitBiasPresetEditScreen(mode: PresetEditMode.create),
       ),
     );
   }
 
+  /// D-T2 规则 3:重命名预设 → push 子页
   void _showEditPresetDialog(BuildContext context, LogitBiasPreset preset) {
-    final controller = TextEditingController(text: preset.name);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.editPreset),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.presetName,
-          ),
-          autofocus: true,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LogitBiasPresetEditScreen(
+          mode: PresetEditMode.rename,
+          preset: preset,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                final updated = preset.copyWith(name: controller.text.trim());
-                ref.read(logitBiasSettingsProvider.notifier).updatePreset(updated);
-                Navigator.pop(context);
-              }
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
       ),
     );
   }
 
   void _confirmDeletePreset(BuildContext context, String presetId) {
-    showDialog(
+    // D-T2 规则 1:破坏确认 → CupertinoAlertDialog
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => CupertinoAlertDialog(
         title: Text(AppLocalizations.of(context)!.deletePreset),
         content: Text(AppLocalizations.of(context)!.deletePresetQuestion),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx),
             child: Text(AppLocalizations.of(context)!.cancel),
           ),
-          TextButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () {
               ref.read(logitBiasSettingsProvider.notifier).deletePreset(presetId);
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
@@ -242,43 +271,13 @@ class _LogitBiasSettingsScreenState extends ConsumerState<LogitBiasSettingsScree
     }
   }
 
+  /// D-T2 规则 3:导入预设(JSON 多行)→ push 子页
   void _importPreset(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.importPresetLabel),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.json,
-            hintText: AppLocalizations.of(context)!.pastePresetJson,
-          ),
-          maxLines: 5,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              try {
-                final json = jsonDecode(controller.text) as Map<String, dynamic>;
-                ref.read(logitBiasSettingsProvider.notifier).importPreset(json);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(AppLocalizations.of(context)!.presetImportedSuccessfully)),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(AppLocalizations.of(context)!.importPresetFailed(e.toString()))),
-                );
-              }
-            },
-            child: Text(AppLocalizations.of(context)!.import),
-          ),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            const LogitBiasPresetEditScreen(mode: PresetEditMode.importJson),
       ),
     );
   }
