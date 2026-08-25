@@ -19,9 +19,16 @@ class VariablesService {
   /// Storage key for global variables
   static const _globalStorageKey = 'global_variables';
 
+  /// 幂等旗:全局变量只从 SP 加载一次。
+  /// P5 修复:此前只有打开变量设置页才会触发加载,启动即写全局变量会用
+  /// 「空表+新 key」覆盖旧存档。所有全局写路径先走 initialize() 保证已载入。
+  bool _globalsLoaded = false;
+
   /// Initialize the service and load global variables
   Future<void> initialize() async {
+    if (_globalsLoaded) return;
     await _loadGlobalVariables();
+    _globalsLoaded = true;
   }
 
   Future<void> _loadGlobalVariables() async {
@@ -94,6 +101,7 @@ class VariablesService {
 
   /// Set a global variable value
   Future<void> setGlobalVariable(String name, dynamic value, {String? index, String? asType}) async {
+    await initialize(); // P5:先载入旧存档再写,防整表覆盖丢档
     if (name.isEmpty) {
       throw ArgumentError('Variable name cannot be empty');
     }
@@ -143,6 +151,7 @@ class VariablesService {
 
   /// Delete a global variable
   Future<void> deleteGlobalVariable(String name) async {
+    await initialize(); // P5:内存表未载入时删除会连带抹掉其它键
     _globalVariables.remove(name);
     await _saveGlobalVariables();
   }
@@ -160,6 +169,7 @@ class VariablesService {
 
   /// Add to a global variable (increment number or append string/array)
   Future<dynamic> addGlobalVariable(String name, dynamic value) async {
+    await initialize(); // P5:读改写前先载入
     final currentValue = getGlobalVariable(name);
     
     // Try to handle as array

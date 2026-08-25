@@ -7,6 +7,7 @@ import 'package:kirakira/data/repositories/chat_repository.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/domain/services/llm_service.dart';
+import 'package:kirakira/domain/services/variables_service.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/screens/import/import_screen.dart';
 
@@ -52,6 +53,8 @@ class InitializationModule {
   static Future<InitializationModule> create() async {
     final prefs = await SharedPreferences.getInstance();
     final initData = await InitializationService.initialize();
+    // P5:启动即载入全局变量,杜绝"未加载先写→空表覆盖存档"
+    await VariablesService.instance.initialize();
     return InitializationModule._(
       prefs: prefs,
       database: initData.database,
