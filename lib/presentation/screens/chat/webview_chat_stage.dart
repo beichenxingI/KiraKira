@@ -4417,37 +4417,10 @@ window.addEventListener('message', function(e) {
                   ejsMs.src = distUrl;
                   frame.contentDocument.head.appendChild(ejsMs);
 
-                  checkScript.textContent = `
-                    console.log('[EJS验证] 验证脚本已注入');
-                    setTimeout(async () => {
-                      console.log('[EJS验证] window._TH keys:', Object.keys(window._TH || {}));
-                      console.log('[EJS验证] substituteParams:', typeof window._TH?.substituteParams);
-                      
-                      // 尝试从 module 导出里拿
-                      try {
-                        const ejsBundleUrl = 'blob:http://...'; // 从日志里复制真实的 blob URL
-                        const ejsModule = await import(ejsBundleUrl);
-                        console.log('[EJS验证] EJS module exports:', Object.keys(ejsModule));
-                        
-                        // 如果有 substituteParams,挂到 window._TH
-                        if (ejsModule.substituteParams) {
-                          window._TH.substituteParams = ejsModule.substituteParams;
-                          console.log('[EJS验证] 已挂载 substituteParams 从 module');
-                          
-                          // 测试
-                          const testResult = window._TH.substituteParams('<% if (1===1) { %>YES<% } %>');
-                          console.log('[EJS验证] 测试结果:', testResult);
-                        } else {
-                          console.log('[EJS验证] module 没有导出 substituteParams');
-                        }
-                      } catch (e) {
-                        console.error('[EJS验证] import 失败:', e);
-                      }
-                    }, 1000);
-                  `;
-
+                  // P2 修正:此处原有 checkScript.textContent=... 验证脚本,
+                  // 但 checkScript 从未定义,行必抛 ReferenceError 被 catch,
+                  // 导致下方「EJS 模块已注入」日志永不出现、排障被误导,已删除。
                   parent.postMessage({__thLog:true,text:'[引擎房] EJS 模块已注入'},'*');
-                  
                 } else {
                   parent.postMessage({__thLog:true,text:'[引擎房] EJS bundle/stub 缺失'},'*');
                 }
