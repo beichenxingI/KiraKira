@@ -315,6 +315,9 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
+  // 条目2:最近一次点击的全局坐标(圆形炸开转场圆心)
+  Offset? _tapPosition;
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -531,11 +534,15 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                                 character: c,
                                 selectionMode: _selectionMode,
                                 isSelected: _selectedIds.contains(c.id),
+                                onTapDown: (d) =>
+                                    _tapPosition = d.globalPosition,
                                 onTap: () {
                                   if (_selectionMode) {
                                     _toggleSelect(c.id);
                                   } else {
-                                    context.push('/characters/${c.id}');
+                                    // 条目2:带命中点 → 圆形炸开转场
+                                    context.push('/characters/${c.id}',
+                                        extra: _tapPosition);
                                   }
                                 },
                                 onLongPress: () {
@@ -851,6 +858,8 @@ class _CharacterGridCard extends ConsumerWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
+  /// 条目2:捕获点击全局坐标,供圆形炸开转场定圆心
+  final GestureTapDownCallback? onTapDown;
 
   const _CharacterGridCard({
     required this.character,
@@ -858,6 +867,7 @@ class _CharacterGridCard extends ConsumerWidget {
     this.isSelected = false,
     required this.onTap,
     required this.onLongPress,
+    this.onTapDown,
   });
 
   @override
@@ -881,6 +891,7 @@ class _CharacterGridCard extends ConsumerWidget {
       child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
+          onTapDown: onTapDown,
           child: Stack(
             children: [
               Column(
@@ -959,11 +970,8 @@ class _CharacterGridCard extends ConsumerWidget {
             )
           : _defaultAvatar(),
     );
-    // 宪法 §五命门:列表卡→详情页容器变换 Hero(tag 契约:character-<id>)
-    return Hero(
-      tag: 'character-${character.id}',
-      child: avatar,
-    );
+    // 条目2:Hero 已拆除——封面与内容随圆形炸开转场一体揭开,不再单独飞
+    return avatar;
   }
 
   Widget _defaultAvatar() {

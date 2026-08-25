@@ -1,5 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'radial_reveal_route.dart';
 import 'package:kirakira/core/logger/logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -270,8 +272,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return _buildIosPushPage(
-              state.pageKey, CharacterDetailScreen(characterId: id));
+          final child = CharacterDetailScreen(characterId: id);
+          // 条目2:列表卡带命中点 → 圆形炸开一体转场;其余入口保持 iOS 侧滑
+          final extra = state.extra;
+          if (extra is Offset) {
+            return RadialRevealPage<void>(
+              key: state.pageKey,
+              tapPosition: extra,
+              child: child,
+            );
+          }
+          return _buildIosPushPage(state.pageKey, child);
         },
       ),
       GoRoute(
