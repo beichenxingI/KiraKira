@@ -309,13 +309,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
    @override
   void initState() {
     super.initState();
-    // 登记 EJS 渲染函数,供 LLMService 发送前渲染提示词
-ref.read(ejsRenderRegistryProvider).register(
-  (text) {
-    print('🌟 lambda被调用,收到text长度=${text.length}');
-    return _handleRenderEJS({'text': text});
-  },
-);
+                    // 登记 EJS 渲染函数,供 LLMService 发送前渲染提示词
+                    ref.read(ejsRenderRegistryProvider).register(
+                      (text) => _handleRenderEJS({'text': text}),
+                    );
     WidgetsBinding.instance.addObserver(this);
     _maskController.value = 1.0;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -967,13 +964,6 @@ ref.read(ejsRenderRegistryProvider).register(
   List<Map<String, dynamic>> _serializeMessagesForMvu() {
     final activeChat = ref.read(activeChatProvider);
     final messages = activeChat.messages;
-    final storeA = VariablesService.instance.getAllLocalVariables(widget.chatId);
-    for (var _bi = 0; _bi < messages.length; _bi++) {
-      debugPrint('[base定位] i=$_bi id=${messages[_bi].id} '
-          'swipeIdx=${messages[_bi].currentSwipeIndex} '
-          'swipesData=${jsonEncode(messages[_bi].swipesData)}');
-    }
-    debugPrint('[base定位] 存储A stat_data=${jsonEncode(storeA['stat_data'])}');
     final defaultCharName = activeChat.character?.name ?? 'Assistant';
     final result = <Map<String, dynamic>>[];
     for (var i = 0; i < messages.length; i++) {
@@ -1023,10 +1013,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           'swipes_data': effectiveSwipesData,
         });
       }
-    for (final r in result) {
-    }
-    for (var i = 0; i < messages.length; i++) {
-    }
     return result;
     }
   
@@ -1392,9 +1378,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             List.generate(swipes.length, (_) => <String, dynamic>{});
       }
       result.add(map);
-    }
-    for (final r in result) {
-      final sd = r['swipes_data'];
     }
     return result;
   }
@@ -2234,7 +2217,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
   Future<void> _sendMessage() async {
-    print('🧪 _sendMessage 被调用了,这是测试探针');
     final content = _inputController.text.trim();
     final attachments = List<ChatAttachment>.from(_pendingAttachments);
     // 文字和图片都没有才跳过
