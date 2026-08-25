@@ -225,6 +225,8 @@ String buildTavernHelperFacadeJs({
       'window.getCharacterLorebooks=_TH.getCharacterLorebooks;'  // MVU若喊长名
       '_TH.getCharLorebooks=_TH.getCharacterLorebooks;'          // MVU实际喊的短名
       'window.getCharLorebooks=_TH.getCharacterLorebooks;'       // 裸挂，让MVU够得着
+      '_TH.getCharWorldbookNames=function(t){return __thCall("getCharacterLorebooks",[]);};'  // MVU新版API名,initvar路径必调
+      'window.getCharWorldbookNames=_TH.getCharWorldbookNames;'
       '_TH.getLorebooks=function(){return __thCall("getLorebooks",[]);};'
       '_TH.getLorebookSettings=function(){return {selected_global_lorebooks:[]};};'
       'window.getLorebookSettings=_TH.getLorebookSettings;'
