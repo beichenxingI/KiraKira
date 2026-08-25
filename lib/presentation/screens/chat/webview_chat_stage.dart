@@ -1030,15 +1030,122 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return result;
     }
   
-  /// EJS 渲染桥:接收文本,发进引擎房跑 dist 的 EJS,返回渲染后的文本。
+  /// EJS 渲染桥:接收文本,发进引擎房跑 ST-Prompt-Template 的 evalTemplate,返回渲染后的文本。
+  ///
+  /// 主案 kick+poll:kick 脚本同步返回 seq id(零 Promise 穿桥依赖,老 WebView 也稳),
+  /// 渲染结果由 iframe 回调写进外层 window.__krRes 槽,Dart 轮询读取。
+  /// fail-open:任何失败回退 substituteParams 宏替换,再退原文,永不阻断发送。
   Future<String> _handleRenderEJS(Map<String, dynamic> payload) async {
     final text = payload['text'] as String? ?? '';
     if (text.isEmpty) return text;
 
-
     final controller = _controller;
     if (controller == null) return text;
 
+    try {
+      // ── 补验1修复:渲染前把 Dart 权威变量快照灌进引擎房镜像(__varSync 同形)──
+      // 此前镜像只在 MVU 经 th_setVars 写后局部同步,引擎房重建后从空开始,
+      // Flutter 宏写的 global/chat 变量从不进镜像 → EJS 会读到旧值或空值。
+      final snap = <String, dynamic>{
+        'global': VariablesService.instance.getAllGlobalVariables(),
+        'chat': VariablesService.instance.getAllLocalVariables(widget.chatId),
+        'message': null,
+        'mid': -1,
+        'sid': 0,
+      };
+      try {
+        final msgs = ref.read(activeChatProvider).messages;
+        for (var i = msgs.length - 1; i >= 0; i--) {
+          final sd = msgs[i].swipesData;
+          if (sd.isNotEmpty) {
+            final sid = msgs[i].currentSwipeIndex < 0 ? 0 : msgs[i].currentSwipeIndex;
+            snap['mid'] = i;
+            snap['sid'] = sid;
+            snap['message'] = sd[sid < sd.length ? sid : 0];
+            break;
+          }
+        }
+      } catch (_) {}
+
+      final kickJs = '''
+        (function() {
+          try {
+            var host = document.getElementById('__engineRoomHost');
+            var f = host && host.querySelector('iframe[data-frame-id="engine-room"]');
+            var w = f && f.contentWindow;
+            if (!(w && w.EjsTemplate && typeof w.EjsTemplate.evalTemplate === 'function')) return -1;
+            var snap = ${jsonEncode(snap)};
+            try {
+              if (w._TH) {
+                w._TH.__varCache.global = snap.global || {};
+                w._TH.__varCache.chat = snap.chat || {};
+                if (snap.message && typeof snap.mid === 'number' && snap.mid >= 0) {
+                  w._TH.__varCache.message[snap.mid] = snap.message;
+                  w.chat[snap.mid] = w.chat[snap.mid] || {};
+                  w.chat[snap.mid].variables = w.chat[snap.mid].variables || [];
+                  w.chat[snap.mid].variables[snap.sid || 0] = snap.message;
+                }
+              }
+              w.extension_settings = w.extension_settings || {};
+              w.extension_settings.variables = w.extension_settings.variables || { global: {} };
+              w.extension_settings.variables.global = snap.global || {};
+              w.chat_metadata = w.chat_metadata || { variables: {} };
+              w.chat_metadata.variables = snap.chat || {};
+            } catch (e1) {}
+            window.__krSeq = (window.__krSeq || 0) + 1;
+            var id = window.__krSeq;
+            window.__krRes = window.__krRes || {};
+            window.__krRes[id] = null;
+            var t = ${jsonEncode(text)};
+            w.EjsTemplate.evalTemplate(t).then(function(v) {
+              window.__krRes[id] = { ok: true, v: (v == null ? '' : String(v)) };
+            }).catch(function(e2) {
+              window.__krRes[id] = { ok: false, e: String((e2 && (e2.stack || e2.message)) || e2) };
+            });
+            return id;
+          } catch (e3) {
+            return -1;
+          }
+        })();
+      ''';
+
+      final idRaw = await controller.evaluateJavascript(source: kickJs);
+      final idNum = idRaw is num ? idRaw.toInt() : int.tryParse(idRaw?.toString() ?? '');
+      if (idNum == null || idNum < 0) {
+        return await _macroFallbackRender(controller, text);
+      }
+
+      const pollInterval = Duration(milliseconds: 20);
+      const deadline = Duration(milliseconds: 8000);
+      final end = DateTime.now().add(deadline);
+      while (DateTime.now().isBefore(end)) {
+        await Future<void>.delayed(pollInterval);
+        final pollJs =
+            "(function(){var r=window.__krRes&&window.__krRes[$idNum];"
+            "if(r){delete window.__krRes[$idNum];return JSON.stringify(r);}return 'null';})()";
+        final raw = await controller.evaluateJavascript(source: pollJs);
+        final rawStr = raw?.toString();
+        if (rawStr == null || rawStr.isEmpty || rawStr == 'null') continue;
+        Map<String, dynamic>? res;
+        try {
+          res = (jsonDecode(rawStr) as Map?)?.cast<String, dynamic>();
+        } catch (_) {}
+        if (res == null) continue;
+        if (res['ok'] == true) {
+          return res['v']?.toString() ?? '';
+        }
+        KiraLogger().info('EJS渲染', 'evalTemplate 失败,回退宏替换: ${res['e']}');
+        break;
+      }
+      return await _macroFallbackRender(controller, text);
+    } catch (e) {
+      KiraLogger().info('EJS渲染', '渲染失败 error=$e');
+      return text;
+    }
+  }
+
+  /// 宏替换兜底(原 th_renderEJS 行为):{{user}}/{{char}}/<user>/<char>。
+  Future<String> _macroFallbackRender(dynamic controller, String text) async {
     try {
       final js = '''
         (function() {
@@ -1054,14 +1161,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           }
         })();
       ''';
-
       final result = await controller.evaluateJavascript(source: js);
-      if (result != null && result is String) {
-        return result;
-      }
+      if (result != null && result is String) return result;
       return text;
     } catch (e) {
-      KiraLogger().info('EJS渲染', '渲染失败 error=$e');
+      KiraLogger().info('EJS渲染', '宏替换兜底也失败 error=$e');
       return text;
     }
   }
