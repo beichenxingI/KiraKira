@@ -101,6 +101,12 @@ class _CharacterEditorScreenState extends ConsumerState<CharacterEditorScreen> w
         final created = await notifier.addCharacter(newChar);
         _editingCharacterId = created.id;
         if (mounted) { _tabController?.dispose(); _initTabs(2); setState(() {}); }
+        // 条目1:提示已同步生成绑定世界书(正则集随卡自带空集)
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('已创建,并同步生成本卡专属世界书')),
+          );
+        }
       }
       if (mounted) {
         final l10n = AppLocalizations.of(context);

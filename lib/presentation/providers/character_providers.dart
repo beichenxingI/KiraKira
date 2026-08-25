@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/presentation/providers/world_info_providers.dart';
 
 // Note: characterRepositoryProvider is defined in character_repository.dart
 
@@ -31,6 +32,17 @@ class CharacterListNotifier extends AsyncNotifier<List<Character>> {
   Future<Character> addCharacter(Character character) async {
     final repo = ref.read(characterRepositoryProvider);
     final createdCharacter = await repo.createCharacter(character);
+    // 条目1:新建角色同步生成绑定空世界书(角色正则集存 extensions,天然自带空集)
+    try {
+      await ref.read(worldInfoNotifierProvider.notifier).createWorldInfo(
+            name:
+                '${createdCharacter.name.isEmpty ? '未命名角色' : createdCharacter.name} 的世界书',
+            isGlobal: false,
+            characterId: createdCharacter.id,
+          );
+    } catch (_) {
+      // 建书失败不阻断建卡;编辑器 WorldBook tab 仍有手动新建入口
+    }
     await refresh();
     return createdCharacter;
   }
