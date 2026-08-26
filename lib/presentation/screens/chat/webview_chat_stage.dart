@@ -588,6 +588,17 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     mediaPlaybackRequiresUserGesture: false,
                     useHybridComposition: true,
                   ),
+                  // [WV-6] Android renderer 被系统 OOM 杀死时此前无人处理 → 永久白屏无日志。
+                  // 本轮唯一功能性新增:记录崩溃并自动重载恢复(重载后由人类复测观察消息是否回来)。
+                  onRenderProcessGone: (controller, detail) {
+                    print('[WV-6] RENDER PROCESS GONE didCrash=${detail.didCrash} -> auto reload');
+                    controller.reload();
+                    Future.delayed(const Duration(milliseconds: 800), () {
+                      if (mounted) {
+                        _pushMessages();
+                      }
+                    });
+                  },
                   onWebViewCreated: (c) {
                     _controller = c;
                     _bridge.attach(c);
@@ -2826,6 +2837,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             extensionSet: md.ExtensionSet.gitHubWeb,
           ));
     final attachmentsHtml = _buildAttachmentsHtml(m);
+    // [WV-1] 每条消息进管线的特征(实证症状3/4的分流依据)
+    final wvScript = RegExp(r'<script', caseSensitive: false).hasMatch(m.content);
+    final wvStyle = RegExp(r'<style', caseSensitive: false).hasMatch(m.content);
+    final wvHtmlTag = RegExp(r'<[a-zA-Z]', caseSensitive: false).hasMatch(m.content);
+    print('[WV-1] id=${m.id} role=${m.role.name} len=${m.content.length} '
+        'script=$wvScript style=$wvStyle htmlTag=$wvHtmlTag '
+        'fence=${htmlFenceMatch != null} rich=$looksLikeHtml');
+    // [WV-2] 各步骤长度轨迹(raw→regex→fenceUnwrap→split→render),定位转义/吞内容步
+    print('[WV-2] id=${m.id} raw=${m.content.length} afterRegex=${rawContent.length} '
+        'afterUnwrap=${processed.length} body=${bodyForRender.length} rendered=${rendered.length}');
     return {
       'id': m.id,
       'role': m.role.name,
@@ -3776,6 +3797,22 @@ function injectBridge(html, id) {
     return html + patch;
   }
 
+  // [WV-4/5] 探针基线:全局计数、活跃 interval 计数、顶层错误捕获(只观测,不改行为)
+  window.__wvBaseGlobals = Object.keys(window).length;
+  window.__wvActiveIntervals = 0;
+  (function(){
+    var _si = window.setInterval ? window.setInterval.bind(window) : null;
+    var _ci = window.clearInterval ? window.clearInterval.bind(window) : null;
+    if (_si) { window.setInterval = function(){ window.__wvActiveIntervals++; return _si.apply(null, arguments); }; }
+    if (_ci) { window.clearInterval = function(id){ window.__wvActiveIntervals = Math.max(0, window.__wvActiveIntervals - 1); return _ci(id); }; }
+  })();
+  window.addEventListener('error', function(ev){
+    try { sendToFlutter('log', { text: '[WV-4] onerror msg=' + ev.message + ' line=' + ev.lineno + ' stack=' + ((ev.error && ev.error.stack) || '') }); } catch(e){}
+  });
+  window.addEventListener('unhandledrejection', function(ev){
+    try { var r = ev.reason; sendToFlutter('log', { text: '[WV-4] unhandledrejection reason=' + ((r && (r.stack || r.message)) || r) }); } catch(e){}
+  });
+
 window.addEventListener('message', function(e) {
     var d = e.data;
     if (d && d.__thLog) {
@@ -3783,6 +3820,11 @@ window.addEventListener('message', function(e) {
     }
     if (d && d.__cardHeight) {
       var f = document.querySelector('iframe[data-frame-id="' + d.id + '"]');
+      // [WV-7] 高度回传轨迹与异常值(0/负/找不到 frame)
+      if (!f || !(d.height > 0)) {
+        try { sendToFlutter('log', { text: '[WV-7] ABNORMAL cardHeight id=' + d.id + ' h=' + d.height + ' frameFound=' + (!!f) }); } catch (_wv7a) {}
+      }
+      try { sendToFlutter('log', { text: '[WV-7] cardHeight id=' + d.id + ' h=' + d.height }); } catch (_wv7b) {}
       if (f && d.height > 0) {
         // 整页 vh 卡(body:min-height:100vh + flex 居中)需要"视口高度"的舞台才能正确布局，
         // 否则 flex 居中在被压缩的空间里错位(按钮偏移等)。给视口高度地板，内容更高则用内容高。
@@ -4052,6 +4094,8 @@ window.addEventListener('message', function(e) {
     try {
       var arr = JSON.parse(decodeB64Utf8(b64));
       var root = document.getElementById('root');
+      // [WV-3] 注入模式与数量(FULL-REBUILD=全量清空重建 / PREPEND=历史前插 / APPEND=追加)
+      try { sendToFlutter('log', { text: '[WV-3] setMessages mode=' + ((options && options.initial) ? 'FULL-REBUILD' : ((options && options.prepend) ? 'PREPEND' : 'APPEND')) + ' count=' + arr.length }); } catch (_wv3a) {}
       
       // 头像+名字：存全局，所有气泡共享同一份，不重复解码
       if (options && options.avatars) {
@@ -4156,6 +4200,15 @@ window.addEventListener('message', function(e) {
         }
       }
 
+      // [WV-4/WV-5] 每轮 setMessages 后的资源与冲突计数(只观测,不改行为)
+      try {
+        var _ids = document.querySelectorAll('[id]');
+        var _seen = {}, _dup = 0;
+        for (var _q = 0; _q < _ids.length; _q++) { var _v = _ids[_q].getAttribute('id'); if (_seen[_v]) { _dup++; } else { _seen[_v] = 1; } }
+        sendToFlutter('log', { text: '[WV-5] nodes=' + document.getElementsByTagName('*').length + ' groups=' + document.querySelectorAll('.msg-group').length + ' cardIframes=' + document.querySelectorAll('iframe.card-frame').length + ' activeIntervals=' + (window.__wvActiveIntervals || 0) });
+        sendToFlutter('log', { text: '[WV-4] dupIds=' + _dup + ' globalsDelta=' + (Object.keys(window).length - (window.__wvBaseGlobals || 0)) });
+      } catch (_wv4e) {}
+
       if (options && !options.prepend) {
         scrollToBottomWhenStable();
       }
@@ -4258,6 +4311,8 @@ window.addEventListener('message', function(e) {
     if (!wrap) return;
     var stream = wrap.querySelector('.stream-text');
     if (!stream) {
+      // [WV-3] 首个 token 到达时若 wrap 里已有内容(旧卡),会被整块清掉——症状5候选机制
+      try { sendToFlutter('log', { text: '[WV-3] appendToken CLEARED-WRAP id=' + id + ' hadHtml=' + (wrap.innerHTML.length > 0) }); } catch (_wv3b) {}
       wrap.innerHTML = '';
       stream = document.createElement('div');
       stream.className = 'stream-text';
