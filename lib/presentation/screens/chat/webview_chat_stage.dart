@@ -1093,6 +1093,24 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             var id = window.__krSeq;
             window.__krRes = window.__krRes || {};
             window.__krRes[id] = null;
+            // [TPL-1] 一次性 dump 模板作用域全量 key(EjsTemplate.prepareContext 即上游 Hf)
+            if (!window.__krTplDumped) {
+              window.__krTplDumped = true;
+              try {
+                w.EjsTemplate.prepareContext().then(function(ctx) {
+                  var detail = {};
+                  var ks = Object.keys(ctx);
+                  for (var ki = 0; ki < ks.length; ki++) {
+                    try { detail[ks[ki]] = typeof ctx[ks[ki]]; } catch (e5) { detail[ks[ki]] = 'unreadable'; }
+                  }
+                  sendToFlutter('log', { text: '[TPL-1] scope keys=' + ks.length + ' ' + JSON.stringify(detail) });
+                }).catch(function(e6) {
+                  sendToFlutter('log', { text: '[TPL-1] prepareContext ERR ' + e6 });
+                });
+              } catch (e7) {
+                sendToFlutter('log', { text: '[TPL-1] ERR ' + e7 });
+              }
+            }
             var t = ${jsonEncode(text)};
             w.EjsTemplate.evalTemplate(t).then(function(v) {
               try { if (typeof sendToFlutter === 'function') sendToFlutter('log', { text: '[EJSD-4] slot-write realm_outer=' + (window === parent) + ' id=' + id + ' vlen=' + ((v == null) ? -1 : String(v).length) }); } catch (_e5) {}
