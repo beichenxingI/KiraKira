@@ -1029,6 +1029,13 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (controller == null) return text;
 
     try {
+      // E4:不含模板标签的内容不发起 kick+poll,直走宏替换快路径。
+      // (保留 {{user}}/{{char}} 宏行为;较原全量 kick 省去 25-75ms/条)
+      if (!text.contains('<%')) {
+        print('[EJSD-5] no-tag fast path -> macro only len=${text.length}');
+        return await _macroFallbackRender(controller, text);
+      }
+
       // ── 补验1修复:渲染前把 Dart 权威变量快照灌进引擎房镜像(__varSync 同形)──
       // 此前镜像只在 MVU 经 th_setVars 写后局部同步,引擎房重建后从空开始,
       // Flutter 宏写的 global/chat 变量从不进镜像 → EJS 会读到旧值或空值。
