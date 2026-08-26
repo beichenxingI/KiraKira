@@ -1767,6 +1767,16 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   }
 
   /// Build messages for a single prompt section
+  /// A3-T1: 判定 section.content 是否仍是「预填默认文案」(非用户手改)。
+  /// 空 或 与 getDefaultContent 相同 → 视为未动;不同 → 用户真改过。
+  /// 用于实现优先级: 用户手改 > 角色卡字段 > 默认文案。
+  bool _isUntouchedSectionContent(PromptSection section) {
+    final c = section.content;
+    if (c == null || c.trim().isEmpty) return true;
+    return c.trim() ==
+        PromptSection.getDefaultContent(section.type).trim();
+  }
+
   Future<List<Map<String, dynamic>>> _buildSectionMessages(
     PromptSection section,
     Character? character,
@@ -1781,13 +1791,18 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     switch (section.type) {
       case PromptSectionType.systemPrompt:
-        // Use custom content from section if available, otherwise use character's system prompt
-        final content = section.content?.isNotEmpty == true
-            ? section.content!
-            : (character?.systemPrompt.isNotEmpty == true
-                ? character!.systemPrompt
-                : PromptSection.getDefaultContent(
-                    PromptSectionType.systemPrompt));
+        // A3-T1 优先级修复: 用户手改 > 角色卡 system_prompt > 默认文案。
+        // (旧逻辑: 默认配置预填的通用文案恒非空恒胜出,角色卡 system_prompt 被静默丢弃)
+        final String content;
+        if (!_isUntouchedSectionContent(section)) {
+          content = section.content!;
+        } else if (character != null &&
+            character.systemPrompt.isNotEmpty) {
+          content = character.systemPrompt;
+        } else {
+          content = PromptSection.getDefaultContent(
+              PromptSectionType.systemPrompt);
+        }
         if (content.isNotEmpty) {
           // Add world info before system prompt (using 'before' position as proxy)
           final beforeEntries = groupedEntries[WorldInfoPosition.before];
@@ -1969,13 +1984,18 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         break;
 
       case PromptSectionType.postHistoryInstructions:
-        // Use custom content from section if available
-        final content = section.content?.isNotEmpty == true
-            ? section.content!
-            : (character?.postHistoryInstructions.isNotEmpty == true
-                ? character!.postHistoryInstructions
-                : PromptSection.getDefaultContent(
-                    PromptSectionType.postHistoryInstructions));
+        // A3-T2 同源修复: 与 systemPrompt 相同的优先级反转缺陷——
+        // 默认越狱文案预填恒胜出,角色卡 post_history_instructions 被静默丢弃。
+        final String content;
+        if (!_isUntouchedSectionContent(section)) {
+          content = section.content!;
+        } else if (character != null &&
+            character.postHistoryInstructions.isNotEmpty) {
+          content = character.postHistoryInstructions;
+        } else {
+          content = PromptSection.getDefaultContent(
+              PromptSectionType.postHistoryInstructions);
+        }
         if (content.isNotEmpty) {
           messages.add({'role': role, 'content': processMacros(content)});
         }
