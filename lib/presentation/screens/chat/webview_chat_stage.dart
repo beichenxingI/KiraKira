@@ -1504,8 +1504,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       if (charId == null) return;
       final repo = ref.read(worldInfoRepositoryProvider);
       final books = await repo.getWorldInfosForCharacter(charId);
+      // A2修复:主书取第一本【有条目】的书——自动空壳排前时不再遮蔽真书
       final names = books.map((b) => b.name).whereType<String>().toList();
-      final primary = names.isNotEmpty ? names.first : null;
+      String? primary;
+      for (final b in books) {
+        if (b.enabled && b.entries.isNotEmpty && b.name != null) {
+          primary = b.name;
+          break;
+        }
+      }
+      primary ??= names.isNotEmpty ? names.first : null;
       _controller?.evaluateJavascript(
           source: 'if(window.__syncPrimaryLorebook)'
               'window.__syncPrimaryLorebook(${jsonEncode(primary)});');
@@ -1553,8 +1561,25 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return {'ok': true, 'name': book.name, 'id': book.id};
   }
 
-  /// 取角色内嵌世界书(character_book)的所有条目。payload: {name}
+  /// 取角色世界书条目(走桥给 MVU/EJS)。payload: {name}
+  /// A2修复:合并语义——返回该角色【全部已绑定且启用】的世界书条目
+  /// (按 insertion_order 统一排序),不再被自动空壳遮蔽;
+  /// 表侧为空时回退角色卡内嵌 character_book(兼容旧数据)。
   Future<dynamic> _handleWiGetEntries(Map<String, dynamic> payload) async {
+    final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
+    final charId = ref.read(activeChatProvider).character?.id;
+    final merged = <Map<String, dynamic>>[];
+    if (charId != null) {
+      final books = await repo.getWorldInfosForCharacter(charId);
+      for (final b in books) {
+        if (!b.enabled || b.entries.isEmpty) continue;
+        merged.addAll(b.entries.map(_wiEntryToJson));
+      }
+      merged.sort((a, b) => (a['order'] as int? ?? 0).compareTo(b['order'] as int? ?? 0));
+    }
+    if (merged.isNotEmpty) return merged;
+
+    // 回退:内嵌 character_book(表侧无条目时的旧数据兼容)
     final book = ref.read(activeChatProvider).character?.characterBook;
     if (book == null) return [];
     final name = payload['name'] as String?;
@@ -1592,10 +1617,28 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final charId = ref.read(activeChatProvider).character?.id;
     if (charId == null) return {'primary': null, 'additional': <String>[]};
     final books = await repo.getWorldInfosForCharacter(charId);
+    // A2修复:primary 取第一本【启用且有条目】的书,空壳不遮蔽真书
     final names = books.map((b) => b.name).whereType<String>().toList();
+    String? primary;
+    final additional = <String>[];
+    var primaryDecided = false;
+    for (final b in books) {
+      final n = b.name;
+      if (n == null) continue;
+      if (!primaryDecided && b.enabled && b.entries.isNotEmpty) {
+        primary = n;
+        primaryDecided = true;
+        continue;
+      }
+      if (n != primary) additional.add(n);
+    }
+    if (!primaryDecided && names.isNotEmpty) {
+      primary = names.first;
+      additional.remove(primary);
+    }
     return {
-      'primary': names.isNotEmpty ? names.first : null,
-      'additional': names.length > 1 ? names.sublist(1) : <String>[],
+      'primary': primary,
+      'additional': additional,
     };
   }
 

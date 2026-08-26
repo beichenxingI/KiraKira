@@ -1115,7 +1115,15 @@ class _CharacterBookCard extends ConsumerWidget {
       error: (e, _) => const SizedBox.shrink(),
       data: (worldInfos) {
         final theme2 = Theme.of(context);
-        final worldInfo = worldInfos.isEmpty ? null : worldInfos.first;
+        // A2修复:优先展示第一本【有条目】的书,自动空壳(0条)不再遮蔽真书
+        WorldInfo? worldInfo;
+        for (final w in worldInfos) {
+          if (w.entries.isNotEmpty) {
+            worldInfo = w;
+            break;
+          }
+        }
+        worldInfo ??= worldInfos.isEmpty ? null : worldInfos.first;
         return Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusCard)),
           elevation: 0,
@@ -1143,12 +1151,16 @@ class _CharacterBookCard extends ConsumerWidget {
               trailing: Icon(Icons.chevron_right, color: mutedColor),
               onTap: worldInfo == null
                   ? () => context.push('/world-info?characterId=$characterId')
-                  : () => Navigator.push(
+                  : () {
+                      final wi = worldInfo;
+                      if (wi == null) return;
+                      Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => WorldInfoEntriesScreen(worldInfo: worldInfo),
+                          builder: (_) => WorldInfoEntriesScreen(worldInfo: wi),
                         ),
-                      ),
+                      );
+                    },
             ),
           ),
         );

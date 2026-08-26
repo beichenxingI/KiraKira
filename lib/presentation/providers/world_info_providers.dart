@@ -235,6 +235,8 @@ class WorldInfoMatcher {
     for (final worldInfoId in worldInfoIds) {
       allEntries.addAll(await _repository.getEntriesForWorldInfo(worldInfoId));
     }
+    // A2修复:多书合并后按 insertion_order 统一排序(稳定序,跨书不再按书分组)
+    allEntries.sort((a, b) => a.insertionOrder.compareTo(b.insertionOrder));
 
     // 纯计算丢进后台 isolate，主线程全程不卡
     return compute(
