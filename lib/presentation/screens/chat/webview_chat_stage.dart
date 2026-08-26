@@ -1059,7 +1059,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             var host = document.getElementById('__engineRoomHost');
             var f = host && host.querySelector('iframe[data-frame-id="engine-room"]');
             var w = f && f.contentWindow;
-            if (!(w && w.EjsTemplate && typeof w.EjsTemplate.evalTemplate === 'function')) return -1;
+            if (!(w && w.EjsTemplate && typeof w.EjsTemplate.evalTemplate === 'function')) {
+              try { if (typeof sendToFlutter === 'function') sendToFlutter('log', { text: '[EJSD-3] NOT-READY host=' + (!!host) + ' frame=' + (!!f) + ' ejsType=' + (typeof (w && w.EjsTemplate)) }); } catch (_e0) {}
+              return -1;
+            }
+            try { if (typeof sendToFlutter === 'function') sendToFlutter('log', { text: '[EJSD-3] ready host=' + (!!host) + ' frame=' + (!!f) + ' ejsType=' + (typeof w.EjsTemplate) }); } catch (_e1) {}
             var snap = ${jsonEncode(snap)};
             try {
               if (w._TH) {
@@ -1084,8 +1088,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             window.__krRes[id] = null;
             var t = ${jsonEncode(text)};
             w.EjsTemplate.evalTemplate(t).then(function(v) {
+              try { if (typeof sendToFlutter === 'function') sendToFlutter('log', { text: '[EJSD-4] slot-write realm_outer=' + (window === parent) + ' id=' + id + ' vlen=' + ((v == null) ? -1 : String(v).length) }); } catch (_e5) {}
               window.__krRes[id] = { ok: true, v: (v == null ? '' : String(v)) };
             }).catch(function(e2) {
+              try { if (typeof sendToFlutter === 'function') sendToFlutter('log', { text: '[EJSD-4] slot-write(CATCH) realm_outer=' + (window === parent) + ' id=' + id + ' err=' + String((e2 && (e2.stack || e2.message)) || e2).slice(0, 120) }); } catch (_e6) {}
               window.__krRes[id] = { ok: false, e: String((e2 && (e2.stack || e2.message)) || e2) };
             });
             return id;
@@ -1097,7 +1103,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
       final idRaw = await controller.evaluateJavascript(source: kickJs);
       final idNum = idRaw is num ? idRaw.toInt() : int.tryParse(idRaw?.toString() ?? '');
+      KiraLogger().info('EJSD-3', 'kick returned id=$idNum raw=$idRaw');
       if (idNum == null || idNum < 0) {
+        KiraLogger().info('EJSD-5', 'kick -1 -> macro fallback');
         return await _macroFallbackRender(controller, text);
       }
 
@@ -1115,14 +1123,19 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         Map<String, dynamic>? res;
         try {
           res = (jsonDecode(rawStr) as Map?)?.cast<String, dynamic>();
-        } catch (_) {}
+        } catch (_) {
+          KiraLogger().info('EJSD-5', 'poll payload unparseable len=${rawStr.length} head=${rawStr.substring(0, rawStr.length > 80 ? 80 : rawStr.length)}');
+        }
         if (res == null) continue;
         if (res['ok'] == true) {
-          return res['v']?.toString() ?? '';
+          final v = res['v']?.toString() ?? '';
+          KiraLogger().info('EJSD-5', 'evalTemplate ok vlen=${v.length}');
+          return v;
         }
-        KiraLogger().info('EJS渲染', 'evalTemplate 失败,回退宏替换: ${res['e']}');
+        KiraLogger().info('EJSD-5', 'evalTemplate ERR -> macro fallback: ${res['e']}');
         break;
       }
+      KiraLogger().info('EJSD-5', 'poll TIMEOUT -> macro fallback');
       return await _macroFallbackRender(controller, text);
     } catch (e) {
       KiraLogger().info('EJS渲染', '渲染失败 error=$e');
@@ -1132,6 +1145,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
   /// 宏替换兜底(原 th_renderEJS 行为):{{user}}/{{char}}/<user>/<char>。
   Future<String> _macroFallbackRender(dynamic controller, String text) async {
+    KiraLogger().info('EJSD-5', 'macroFallback applied len=${text.length}');
     try {
       final js = '''
         (function() {

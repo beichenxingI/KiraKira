@@ -30,7 +30,7 @@ class RegistryEJSRenderer implements EJSRenderer {
   @override
   Future<String> render(String text) async {
     final fn = _registry.current;
-    print('🎯 registry.current=${fn != null ? "有值" : "null"}');
+    debugPrint('[EJSD-1a] registry.current=${fn != null ? "set" : "null"}');
     if (fn == null) return text; // 无活跃聊天页,原样返回
     return await fn(text);
   }
@@ -453,17 +453,31 @@ class LLMService {
     // 无 EJS 渲染器时,原样返回
     if (_ejsRenderer == null) return messages;
 
+    _log('[EJSD-1] render pass msgs=${messages.length} '
+        'roles=${messages.map((m) => m['role']).join(",")}');
+
+    var i = 0;
     for (final msg in messages) {
       final role = msg['role'] as String? ?? 'system';
       final content = msg['content'];
-      
+
       if (content is String && content.isNotEmpty) {
+        // [EJSD-2] 送渲染前的原文特征:role/长度/模板标签数/特征词/前80字
+        final tagCount = '<%'.allMatches(content).length;
+        final zis = content.contains('紫水晶');
+        final head = content.length > 80 ? content.substring(0, 80) : content;
+        _log('[EJSD-2] i=$i role=$role len=${content.length} '
+            'tags=$tagCount zis=$zis head=$head');
         // 调用 EJS 渲染器渲染 content
         final renderedContent = await _ejsRenderer!.render(content);
+        _log('[EJSD-2r] i=$i role=$role outLen=${renderedContent.length} '
+            'outTags=${'<%'.allMatches(renderedContent).length}');
         rendered.add({'role': role, 'content': renderedContent});
       } else {
+        _log('[EJSD-2] i=$i role=$role SKIP(non-string or empty)');
         rendered.add(msg);
       }
+      i++;
     }
     return rendered;
   }
