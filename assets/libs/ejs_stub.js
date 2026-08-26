@@ -55,12 +55,17 @@ export const messageFormatting = (s)=>s;         // [STUB!] 渲染美化，高�
 export const updateMessageBlock = ()=>{};        // [STUB→第三章:楼层渲染]
 export const appendMediaToMessage = ()=>{};      // [STUB]
 export const addCopyToCodeBlocks = ()=>{};       // [STUB]
-export const main_api = 'openai';                // [STUB]
+export const main_api = 'openai';                // [STUB
+export const nai_settings = {};                  // [STUB] E1:NovelAI 设置占位,防 undefined 解引用
+export const online_status = 'unknown';          // [STUB] E1:连接状态字符串,恒非空]
 export const GenerateOptions = {};               // [STUB]
 
 // ── openai.js（dist 确实 import，给空占位）──
 export const oai_settings = {};                  // [STUB] openai 设置，EJS 极少读
 export const chat_completion_sources = {};       // [STUB]
+export function getChatCompletionModel() {       // [STUB→真] E1:求值路径必调,恒返非空字符串
+  return ((typeof window !== 'undefined' && window.__KIRA_MODEL_NAME) || 'unknown');
+}
 
 // ── utils.js ──
 export const copyText = ()=>{};                  // [STUB]
@@ -86,6 +91,21 @@ export const updateReasoningUI = ()=>{};         // [STUB]
 
 // ── lib.js ──
 export const yaml = { load:()=>({}), dump:()=>'' }; // [STUB!] 初始变量YAML，卡带initvar时用
+
+// ── faker.mjs(E1)──
+// dist 惰性加载把【整个 stub 命名空间】赋给模板作用域的 faker(Gm.faker=e),
+// 命名空间无法动态加属性,这里导出同名递归代理兜底 ns.faker 访问面;
+// 任意深度可调用、字符串强转返回空串,真实 faker 数据不提供(走 fail-open 兜底)。
+function __fkNode() {
+  const f = function(){ return ''; };
+  return new Proxy(f, { get(t, k){
+    if (typeof k === 'symbol') return () => '';
+    if (k === 'then') return undefined;          // 防 thenable 陷阱
+    if (!(k in t)) t[k] = __fkNode();
+    return t[k];
+  }});
+}
+export const faker = __fkNode();
 
 // ── slash-commands 全家桶 ──
 export const executeSlashCommandsWithOptions = async()=>({}); // [STUB→第五章:Slash]
