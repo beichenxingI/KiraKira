@@ -1130,6 +1130,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         if (res['ok'] == true) {
           final v = res['v']?.toString() ?? '';
           print('[EJSD-5] evalTemplate ok vlen=${v.length}');
+          // E3 硬保护:null/undefined/空串一律回退原文,绝不把空内容交给 LLM
+          if (v.isEmpty) {
+            print('[EJSD-5] evalTemplate EMPTY result -> raw text');
+            return text;
+          }
           return v;
         }
         print('[EJSD-5] evalTemplate ERR -> macro fallback: ${res['e']}');
@@ -1162,7 +1167,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         })();
       ''';
       final result = await controller.evaluateJavascript(source: js);
-      if (result != null && result is String) return result;
+      // E3 硬保护:宏替换结果为空(null/非串/空串)一律回退原文
+      if (result != null && result is String && result.isNotEmpty) return result;
       return text;
     } catch (e) {
       KiraLogger().info('EJS渲染', '宏替换兜底也失败 error=$e');
