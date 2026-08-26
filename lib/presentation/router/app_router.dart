@@ -74,7 +74,7 @@ abstract class AppRoutes {
   static const aiPresets = '/settings/ai/presets';
   static const import_ = '/import';
   static const personas = '/personas';
-  static const worldInfo = '/world-info';
+  // A3-T4: '/world-info' 列表页路由已随 NativeTavern 遗留页面删除
   static const groups = '/groups';
   static const groupDetail = '/groups/:id';
   static const tags = '/tags';
@@ -217,17 +217,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) => _buildTabPage(state.pageKey, const SettingsScreen()),
           ),
         ],
-      ),
-      GoRoute(
-        path: AppRoutes.worldInfo,
-        name: 'worldInfo',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) {
-          final cid = state.uri.queryParameters['characterId'];
-          final isGlobal = state.uri.queryParameters['isGlobal'] == 'true';
-          return _buildIosPushPage(state.pageKey,
-              WorldInfoScreen(characterId: cid, isGlobal: isGlobal));
-        },
       ),
       GoRoute(
         path: AppRoutes.about,

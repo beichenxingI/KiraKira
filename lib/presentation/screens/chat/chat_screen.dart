@@ -574,7 +574,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
 
     return Scaffold(
-      appBar: ChatAppBar(onAuthorNotes:()=>showAuthorNoteDialog(context),onWorldInfo:()=>context.push(chatState.character?.id!=null?'/world-info?characterId=${chatState.character!.id}':'/world-info'),onExportChat:()=>_showExportDialog(),onResponseLength:()=>_showResponseLengthDialog(),onClearChat:()=>_showClearConfirmationDialog()),
+      appBar: ChatAppBar(onAuthorNotes:()=>showAuthorNoteDialog(context),onExportChat:()=>_showExportDialog(),onResponseLength:()=>_showResponseLengthDialog(),onClearChat:()=>_showClearConfirmationDialog()),
       floatingActionButton: FloatingActionButton(
         mini: true,
         onPressed: () => context.push('/webview-stage/${widget.chatId}'),
@@ -747,13 +747,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         context.push('/image-gen-settings');
         break;
       case 'world':
-        final characterId = ref.read(activeChatProvider).character?.id;
-        KiraLogger().info('MENU', '菜单点击：世界书 - 准备导航，characterId=$characterId');
-        context.push(
-          characterId != null
-              ? '/world-info?characterId=$characterId'
-              : '/world-info',
-        );
+        // A3-T4: 世界书列表页已删除;条目管理走角色详情页/编辑器
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('世界书条目请到 角色详情页 → 世界书 管理')),
+          );
+        }
         break;
       default:
         if (mounted) {

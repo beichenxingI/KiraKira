@@ -117,12 +117,7 @@ class AIConfigScreen extends ConsumerWidget {
                   subtitle: '模型深度检测',
                   onTap: () => context.push(AppRoutes.modelDetection),
                 ),
-                KiraListTile(
-                  icon: Icons.public,
-                  title: '全局世界书', // TODO(i18n)
-                  subtitle: '对所有角色生效的世界书',
-                  onTap: () => context.push('/world-info?isGlobal=true'),
-                ),
+                // A3-T4: 全局世界书入口已随 NativeTavern 列表页删除
               ],
             ),
           ),

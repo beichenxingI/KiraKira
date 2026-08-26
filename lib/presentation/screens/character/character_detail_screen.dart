@@ -1150,7 +1150,8 @@ class _CharacterBookCard extends ConsumerWidget {
                     ),
               trailing: Icon(Icons.chevron_right, color: mutedColor),
               onTap: worldInfo == null
-                  ? () => context.push('/world-info?characterId=$characterId')
+                  // A3-T4: 列表页已删,无书时不再跳转(创建走编辑器 WorldBook tab)
+                  ? null
                   : () {
                       final wi = worldInfo;
                       if (wi == null) return;
