@@ -186,13 +186,22 @@ class CharacterRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
       final character = await repo.getCharacter(characterId);
       if (character != null) {
         final rawList = character.extensions['regex_scripts'];
+        // [IMP-7] 角色正则桥:原始负载形态与条数(上游 ST 格式 vs 自家 fromJson 格式)
+        print('[IMP-7] charRegex load char=$characterId rawType=${rawList?.runtimeType} '
+            'count=${rawList is List ? rawList.length : 'null'} '
+            'firstKeys=${rawList is List && rawList.isNotEmpty && rawList.first is Map ? (rawList.first as Map).keys.take(6).toList() : 'n/a'}');
         if (rawList is List) {
           state = rawList
               .map((e) => RegexScript.fromJson(e as Map<String, dynamic>))
               .toList();
+          print('[IMP-7] charRegex parsed ok count=${state.length}');
         }
+      } else {
+        print('[IMP-7] charRegex character not found id=$characterId');
       }
     } catch (e) {
+      // [IMP-7] 上游格式走自家硬 cast fromJson 会在这里炸 → 正则整体丢失
+      print('[IMP-7] charRegex LOAD FAILED: $e');
       print('Error loading character regex scripts: $e');
     } finally {
       if (!_readyCompleter.isCompleted) _readyCompleter.complete();

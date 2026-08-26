@@ -362,12 +362,17 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         // If the character has an embedded lorebook, create a WorldInfo for it
         if (result.character!.characterBook != null &&
             result.character!.characterBook!.entries.isNotEmpty) {
+          print('[IMP-5] lorebook import FIRED book="${result.character!.characterBook!.name}" entries=${result.character!.characterBook!.entries.length}');
           await _importEmbeddedLorebook(
             ref,
             character.id,
             result.character!.characterBook!,
             result.character!.name,
           );
+        } else {
+          // [IMP-5] 未触发原因:书为 null(没解析到)或 0 条(形态/字段问题)
+          print('[IMP-5] lorebook import SKIPPED bookNull=${result.character!.characterBook == null} '
+              'entries=${result.character!.characterBook?.entries.length ?? 'n/a'}');
         }
 
         successCount++;

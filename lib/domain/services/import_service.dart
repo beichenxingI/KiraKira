@@ -165,6 +165,8 @@ class ImportService {
   // Private methods
   
   Character _parseCharacterJson(Map<String, dynamic> json) {
+    // [IMP-1] 解析入口:spec 与分支判定
+    print('[IMP-1] entry keys=${json.keys.toList()} spec=${json['spec']} hasData=${json.containsKey('data')}');
     String name = '';
     String description = '';
     String personality = '';
@@ -207,6 +209,28 @@ class ImportService {
       } else {
         print('[ImportService] No character_book found in data. Data keys: ${data.keys.toList()}');
       }
+
+      // [IMP-2] data 字段普查(非空即报)
+      void _f(String k, dynamic v) {
+        final ok = v != null && ('$v'.isNotEmpty);
+        print('[IMP-2] $k=${ok ? (v is List ? 'list(${v.length})' : (v is String ? 'len=${v.length}' : v)) : 'EMPTY'}');
+      }
+      _f('name', name);
+      _f('description', description.isEmpty ? null : description);
+      _f('personality', personality.isEmpty ? null : personality);
+      _f('scenario', scenario.isEmpty ? null : scenario);
+      _f('first_mes', firstMessage.isEmpty ? null : firstMessage);
+      _f('alternate_greetings', alternateGreetings);
+      _f('mes_example', exampleMessages.isEmpty ? null : exampleMessages);
+      _f('system_prompt', systemPrompt.isEmpty ? null : systemPrompt);
+      _f('post_history_instructions', postHistoryInstructions.isEmpty ? null : postHistoryInstructions);
+      _f('creator_notes', creatorNotes.isEmpty ? null : creatorNotes);
+      _f('tags', tags);
+      _f('creator', creator.isEmpty ? null : creator);
+      _f('character_version', version.isEmpty ? null : version);
+
+      // [IMP-4] extensions 顶层 key + regex_scripts 有无
+      print('[IMP-4] extKeys=${extensions.keys.toList()} regexScriptsCount=${(extensions['regex_scripts'] as List<dynamic>?)?.length ?? 'null'}');
     }
     // Check for V2 format
     else if (json.containsKey('data')) {
@@ -265,7 +289,22 @@ class ImportService {
   }
 
   CharacterBook _parseCharacterBook(Map<String, dynamic> json) {
+    final rawEntries = json['entries'];
+    // [IMP-3] 条目形态判定(List / Map / null —— 字典形态会被静默吞成 0 条)
+    print('[IMP-3] book=${json['name']} entriesRawType=${rawEntries?.runtimeType} '
+        'count=${rawEntries is List ? rawEntries.length : (rawEntries is Map ? rawEntries.length : 'null')}');
+    if (rawEntries is Map) {
+      print('[IMP-3] !! DICT-FORM ENTRIES detected keys=${rawEntries.keys.take(5).toList()} -> 当前解析只认数组,将得 0 条');
+    }
     final entriesJson = json['entries'] as List<dynamic>? ?? [];
+    for (final e in entriesJson.take(10)) {
+      if (e is Map<String, dynamic>) {
+        final k = e['keys'];
+        print('[IMP-3] entry id=${e['id']} keys=${k is List ? k.take(3).toList() : k} '
+            'constant=${e['constant']} contentLen=${(e['content']?.toString() ?? '').length} '
+            'content40=${(e['content']?.toString() ?? '').substring(0, (e['content']?.toString() ?? '').length > 40 ? 40 : (e['content']?.toString() ?? '').length)}');
+      }
+    }
     final entries = entriesJson.map((e) {
       final entry = e as Map<String, dynamic>;
       return CharacterBookEntry(
@@ -621,6 +660,8 @@ Future<void> importEmbeddedLorebook(
   String characterName,
 ) async {
   final worldInfoName = characterBook.name ?? '$characterName Lorebook';
+  // [IMP-5] 落库前:待写条目数
+  print('[IMP-5] creating WI "$worldInfoName" for char=$characterId entriesToWrite=${characterBook.entries.length}');
   final worldInfo = await worldInfoRepo.createWorldInfo(
     name: worldInfoName,
     description:
@@ -642,6 +683,9 @@ Future<void> importEmbeddedLorebook(
         position = WorldInfoPosition.after;
     }
 
+    // [IMP-5] 每条写入明细(注意:constant/insertionOrder/caseSensitive 此处未传,属已知丢弃点)
+    print('[IMP-5] addEntry keys=${entry.keys.take(3).toList()} constant=${entry.constant} '
+        'contentLen=${entry.content.length} comment=${entry.name.isNotEmpty ? entry.name : entry.comment}');
     await worldInfoRepo.addEntry(
       worldInfoId: worldInfo.id,
       keys: entry.keys,
@@ -653,4 +697,7 @@ Future<void> importEmbeddedLorebook(
       depth: 4,
     );
   }
+  // [IMP-6] 落库后回读:实际条数(与 IMP-5 对比,差值即丢点)
+  final written = await worldInfoRepo.getEntriesForWorldInfo(worldInfo.id);
+  print('[IMP-6] readback WI="${worldInfo.name}" id=${worldInfo.id} entriesInDb=${written.length} (expected ${characterBook.entries.length})');
 }
