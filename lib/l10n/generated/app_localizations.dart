@@ -6097,7 +6097,7 @@ abstract class AppLocalizations {
   /// No description provided for @entriesCount.
   ///
   /// In zh, this message translates to:
-  /// **'计数'**
+  /// **'{count} 条'**
   String entriesCount(Object count);
 
   /// No description provided for @deleteLorebookConfirmation.
