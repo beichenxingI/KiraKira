@@ -1103,9 +1103,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
       final idRaw = await controller.evaluateJavascript(source: kickJs);
       final idNum = idRaw is num ? idRaw.toInt() : int.tryParse(idRaw?.toString() ?? '');
-      KiraLogger().info('EJSD-3', 'kick returned id=$idNum raw=$idRaw');
+      print('[EJSD-3] kick returned id=$idNum raw=$idRaw');
       if (idNum == null || idNum < 0) {
-        KiraLogger().info('EJSD-5', 'kick -1 -> macro fallback');
+        print('[EJSD-5] kick -1 -> macro fallback');
         return await _macroFallbackRender(controller, text);
       }
 
@@ -1124,18 +1124,18 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         try {
           res = (jsonDecode(rawStr) as Map?)?.cast<String, dynamic>();
         } catch (_) {
-          KiraLogger().info('EJSD-5', 'poll payload unparseable len=${rawStr.length} head=${rawStr.substring(0, rawStr.length > 80 ? 80 : rawStr.length)}');
+          print('[EJSD-5] poll payload unparseable len=${rawStr.length} head=${rawStr.substring(0, rawStr.length > 80 ? 80 : rawStr.length)}');
         }
         if (res == null) continue;
         if (res['ok'] == true) {
           final v = res['v']?.toString() ?? '';
-          KiraLogger().info('EJSD-5', 'evalTemplate ok vlen=${v.length}');
+          print('[EJSD-5] evalTemplate ok vlen=${v.length}');
           return v;
         }
-        KiraLogger().info('EJSD-5', 'evalTemplate ERR -> macro fallback: ${res['e']}');
+        print('[EJSD-5] evalTemplate ERR -> macro fallback: ${res['e']}');
         break;
       }
-      KiraLogger().info('EJSD-5', 'poll TIMEOUT -> macro fallback');
+      print('[EJSD-5] poll TIMEOUT -> macro fallback');
       return await _macroFallbackRender(controller, text);
     } catch (e) {
       KiraLogger().info('EJS渲染', '渲染失败 error=$e');
@@ -1145,7 +1145,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
   /// 宏替换兜底(原 th_renderEJS 行为):{{user}}/{{char}}/<user>/<char>。
   Future<String> _macroFallbackRender(dynamic controller, String text) async {
-    KiraLogger().info('EJSD-5', 'macroFallback applied len=${text.length}');
+    print('[EJSD-5] macroFallback applied len=${text.length}');
     try {
       final js = '''
         (function() {
