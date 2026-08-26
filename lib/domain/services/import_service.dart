@@ -671,7 +671,9 @@ Future<void> importEmbeddedLorebook(
   );
 
   for (final entry in characterBook.entries) {
+    // A2-T3:position 全映射(上游 0↑Char/1↓Char/2↑AN/3↓AN/4@depth)
     WorldInfoPosition position;
+    int depth = 4;
     switch (entry.position) {
       case 0:
         position = WorldInfoPosition.before;
@@ -679,12 +681,30 @@ Future<void> importEmbeddedLorebook(
       case 1:
         position = WorldInfoPosition.after;
         break;
+      case 2:
+        position = WorldInfoPosition.ANTop;
+        break;
+      case 3:
+        position = WorldInfoPosition.ANBottom;
+        break;
+      case 4:
+        position = WorldInfoPosition.atDepth;
+        final extDepth = entry.extensions['depth'];
+        if (extDepth is int) depth = extDepth;
+        if (extDepth is String) depth = int.tryParse(extDepth) ?? 4;
+        break;
       default:
         position = WorldInfoPosition.after;
     }
+    // A2-T3:extensions 内的 depth 兜底(position=4 之外也可能带)
+    if (position != WorldInfoPosition.atDepth) {
+      final extDepth = entry.extensions['depth'];
+      if (extDepth is int && extDepth > 0 && extDepth != 4) depth = extDepth;
+    }
 
-    // [IMP-5] 每条写入明细(注意:constant/insertionOrder/caseSensitive 此处未传,属已知丢弃点)
+    // [IMP-5] 每条写入明细(已透传 constant/order/enabled/caseSensitive/extensions)
     print('[IMP-5] addEntry keys=${entry.keys.take(3).toList()} constant=${entry.constant} '
+        'enabled=${entry.enabled} order=${entry.insertionOrder} '
         'contentLen=${entry.content.length} comment=${entry.name.isNotEmpty ? entry.name : entry.comment}');
     await worldInfoRepo.addEntry(
       worldInfoId: worldInfo.id,
@@ -694,7 +714,14 @@ Future<void> importEmbeddedLorebook(
           entry.secondaryKeys.isNotEmpty ? entry.secondaryKeys : null,
       comment: entry.name.isNotEmpty ? entry.name : entry.comment,
       position: position,
-      depth: 4,
+      depth: depth,
+      // A2-T3 完整透传:蓝灯常驻等语义不再被默认值吞掉
+      constant: entry.constant,
+      selective: entry.selective,
+      insertionOrder: entry.insertionOrder,
+      enabled: entry.enabled,
+      caseSensitive: entry.caseSensitive,
+      extensions: entry.extensions,
     );
   }
   // [IMP-6] 落库后回读:实际条数(与 IMP-5 对比,差值即丢点)
