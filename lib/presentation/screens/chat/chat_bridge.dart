@@ -247,7 +247,13 @@ class ChatBridge {
   void _dispatch(String type, Map<String, dynamic> payload) {
     try {
       onLog?.call('▶ outbound $type');
-      final json = jsonEncode({'type': type, 'payload': payload});
+      var json = jsonEncode({'type': type, 'payload': payload});
+      // [P1-A3] U+2028/U+2029 在 ES2019 之前的 JS 字符串字面量里非法，
+      // 而 dart:convert 的 jsonEncode 默认不转义它们 → 旧 Android WebView 上整条注入 SyntaxError。
+      // 在最终注入字符串里把它们显式转义为 \u2028 / \u2029（纯防御，不改变协议与语义）。
+      json = json
+          .replaceAll('\u2028', r'\u2028')
+          .replaceAll('\u2029', r'\u2029');
       // WebView 侧实现一个全局 dispatch(jsonString) 做出站路由。
       _controller?.evaluateJavascript(
         source: 'window.__bridgeDispatch(${jsonEncode(json)});',
