@@ -3077,7 +3077,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             batch.add(_safeSerializeMessage(messages[i], i, lastAiIndex, character, scripts));
           }
           if (batch.isNotEmpty) {
-            await _sendEncodedMessages(batch, prepend: true);
+            // [P1-A4] JS 侧 prepend 逐条 insertBefore(root.firstChild) 是反向插入，
+            // 升序发批会导致批内阅读顺序颠倒 → 发送侧用 batch.reversed 补偿。
+            // 这是「补偿 JS 反向插入」的隐式耦合；P2 应改为 JS 侧用固定锚点插入、
+            // Dart 保持自然升序，还这块解耦。
+            await _sendEncodedMessages(batch.reversed.toList(), prepend: true);
             await Future.delayed(const Duration(milliseconds: 16));
           }
         }
