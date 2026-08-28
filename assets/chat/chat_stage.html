@@ -1167,7 +1167,19 @@ window.addEventListener('message', function(e) {
         scrollToBottomWhenStable();
       }
     } catch(e) {
-      document.getElementById('root').innerText = 'ERR: ' + e;
+      // [P1-B2] 外层兜底：绝不把已渲染内容整页抹掉。仅保留已渲染部分，末尾追加可见错误条。
+      console.error('[WV-9] SETMESSAGES-FATAL ' + e);
+      try {
+        var _r = document.getElementById('root');
+        var _bar = document.createElement('div');
+        _bar.className = 'msg-group system';
+        var _berr = document.createElement('div');
+        _berr.className = 'msg system';
+        _berr.style.color = '#FF9B9B';
+        _berr.textContent = '渲染中断，部分消息可能未显示。';
+        _bar.appendChild(_berr);
+        _r.appendChild(_bar);
+      } catch(_e2) {}
     }
   }
   // 楼层编号标记：大圆角小长条 #xx
