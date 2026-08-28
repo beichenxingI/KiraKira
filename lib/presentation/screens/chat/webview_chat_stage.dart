@@ -2902,6 +2902,60 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
+  /// [WV-8] 批量序列化兜底：把一组 map 编码成 setMessages 的 base64 载荷。
+  /// 批量 jsonEncode/utf8/base64 失败时降级为逐条 encode 逐条发（每条再单独 try），
+  /// 绝不出现"整批静默不发、JS 侧一无所知"；逐条也全失败时发一条可见占位。
+  Future<void> _sendEncodedMessages(
+      List<Map<String, dynamic>> list,
+      {bool initial = false, bool prepend = false, Map<String, dynamic>? avatars}) async {
+    if (list.isEmpty) return;
+    Map<String, dynamic> extra() => {
+          if (initial) 'initial': true,
+          if (prepend) 'prepend': true,
+          if (avatars != null) 'avatars': avatars,
+        };
+    try {
+      final b64 = base64Encode(utf8.encode(jsonEncode(list)));
+      _bridge.send(BridgeType.setMessages, {'data': b64, ...extra()});
+      return;
+    } catch (e) {
+      print('[WV-8] BATCH-ENCODE-FAIL count=${list.length} err=$e');
+    }
+
+    // 降级：逐条 encode 逐条发
+    var anySent = false;
+    for (final m in list) {
+      try {
+        final b64 = base64Encode(utf8.encode(jsonEncode([m])));
+        _bridge.send(BridgeType.setMessages, {'data': b64, ...extra()});
+        anySent = true;
+      } catch (e2) {
+        print('[WV-8] ITEM-ENCODE-FAIL id=${m['id']} err=$e2');
+      }
+    }
+
+    // 逐条也全失败：发一条可见占位，避免空白无提示
+    if (!anySent) {
+      try {
+        final placeholder = {
+          'id': '__encode-fail__',
+          'role': 'system',
+          'prose': '<p>消息渲染失败：批量与逐条编码均未成功，请重启聊天页。</p>',
+          'html': '',
+          'reasoning': '',
+          'swipeCount': 1,
+          'swipeIndex': 0,
+          'floor': 1,
+          'isLatestAi': true,
+        };
+        final b64 = base64Encode(utf8.encode(jsonEncode([placeholder])));
+        _bridge.send(BridgeType.setMessages, {'data': b64, ...extra()});
+      } catch (_) {
+        print('[WV-8] PLACEHOLDER-ENCODE-FAIL 无法发送占位消息');
+      }
+    }
+  }
+
   /// prev 是否为 next 的前缀（前 N 条 id 完全一致）
   bool _isPrefix(List<ChatMessage> prev, List<ChatMessage> next) {
     for (var i = 0; i < prev.length; i++) {
@@ -2935,9 +2989,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       list.add(_safeSerializeMessage(messages[i], i, lastAiIndex, character, scripts));
     }
     if (list.isEmpty) return;
-    final b64 = base64Encode(utf8.encode(jsonEncode(list)));
     // 不带 initial / prepend → setMessages 走"追加渲染"分支
-    _bridge.send(BridgeType.setMessages, {'data': b64});
+    await _sendEncodedMessages(list);
   }
 
   String _buildAttachmentsHtml(ChatMessage m) {
@@ -2986,8 +3039,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       initialList.add(_safeSerializeMessage(messages[i], i, lastAiIndex, character, scripts));
     }
     // 先发送最近的消息
-    final initialJson = jsonEncode(initialList);
-    final initialB64 = base64Encode(utf8.encode(initialJson));
     debugPrint('[图片诊断] _pushMessages 发送 setMessages, 条数=${initialList.length}');
     // 头像+名字：全局各一份，随首屏一次性下发（不进每条消息，避免膨胀拖卡）
     try {
@@ -3006,15 +3057,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     } catch (e) {
       debugPrint('[卡点] 头像转换 超时/出错: $e');
     }
-    _bridge.send(BridgeType.setMessages, {
-      'data': initialB64,
-      'initial': true,
-      'avatars': {
-        'char': charUri,
-        'user': userUri,
-        'charName': character?.name ?? 'Assistant',
-        'userName': persona?.name ?? 'User',
-      },
+    await _sendEncodedMessages(initialList, initial: true, avatars: {
+      'char': charUri,
+      'user': userUri,
+      'charName': character?.name ?? 'Assistant',
+      'userName': persona?.name ?? 'User',
     });
 
     // 后台静默追加历史消息
@@ -3030,9 +3077,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             batch.add(_safeSerializeMessage(messages[i], i, lastAiIndex, character, scripts));
           }
           if (batch.isNotEmpty) {
-            final batchJson = jsonEncode(batch);
-            final batchB64 = base64Encode(utf8.encode(batchJson));
-            _bridge.send(BridgeType.setMessages, {'data': batchB64, 'prepend': true});
+            await _sendEncodedMessages(batch, prepend: true);
             await Future.delayed(const Duration(milliseconds: 16));
           }
         }
