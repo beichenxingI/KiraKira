@@ -105,6 +105,7 @@ flutter:
     - assets/icon/
     - assets/world_info/
     - assets/libs/
+    - assets/chat/
   
   fonts:
     - family: LXGWWenKai
