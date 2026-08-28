@@ -2877,6 +2877,31 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       'isLatestAi': i == lastAiIndex,
     };
   }
+
+  /// [WV-8] 单条序列化故障隔离：任何一条 _serializeMessage 抛错，
+  /// 只降级为一条可见占位消息，绝不中断整批、绝不触发"全灭且零日志"。
+  Map<String, dynamic> _safeSerializeMessage(
+      ChatMessage m, int i, int lastAiIndex, Character? character, List<RegexScript> scripts) {
+    try {
+      return _serializeMessage(m, i, lastAiIndex, character, scripts);
+    } catch (e) {
+      print('[WV-8] SERIALIZE-FAIL id=${m.id} err=$e');
+      String raw = m.content;
+      if (raw.length > 200) raw = raw.substring(0, 200);
+      return {
+        'id': m.id,
+        'role': m.role.name,
+        'prose': '此消息序列化失败：$e\n原文（前200字）：$raw',
+        'html': '',
+        'reasoning': '',
+        'swipeCount': m.swipes.length,
+        'swipeIndex': m.currentSwipeIndex,
+        'floor': i + 1,
+        'isLatestAi': i == lastAiIndex,
+      };
+    }
+  }
+
   /// prev 是否为 next 的前缀（前 N 条 id 完全一致）
   bool _isPrefix(List<ChatMessage> prev, List<ChatMessage> next) {
     for (var i = 0; i < prev.length; i++) {
@@ -2907,7 +2932,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
     final list = <Map<String, dynamic>>[];
     for (var i = startFrom; i < messages.length; i++) {
-      list.add(_serializeMessage(messages[i], i, lastAiIndex, character, scripts));
+      list.add(_safeSerializeMessage(messages[i], i, lastAiIndex, character, scripts));
     }
     if (list.isEmpty) return;
     final b64 = base64Encode(utf8.encode(jsonEncode(list)));
@@ -2958,7 +2983,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
     final initialList = <Map<String, dynamic>>[];
     for (var i = startIndex; i < total; i++) {
-      initialList.add(_serializeMessage(messages[i], i, lastAiIndex, character, scripts));
+      initialList.add(_safeSerializeMessage(messages[i], i, lastAiIndex, character, scripts));
     }
     // 先发送最近的消息
     final initialJson = jsonEncode(initialList);
@@ -3002,7 +3027,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           final end = start + historyBatchSize;
           final batch = <Map<String, dynamic>>[];
           for (var i = start; i < end && i < startIndex; i++) {
-            batch.add(_serializeMessage(messages[i], i, lastAiIndex, character, scripts));
+            batch.add(_safeSerializeMessage(messages[i], i, lastAiIndex, character, scripts));
           }
           if (batch.isNotEmpty) {
             final batchJson = jsonEncode(batch);
