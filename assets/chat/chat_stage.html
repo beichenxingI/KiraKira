@@ -286,13 +286,13 @@ if (!String.prototype.at) {
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div id="__kira_root"></div>
 <div id="__engineRoomHost" style="display:none;width:0;height:0;overflow:hidden;"></div>
-<div id="model-sheet" class="model-sheet-overlay">
+<div id="__kira_model_sheet" class="model-sheet-overlay">
   <div class="model-sheet-panel">
     <div class="model-sheet-header">选择模型</div>
-    <input id="model-search" class="model-search" placeholder="搜索模型…" />
-    <div id="config-switcher" class="config-switcher" style="display:none;">
+    <input id="__kira_model_search" class="model-search" placeholder="搜索模型…" />
+    <div id="__kira_config_switcher" class="config-switcher" style="display:none;">
       <div class="config-current" id="config-current">
         <span id="config-current-name">方案</span>
         <span class="arrow">▼</span>
@@ -302,7 +302,7 @@ if (!String.prototype.at) {
     <div id="model-list" class="model-list"></div>
   </div>
 </div>
-<div id="func-overlay" class="func-overlay">
+<div id="__kira_func_overlay" class="func-overlay">
   <div id="func-panel" class="func-panel">
     <div class="func-context" id="func-context">
       <div class="func-context-head">
@@ -357,14 +357,14 @@ __KIRA_CHAT_BRIDGE__
       });
   }
   function __closeModelSheet(){
-    var ov = document.getElementById('model-sheet');
+    var ov = document.getElementById('__kira_model_sheet');
     if(!ov) return;
     ov.classList.remove('show');
     setTimeout(function(){ ov.style.display = 'none'; }, 260);
   }
   var __configs = [];
   function __renderConfigs(){
-    var sw = document.getElementById('config-switcher');
+    var sw = document.getElementById('__kira_config_switcher');
     var listEl = document.getElementById('config-list');
     var nameEl = document.getElementById('config-current-name');
     if(!sw || !listEl || !nameEl) return;
@@ -394,10 +394,10 @@ __KIRA_CHAT_BRIDGE__
     __currentModel = p.current || '';
     __configs = p.configs || [];
     __renderConfigs();
-    var s = document.getElementById('model-search');
+    var s = document.getElementById('__kira_model_search');
     if (s) { s.value = ''; s.oninput = function(){ __renderModelList(s.value); }; }
     __renderModelList('');
-    var ov = document.getElementById('model-sheet');
+    var ov = document.getElementById('__kira_model_sheet');
     if (ov) {
       ov.style.display = 'flex';
       requestAnimationFrame(function(){
@@ -411,7 +411,7 @@ __KIRA_CHAT_BRIDGE__
   });
   window.__funcCharId = '';
   function __closeFuncPanel(){
-    var ov = document.getElementById('func-overlay');
+    var ov = document.getElementById('__kira_func_overlay');
     if(!ov) return;
     ov.classList.remove('show');
     setTimeout(function(){ ov.style.display = 'none'; }, 300);
@@ -442,7 +442,7 @@ __KIRA_CHAT_BRIDGE__
     __closeFuncPanel();
   }
   registerBridgeHandler('openFunctionPanel', function(p){
-    var ov = document.getElementById('func-overlay');
+    var ov = document.getElementById('__kira_func_overlay');
     if(!ov) return;
     window.__funcCharId = p.charId || '';
     var label = document.getElementById('func-context-label');
@@ -963,7 +963,7 @@ window.addEventListener('message', function(e) {
 
     // 新消息追加时自动监听新iframe
     var mo = new MutationObserver(observeFrames);
-    mo.observe(document.getElementById('root'), {childList: true, subtree: true});
+    mo.observe(document.getElementById('__kira_root'), {childList: true, subtree: true});
     observeFrames();
   })();
 
@@ -1028,7 +1028,7 @@ window.addEventListener('message', function(e) {
   function setMessages(b64, options) {
     try {
       var arr = JSON.parse(decodeB64Utf8(b64));
-      var root = document.getElementById('root');
+      var root = document.getElementById('__kira_root');
       // [WV-3] 注入模式与数量(FULL-REBUILD=全量清空重建 / PREPEND=历史前插 / APPEND=追加)
       try { sendToFlutter('log', { text: '[WV-3] setMessages mode=' + ((options && options.initial) ? 'FULL-REBUILD' : ((options && options.prepend) ? 'PREPEND' : 'APPEND')) + ' count=' + arr.length }); } catch (_wv3a) {}
       
@@ -1170,7 +1170,7 @@ window.addEventListener('message', function(e) {
       // [P1-B2] 外层兜底：绝不把已渲染内容整页抹掉。仅保留已渲染部分，末尾追加可见错误条。
       console.error('[WV-9] SETMESSAGES-FATAL ' + e);
       try {
-        var _r = document.getElementById('root');
+        var _r = document.getElementById('__kira_root');
         var _bar = document.createElement('div');
         _bar.className = 'msg-group system';
         var _berr = document.createElement('div');
@@ -1225,7 +1225,7 @@ window.addEventListener('message', function(e) {
   }
 
   function scrollToBottomWhenStable() {
-    var root = document.getElementById('root');
+    var root = document.getElementById('__kira_root');
 
     // 立即滚到当前底部
     function snapBottom() {
