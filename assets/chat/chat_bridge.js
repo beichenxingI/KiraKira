@@ -11,8 +11,26 @@
   // ── 出站路由：Flutter 通过 evaluateJavascript 调这个函数下发指令。
   //    Flutter 侧 _dispatch 发的是 jsonEncode({type,payload}) 的字符串。
   window.__bridgeDispatch = function (jsonStr) {
+    var msg;
     try {
-      var msg = JSON.parse(jsonStr);
+      msg = JSON.parse(jsonStr);
+    } catch (e) {
+      // [P1-B3] 入口 JSON.parse 单独兜底：不把错误混进 handler 逻辑，也不让异常冒泡炸掉整个 dispatch。
+      var s = (typeof jsonStr === 'string') ? jsonStr : String(jsonStr);
+      console.error('[WV-9] DISPATCH-PARSE-FAIL len=' + s.length + ' ' + e);
+      try {
+        var root = document.getElementById('root');
+        if (root && !root.firstChild) {
+          var dbg = document.createElement('div');
+          dbg.className = 'msg system';
+          dbg.style.color = '#B8BEC8';
+          dbg.textContent = '收到无法解析的指令（已忽略）。';
+          root.appendChild(dbg);
+        }
+      } catch (_dbg) {}
+      return;
+    }
+    try {
       var fn = __bridgeHandlers[msg.type];
       if (fn) {
         fn(msg.payload || {});
