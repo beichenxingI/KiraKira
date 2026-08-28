@@ -20,6 +20,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 /// WebView 侧通信总线的 JS 源码。注入到聊天页 HTML 的 <script> 中。
+// 运行时已改用 assets/chat/chat_bridge.js;此常量不再生效,修改此处无效。
 const String kChatBridgeJs = r'''
 (function () {
   // ── 入站路由表：type -> handler。业务侧用 registerBridgeHandler 往里加。
