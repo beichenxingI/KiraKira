@@ -85,6 +85,7 @@ class WebViewChatStage extends ConsumerStatefulWidget {
 
 class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with TickerProviderStateMixin, WidgetsBindingObserver {
   InAppWebViewController? _controller;
+  int _wvCrashCount = 0; // [WV-6/P1-A5] renderer 崩溃自愈次数上限,防"崩→reload→再崩"死循环
   bool _webViewMounted = false; // 延迟挂载:入场后才创建WebView,避免动画期被重活饿死
   final TextEditingController _inputController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
@@ -359,6 +360,18 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       setState(() => _keyboardVisible = visible); // 仅在显↔隐跳变时重建一次
     }
   }
+
+  /// [P1-A5] 崩溃自愈超限后,用户点「重新加载」:重置计数并重挂 webview 恢复。
+  void _reloadWebViewAfterCrash() {
+    _wvCrashCount = 0;
+    _controller?.reload();
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        _pushMessages();
+      }
+    });
+  }
+
   @override
   void dispose() {
     // 清空 EJS 渲染函数登记(离开聊天页,回到安全态)
@@ -607,9 +620,27 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     useHybridComposition: true,
                   ),
                   // [WV-6] Android renderer 被系统 OOM 杀死时此前无人处理 → 永久白屏无日志。
-                  // 本轮唯一功能性新增:记录崩溃并自动重载恢复(重载后由人类复测观察消息是否回来)。
+                  // [P1-A5] 会话级自愈上限 3 次,防"崩→reload→再崩"死循环;超限给用户可见提示,不许静默白屏。
                   onRenderProcessGone: (controller, detail) {
-                    print('[WV-6] RENDER PROCESS GONE didCrash=${detail.didCrash} -> auto reload');
+                    _wvCrashCount++;
+                    print('[WV-6] RENDER PROCESS GONE didCrash=${detail.didCrash} x=$_wvCrashCount');
+                    if (_wvCrashCount > 3) {
+                      print('[WV-6] 超过自愈上限(3),停止自动 reload');
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('渲染已多次异常,请点击重新加载'),
+                            duration: const Duration(seconds: 6),
+                            behavior: SnackBarBehavior.floating,
+                            action: SnackBarAction(
+                              label: '重新加载',
+                              onPressed: _reloadWebViewAfterCrash,
+                            ),
+                          ),
+                        );
+                      }
+                      return;
+                    }
                     controller.reload();
                     Future.delayed(const Duration(milliseconds: 800), () {
                       if (mounted) {
