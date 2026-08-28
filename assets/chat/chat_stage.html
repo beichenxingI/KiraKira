@@ -1043,6 +1043,7 @@ window.addEventListener('message', function(e) {
 
       for (var i = 0; i < arr.length; i++) {
         var m = arr[i];
+        try {
         var group = document.createElement('div');
         group.className = 'msg-group ' + m.role;
 
@@ -1132,6 +1133,24 @@ window.addEventListener('message', function(e) {
           root.insertBefore(group, root.firstChild);
         } else {
           root.appendChild(group);
+        }
+        } catch(e) {
+          // [P1-B1] 单条渲染故障隔离：某条消息建节点/插入抛错，只降级为该条可见占位，继续下一条。
+          var _err = (e && e.message) ? e.message : String(e);
+          if (_err.length > 120) _err = _err.substring(0, 120);
+          console.error('[WV-9] RENDER-FAIL id=' + (m && m.id) + ' ' + e);
+          var fb = document.createElement('div');
+          fb.className = 'msg-group system';
+          var fbMsg = document.createElement('div');
+          fbMsg.className = 'msg system';
+          fbMsg.style.color = '#B8BEC8';
+          fbMsg.textContent = '此消息渲染失败（id=' + (m && m.id) + '）：' + _err;
+          fb.appendChild(fbMsg);
+          if (options && options.prepend) {
+            root.insertBefore(fb, root.firstChild);
+          } else {
+            root.appendChild(fb);
+          }
         }
       }
 
