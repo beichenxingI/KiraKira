@@ -171,13 +171,19 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       final jquery = await rootBundle.loadString('assets/libs/jquery.min.js');
       final lodash = await rootBundle.loadString('assets/libs/lodash.min.js');
       final toastrJs = await rootBundle.loadString('assets/libs/toastr.min.js');
+      // [P3-C/T2] yaml 单独 try:缺失或损坏只失去 YAML,不拖垮 jquery/lodash/toastr 的既有加载
       final toastrCss = await rootBundle.loadString('assets/libs/toastr.min.css');
-      final yamlJs = await rootBundle.loadString('assets/libs/yaml.min.js');
+      String? yamlJs;
+      try {
+        yamlJs = await rootBundle.loadString('assets/libs/yaml.min.js');
+      } catch (e) {
+        KiraLogger().info('兼容库', 'yaml 库读取失败(仅 YAML 全局缺失): $e');
+      }
       _jqueryB64 = base64Encode(utf8.encode(jquery));
       _lodashB64 = base64Encode(utf8.encode(lodash));
       _toastrJsB64 = base64Encode(utf8.encode(toastrJs));
       _toastrCssB64 = base64Encode(utf8.encode(toastrCss));
-      _yamlB64 = base64Encode(utf8.encode(yamlJs));
+      _yamlB64 = yamlJs == null ? null : base64Encode(utf8.encode(yamlJs));
       _libsLoaded = true;
     } catch (e) {
       // 加载失败不阻断聊天，仅记录
