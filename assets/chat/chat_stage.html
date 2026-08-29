@@ -498,7 +498,19 @@ function injectBridge(html, id) {
       if(_needLodash&&_libs.lodash){_libScript+="<script>"+decodeB64Utf8(_libs.lodash)+"<\/script>";}
       if(_needToastr&&_libs.toastrJs){if(_libs.toastrCss){_libScript+="<style>"+decodeB64Utf8(_libs.toastrCss)+"<\/style>";}_libScript+="<script>"+decodeB64Utf8(_libs.toastrJs)+"<\/script>";}
     }catch(e){parent.postMessage({__thLog:true,text:"[兼容库] 内联失败: "+e},"*");}
-  var patch = _libScript + '<style>' +
+  // [P3-B/T1] card iframe 三重错误捕手：必须早于卡自身任何脚本（patch 经 replace(/<head>/) 插在 <head> 后，
+  // 卡脚本在 body）。错误统一经 parent.postMessage __thLog 上报，tag [WV-10] CARD-ERR，id 用 JSON.stringify 安全内插。
+  var _guardErr = '<script>(function(){' +
+      'var _ciderr=' + JSON.stringify(id) + ';' +
+      'function _wv10e(s){try{parent.postMessage({__thLog:true,text:"[WV-10] CARD-ERR id="+_ciderr+" "+String(s).substring(0,300)},"*");}catch(_){}}' +
+      'var _oe=window.onerror;' +
+      'window.onerror=function(m,s,l,c,err){_wv10e(m+" @"+l+":"+c+(err&&err.stack?" "+err.stack:""));if(_oe){return _oe.apply(this,arguments);}return false;};' +
+      'window.addEventListener("unhandledrejection",function(ev){_wv10e("rejection "+(ev&&ev.reason?(ev.reason.message||ev.reason||ev.reason):""));});' +
+      'var _c0=window.console||{};var _ce0=_c0.error;_c0.error=function(){' +
+      '_wv10e(Array.prototype.slice.call(arguments).map(function(x){return (typeof x==="object")?"[obj]":String(x);}).join(" "));' +
+      'if(_ce0){_ce0.apply(_c0,arguments);}};' +
+      '})();<\/script>';
+  var patch = _guardErr + _libScript + '<style>' +
       'html,body{overflow:visible !important;}' +
       '</style>' +
       '<script>(function(){' +
