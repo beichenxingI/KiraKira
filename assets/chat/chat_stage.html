@@ -512,10 +512,19 @@ function injectBridge(html, id) {
       'if(_ce0){_ce0.apply(_c0,arguments);}};' +
       '})();<\/script>';
   // [P3-B/T2] 缺失全局探测：只检测不修复，一条日志看清卡缺什么。整段 try，探针本身绝不许抛错。
+  // [P3-C/T4] 探针加自增序号+时间戳:seq 记在主文档 window(随每次 injectBridge 调用+1,
+  // iframe 重建必重走 injectBridge → 同 id 多条日志即多次重建的直接证据);
+  // 另加 3s 后二次探测 CARD-ENV2,捕获异步加载后的最终态(首探对异步库必误判 N)。
+  var _envFields='" $="+_t(window.$)+" _="+_t(window._)+" toastr="+_t(window.toastr)+" z="+_t(window.z)+" YAML="+_t(window.YAML)+" Mvu="+_t(window.Mvu)+" eventOn="+_t(window.eventOn)+" registerVariableSchema="+_t(window.registerVariableSchema)';
+  window.__cardEnvSeq=(window.__cardEnvSeq||0)+1;
+  var _envSeq=window.__cardEnvSeq;
   var _guardEnv = '<script>(function(){try{' +
       'var _cidenv=' + JSON.stringify(id) + ';' +
       'var _t=function(n){return (typeof n!=="undefined")?"Y":"N";};' +
-      'parent.postMessage({__thLog:true,text:"[WV-10] CARD-ENV id="+_cidenv+" $="+_t(window.$)+" _="+_t(window._)+" toastr="+_t(window.toastr)+" z="+_t(window.z)+" YAML="+_t(window.YAML)+" Mvu="+_t(window.Mvu)+" eventOn="+_t(window.eventOn)+" registerVariableSchema="+_t(window.registerVariableSchema)},"*");' +
+      'parent.postMessage({__thLog:true,text:"[WV-10] CARD-ENV seq=' + _envSeq + ' t="+Date.now()+" id="+_cidenv+' + _envFields + '},"*");' +
+      'setTimeout(function(){try{' +
+      'parent.postMessage({__thLog:true,text:"[WV-10] CARD-ENV2 seq=' + _envSeq + ' t="+Date.now()+" id="+_cidenv+' + _envFields + '},"*");' +
+      '}catch(_){}},3000);' +
       '}catch(_){} })();<\/script>';
   // [P3-B/T3] 空 body 兜底：iframe 加载完成后短延时，若 body 无可渲染内容(无元素子节点/无可见文本/无高度)，
   // 上报 [WV-10] CARD-BLANK 并在 iframe 内显示一行可见提示，宁要一行丑字也不要一片透明。
