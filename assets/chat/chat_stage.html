@@ -516,6 +516,25 @@ function injectBridge(html, id) {
       'var _t=function(n){return (typeof n!=="undefined")?"Y":"N";};' +
       'parent.postMessage({__thLog:true,text:"[WV-10] CARD-ENV id="+_cidenv+" $="+_t(window.$)+" _="+_t(window._)+" toastr="+_t(window.toastr)+" z="+_t(window.z)+" YAML="+_t(window.YAML)+" Mvu="+_t(window.Mvu)+" eventOn="+_t(window.eventOn)+" registerVariableSchema="+_t(window.registerVariableSchema)},"*");' +
       '}catch(_){} })();<\/script>';
+  // [P3-B/T3] 空 body 兜底：iframe 加载完成后短延时，若 body 无可渲染内容(无元素子节点/无可见文本/无高度)，
+  // 上报 [WV-10] CARD-BLANK 并在 iframe 内显示一行可见提示，宁要一行丑字也不要一片透明。
+  var _guardBlank = '<script>(function(){' +
+      'var _cidb=' + JSON.stringify(id) + ';' +
+      'function _chkBlank(){try{' +
+      'var b=document.body;' +
+      'var hasChild=(b&&b.children)?(b.children.length>0):false;' +
+      'var hasText=(b&&typeof b.innerText==="string")?(b.innerText.trim().length>0):false;' +
+      'var hasH=(b&&b.scrollHeight)?(b.scrollHeight>0):false;' +
+      'if(!hasChild&&!hasText&&!hasH){' +
+      'var dv=document.createElement("div");' +
+      'dv.style.cssText="padding:12px;color:#B8BEC8;font-size:13px;text-align:center;";' +
+      'dv.textContent="此卡片未渲染(脚本可能因缺少依赖而中断)";' +
+      'if(b){b.appendChild(dv);}' +
+      'parent.postMessage({__thLog:true,text:"[WV-10] CARD-BLANK id="+_cidb},"*");' +
+      '}}catch(_){}}' +
+      'function _arm(){setTimeout(_chkBlank,1500);}' +
+      'if(document.readyState==="complete"){_arm();}else{window.addEventListener("load",_arm);}' +
+      '})();<\/script>';
   var patch = _guardErr + _libScript + _guardEnv + '<style>' +
       'html,body{overflow:visible !important;}' +
       '</style>' +
@@ -743,7 +762,7 @@ function injectBridge(html, id) {
       'window.SillyTavern={getContext:function(){return _ctx;}};' +
       'try{Object.defineProperty(window.SillyTavern,"chat",{configurable:true,get:function(){return window.__chatMessages||[];}});}catch(e){window.SillyTavern.chat=window.__chatMessages||[];}' +
       'window.getContext=function(){return _ctx;};' +
-      '})();<\/script>';
+      '})();<\/script>' + _guardBlank;
     if (/<head>/i.test(html)) return html.replace(/<head>/i, '<head>' + patch);
     if (/<html/i.test(html)) return html.replace(/<html[^>]*>/, function(m){ return m + patch; });
     if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, patch + '</body>');
