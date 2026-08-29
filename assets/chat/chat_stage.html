@@ -902,7 +902,10 @@ window.addEventListener('message', function(e) {
       createLorebook:        'th_wiCreateBook',
       generateRaw:           'th_generateRaw'
     };
-    sendToFlutter('log', { text: '[TH中转] 收到iframe请求 method=' + method });
+    // [P3-C/T5] 降噪:同 method 只在首次出现打一条,防刷屏淹没 CARD-ENV 探针;
+    // 下方成功/失败日志不受影响(失败必须可见是铁律)。
+    var _seen = window.__thSeenMethods || (window.__thSeenMethods = {});
+    if (!_seen[method]) { _seen[method] = 1; sendToFlutter('log', { text: '[TH中转] 收到iframe请求 method=' + method }); }
     var type = typeMap[method];
     if (!type) { reply(false, null, 'unknown method: ' + method); return; }
 
