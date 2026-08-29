@@ -490,13 +490,12 @@ function injectBridge(html, id) {
     var _libs=(typeof window.__KIRA_LIBS!=="undefined")?window.__KIRA_LIBS:{};
     var _macros=(typeof window.__KIRA_MACRO_VALUES!=="undefined")?window.__KIRA_MACRO_VALUES:{user:"User",char:"Assistant"};
     var _libScript="";
+    // [P3-C/T1] 无条件注入,与引擎房 createEngineRoom 同一套库同一方式(存在即注入,不再 indexOf 猜)
     try{
-      var _needJq=(html.indexOf("$(")>=0)||(html.indexOf("jQuery")>=0);
-      var _needLodash=(html.indexOf("_.")>=0);
-      var _needToastr=(html.indexOf("toastr.")>=0);
-      if(_needJq&&_libs.jquery){_libScript+="<script>"+decodeB64Utf8(_libs.jquery)+"<\/script>";}
-      if(_needLodash&&_libs.lodash){_libScript+="<script>"+decodeB64Utf8(_libs.lodash)+"<\/script>";}
-      if(_needToastr&&_libs.toastrJs){if(_libs.toastrCss){_libScript+="<style>"+decodeB64Utf8(_libs.toastrCss)+"<\/style>";}_libScript+="<script>"+decodeB64Utf8(_libs.toastrJs)+"<\/script>";}
+      if(_libs.jquery){_libScript+="<script>"+decodeB64Utf8(_libs.jquery)+"<\/script>";}
+      if(_libs.lodash){_libScript+="<script>"+decodeB64Utf8(_libs.lodash)+"<\/script>";}
+      if(_libs.toastrCss){_libScript+="<style>"+decodeB64Utf8(_libs.toastrCss)+"<\/style>";}
+      if(_libs.toastrJs){_libScript+="<script>"+decodeB64Utf8(_libs.toastrJs)+"<\/script>";}
     }catch(e){parent.postMessage({__thLog:true,text:"[兼容库] 内联失败: "+e},"*");}
   // [P3-B/T1] card iframe 三重错误捕手：必须早于卡自身任何脚本（patch 经 replace(/<head>/) 插在 <head> 后，
   // 卡脚本在 body）。错误统一经 parent.postMessage __thLog 上报，tag [WV-10] CARD-ERR，id 用 JSON.stringify 安全内插。
