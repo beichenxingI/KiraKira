@@ -651,7 +651,8 @@ function injectBridge(html, id) {
       '_TH.deleteChatMessages=function(ids,option){return __thCall("deleteChatMessages",[ids,option||{}]);};' +
       '_TH.triggerSlash=function(cmd){return __thCall("triggerSlash",[cmd]);};' +
       '_TH.setInput=function(t){return __thCall("setInput",[t]);};' +
-      '_TH.__lastMsgId=0;' +
+      // [P3-C/T3] __lastMsgId 用 injectBridge 第二参(该 iframe 所属消息的真实 id,见 setMessages 建 frame 处 m.id),不再恒 0
+      '_TH.__lastMsgId=' + JSON.stringify(id) + ';' +
       '_TH.getCurrentMessageId=function(){return _TH.__lastMsgId;};' +
       '_TH.getVariables=function(option){return __thCall("getVariables",[option||{}]);};' +
       '_TH.setVariables=function(vars,option){return __thCall("setVariables",[vars,option||{}]);};' +
