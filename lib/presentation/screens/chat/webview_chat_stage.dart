@@ -133,11 +133,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     vsync: this, duration: const Duration(milliseconds: 550));
   late final Animation<double> _maskAnim = CurvedAnimation(parent: _maskController, curve: DesignTokens.curveEmphasized);
 
-  // 第三方库缓存（jQuery/lodash/toastr），全类共享，只读一次
+  // 第三方库缓存（jQuery/lodash/toastr/yaml），全类共享，只读一次
   static String? _jqueryB64;
   static String? _lodashB64;
   static String? _toastrJsB64;
   static String? _toastrCssB64;
+  static String? _yamlB64;
   static bool _libsLoaded = false;
   static String? _mvuBundleRaw;
   static bool _mvuLoaded = false;
@@ -171,10 +172,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       final lodash = await rootBundle.loadString('assets/libs/lodash.min.js');
       final toastrJs = await rootBundle.loadString('assets/libs/toastr.min.js');
       final toastrCss = await rootBundle.loadString('assets/libs/toastr.min.css');
+      final yamlJs = await rootBundle.loadString('assets/libs/yaml.min.js');
       _jqueryB64 = base64Encode(utf8.encode(jquery));
       _lodashB64 = base64Encode(utf8.encode(lodash));
       _toastrJsB64 = base64Encode(utf8.encode(toastrJs));
       _toastrCssB64 = base64Encode(utf8.encode(toastrCss));
+      _yamlB64 = base64Encode(utf8.encode(yamlJs));
       _libsLoaded = true;
     } catch (e) {
       // 加载失败不阻断聊天，仅记录
@@ -223,7 +226,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         'jquery:"${_jqueryB64 ?? ''}",'
         'lodash:"${_lodashB64 ?? ''}",'
         'toastrJs:"${_toastrJsB64 ?? ''}",'
-        'toastrCss:"${_toastrCssB64 ?? ''}"'
+        'toastrCss:"${_toastrCssB64 ?? ''}",'
+        'yaml:"${_yamlB64 ?? ''}"'
         '};';
     try {
       await c.evaluateJavascript(source: js);
