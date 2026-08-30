@@ -74,7 +74,8 @@ abstract class AppRoutes {
   static const aiPresets = '/settings/ai/presets';
   static const import_ = '/import';
   static const personas = '/personas';
-  // A3-T4: '/world-info' 列表页路由已随 NativeTavern 遗留页面删除
+  // [P3-E/Z] '/world-info' 恢复, 但收窄为只支持全局模式(characterId 分支已砍)
+  static const worldInfo = '/world-info';
   static const groups = '/groups';
   static const groupDetail = '/groups/:id';
   static const tags = '/tags';
@@ -305,6 +306,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) =>
             _buildIosPushPage(state.pageKey, const PersonasScreen()),
+      ),
+      // [P3-E/Z] 全局世界书列表页(仅全局模式; 不接受 characterId 分支,
+      // 双模歧义是 A3-T4 删它的根因)。恒以 isGlobal=true 构造。
+      GoRoute(
+        path: AppRoutes.worldInfo,
+        name: 'worldInfo',
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (context, state) {
+          return _buildIosPushPage(
+              state.pageKey, const WorldInfoScreen(isGlobal: true));
+        },
       ),
       GoRoute(
         path: AppRoutes.promptManager,
