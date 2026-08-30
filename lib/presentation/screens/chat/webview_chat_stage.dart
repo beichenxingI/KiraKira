@@ -785,6 +785,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     await Future.delayed(const Duration(milliseconds: 350));
                     if (!mounted) return;
                     await _pushMessages();
+                    // [P3-E3] 存量变量快照推送: setMessages 建 iframe → patch 索要快照(__thRequestSnap)
+                    // 前先把已落库的 MvuData 逐条广播, card 门控(getMvuData/getAllVariables)才有数据。
+                    await _pushInitialVarSnapshots();
                     // 开场白就绪后主动填充 __chatMessages 并触发 chat_changed，
                     // 让 MVU initCheck 重跑一次（这次 SillyTavern.chat 非空）
                     final initMsgsJson = jsonEncode(_serializeMessagesForMvu());
@@ -1572,7 +1575,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
     await service.saveLocalVariablesToPrefs(widget.chatId);
     final readBack = service.getAllLocalVariables(widget.chatId);
-    _syncVarsToEngine('chat', readBack);
+    // [P3-E3] 补 lastMsgId: card 门控与 latest 解析都依赖它, 缺失时 card 端维持旧值
+    final msgsNow = ref.read(activeChatProvider).messages;
+    _syncVarsToEngine('chat', readBack, lastMsgId: msgsNow.isNotEmpty ? msgsNow.length - 1 : null);
     return readBack;
   }
   /// 反向同步:把变量表推进引擎房镜像。
@@ -1584,6 +1589,34 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     _controller?.evaluateJavascript(
         source: 'if(window.__syncVarsToEngine)window.__syncVarsToEngine('
             '"$type",$dataJson,$midArg,$lastArg,$swipeArg);');
+  }
+
+  /// [P3-E3] 启动/重建后把存量 MvuData(swipesData)逐条推进 __syncVarsToEngine,
+  /// 让 card iframe 的 window.Mvu 门控(需 message 级 stat_data)与快照读有数据可用。
+  /// 仅推最近 30 条(与首屏渲染批量一致), 避免长聊天整包注入。
+  Future<void> _pushInitialVarSnapshots() async {
+    try {
+      final messages = ref.read(activeChatProvider).messages;
+      final lastIdx = messages.length - 1;
+      if (lastIdx < 0) return;
+      final start = lastIdx > 29 ? lastIdx - 29 : 0;
+      for (var i = start; i <= lastIdx; i++) {
+        final m = messages[i];
+        if (m.swipesData.isEmpty) continue;
+        final sid = m.currentSwipeIndex < 0 ? 0 : m.currentSwipeIndex;
+        final data = (sid < m.swipesData.length) ? m.swipesData[sid] : m.swipesData.first;
+        if (data.isEmpty) continue;
+        _syncVarsToEngine('message', data, messageId: i, lastMsgId: lastIdx, swipeId: sid);
+      }
+      // chat 变量也补一拍(card 门控兜底 + getAllVariables 合并用)
+      final chatVars = VariablesService.instance.getAllLocalVariables(widget.chatId);
+      if (chatVars.isNotEmpty) {
+        _syncVarsToEngine('chat', chatVars, lastMsgId: lastIdx);
+      }
+      KiraLogger().info('MVU', '存量变量快照已推送 start=$start lastIdx=$lastIdx');
+    } catch (e) {
+      KiraLogger().info('MVU', '存量变量快照推送失败: $e');
+    }
   }
   /// 推送角色主世界书名到引擎房镜像（供 MVU isExtraModelSupported 同步读）
   Future<void> _syncPrimaryLorebookToEngine() async {

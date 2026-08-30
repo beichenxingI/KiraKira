@@ -486,7 +486,11 @@ __KIRA_CHAT_BRIDGE__
     return /<style|<script|<!DOCTYPE|<html|<head|<body/i.test(s);
   }
 
-function injectBridge(html, id) {
+function injectBridge(html, id, floorIdx) {
+    // [P3-E2] floorIdx: 该 iframe 所属消息的数字楼层下标(0 起,= floor-1)。
+    // 卡的 getCurrentMessageId() 返回的是本 iframe 的字符串 id(_id),
+    // Mvu facade 的 message_id 解析器需要把字符串 id / 本楼层号映射到快照数组的数字下标。
+    var _thFloorIdx = (typeof floorIdx === 'number' && !isNaN(floorIdx)) ? floorIdx : -1;
     var _libs=(typeof window.__KIRA_LIBS!=="undefined")?window.__KIRA_LIBS:{};
     var _macros=(typeof window.__KIRA_MACRO_VALUES!=="undefined")?window.__KIRA_MACRO_VALUES:{user:"User",char:"Assistant"};
     var _libScript="";
@@ -663,10 +667,10 @@ function injectBridge(html, id) {
       // [P3-C/T3] __lastMsgId 用 injectBridge 第二参(该 iframe 所属消息的真实 id,见 setMessages 建 frame 处 m.id),不再恒 0
       '_TH.__lastMsgId=' + JSON.stringify(id) + ';' +
       '_TH.getCurrentMessageId=function(){return _TH.__lastMsgId;};' +
-      '_TH.getVariables=function(option){return __thCall("getVariables",[option||{}]);};' +
+      // [P3-E3] getVariables/getAllVariables 改走本地同步快照(在下方 __thVars 段重定义),
+      // 此处先移除原 __thCall 异步版, 防卡同步读拿到 Promise。
       '_TH.setVariables=function(vars,option){return __thCall("setVariables",[vars,option||{}]);};' +
       '_TH.replaceVariables=function(vars,option){return __thCall("replaceVariables",[vars,option||{}]);};' +
-      '_TH.getAllVariables=function(){return __thCall("getAllVariables",[]);};' +
       '_TH.getTavernHelperVersion=function(){return "4.9.1";};' +
       // ── MVU 启动依赖:关卡三(唯一脚本)/关卡七(generate空桩) ──
       '_TH.getScriptId=function(){return "kirakira-mvu-0";};' +
@@ -773,6 +777,116 @@ function injectBridge(html, id) {
       '},100);' +
       '});' +
       '};' +
+      // ── [P3-E3] card 本地变量快照 store(主文档 __syncVarsToCard 广播的信封 __thVars) ──
+      // __thVars: {message: {floorIdx: MvuData}, chat: {}, global: {}, lastMsgId, swipes: {floorIdx: sid}}
+      // 收到即存; window.Mvu 的定义被门控到"首份含 stat_data 的 message 级 MvuData 到达"(防假空数据)。
+      '__TH_MSG_ID=' + JSON.stringify(id) + ';' +
+      '__TH_FLOOR_IDX=' + JSON.stringify(_thFloorIdx) + ';' +
+      // [P3-E2] Mvu facade(对象,函数不能跨 iframe 传,卡侧自建同名 facade)。
+      // events 常量照 exported.mvu.d.ts / 上游源码硬编码, 'mag_variable_initiailized'
+      // 的拼写错误是官方自带, 不许"修正"。先放 __TH_MVU_FACADE 暂存,
+      // 快照门控通过后 __thArmMvu 才把它挂成 window.Mvu(for-in 挂窗不会提前定义它)。
+      'window.__TH_MVU_FACADE={' +
+      'events:{VARIABLE_INITIALIZED:"mag_variable_initiailized",VARIABLE_UPDATE_STARTED:"mag_variable_update_started",COMMAND_PARSED:"mag_command_parsed",VARIABLE_UPDATE_ENDED:"mag_variable_update_ended",BEFORE_MESSAGE_UPDATE:"mag_before_message_update"},' +
+      'getMvuData:function(option){return __TH_GET_MVU_DATA(option);},' +
+      'replaceMvuData:function(mvu_data,option){return __TH_REPLACE_MVU_DATA(mvu_data,option);},' +
+      'parseMessage:function(message,old_data){return __thCall("thMvuParseMessage",[message,old_data||{}]).catch(function(err){parent.postMessage({__thLog:true,text:"[Mvu] parseMessage 桥失败(返 undefined): "+err},"*");return undefined;});},' +
+      'isDuringExtraAnalysis:function(){return false;}' +
+      '};' +
+      'window.__thVars={message:{},chat:{},global:{},lastMsgId:-1,swipes:{}};' +
+      'window.__thMvuReady=false;' +
+      'function __thArmMvu(){' +
+      'if(window.__thMvuReady)return;' +
+      'if(typeof window.Mvu!=="undefined"){window.__thMvuReady=true;return;}' +
+      'try{window.Mvu=window.__TH_MVU_FACADE;window.__thMvuReady=true;' +
+      'parent.postMessage({__thLog:true,text:"[Mvu] card("+_id+") 已挂 window.Mvu(快照门控通过)"},"*");' +
+      '_TH.eventEmit("global_Mvu_initialized");}catch(e){parent.postMessage({__thLog:true,text:"[Mvu] card 挂载失败: "+e},"*");}' +
+      '}' +
+      'window.addEventListener("message",function(e){' +
+      'var d=e.data;if(!d||!d.__thVars)return;' +
+      'try{' +
+      'var t=d.type||"chat";' +
+      'if(t==="message"){' +
+      'var fi=(typeof d.floor_idx==="number")?d.floor_idx:__TH_FLOOR_IDX;' +
+      'if(typeof fi!=="number"||fi<0){parent.postMessage({__thLog:true,text:"[Mvu] card("+_id+") 快照缺 floor_idx,丢弃"},"*");return;}' +
+      'window.__thVars.message[fi]=d.data||{};' +
+      'window.__thVars.swipes[fi]=(typeof d.swipe_id==="number")?d.swipe_id:0;' +
+      'if(d.data&&typeof d.data.stat_data!=="undefined"&&!window.__thMvuReady){__thArmMvu();}' +
+      '}else{window.__thVars[t]=d.data||{};}' +
+      'if(typeof d.lastMsgId==="number"&&d.lastMsgId>window.__thVars.lastMsgId){window.__thVars.lastMsgId=d.lastMsgId;}' +
+      '}catch(err){parent.postMessage({__thLog:true,text:"[Mvu] card 快照处理失败: "+err},"*");}' +
+      '});' +
+      // [P3-E3] 主文档转发的 MVU 事件(__mvuEvent 中��成 __thEvent)→ card 本地总线重放。
+      // 卡 eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, ...) 注册进 _TH.__events, 在此被点火。
+      'window.addEventListener("message",function(e){' +
+      'var d=e.data;if(!d||!d.__thEvent)return;' +
+      'try{_TH.eventEmit.apply(_TH,[d.type].concat(d.args||[]));' +
+      'parent.postMessage({__thLog:true,text:"[Mvu] card("+_id+") 事件点火 "+d.type+" 监听数="+((_TH.__events[d.type]||[]).length)},"*");}catch(err){' +
+      'parent.postMessage({__thLog:true,text:"[Mvu] card 事件点火失败 "+d.type+": "+err},"*");}' +
+      '});' +
+      // [P3-E3] patch 执行即向主文档索要已到快照(iframe 重建/懒加载恢复补发)
+      'try{parent.postMessage({__thVars:true,__thRequestSnap:true},"*");}catch(_snapE){}' +
+      // VariableOption 照 function/variables.d.ts: number | 'latest' | 负深度索引;
+      // 扩展: 本 iframe 的字符串 id(卡的 getCurrentMessageId 返回 _id)→ 本楼层下标
+      '__TH_RESOLVE_MID=function(option){' +
+      'var mid=(option&&option.message_id!==undefined)?option.message_id:"latest";' +
+      'if(typeof mid==="string"){' +
+      'if(mid==="latest"){return window.__thVars.lastMsgId;}' +
+      'if(mid===__TH_MSG_ID){return __TH_FLOOR_IDX;}' +
+      'var _n=parseInt(mid,10);if(!isNaN(_n)){mid=_n;}' +
+      '}' +
+      'if(typeof mid==="number"){' +
+      'if(mid<0){mid=window.__thVars.lastMsgId+1+mid;}' +
+      'return mid;' +
+      '}' +
+      'return window.__thVars.lastMsgId;' +
+      '};' +
+      '__TH_GET_MVU_DATA=function(option){' +
+      'option=option||{};' +
+      'var t=option.type||"chat";' +
+      'if(t==="message"){' +
+      'var fi=__TH_RESOLVE_MID(option);' +
+      'if(typeof fi!=="number"||fi<0){parent.postMessage({__thLog:true,text:"[Mvu] getMvuData 解析不到楼层(option="+JSON.stringify(option)+", id="+_id+", floor="+__TH_FLOOR_IDX+", last="+window.__thVars.lastMsgId+"), 返回空对象"},"*");return {};}' +
+      'return window.__thVars.message[fi]||{};' +
+      '}' +
+      'if(t==="character"){' +
+      'var c=window.__thVars.chat&&window.__thVars.chat.stat_data!==undefined?window.__thVars.chat:null;' +
+      'if(!c){parent.postMessage({__thLog:true,text:"[Mvu] getMvuData type=character 无独立快照,回退 chat"},"*");}' +
+      'return c||window.__thVars.chat||{};' +
+      '}' +
+      'return window.__thVars[t]||{};' +
+      '};' +
+      '__TH_REPLACE_MVU_DATA=function(mvu_data,option){' +
+      'option=option||{};' +
+      'var t=option.type||"chat";' +
+      // 乐观更新本地快照(卡写完立刻读必须读到新值), stat_data 在场则顺带过挂载门控
+      'if(t==="message"){' +
+      'var fi=__TH_RESOLVE_MID(option);' +
+      'if(typeof fi==="number"&&fi>=0){window.__thVars.message[fi]=mvu_data||{};' +
+      'if(mvu_data&&typeof mvu_data.stat_data!=="undefined"){__thArmMvu();}}' +
+      '}else{window.__thVars[t]=mvu_data||{};}' +
+      'return __thCall("setVariables",[mvu_data||{},option]);' +
+      '};' +
+      // ── [P3-E3] getAllVariables/getVariables 同步化: 读本地快照(全局→chat→楼层 叠加)。
+      // 卡 populateCharacterData 同步读 getAllVariables();原 __thCall 异步版返回 Promise
+      // 导致 _.get(Promise,"stat_data") 为空 → 状态栏无数字。message 楼层: 本楼层优先,
+      // 否则取 ≤ 本楼层的最近有效 MvuData(MVU getLastValidVariable 语义)。
+      'function __thBuildAllVars(){' +
+      'var out={};' +
+      'function _deep(dst,src){for(var k in (src||{})){if(!Object.prototype.hasOwnProperty.call(src,k))continue;' +
+      'if(src[k]&&typeof src[k]==="object"&&!Array.isArray(src[k])&&(dst[k]&&typeof dst[k]==="object"&&!Array.isArray(dst[k]))){_deep(dst[k],src[k]);}else{dst[k]=src[k];}}}' +
+      '_deep(out,window.__thVars.global);_deep(out,window.__thVars.chat);' +
+      'var fi=(__TH_FLOOR_IDX>=0)?__TH_FLOOR_IDX:window.__thVars.lastMsgId;' +
+      'for(var i=fi;i>=0;i--){if(window.__thVars.message[i]&&window.__thVars.message[i].stat_data!==undefined){_deep(out,window.__thVars.message[i]);break;}}' +
+      'return out;' +
+      '}' +
+      '_TH.getAllVariables=function(){return __thBuildAllVars();};' +
+      'window.getAllVariables=_TH.getAllVariables;' +
+      '_TH.getVariables=function(option){' +
+      'option=option||{};var t=option.type||"chat";' +
+      'if(t==="message"){var fi=__TH_RESOLVE_MID(option);return (typeof fi==="number"&&fi>=0)?(window.__thVars.message[fi]||{}):{};}' +
+      'return window.__thVars[t]||{};' +
+      '};' +
       // 全部裸挂到 window
       'for(var _k in _TH){if(_TH.hasOwnProperty(_k)){window[_k]=_TH[_k];}}' +
       'window.TavernHelper=_TH;' +
@@ -842,10 +956,36 @@ function injectBridge(html, id) {
     try { var r = ev.reason; sendToFlutter('log', { text: '[WV-4] unhandledrejection reason=' + ((r && (r.stack || r.message)) || r) }); } catch(e){}
   });
 
-window.addEventListener('message', function(e) {
+  window.addEventListener('message', function(e) {
     var d = e.data;
     if (d && d.__thLog) {
       sendToFlutter('log', { text: d.text });
+    }
+    // [P3-E3] card 索要快照应答(仅回给来源 iframe)
+    if (d && d.__thVars && d.__thRequestSnap) {
+      var items = window.__snapAll();
+      for (var qi = 0; qi < items.length; qi++) {
+        if (e.source) e.source.postMessage(items[qi], '*');
+      }
+      sendToFlutter('log', { text: '[变量同步] 快照回放给 card, 条数=' + items.length });
+      return;
+    }
+    // [P3-E3] 引擎房 MVU 事件 → card 本地事件总线中继
+    if (d && d.__mvuEvent) {
+      try {
+        var cards2 = document.querySelectorAll('iframe[data-frame-id]:not([data-frame-id="engine-room"])');
+        for (var mi = 0; mi < cards2.length; mi++) {
+          if (cards2[mi].contentWindow) {
+            cards2[mi].contentWindow.postMessage({ __thEvent: true, type: d.type, args: d.args || [] }, '*');
+          }
+        }
+        if (cards2.length > 0) {
+          sendToFlutter('log', { text: '[Mvu] 事件中继 card x' + cards2.length + ' type=' + d.type });
+        }
+      } catch (me) {
+        sendToFlutter('log', { text: '[Mvu] 事件中继失败: ' + me });
+      }
+      return;
     }
     if (d && d.__cardHeight) {
       var f = document.querySelector('iframe[data-frame-id="' + d.id + '"]');
@@ -891,8 +1031,39 @@ window.addEventListener('message', function(e) {
     } catch(e) { return false; }
   };
 // ── 外层 → 引擎房:推真实变量进镜像(反向同步) ──
+  window.__kiraVarSnap = window.__kiraVarSnap || { message: {}, chat: {}, global: {}, lastMsgId: -1 };
   window.__syncVarsToEngine = function(type, data, messageId, lastMsgId, swipeId) {
     try {
+      // [P3-E3] 主文档快照 + card 广播: 与引擎房路径并列, 不改引擎房现有行为。
+      // message 级: 快照存 {floorIdx: MvuData}; chat/global: 存整表; lastMsgId 单调更新。
+      if (type === 'message') {
+        if (typeof messageId === 'number' && messageId >= 0) {
+          window.__kiraVarSnap.message[messageId] = data || {};
+          window.__kiraVarSnap.lastMsgId = (typeof lastMsgId === 'number' && lastMsgId >= 0) ? lastMsgId : messageId;
+        }
+      } else if (type === 'chat' || type === 'global') {
+        window.__kiraVarSnap[type] = data || {};
+        if (typeof lastMsgId === 'number' && lastMsgId >= 0) window.__kiraVarSnap.lastMsgId = lastMsgId;
+      }
+      try {
+        var cards = document.querySelectorAll('iframe[data-frame-id]:not([data-frame-id="engine-room"])');
+        for (var ci = 0; ci < cards.length; ci++) {
+          var cf = cards[ci];
+          if (!cf.contentWindow) continue;
+          var env = {
+            __thVars: true, type: type, data: data,
+            floor_idx: (type === 'message') ? messageId : undefined,
+            lastMsgId: (typeof lastMsgId === 'number') ? lastMsgId : undefined,
+            swipe_id: (typeof swipeId === 'number') ? swipeId : undefined,
+          };
+          cf.contentWindow.postMessage(env, '*');
+        }
+        if (cards.length > 0 && (type === 'message' || type === 'chat')) {
+          sendToFlutter('log', { text: '[变量同步] 已广播 card x' + cards.length + ' type=' + type });
+        }
+      } catch (cbErr) {
+        sendToFlutter('log', { text: '[变量同步] card 广播失败: ' + cbErr });
+      }
       var host = document.getElementById('__engineRoomHost');
       var f = host && host.querySelector('iframe[data-frame-id="engine-room"]');
       if (f && f.contentWindow) {
@@ -909,6 +1080,36 @@ window.addEventListener('message', function(e) {
       return false;
     }
   };
+  // [P3-E3] card iframe 索要已到快照(iframe 重建/懒加载恢复后补发; __thVars 带 __thRequestSnap=true)
+  window.__snapAll = function() {
+    var s = window.__kiraVarSnap || {};
+    var out = [];
+    for (var k in s.message) {
+      if (Object.prototype.hasOwnProperty.call(s.message, k)) {
+        out.push({ type: 'message', data: s.message[k], floor_idx: parseInt(k, 10), lastMsgId: s.lastMsgId });
+      }
+    }
+    if (s.chat) out.push({ type: 'chat', data: s.chat, lastMsgId: s.lastMsgId });
+    if (s.global) out.push({ type: 'global', data: s.global, lastMsgId: s.lastMsgId });
+    return out;
+  };
+  // [P3-E2] 主文档接住 MVU 自挂的 window.Mvu(上游 global/index.ts 挂到 window.parent)。
+  // MVU 跑在引擎房(iframe) → Mvu 落在主文档; 是否挂上取决于 store.should_enable
+  // (registerAsUniqueScript 选主), 为假则永不挂载且静默。轮询 10 秒给结论。
+  (function() {
+    var _t0 = Date.now();
+    var _iv = setInterval(function() {
+      if (typeof window.Mvu !== 'undefined') {
+        clearInterval(_iv);
+        sendToFlutter('log', { text: '[Mvu] 主文档已接到 window.Mvu' });
+        return;
+      }
+      if (Date.now() - _t0 > 10000) {
+        clearInterval(_iv);
+        sendToFlutter('log', { text: '[Mvu] 等待 window.Mvu 超时(10s), 疑似 should_enable 为假' });
+      }
+    }, 200);
+  })();
 
   // ── 酒馆助手 API：顶层中转 ────────────────────────────────────────
   // 收 iframe 的 __thRequest → 走桥的请求-响应到 Flutter →
@@ -952,6 +1153,23 @@ window.addEventListener('message', function(e) {
     // 下方成功/失败日志不受影响(失败必须可见是铁律)。
     var _seen = window.__thSeenMethods || (window.__thSeenMethods = {});
     if (!_seen[method]) { _seen[method] = 1; sendToFlutter('log', { text: '[TH中转] 收到iframe请求 method=' + method }); }
+    // [P3-E3] VariableOption 规范化: message_id 若是 iframe 字符串 id → 换算成楼层下标。
+    // 卡 getCurrentMessageId() 返回字符串 id; Dart 侧 setVars/广播都用数字楼层下标。
+    function __thNormVarOption(opt) {
+      var o = opt || {};
+      try {
+        if (o.message_id !== undefined && typeof o.message_id === 'string') {
+          if (window.__kiraMsgFloorMap && window.__kiraMsgFloorMap[o.message_id] !== undefined) {
+            o = Object.assign({}, o, { message_id: window.__kiraMsgFloorMap[o.message_id] });
+          } else {
+            var _nm = parseInt(o.message_id, 10);
+            if (!isNaN(_nm)) o = Object.assign({}, o, { message_id: _nm });
+            else { o = Object.assign({}, o); delete o.message_id; } // 'latest' → 宿主自定位
+          }
+        }
+      } catch (_nvoE) {}
+      return o;
+    }
     var type = typeMap[method];
     if (!type) { reply(false, null, 'unknown method: ' + method); return; }
 
@@ -969,9 +1187,9 @@ window.addEventListener('message', function(e) {
     } else if (method === 'getVariables') {
       payload = { option: args[0] || {} };
     } else if (method === 'setVariables') {
-      payload = { vars: args[0] || {}, option: args[1] || {} };
+      payload = { vars: args[0] || {}, option: __thNormVarOption(args[1]) };
     } else if (method === 'replaceVariables') {
-      payload = { vars: args[0] || {}, option: args[1] || {} };
+      payload = { vars: args[0] || {}, option: __thNormVarOption(args[1]) };
     } else if (method === 'getLorebookEntries') {
       payload = { name: args[0] };
     } else if (method === 'setLorebookEntries') {
@@ -1021,7 +1239,7 @@ window.addEventListener('message', function(e) {
           if (!f.getAttribute('data-blob-loaded')) {
             var lastH = f.getAttribute('data-last-height');
             if (lastH) f.style.height = lastH;
-            var injected2 = injectBridge(html, f.getAttribute('data-frame-id'));
+            var injected2 = injectBridge(html, f.getAttribute('data-frame-id'), parseInt(f.getAttribute('data-floor'), 10) - 1);
             try {
               var blob2 = new Blob([injected2], {type:'text/html;charset=utf-8'});
               var url2 = URL.createObjectURL(blob2);
@@ -1133,6 +1351,15 @@ window.addEventListener('message', function(e) {
       if (options && options.avatars) {
         window.__avatars = options.avatars;
       }
+      // [P3-E3] 楼层下标(0起) → 消息id 映射, 供 Mvu facade message_id 解析与 Dart 写回换算
+      try {
+        window.__kiraMsgFloorMap = window.__kiraMsgFloorMap || {};
+        for (var _fi = 0; _fi < arr.length; _fi++) {
+          if (arr[_fi] && arr[_fi].id && arr[_fi].floor) {
+            window.__kiraMsgFloorMap[arr[_fi].id] = arr[_fi].floor - 1;
+          }
+        }
+      } catch (_mfmE) {}
       // initial: 初始渲染，清空root
       if (options && options.initial) {
         root.innerHTML = '';
@@ -1193,7 +1420,7 @@ window.addEventListener('message', function(e) {
           frame.setAttribute('scrolling', 'no');
           frame.setAttribute('data-html', m.html);
           (function(f, html, id){
-            var injected = injectBridge(html, id);
+            var injected = injectBridge(html, id, (m.floor ? (m.floor - 1) : -1));
             try {
               var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
               var url = URL.createObjectURL(blob);
