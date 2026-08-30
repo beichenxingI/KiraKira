@@ -795,10 +795,14 @@ function injectBridge(html, id, floorIdx) {
       '};' +
       'window.__thVars={message:{},chat:{},global:{},lastMsgId:-1,swipes:{}};' +
       'window.__thMvuReady=false;' +
+      'window.__thSnapArrived=false;' +
+      'window.__thEmptyAllVarsLogged=false;' +
       'function __thArmMvu(){' +
       'if(window.__thMvuReady)return;' +
       'if(typeof window.Mvu!=="undefined"){window.__thMvuReady=true;return;}' +
       'try{window.Mvu=window.__TH_MVU_FACADE;window.__thMvuReady=true;' +
+      'if(!window.__thSnapArrived){window.__thSnapArrived=true;parent.postMessage({__thLog:true,text:"[Mvu] card("+_id+") 快照首次到达(经挂载门控)"},"*");}' +
+      'window.__thEmptyAllVarsLogged=false;' +
       'parent.postMessage({__thLog:true,text:"[Mvu] card("+_id+") 已挂 window.Mvu(快照门控通过)"},"*");' +
       '_TH.eventEmit("global_Mvu_initialized");}catch(e){parent.postMessage({__thLog:true,text:"[Mvu] card 挂载失败: "+e},"*");}' +
       '}' +
@@ -813,6 +817,8 @@ function injectBridge(html, id, floorIdx) {
       'window.__thVars.swipes[fi]=(typeof d.swipe_id==="number")?d.swipe_id:0;' +
       'if(d.data&&typeof d.data.stat_data!=="undefined"&&!window.__thMvuReady){__thArmMvu();}' +
       '}else{window.__thVars[t]=d.data||{};}' +
+      'if(!window.__thSnapArrived){window.__thSnapArrived=true;window.__thEmptyAllVarsLogged=false;' +
+      'parent.postMessage({__thLog:true,text:"[Mvu] card("+_id+") 快照首次到达 type="+t},"*");}' +
       'if(typeof d.lastMsgId==="number"&&d.lastMsgId>window.__thVars.lastMsgId){window.__thVars.lastMsgId=d.lastMsgId;}' +
       '}catch(err){parent.postMessage({__thLog:true,text:"[Mvu] card 快照处理失败: "+err},"*");}' +
       '});' +
@@ -878,6 +884,11 @@ function injectBridge(html, id, floorIdx) {
       '_deep(out,window.__thVars.global);_deep(out,window.__thVars.chat);' +
       'var fi=(__TH_FLOOR_IDX>=0)?__TH_FLOOR_IDX:window.__thVars.lastMsgId;' +
       'for(var i=fi;i>=0;i--){if(window.__thVars.message[i]&&window.__thVars.message[i].stat_data!==undefined){_deep(out,window.__thVars.message[i]);break;}}' +
+      // [G2] 空快照可见化: 三层全空时打一条节流日志(只首次), 快照到达后重置。
+      // 行为不变(仍返空对象, 不打断卡的 _.get 链), 只是把"静默返空"变成可观察。
+      'var _empty=!window.__thSnapArrived&&out.stat_data===undefined&&Object.keys(out).length===0;' +
+      'if(_empty&&!window.__thEmptyAllVarsLogged){window.__thEmptyAllVarsLogged=true;' +
+      'parent.postMessage({__thLog:true,text:"[Mvu] getAllVariables 快照未就绪, 返回空 (id="+_id+", floor="+__TH_FLOOR_IDX+")"},"*");}' +
       'return out;' +
       '}' +
       '_TH.getAllVariables=function(){return __thBuildAllVars();};' +
