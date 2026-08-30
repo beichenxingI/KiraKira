@@ -1185,7 +1185,7 @@ function injectBridge(html, id, floorIdx) {
     } else if (method === 'setInput') {
       payload = { text: args[0] };
     } else if (method === 'getVariables') {
-      payload = { option: args[0] || {} };
+      payload = { option: __thNormVarOption(args[0]) };
     } else if (method === 'setVariables') {
       payload = { vars: args[0] || {}, option: __thNormVarOption(args[1]) };
     } else if (method === 'replaceVariables') {
