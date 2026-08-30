@@ -2928,8 +2928,53 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             bodyForRender,
             extensionSet: md.ExtensionSet.gitHubWeb,
           ));
+    final htmlFenceMatches = RegExp(
+      r'```html\s*\n([\s\S]*?)```',
+      caseSensitive: false,
+    ).allMatches(processed).toList();
+    List<Map<String, dynamic>>? segs;
+    if (htmlFenceMatches.length > 1) {
+      segs = <Map<String, dynamic>>[];
+      var cursor = 0;
+      for (final match in htmlFenceMatches) {
+        final gap = processed.substring(cursor, match.start);
+        if (gap.trim().isNotEmpty) {
+          segs.add({
+            'type': 'prose',
+            'html': _highlightQuotes(md.markdownToHtml(
+              gap,
+              extensionSet: md.ExtensionSet.gitHubWeb,
+            )),
+          });
+        }
+        final body = match.group(1) ?? '';
+        final rich = RegExp(
+          r'<style|<script|<!DOCTYPE|<html|<head|<body',
+          caseSensitive: false,
+        ).hasMatch(body);
+        segs.add({
+          'type': rich ? 'frontend' : 'prose',
+          'html': rich
+              ? normalizeCodeQuotes(body)
+              : _highlightQuotes(md.markdownToHtml(
+                  body,
+                  extensionSet: md.ExtensionSet.gitHubWeb,
+                )),
+        });
+        cursor = match.end;
+      }
+      final tail = processed.substring(cursor);
+      if (tail.trim().isNotEmpty) {
+        segs.add({
+          'type': 'prose',
+          'html': _highlightQuotes(md.markdownToHtml(
+            tail,
+            extensionSet: md.ExtensionSet.gitHubWeb,
+          )),
+        });
+      }
+    }
     final attachmentsHtml = _buildAttachmentsHtml(m);
-    // [WV-1] 每条消息进管线的特征(实证症状3/4的分流依据)
     final wvScript = RegExp(r'<script', caseSensitive: false).hasMatch(m.content);
     final wvStyle = RegExp(r'<style', caseSensitive: false).hasMatch(m.content);
     final wvHtmlTag = RegExp(r'<[a-zA-Z]', caseSensitive: false).hasMatch(m.content);
@@ -2944,6 +2989,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       'role': m.role.name,
       'prose': proseHtml, // 文档前的旁白文字，渲染层放在 iframe 之上
       'html': rendered + attachmentsHtml,
+      if (segs != null) 'segs': segs,
       'reasoning': m.currentReasoning ?? '',
       'swipeCount': m.swipes.length,
       'swipeIndex': m.currentSwipeIndex,
