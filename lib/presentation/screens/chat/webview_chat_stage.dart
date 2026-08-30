@@ -2890,7 +2890,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       caseSensitive: false,
     ).hasMatch(bodyForRender);
     final rendered = looksLikeHtml
-        ? _normalizeCodeQuotes(bodyForRender)
+        ? normalizeCodeQuotes(bodyForRender)
         : _highlightQuotes(md.markdownToHtml(
             bodyForRender,
             extensionSet: md.ExtensionSet.gitHubWeb,
@@ -3164,16 +3164,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
   /// 给引号/括号包裹的对话内容加高亮span（符号连同内容一起染色）
   /// 引号类 → quote-q（主色A暖橙），括号类 → quote-p（主色B碧蓝）
-  /// 把代码位置的弯引号(智能引号)归一化为直引号。仅用于进 iframe 的 HTML 卡片：
-  /// 卡片作者/AI 常用中文弯引号，会破坏 JS 字符串定界(name:'x')与
-  /// HTML/SVG 属性定界(viewBox="0")，导致 SyntaxError / 属性截断 → 卡片崩溃。
-  /// 借鉴 RisuAI 渲染前归一化(仅阶段1)。正文走 markdown 气泡不经此处，
-  /// 弯引号原样保留、_highlightQuotes 染色不受影响。
-  /// 保留书名号《》与角引号「」『』(正文排版符，非代码定界符)。
-  String _normalizeCodeQuotes(String html) => html
-      .replaceAll(RegExp('[\u2018\u2019\u201A\u201B]'), "'")
-      .replaceAll(RegExp('[\u201C\u201D\u201E\u201F\uFF02]'), '"')
-      .replaceAll(RegExp('\u2026+'), '...');
   String _highlightQuotes(String html) {
     // 引号/方括号/书名号类：每种符号各自配对，符号+内容整体染
     final quotePattern = RegExp(
@@ -3398,4 +3388,38 @@ class _FullImageViewer extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 把代码位置的弯引号(智能引号)归一化为直引号。仅用于进 iframe 的 HTML 卡片：
+/// 卡片作者/AI 常用中文弯引号,会破坏 JS 字符串定界(name:'x')与
+/// HTML/SVG 属性定界(viewBox="0"),导致 SyntaxError / 属性截断 → 卡片崩溃。
+/// 借鉴 RisuAI 渲染前归一化(仅阶段1)。正文走 markdown 气泡不经此处,
+/// 弯引号原样保留、_highlightQuotes 染色不受影响。
+/// 保留书名号《》与角引号「」『』(正文排版符,非代码定界符)。
+///
+/// [P3-D] 只在 <script>/<style> 块之外做替换,块内原样保留:
+/// 旧实现全文本替换,把 JS 字符串字面量内部的弯引号也换成直引号
+/// (如 desc:"“深蓝!”…" 被改成 desc:""深蓝!"…" → SyntaxError 整块脚本死亡)。
+/// 块外(HTML 属性/正文/裸文本JS)保持原归一化行为。
+/// 边界: <script> 未闭合 → 非贪婪匹配不命中 → 该段照旧归一化(与旧行为一致);
+/// JS 字符串内的字面量 "</script>" 与浏览器解析行为一致地提前截断块,
+/// 卡片本身已在字符串内写 <\/script> 转义,不受影响。
+String normalizeCodeQuotes(String html) {
+  String norm(String s) => s
+      .replaceAll(RegExp('[‘’‚‛]'), "'")
+      .replaceAll(RegExp('[“”„‟＂]'), '"')
+      .replaceAll(RegExp('…+'), '...');
+  final blocks = RegExp(
+    r'<script[^>]*>[\s\S]*?</script>|<style[^>]*>[\s\S]*?</style>',
+    caseSensitive: false,
+  ).allMatches(html);
+  final buf = StringBuffer();
+  var last = 0;
+  for (final m in blocks) {
+    buf.write(norm(html.substring(last, m.start)));
+    buf.write(html.substring(m.start, m.end));
+    last = m.end;
+  }
+  buf.write(norm(html.substring(last)));
+  return buf.toString();
 }
