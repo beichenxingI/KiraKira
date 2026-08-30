@@ -819,9 +819,10 @@ function injectBridge(html, id) {
       'try{Object.defineProperty(window.SillyTavern,"chat",{configurable:true,get:function(){return window.__chatMessages||[];}});}catch(e){window.SillyTavern.chat=window.__chatMessages||[];}' +
       'window.getContext=function(){return _ctx;};' +
       '})();<\/script>' + _guardBlank;
-    if (/<head>/i.test(html)) return html.replace(/<head>/i, '<head>' + patch);
+    // [P3-D/T3] 替换串一律用函数形式: 字符串第二参会把卡里的 $&/$'/$`/$1-9 当替换引用吞掉/展开。
+    if (/<head>/i.test(html)) return html.replace(/<head>/i, function(){ return '<head>' + patch; });
     if (/<html/i.test(html)) return html.replace(/<html[^>]*>/, function(m){ return m + patch; });
-    if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, patch + '</body>');
+    if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, function(){ return patch + '</body>'; });
     return html + patch;
   }
 
