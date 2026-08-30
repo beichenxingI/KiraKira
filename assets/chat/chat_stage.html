@@ -728,6 +728,51 @@ function injectBridge(html, id) {
       'MESSAGE_RECEIVED:"message_received",MESSAGE_UPDATED:"message_updated",MESSAGE_SWIPED:"message_swiped",MESSAGE_DELETED:"message_deleted",MORE_MESSAGES_LOADED:"more_messages_loaded",CHAT_CHANGED:"chat_changed",CHARACTER_MESSAGE_RENDERED:"character_message_rendered",USER_MESSAGE_RENDERED:"user_message_rendered",GENERATION_AFTER_COMMANDS:"generation_after_commands",GENERATION_STARTED:"generation_started",GENERATION_STOPPED:"generation_stopped",GENERATION_ENDED:"generation_ended",STREAM_TOKEN_RECEIVED:"stream_token_received",CONNECTED:"connected",DISCONNECTED:"disconnected",EXTENSION_SETTINGS_LOADED:"extension_settings_loaded",CHARACTER_SELECTED:"character_selected",CHARACTER_DELETED:"character_deleted",CHARACTER_RENAMED:"character_renamed",CHARACTER_CREATED:"character_created",CHAT_DELETED:"chat_deleted",GROUP_UPDATED:"group_updated",PRESET_RENAMED_BEFORE:"preset_renamed_before",MAIN_API_CHANGED:"main_api_changed",WORLDINFO_ENTRIES_LOADED:"worldinfo_entries_loaded",WORLDINFO_SCAN_DONE:"worldinfo_scan_done"' +
       '};' +
       'window.iframe_events={GENERATION_STARTED:"iframe_generation_started",GENERATION_ENDED:"iframe_generation_ended",STREAM_TOKEN_RECEIVED_FULLY:"iframe_stream_token_received_fully",STREAM_TOKEN_RECEIVED_INCREMENTALLY:"iframe_stream_token_received_incrementally"};' +
+      // ── [P3-D/T2] 酒馆助手官方 errorCatched / waitGlobalInitialized ──
+      // errorCatched(util.d.ts): 包装任意函数, 返回同功能函数, 报错走 toastr 通知。
+      // 修正了诊断报告 §7 桩的两个错误: 同步 try/catch 抓不到 async fn 的 rejection
+      // (init 正是 async) → thenable 路径单独挂 rejection 处理; 是否重抛官方未规定,
+      // 本轮选不重抛(避免异常冒到 jQuery ready 队列), 做显式开关 _EC_RETHROW 可一行翻转。
+      // 弹窗与 console.error 都要: console.error 会被转发链变成 CARD-ERR 可见性日志。
+      'var _EC_RETHROW=false;' +
+      'function _ecReport(e){' +
+      'try{if(window.toastr&&toastr.error)toastr.error(String((e&&e.message)||e),"脚本错误");}catch(_e1){}' +
+      'console.error("[errorCatched]",e&&e.stack||e);' +
+      '}' +
+      '_TH.errorCatched=function(fn){' +
+      'return function(){' +
+      'try{' +
+      'var r=fn.apply(this,arguments);' +
+      'if(r&&typeof r.then==="function"){' +
+      'return Promise.resolve(r).then(function(v){return v;},function(e){' +
+      '_ecReport(e);' +
+      'if(_EC_RETHROW)throw e;' +
+      '});' +
+      '}' +
+      'return r;' +
+      '}catch(e){' +
+      '_ecReport(e);' +
+      'if(_EC_RETHROW)throw e;' +
+      '}' +
+      '};' +
+      '};' +
+      // waitGlobalInitialized(global.d.ts): 等到该全局初始化完毕并返回它。
+      // 修正诊断报告 §7 桩的错误: 立即 resolve(undefined) 会让 init() 第二行
+      // await waitGlobalInitialized("Mvu") 拿到 undefined → Mvu.events TypeError。
+      // 正确语义: 已存在→立即 resolve; 不存在→100ms 轮询, 永不 reject/永不超时
+      // (P3-E 注入 Mvu 后仍在等待的 init 自然继续)。等超 10 秒打一条日志(只一次),
+      // 含 global 名与消息 id 便于诊断; interval 随 iframe 销毁终止(有界泄漏)。
+      '_TH.waitGlobalInitialized=function(name){' +
+      'if(typeof window[name]!=="undefined")return Promise.resolve(window[name]);' +
+      'return new Promise(function(resolve){' +
+      'var _waited=0,_warned=false;' +
+      'var _t=setInterval(function(){' +
+      'if(typeof window[name]!=="undefined"){clearInterval(_t);resolve(window[name]);return;}' +
+      '_waited+=100;' +
+      'if(!_warned&&_waited>=10000){_warned=true;parent.postMessage({__thLog:true,text:"[waitGlobalInitialized] 仍在等待 window."+name+" (id="+_id+", 已等10秒, 不超时)"},"*");}' +
+      '},100);' +
+      '});' +
+      '};' +
       // 全部裸挂到 window
       'for(var _k in _TH){if(_TH.hasOwnProperty(_k)){window[_k]=_TH[_k];}}' +
       'window.TavernHelper=_TH;' +
