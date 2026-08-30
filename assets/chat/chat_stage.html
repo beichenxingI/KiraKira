@@ -667,6 +667,8 @@ function injectBridge(html, id, floorIdx) {
       // [P3-C/T3] __lastMsgId 用 injectBridge 第二参(该 iframe 所属消息的真实 id,见 setMessages 建 frame 处 m.id),不再恒 0
       '_TH.__lastMsgId=' + JSON.stringify(id) + ';' +
       '_TH.getCurrentMessageId=function(){return _TH.__lastMsgId;};' +
+      '_TH.getIframeName=function(){return _TH.__lastMsgId;};' +
+      'window.getIframeName=_TH.getIframeName;' +
       // [P3-E3] getVariables/getAllVariables 改走本地同步快照(在下方 __thVars 段重定义),
       // 此处先移除原 __thCall 异步版, 防卡同步读拿到 Promise。
       '_TH.setVariables=function(vars,option){return __thCall("setVariables",[vars,option||{}]);};' +
@@ -1420,7 +1422,50 @@ function injectBridge(html, id, floorIdx) {
           wrap.appendChild(r);
         }
 
-        if (isRichHtml(m.html)) {
+        var hasSegs = Array.isArray(m.segs) && m.segs.length > 0;
+        if (hasSegs) {
+          var frontendIndex = 0;
+          for (var si = 0; si < m.segs.length; si++) {
+            var seg = m.segs[si] || {};
+            var segType = seg.type || 'prose';
+            var segHtml = seg.html || '';
+            if (segType === 'frontend') {
+              var segId = 'TH-message--' + (m.floor || 0) + '--' + frontendIndex;
+              frontendIndex++;
+              var segFrame = document.createElement('iframe');
+              segFrame.className = 'card-frame';
+              segFrame.style.width = '100%';
+              segFrame.style.height = '300px';
+              segFrame.style.background = 'rgba(255,255,255,0.06)';
+              segFrame.style.borderRadius = '18px';
+              segFrame.setAttribute('data-frame-id', segId);
+              segFrame.setAttribute('data-floor', m.floor || 0);
+              segFrame.setAttribute('scrolling', 'no');
+              segFrame.setAttribute('data-html', segHtml);
+              (function(f, html, id, floor){
+                var injected = injectBridge(html, id, floor > 0 ? floor - 1 : -1);
+                try {
+                  var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
+                  var url = URL.createObjectURL(blob);
+                  f.src = url;
+                  f.addEventListener('load', function onLoad(){
+                    f.removeEventListener('load', onLoad);
+                    URL.revokeObjectURL(url);
+                  });
+                } catch(e) {
+                  f.srcdoc = injected;
+                }
+              })(segFrame, segHtml, segId, m.floor || 0);
+              wrap.appendChild(segFrame);
+              try { window.__kiraMsgFloorMap[segId] = (m.floor || 1) - 1; } catch (_segMapE) {}
+            } else if (segHtml.trim() !== '') {
+              var segProse = document.createElement('div');
+              segProse.className = 'seg-prose';
+              segProse.innerHTML = segHtml;
+              wrap.appendChild(segProse);
+            }
+          }
+        } else if (isRichHtml(m.html)) {
           var frame = document.createElement('iframe');
           frame.className = 'card-frame';
           frame.style.width = '100%';
