@@ -1,0 +1,183 @@
+=== STEP 0: 鍗′笌姝ｅ垯鑴氭湰瑁呰浇 ===
+鍗″悕: "銆婇亾娓娿€媣5.2"
+first_mes: len=18650 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+regex_scripts 鍘熷鏉℃暟: 17
+fromJson 鍏ㄩ儴鎴愬姛, 17 鏉?
+=== 鍚敤鑴氭湰(fromJson鍚? ===
+  "[缇庡寲]鍙橀噺鏇存柊涓? order=0 placement=[aiOutput] markdownOnly=true promptOnly=false minDepth=null maxDepth=null replaceLen=3355 findRegex="/<(update(?:variable)?)>(?!.*<\\/\\1>)\\s*((?:(?!<\\1>).)*)\\s*$/gsi"
+    getRegex 缂栬瘧: OK
+  "[涓嶅彂閫乚鍘婚櫎鍙橀噺鏇存柊" order=0 placement=[aiOutput] markdownOnly=false promptOnly=true minDepth=null maxDepth=null replaceLen=0 findRegex="/<(update(?:variable)?)>(?:(?!.*<\\/\\1>)(?:(?!<\\1>).)*$|(?:(?!<\\1>).)*<\\/\\1?>)/gs鈥?
+    getRegex 缂栬瘧: OK
+  "[缇庡寲]瀹屾暣鍙橀噺鏇存柊" order=0 placement=[aiOutput, aiOutput] markdownOnly=true promptOnly=false minDepth=null maxDepth=null replaceLen=2651 findRegex="/<(update(?:variable)?)>\\s*((?:(?!<\\1>).)*)\\s*<\\/\\1>/gsi"
+    getRegex 缂栬瘧: OK
+  "涓嶈緭鍑烘€濊€? order=0 placement=[aiOutput] markdownOnly=true promptOnly=true minDepth=null maxDepth=null replaceLen=0 findRegex="(<logic_check>[\\s\\S]*?<\\/logic_check>)"
+    getRegex 缂栬瘧: OK
+  "MVU鐘舵€佹爮" order=0 placement=[aiOutput] markdownOnly=true promptOnly=false minDepth=null maxDepth=null replaceLen=182939 findRegex="<StatusPlaceHolderImpl/>"
+    getRegex 缂栬瘧: OK
+  "寮€灞€鍒涢€犱汉鐗?" order=0 placement=[aiOutput] markdownOnly=true promptOnly=false minDepth=null maxDepth=null replaceLen=207135 findRegex="\\[閲嶅浠欑紭\\]"
+    getRegex 缂栬瘧: OK
+  "鐜勫ぉ鐣屼綆闃堕殢鏈篘PC娉ㄥ叆" order=0 placement=[aiOutput] markdownOnly=false promptOnly=true minDepth=null maxDepth=null replaceLen=203 findRegex="\\[RANDOM_NPC\\]"
+    getRegex 缂栬瘧: OK
+  "鐜勫ぉ鐣岄珮闃堕殢鏈篘PC娉ㄥ叆" order=0 placement=[aiOutput] markdownOnly=false promptOnly=true minDepth=null maxDepth=null replaceLen=394 findRegex="\\[RANDOM_NPC_HIGH\\]"
+    getRegex 缂栬瘧: OK
+  "鐜勫ぉ鐣岀粷鑹叉浜虹墿娉ㄥ叆1" order=0 placement=[aiOutput] markdownOnly=false promptOnly=true minDepth=null maxDepth=null replaceLen=359 findRegex="\\[RANDOM_BEAUTY\\]"
+    getRegex 缂栬瘧: OK
+  "鐜勫ぉ鐣岀粷鑹叉浜虹墿娉ㄥ叆2" order=0 placement=[aiOutput] markdownOnly=false promptOnly=true minDepth=null maxDepth=null replaceLen=359 findRegex="\\[RANDOM_JUESE\\]"
+    getRegex 缂栬瘧: OK
+
+=== 鍗曡剼鏈殧绂绘祴璇?placement=aiOutput, isMarkdown=true, depth=1) ===
+  "[缇庡寲]鍙橀噺鏇存柊涓?: 32 -> 32 (螖0) <<鏈彉>>
+  "[涓嶅彂閫乚鍘婚櫎鍙橀噺鏇存柊": 32 -> 32 (螖0) <<鏈彉>>
+  "[缇庡寲]瀹屾暣鍙橀噺鏇存柊": 32 -> 32 (螖0) <<鏈彉>>
+  "涓嶈緭鍑烘€濊€?: 32 -> 32 (螖0) <<鏈彉>>
+  "MVU鐘舵€佹爮": 32 -> 182947 (螖182915) 
+    缁撴灉澶撮儴: "鏃佺櫧A銆俙``html\n<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n    <style>\n        @import url('https://fonts.googleapis.com/css"
+    缁撴灉 len=182947 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+  "寮€灞€鍒涢€犱汉鐗?": 32 -> 32 (螖0) <<鏈彉>>
+  "鐜勫ぉ鐣屼綆闃堕殢鏈篘PC娉ㄥ叆": 32 -> 32 (螖0) <<鏈彉>>
+  "鐜勫ぉ鐣岄珮闃堕殢鏈篘PC娉ㄥ叆": 32 -> 32 (螖0) <<鏈彉>>
+  "鐜勫ぉ鐣岀粷鑹叉浜虹墿娉ㄥ叆1": 32 -> 32 (螖0) <<鏈彉>>
+  "鐜勫ぉ鐣岀粷鑹叉浜虹墿娉ㄥ叆2": 32 -> 32 (螖0) <<鏈彉>>
+
+鈹佲攣鈹?绠＄嚎鐢ㄤ緥 T1_greeting_firstmes (depth=0) 鈹佲攣鈹?[in] len=18650 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T1_greeting_firstmes_0_raw.txt (18650 chars)
+[afterRegex] len=18650 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T1_greeting_firstmes_1_afterRegex.txt (18650 chars)
+[afterImageStrip] len=18650 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+[codeBlockMatch] 鏈懡涓?[processed] len=18650 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T1_greeting_firstmes_2_processed.txt (18650 chars)
+[htmlFenceMatch] 鍛戒腑: start=0 end=18650 / 鍏ㄩ暱=18650
+  鍥存爮鍓?before鈫抪rose): len=0 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  鍥存爮鍚?tail,琚潤榛樹涪寮?: len=0 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  tail 鍐呭: ""
+    [dump] DiaoYan/P3/璇婃柇/out/T1_greeting_firstmes_3_tail_DROPPED.txt (0 chars)
+[bodyForRender鈫抜frame] len=18638 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+[proseHtml鈫抦arkdown姘旀场] len=0 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T1_greeting_firstmes_4_bodyForRender.txt (18638 chars)
+    [dump] DiaoYan/P3/璇婃柇/out/T1_greeting_firstmes_5_proseHtml.txt (0 chars)
+[looksLikeHtml] true
+[rendered(鏈€缁堣繘iframe/姘旀场_HTML)] len=18638 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  rendered澶村熬: HEAD="<html>\r\n<head>\r\n    <meta charset=\"UTF-8\">\r\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\r\n    <title>2026</title>\r\n\r\n   " | TAIL="end 寮€鍚粰閫?);\r\n            } else {\r\n                alert('褰撳墠鐜濡傚悓鏃犳硶鍚哥撼鐏垫皵鐨勮櫄绌猴紝鏈娴嬪埌浠讳綍鍔╂墜鎸囦护鍝');\r\n            }\r\n        }\r\n    </script>\r\n</body>\r\n</html>\r\n"
+    [dump] DiaoYan/P3/璇婃柇/out/T1_greeting_firstmes_6_rendered.txt (18638 chars)
+
+鈹佲攣鈹?绠＄嚎鐢ㄤ緥 T2_marker_only (depth=1) 鈹佲攣鈹?[in] len=24 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=1 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T2_marker_only_0_raw.txt (24 chars)
+[afterRegex] len=182939 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T2_marker_only_1_afterRegex.txt (182939 chars)
+[afterImageStrip] len=182939 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+[codeBlockMatch] 鍛戒腑, start=0 end=182939, group(1).length=182928
+[processed] len=182928 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T2_marker_only_2_processed.txt (182928 chars)
+[htmlFenceMatch] 鏈懡涓?鈫?璧?<!DOCTYPE/<html 鍒囧垎鍒嗘敮
+  docStart=0 ("<!doctype")
+[bodyForRender鈫抜frame] len=182928 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+[proseHtml鈫抦arkdown姘旀场] len=0 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T2_marker_only_4_bodyForRender.txt (182928 chars)
+    [dump] DiaoYan/P3/璇婃柇/out/T2_marker_only_5_proseHtml.txt (0 chars)
+[looksLikeHtml] true
+[rendered(鏈€缁堣繘iframe/姘旀场_HTML)] len=182928 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  rendered澶村熬: HEAD="<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n    <style>\n        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family" | TAIL="opdown').removeClass('show');\n            }\n        });\n    }\n\n    /* 浣跨敤 errorCatched 鍖呰鍏ュ彛骞惰繍琛?*/\n    $(errorCatched(init));\n</script>\n</body>\n</html>\n"
+    [dump] DiaoYan/P3/璇婃柇/out/T2_marker_only_6_rendered.txt (182928 chars)
+
+鈹佲攣鈹?绠＄嚎鐢ㄤ緥 T3_prose_plus_marker (depth=1) 鈹佲攣鈹?[in] len=38 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=1 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T3_prose_plus_marker_0_raw.txt (38 chars)
+[afterRegex] len=182953 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T3_prose_plus_marker_1_afterRegex.txt (182953 chars)
+[afterImageStrip] len=182953 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+[codeBlockMatch] 鏈懡涓?[processed] len=182953 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T3_prose_plus_marker_2_processed.txt (182953 chars)
+[htmlFenceMatch] 鍛戒腑: start=14 end=182953 / 鍏ㄩ暱=182953
+  鍥存爮鍓?before鈫抪rose): len=12 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  鍥存爮鍚?tail,琚潤榛樹涪寮?: len=0 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  tail 鍐呭: ""
+    [dump] DiaoYan/P3/璇婃柇/out/T3_prose_plus_marker_3_tail_DROPPED.txt (0 chars)
+[bodyForRender鈫抜frame] len=182928 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+[proseHtml鈫抦arkdown姘旀场] len=26 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T3_prose_plus_marker_4_bodyForRender.txt (182928 chars)
+    [dump] DiaoYan/P3/璇婃柇/out/T3_prose_plus_marker_5_proseHtml.txt (26 chars)
+[looksLikeHtml] true
+[rendered(鏈€缁堣繘iframe/姘旀场_HTML)] len=182928 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  rendered澶村熬: HEAD="<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n    <style>\n        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family" | TAIL="opdown').removeClass('show');\n            }\n        });\n    }\n\n    /* 浣跨敤 errorCatched 鍖呰鍏ュ彛骞惰繍琛?*/\n    $(errorCatched(init));\n</script>\n</body>\n</html>\n"
+    [dump] DiaoYan/P3/璇婃柇/out/T3_prose_plus_marker_6_rendered.txt (182928 chars)
+
+鈹佲攣鈹?绠＄嚎鐢ㄤ緥 T4_marker_plus_tail (depth=1) 鈹佲攣鈹?[in] len=41 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=1 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T4_marker_plus_tail_0_raw.txt (41 chars)
+[afterRegex] len=182956 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T4_marker_plus_tail_1_afterRegex.txt (182956 chars)
+[afterImageStrip] len=182956 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+[codeBlockMatch] 鏈懡涓?[processed] len=182956 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T4_marker_plus_tail_2_processed.txt (182956 chars)
+[htmlFenceMatch] 鍛戒腑: start=4 end=182943 / 鍏ㄩ暱=182956
+  鍥存爮鍓?before鈫抪rose): len=4 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  鍥存爮鍚?tail,琚潤榛樹涪寮?: len=13 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  tail 鍐呭: "\n杩欐鏂囧瓧鍦ㄥ洿鏍忎箣鍚庡嚭鐜般€?
+    [dump] DiaoYan/P3/璇婃柇/out/T4_marker_plus_tail_3_tail_DROPPED.txt (13 chars)
+[bodyForRender鈫抜frame] len=182928 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+[proseHtml鈫抦arkdown姘旀场] len=12 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T4_marker_plus_tail_4_bodyForRender.txt (182928 chars)
+    [dump] DiaoYan/P3/璇婃柇/out/T4_marker_plus_tail_5_proseHtml.txt (12 chars)
+[looksLikeHtml] true
+[rendered(鏈€缁堣繘iframe/姘旀场_HTML)] len=182928 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  rendered澶村熬: HEAD="<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n    <style>\n        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family" | TAIL="opdown').removeClass('show');\n            }\n        });\n    }\n\n    /* 浣跨敤 errorCatched 鍖呰鍏ュ彛骞惰繍琛?*/\n    $(errorCatched(init));\n</script>\n</body>\n</html>\n"
+    [dump] DiaoYan/P3/璇婃柇/out/T4_marker_plus_tail_6_rendered.txt (182928 chars)
+
+鈹佲攣鈹?绠＄嚎鐢ㄤ緥 T5_chongsu (depth=1) 鈹佲攣鈹?[in] len=15 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=1
+    [dump] DiaoYan/P3/璇婃柇/out/T5_chongsu_0_raw.txt (15 chars)
+[afterRegex] len=207144 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=1
+    [dump] DiaoYan/P3/璇婃柇/out/T5_chongsu_1_afterRegex.txt (207144 chars)
+[afterImageStrip] len=207144 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=1
+[codeBlockMatch] 鏈懡涓?[processed] len=207144 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=1
+    [dump] DiaoYan/P3/璇婃柇/out/T5_chongsu_2_processed.txt (207144 chars)
+[htmlFenceMatch] 鍛戒腑: start=9 end=207144 / 鍏ㄩ暱=207144
+  鍥存爮鍓?before鈫抪rose): len=9 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  鍥存爮鍚?tail,琚潤榛樹涪寮?: len=0 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  tail 鍐呭: ""
+    [dump] DiaoYan/P3/璇婃柇/out/T5_chongsu_3_tail_DROPPED.txt (0 chars)
+[bodyForRender鈫抜frame] len=207124 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=1
+[proseHtml鈫抦arkdown姘旀场] len=17 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T5_chongsu_4_bodyForRender.txt (207124 chars)
+    [dump] DiaoYan/P3/璇婃柇/out/T5_chongsu_5_proseHtml.txt (17 chars)
+[looksLikeHtml] true
+[rendered(鏈€缁堣繘iframe/姘旀场_HTML)] len=207131 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=1
+  rendered澶村熬: HEAD="<!DOCTYPE html>\n<html>\n<head>\n<title>閬撴笂</title>\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<style>\n    @import url('https:" | TAIL="n\" id=\"auth-msg-ok-btn\" class=\"auth-btn auth-confirm\">纭畾</button>\n                </div>\n            </div>\n        </div>\n    </div>\n</body>\n</html>\n"
+    [dump] DiaoYan/P3/璇婃柇/out/T5_chongsu_6_rendered.txt (207131 chars)
+
+鈹佲攣鈹?绠＄嚎鐢ㄤ緥 T9_both_markers (depth=1) 鈹佲攣鈹?[in] len=35 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=1 閲嶅浠欑紭=1
+    [dump] DiaoYan/P3/璇婃柇/out/T9_both_markers_0_raw.txt (35 chars)
+[afterRegex] len=390079 <script=2 </script>=2 <style=2 errorCatched=2 $=(32 ```html=2 ```=4 StatusPH=0 閲嶅浠欑紭=1
+    [dump] DiaoYan/P3/璇婃柇/out/T9_both_markers_1_afterRegex.txt (390079 chars)
+[afterImageStrip] len=390079 <script=2 </script>=2 <style=2 errorCatched=2 $=(32 ```html=2 ```=4 StatusPH=0 閲嶅浠欑紭=1
+[codeBlockMatch] 鏈懡涓?[processed] len=390079 <script=2 </script>=2 <style=2 errorCatched=2 $=(32 ```html=2 ```=4 StatusPH=0 閲嶅浠欑紭=1
+    [dump] DiaoYan/P3/璇婃柇/out/T9_both_markers_2_processed.txt (390079 chars)
+[htmlFenceMatch] 鍛戒腑: start=4 end=182943 / 鍏ㄩ暱=390079
+  鍥存爮鍓?before鈫抪rose): len=3 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  鍥存爮鍚?tail,琚潤榛樹涪寮?: len=207136 <script=1 </script>=1 <style=1 errorCatched=0 $=(0 ```html=1 ```=2 StatusPH=0 閲嶅浠欑紭=1
+  tail 鍐呭: HEAD="\n```html\n<!DOCTYPE html>\n<html>\n<head>\n<title>閬撴笂</title>\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<style>\n    @import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;700&display=swap');\n\n    :root {\n        --primary-color: #080" | TAIL="v>\n                <div class=\"auth-text\" id=\"auth-msg-text\"></div>\n                <div class=\"auth-btns\">\n                    <button type=\"button\" id=\"auth-msg-ok-btn\" class=\"auth-btn auth-confirm\">纭畾</button>\n                </div>\n            </div>\n        </div>\n    </div>\n</body>\n</html>\n```"
+    [dump] DiaoYan/P3/璇婃柇/out/T9_both_markers_3_tail_DROPPED.txt (207136 chars)
+[bodyForRender鈫抜frame] len=182928 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+[proseHtml鈫抦arkdown姘旀场] len=11 <script=0 </script>=0 <style=0 errorCatched=0 $=(0 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+    [dump] DiaoYan/P3/璇婃柇/out/T9_both_markers_4_bodyForRender.txt (182928 chars)
+    [dump] DiaoYan/P3/璇婃柇/out/T9_both_markers_5_proseHtml.txt (11 chars)
+[looksLikeHtml] true
+[rendered(鏈€缁堣繘iframe/姘旀场_HTML)] len=182928 <script=1 </script>=1 <style=1 errorCatched=2 $=(32 ```html=0 ```=0 StatusPH=0 閲嶅浠欑紭=0
+  rendered澶村熬: HEAD="<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n    <style>\n        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family" | TAIL="opdown').removeClass('show');\n            }\n        });\n    }\n\n    /* 浣跨敤 errorCatched 鍖呰鍏ュ彛骞惰繍琛?*/\n    $(errorCatched(init));\n</script>\n</body>\n</html>\n"
+    [dump] DiaoYan/P3/璇婃柇/out/T9_both_markers_6_rendered.txt (182928 chars)
+
+=== T6: depth 鎵弿(first_mes, 鍙姤 afterRegex 闀垮害) ===
+  depth=-1 -> 18650 (=鍘熸枃,鏃犳浛鎹㈠彂鐢?
+  depth=0 -> 18650 (=鍘熸枃,鏃犳浛鎹㈠彂鐢?
+  depth=1 -> 18650 (=鍘熸枃,鏃犳浛鎹㈠彂鐢?
+  depth=2 -> 18650 (=鍘熸枃,鏃犳浛鎹㈠彂鐢?
+  depth=5 -> 18650 (=鍘熸枃,鏃犳浛鎹㈠彂鐢?
+  depth=10 -> 18650 (=鍘熸枃,鏃犳浛鎹㈠彂鐢?
+  depth=100 -> 18650 (=鍘熸枃,鏃犳浛鎹㈠彂鐢?
+
+=== T7: placement=userInput 瀵圭収(first_mes) ===
+  userInput -> 18650 (鍘?18650)
+
+=== T8: markdownToHtml 瀵?<script> 鐨勫鐞?gitHubWeb) ===
+  in : "鏃佺櫧鏂囧瓧銆?script>alert(1)</script>缁х画鏂囧瓧銆?
+  out: "<p>鏃佺櫧鏂囧瓧銆?script>alert(1)</script>缁х画鏂囧瓧銆?/p>\n"
+  out 鍚?<script: true
+
+DONE

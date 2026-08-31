@@ -1,0 +1,37 @@
+########## U1p ##########
+[iframe] [probe-installed] readyState=loading
+[iframe] [preset] 绗?杞?postMessage __thVars 淇″皝
+[iframe] [Mvu] card(TEST_CARD_0) 蹇収棣栨鍒拌揪(缁忔寕杞介棬鎺?
+[iframe] [Mvu] card(TEST_CARD_0) 宸叉寕 window.Mvu(蹇収闂ㄦ帶閫氳繃)
+[host] iframe load
+[iframe] [REPORT:onload] Mvu=object name-value=娴嬭瘯浠欏皧 hp-value=77/100 blood-value=66/100 mp-value=55/100 exp-value=42/100 san-value=88/100 daoxin-value=33/100 stat_data=HAS(stat_data)
+HARVEST_DONE
+[REPORT x31, 鏈€鍚庝竴鏉 [iframe] [REPORT:ping30] Mvu=object name-value=娴嬭瘯浠欏皧 hp-value=77/100 blood-value=66/100 mp-value=55/100 exp-value=42/100 san-value=88/100 daoxin-value=33/100 stat_data=HAS(stat_data)
+########## U2 ##########
+[iframe] [probe-installed] readyState=loading
+[host] iframe load
+[iframe] [Mvu] getAllVariables 蹇収鏈氨缁? 杩斿洖绌?(id=TEST_CARD_0, floor=3)
+[iframe] [REPORT:onload] Mvu=undefined name-value=(绌? hp-value=(绌? blood-value=(绌? mp-value=(绌? exp-value=(绌? san-value=(绌? daoxin-value=(绌? stat_data=null
+HARVEST_DONE
+[iframe] [waitGlobalInitialized] 浠嶅湪绛夊緟 window.Mvu (id=TEST_CARD_0, 宸茬瓑10绉? 涓嶈秴鏃?
+[REPORT x31, 鏈€鍚庝竴鏉 [iframe] [REPORT:ping30] Mvu=undefined name-value=(绌? hp-value=(绌? blood-value=(绌? mp-value=(绌? exp-value=(绌? san-value=(绌? daoxin-value=(绌? stat_data=null
+########## U3 ##########
+[iframe] [probe-installed] readyState=loading
+[host] iframe load
+[iframe] [Mvu] getAllVariables 蹇収鏈氨缁? 杩斿洖绌?(id=TEST_CARD_0, floor=3)
+[iframe] [REPORT:onload] Mvu=undefined name-value=(绌? hp-value=(绌? blood-value=(绌? mp-value=(绌? exp-value=(绌? san-value=(绌? daoxin-value=(绌? stat_data=null
+[host] 鏅氬埌鎶曞杺 message 蹇収 floor_idx=3 lastMsgId=3
+[iframe] [Mvu] card(TEST_CARD_0) 蹇収棣栨鍒拌揪(缁忔寕杞介棬鎺?
+[iframe] [Mvu] card(TEST_CARD_0) 宸叉寕 window.Mvu(蹇収闂ㄦ帶閫氳繃)
+HARVEST_DONE
+[REPORT x31, 鏈€鍚庝竴鏉 [iframe] [REPORT:ping30] Mvu=object name-value=娴嬭瘯浠欏皧 hp-value=77/100 blood-value=66/100 mp-value=55/100 exp-value=42/100 san-value=88/100 daoxin-value=33/100 stat_data=HAS(stat_data)
+########## U1d ##########
+[iframe] [probe-installed] readyState=loading
+[host] iframe load
+[iframe] [Mvu] getAllVariables 蹇収鏈氨缁? 杩斿洖绌?(id=TEST_CARD_0, floor=3)
+[iframe] [REPORT:onload] Mvu=undefined name-value=(绌? hp-value=(绌? blood-value=(绌? mp-value=(绌? exp-value=(绌? san-value=(绌? daoxin-value=(绌? stat_data=null
+[host] 宸叉姇鍠?message 蹇収 floor_idx=3 lastMsgId=3
+[iframe] [Mvu] card(TEST_CARD_0) 蹇収棣栨鍒拌揪(缁忔寕杞介棬鎺?
+[iframe] [Mvu] card(TEST_CARD_0) 宸叉寕 window.Mvu(蹇収闂ㄦ帶閫氳繃)
+HARVEST_DONE
+[REPORT x31, 鏈€鍚庝竴鏉 [iframe] [REPORT:ping30] Mvu=object name-value=娴嬭瘯浠欏皧 hp-value=77/100 blood-value=66/100 mp-value=55/100 exp-value=42/100 san-value=88/100 daoxin-value=33/100 stat_data=HAS(stat_data)

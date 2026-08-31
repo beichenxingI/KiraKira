@@ -1,0 +1,10 @@
+(node:7224) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[宽松DOM(全代理elem)] !!顶层抛错 => ReferenceError: errorCatched is not defined
+  抛错行 2470: "    $(errorCatched(init));"
+  上下文: "    /* 使用 errorCatched 包装入口并运行 */" 
+[宽松DOM(全代理elem)] 事后: typeof window.switchTab = function | typeof window.init = undefined
+[严格DOM(querySelector全null)] !!顶层抛错 => ReferenceError: errorCatched is not defined
+  抛错行 2470: "    $(errorCatched(init));"
+  上下文: "    /* 使用 errorCatched 包装入口并运行 */" 
+[严格DOM(querySelector全null)] 事后: typeof window.switchTab = function | typeof window.init = undefined

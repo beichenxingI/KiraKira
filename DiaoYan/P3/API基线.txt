@@ -1,0 +1,186 @@
+# P3 API 基线(权威依据)
+
+**来源:** `N0VI028/JS-Slash-Runner` 的 `@types`(32 文件 / 184750 字节),
+已拷入 `DiaoYan/ref/slash-runner-types/`。
+MVU 源码:`D:\mvu\MagVarUpdate-beta`(beta 分支)。
+
+**铁律:此后所有 API 相关改动,一律照 `DiaoYan/ref/slash-runner-types/` 点名。
+不许凭记忆造函数名、参数、同步性。**
+
+---
+
+## 一、最重要的一条:读必须同步
+
+官方声明(`@types/function/variables.d.ts` 等):
+```ts
+declare function getVariables(option: VariableOption): Record<string, any>   // 同步返数据
+declare function getAllVariables(): Record<string, any>                      // 同步
+declare function getCurrentMessageId(): number                               // 同步
+declare function getLastMessageId(): number                                  // 同步
+declare function substitudeMacros(text: string): string                       // 同步
+declare function replaceVariables(variables, option): void                    // 同步
+```
+
+MVU 实现(`src/function/global/index.ts`):
+```ts
+getMvuData: e => getVariables(e) as MvuData      // 无 await → 读必须同步
+replaceMvuData: (d,o) => replaceVariables(d,o)   // 原样返回
+```
+
+原作者注释(实证,可依赖):
+> **旧酒馆助手的 replaceVariables 是异步函数, 因此需要返回 Promise**
+
+**→ 结论:读侧必须同步返数据;写侧返 Promise 是被容忍的。**
+
+**我们现状:** `_TH.getVariables`(`chat_stage.html:655`)走 `__thCall` → postMessage → **返 Promise**。
+
+**→ 风险:直接把异步包装挂成官方名字 = 批量制造静默 bug。**
+卡 `typeof getVariables === 'function'` 判真 → 调用 → 拿到 Promise →
+`v.stat_data` 为 `undefined` → 静默走错分支,不报错不留痕。
+**这比函数缺失危险得多**(缺失会被 `chat_stage.html:896` reject 并被 CARD-ERR 抓到)。
+
+**→ 铁律:P3-D 完成同步快照之前,不许挂任何官方名变量读函数到全局。**
+
+## 二、`window.Mvu` 的真实挂载机制
+
+`src/function/global/index.ts` 的 `initGlobals()`:
+```ts
+_.set(window.parent, 'Mvu', mvu);
+eventEmit('global_Mvu_initialized');
+```
+
+要点:
+1. **MVU 自己挂,不需要宿主提供挂载函数。**
+   `initializeGlobal` / `waitGlobalInitialized` 在 beta 源码中**不存在**
+   (grep 零命中);那是 `@types/function/global.d.ts:14` 描述的新约定,
+   **实现未跟上。以源码为准。**
+2. **挂到 `window.parent`** —— MVU 假设自己在 iframe 内。
+   我们 MVU 在引擎房(iframe)→ **`Mvu` 落到 `chat_stage.html` 主文档**,
+   不是引擎房自己。**P3-E 的转发起点是主文档。**
+3. **前提 `store.should_enable`(Pinia watch)。为假则永不挂载且完全静默。**
+   `store.ts` 引 `registerAsUniqueScript` → 选主失败就不启动(对应已知"关卡三")。
+4. 挂好后 emit `'global_Mvu_initialized'`,可作为就绪信号。
+
+## 三、MVU 事件名(字面量常量,可硬编码)
+
+```
+VARIABLE_INITIALIZED     'mag_variable_initiailized'   ← 官方拼写自带 typo,不许"修正"
+VARIABLE_UPDATE_STARTED  'mag_variable_update_started'
+COMMAND_PARSED           'mag_command_parsed'
+VARIABLE_UPDATE_ENDED    'mag_variable_update_ended'
+BEFORE_MESSAGE_UPDATE    'mag_before_message_update'
+```
+
+**推论:card iframe 不需要那 1.2MB bundle。**
+MVU 本体只在引擎房跑一份(负责解析),card 侧只需"读快照 + 听事件"的薄 facade
+—— 官方实现本身就是薄的。**P3-E 从 🔴 降到 🟡。**
+
+## 四、我们的函数名与官方对不上
+
+| 我们(`chat_stage.html`) | 官方 |
+|---|---|
+| `createLorebookEntry` | **`createLorebookEntries`**(复数) |
+| `getCharacterLorebooks` | **`getCharLorebooks`** |
+| `setVariables` | **官方无此 API**(自造) |
+
+**官方变量族全貌:** `getVariables` / `replaceVariables` / `updateVariablesWith` /
+`insertOrAssignVariables` / `insertVariables` / `deleteVariable` /
+`registerVariableSchema` / `getAllVariables`
+→ **我们只有前两个,其余全缺。**
+
+**`chat_stage.html:879-880` 疑似真 bug:**
+`setVariables` 与 `replaceVariables` 映射到同一个 `th_setVars`。
+官方 `replaceVariables` 语义是**完全替换**;若 Dart 侧实际是合并,
+则删除永不生效、旧 key 永久残留。**【待验证:读 `th_setVars` 的 Dart 实现】**
+
+## 五、YAML 必补(已实证)
+
+`MagVarUpdate/util/common.ts` 用 `YAML.stringify` 与
+`YAML.parseDocument(content,{merge:true}).toJS()`,**却没有 import YAML**;
+靠 `tsconfig.json` 的 `"types":["yaml"]` + `"allowUmdGlobalAccess":true` 当 UMD 全局放过
+→ **webpack 不打包,宿主必须提供全局 `YAML`**。
+
+`parseString` 就在该文件,`variable_init.ts:13` 引它解析 `[initvar]`
+→ 完整对上引擎房实测报错 `解析世界书条目'[initvar] 初始'失败: ReferenceError: YAML is not defined`。
+
+**必须用 `yaml@2`(对齐 `^2.8.0`),不是 js-yaml** ——
+调的是 `parseDocument().toJS()` 与 `stringify(v,{blockQuote:'literal'})`,js-yaml 无此 API。
+**注入位置:引擎房必须有(MVU/EJS 都在那跑),card iframe 顺带。**
+
+另:EJS 侧也需要 —— `function_call.ts:205` 是模板字符串
+`<%= YAML.stringify(getvar('stat_data'), ...) %>`,由 ST-Prompt-Template 执行,不经 webpack。
+
+## 六、其余隐藏 UMD 全局依赖
+
+`src/function/global/index.ts` 用了 `klona(...)` 和 `_.get/_.set/_.unset`,
+**顶部 import 均无**。`_` 我们已有;**`klona` 是否被打进 bundle 待查。**
+
+## 七、能力面差距总览
+
+**官方约 150 个函数;我们 `_TH` 41 个、Dart handler 19 个。**
+
+Dart handler(`webview_chat_stage.dart`,19 个):
+```
+th_getMessages th_setMessage th_setMessages th_setInput th_triggerSlash
+th_getVars th_setVars th_generateRaw th_renderEJS
+th_wiGetEntries th_wiSetEntries th_wiCreateEntries th_wiDeleteEntries
+th_wiGetLorebooks th_wiCreateBook th_wiGetCharLorebooks th_wiGetEnabledList
+th_wiGetLorebookSettings th_wiSetLorebookSettings
+```
+
+**完全缺失的家族:**
+- `worldbook.d.ts`(12KB,**新版世界书**,我们只有 legacy lorebook)
+  含 `getOrCreateChatWorldbook` / `createWorldbook` / `replaceWorldbook` /
+  `createWorldbookEntries` / `getCharWorldbookNames` …
+  **legacy 侧也缺 `getOrCreateChatLorebook` / `getChatLorebook` / `setChatLorebook` /
+  `deleteLorebook` / `replaceLorebookEntries` / `updateLorebookEntriesWith`**
+  → **《道渊》开场白"创建全局世界书"极可能就调这里**
+- `preset.d.ts`(13.7KB)`tavern_regex.d.ts`(4.6KB)`character.d.ts`(6.2KB)
+  `persona.d.ts`(5.3KB)`audio.d.ts`(4KB)`extension.d.ts`(3.5KB)
+  `inject` / `macro_like` / `script buttons` / `displayed_message` / `import_raw`
+- `generate`(我们只有 `generateRaw`)、`getTavernVersion`
+- **`EjsTemplate` 全局:** `evaltemplate`(官方即小写 t)/ `prepareContext` /
+  `getSyntaxErrorInfo` / `allVariables` / `getFeatures` / `setFeatures` / `resetFeatures`
+
+## 八、路线图(修正版)
+
+| 轮 | 内容 | 灯 |
+|---|---|---|
+| **P3-C** | 无条件注入 jQuery/lodash/toastr + **`yaml@2` 挂全局 `YAML`**(引擎房优先)+ `__lastMsgId` 用真 id + `CARD-ENV` 加 seq/3 秒二次探测 + `[TH中转]` 降噪 | 🟡 |
+| **P3-D** | **同步变量快照**:`__varSync` 广播到 card iframe(现只发引擎房,`839-840` 写死 `data-frame-id="engine-room"`);card 侧建本地 store,读函数同步读快照,写走桥 + 乐观更新。**之后**才挂官方名全局 | 🔴 |
+| **P3-E** | 主文档接 `window.Mvu`(MVU 挂到 `window.parent`)+ 监听 `global_Mvu_initialized`;card 侧 `Mvu` 薄 facade(事件名硬编码) | 🟡 |
+| **P3-F** | 世界书新 API + 命名对齐(`createLorebookEntries` 复数 / `getCharLorebooks` / `getOrCreateChatWorldbook`)← 《道渊》按钮依赖 | 🟡 |
+| **P3-G+** | `tavern_regex` / `preset` / `character` / `EjsTemplate` / 其余 | — |
+
+**顺序理由:P3-C 是纯环境补给,不涉接口语义,零风险且立刻可见"状态栏出壳"。**
+
+## 九、未结悬案(记账)
+
+1. **`th_setVars` 是 merge 还是 replace** —— 决定 `replaceVariables` 语义是否正确
+2. **本地 `mvu_bundle.js` 1203820 vs 官方 307537,差 4 倍** ——
+   版本/行为关系未定。**本文件依据 beta 源码,我们实际注入的 bundle 可能是另一版本,
+   行为未必一致**
+3. **`klona` 是否在 bundle 内**
+4. MVU beta 用 **Vue 3 + Pinia**,生产构建含 Vue runtime
+5. `z`(zod)`assets/` 无此文件
+6. 卡片高度 2491(卡本身全屏 app,21 处 `position:fixed`)—— 产品决策
+7. `ejs_stub.js:136` `loadWorldInfo` 空桩
+8. `chat_stage.html:894` 每个桥请求打一条日志 → 日志被刷满、`CARD-ENV` 滚掉
+
+## 十、对 P3_设计.md 的修正
+
+1. **§2.2「P3 不需要新造桥,只需扩展 `_TH` 注入面」已被推翻。**
+   `_TH` 全部走异步 `__thCall`,而官方 `getVariables` / `Mvu.getMvuData` 同步返数据
+   (本文第一节)。**转发面再全也不够,形态必须改** →
+   P3-D 的实质是"补一层同步变量快照",不是"扩展注入"。
+   这正是 §五.3 当年标注的未验证项,现已验证。
+
+2. **「一气泡多前端」= segs,P3_设计.md 明确排除在 P3 之外**(α 死因之二)。
+   凶手锚点:`webview_chat_stage.dart:2850-2863`,
+   `htmlFenceMatch` 用 `firstMatch` 取第一个 ```` ```html ```` 围栏,
+   `bodyForRender = htmlFenceMatch.group(1)` →
+   **围栏之后的全部内容被整段丢弃(不是降级,是消失)**。
+   独立成轮,不与环境注入同轮改。
+
+3. `2839` 的 `codeBlockMatch` 用 `^...$` 全文锚定,仅在整条消息即一个围栏时命中,与此无关。
+```

@@ -1,0 +1,7 @@
+// 来源: data.extensions.regex_scripts[4]
+// scriptName=仅输出最后三条状态栏 disabled=True runOnEdit=True
+// placement=2 substituteRegex=0 minDepth=4 maxDepth= markdownOnly=False promptOnly=True
+// findRegex(原始):
+(<data_block>[\s\S]*?<\/data_block>)
+
+// ===== replaceString(反转义后的原文)=====

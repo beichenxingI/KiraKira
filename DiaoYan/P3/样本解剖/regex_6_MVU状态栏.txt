@@ -1,0 +1,3103 @@
+// 来源: data.extensions.regex_scripts[6]
+// scriptName=MVU状态栏 disabled=False runOnEdit=True
+// placement=2 substituteRegex=0 minDepth= maxDepth= markdownOnly=True promptOnly=False
+// findRegex(原始):
+<StatusPlaceHolderImpl/>
+
+// ===== replaceString(反转义后的原文)=====
+```html
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap');
+        :root {
+            --bg-dark: #050406; --bg-panel: rgba(26, 24, 29, 0.75); --border-metal: #5a3d3d; --accent-blood: #ff4d4d; --accent-blood-glow: rgba(255, 77, 77, 0.5); --accent-mana: #4da6ff; --accent-mana-glow: rgba(77, 166, 255, 0.5); --accent-gold: #ffd700; --accent-gold-glow: rgba(255, 215, 0, 0.3); --accent-exp: #ff9f43; --accent-san: #2ed573; --text-main: #f1f2f6; --text-dim: #a4b0be; --rare-text: #d980fa; --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        body {
+            margin: 0;
+            padding: 10px 0;
+            background-color: transparent;
+            font-family: 'Noto Serif SC', serif;
+            color: var(--text-main);
+            font-size: 14px;
+        }
+        .terminal-container { width: 100%; max-width: 800px; margin: auto; background: radial-gradient(circle at 50% 30%, rgba(30, 40, 50, 0.95), rgba(10, 15, 20, 0.98)), url(https://www.transparenttextures.com/patterns/dark-matter.png); border: 1px solid #333; border-top: 2px solid var(--border-metal); border-bottom: 2px solid var(--border-metal); border-radius: 12px; box-shadow: 0 0 40px rgba(0,0,0,0.8), inset 0 0 60px rgba(0,0,0,0.7), 0 0 15px rgba(90, 61, 61, 0.3); position: relative; overflow: hidden; display: flex; flex-direction: column; backdrop-filter: blur(5px); }
+        .top-bar { height: 3px; background: linear-gradient(90deg, transparent, var(--accent-blood), var(--accent-gold), var(--accent-mana), transparent); box-shadow: 0 0 15px var(--accent-gold-glow); animation: shimmer 3s infinite linear; background-size: 200% 100%; }
+        .header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); background: linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0.2)); position: relative; }
+        .guild-badge { display: flex; align-items: center; gap: 12px; }
+        .guild-logo { width: 36px; height: 36px; border: 2px solid var(--accent-gold); border-radius: 50%; display: grid; place-items: center; font-weight: bold; color: var(--accent-gold); background: rgba(0,0,0,0.5); box-shadow: 0 0 10px var(--accent-gold-glow); text-shadow: 0 0 5px var(--accent-gold); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .guild-logo:hover { transform: scale(1.1); box-shadow: 0 0 15px var(--accent-gold); }
+        .guild-name { font-size: 1.2em; letter-spacing: 2px; font-weight: 700; background: linear-gradient(to bottom, #fff, #bbb); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .time-display { font-size: 0.9em; color: var(--accent-gold); text-shadow: 0 0 5px var(--accent-gold-glow); font-family: 'JetBrains Mono', monospace; border: 1px solid rgba(255, 215, 0, 0.3); padding: 2px 8px; border-radius: 4px; background: rgba(0,0,0,0.3); }
+
+        /* 个人信息下拉面板样式 */
+        .hero-info-dropdown { display: none; position: absolute; top: 60px; left: 20px; background: linear-gradient(145deg, rgba(25, 20, 30, 0.95), rgba(15, 10, 15, 0.98)); border: 1px solid var(--accent-gold); border-radius: 8px; padding: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.8), inset 0 0 10px rgba(255, 215, 0, 0.1); z-index: 1000; min-width: 220px; animation: fadeIn 0.2s ease; backdrop-filter: blur(5px); }
+        .hero-info-dropdown.show { display: block; }
+        .hero-info-dropdown .stat-row { margin-bottom: 8px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 6px; }
+        .hero-info-dropdown .stat-row:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
+
+        .content-grid { display: grid; grid-template-columns: 32% 1fr; gap: 0; background-color: transparent; flex-grow: 1; }
+        .status-panel { background-color: rgba(20, 18, 22, 0.6); border-right: 1px solid rgba(255,255,255,0.05); padding: 20px; display: flex; flex-direction: column; gap: 15px; align-items: center; box-shadow: inset -5px 0 15px rgba(0,0,0,0.3); }
+        .avatar-wrapper { display: flex; flex-direction: column; align-items: center; position: relative; margin-bottom: 10px; }
+        .avatar-frame { width: 100px; height: 100px; border: 2px solid var(--accent-gold); border-radius: 8px; position: relative; overflow: hidden; box-shadow: 0 0 15px var(--accent-gold-glow), inset 0 0 10px rgba(0,0,0,0.8); background-color: #000; transform: rotate(0deg); transition: transform 0.3s; }
+        .avatar-frame::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(45deg, transparent, rgba(255, 215, 0, 0.1), transparent); animation: shine-rotate 6s infinite linear; pointer-events: none; z-index: 2; }
+        .user_avatar { width: 100%; height: 100%; background-size: cover; background-position: center; filter: sepia(10%) contrast(110%); transition: transform 0.5s; }
+        .avatar-frame:hover .user_avatar { transform: scale(1.1); }
+        .rank-tag { background: linear-gradient(135deg, #b8860b, #ffd700, #b8860b); color: #1a0f0f; padding: 4px 12px; font-size: 0.85em; border-radius: 4px; font-weight: 800; margin-top: -12px; z-index: 3; box-shadow: 0 4px 8px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.4); letter-spacing: 1px; min-width: 60px; text-align: center; }
+        .stat-group { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+        .stat-row { display: flex; flex-direction: column; gap: 5px; }
+        .stat-label { font-size: 0.8em; color: var(--text-dim); display: flex; justify-content: space-between; font-weight: 700; letter-spacing: 0.5px; }
+        .progress-bg { width: 100%; height: 8px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); position: relative; }
+        .progress-fill { height: 100%; width: 0%; transition: width 0.8s cubic-bezier(0.25, 1, 0.5, 1); position: relative; border-radius: 5px; }
+        .fill-hp { background: linear-gradient(90deg, #c0392b, #e74c3c); box-shadow: 0 0 5px var(--accent-blood-glow); }
+        .fill-mp { background: linear-gradient(90deg, #2980b9, #3498db); box-shadow: 0 0 5px var(--accent-mana-glow); }
+        .fill-san { background: linear-gradient(90deg, #27ae60, #2ecc71); box-shadow: 0 0 5px rgba(46, 204, 113, 0.4); }
+        .fill-exp { background: linear-gradient(90deg, #d35400, #f39c12); box-shadow: 0 0 5px rgba(243, 156, 18, 0.4); }
+        .fill-daoxin { background: linear-gradient(90deg, #9b59b6, #d980fa); box-shadow: 0 0 5px rgba(217, 128, 250, 0.4); }
+        .main-panel { background-color: transparent; display: flex; flex-direction: column; position: relative; min-height: 0; }
+        .nav-tabs { display: flex; flex-wrap: wrap; background-color: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,255,255,0.05); padding: 0 5px; }
+        .tab-btn { flex: 1 1 18%; padding: 12px 2px; background: none; border: none; color: var(--text-dim); cursor: pointer; font-family: inherit; font-size: 0.9em; font-weight: bold; transition: all 0.3s; position: relative; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+        .tab-btn:hover { color: var(--text-main); background: linear-gradient(to top, rgba(255,255,255,0.05), transparent); }
+        .tab-btn.active { color: var(--accent-gold); text-shadow: 0 0 8px var(--accent-gold-glow); }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 15%; right: 15%; height: 2px; background: var(--accent-gold); box-shadow: 0 0 8px var(--accent-gold); }
+        .tab-content { padding: 20px; flex-grow: 1; overflow-y: auto; max-height: 480px; scrollbar-width: thin; scrollbar-color: var(--border-metal) rgba(0,0,0,0.3); }
+        .tab-content::-webkit-scrollbar { width: 6px; }
+        .tab-content::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        .tab-content::-webkit-scrollbar-thumb { background: var(--border-metal); border-radius: 3px; }
+        .tab-content > p { margin: 0; color: var(--text-dim); font-style: italic; }
+        .info-card, .partner-card, .npc-card, .skill-card, .quest-item { border: 1px solid rgba(255,255,255,0.08); background: linear-gradient(145deg, rgba(30,30,35,0.6), rgba(20,20,25,0.8)); padding: 15px; margin-bottom: 12px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; position: relative; overflow: hidden; }
+        .info-card:hover, .partner-card:hover, .npc-card:hover, .skill-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.2); }
+        .info-title { color: var(--accent-gold); font-size: 1.05em; margin-bottom: 10px; border-bottom: 1px dashed rgba(255,255,255,0.15); padding-bottom: 8px; display: flex; justify-content: space-between; font-weight: bold; text-shadow: 0 0 2px rgba(0,0,0,0.5); }
+        .info-text { font-size: 0.9em; color: #dcdde1; line-height: 1.6; }
+        .danger-text { color: var(--accent-blood); text-shadow: 0 0 3px rgba(217, 79, 79, 0.4); }
+        .rare-text { color: var(--rare-text); text-shadow: 0 0 3px rgba(217, 128, 250, 0.4); }
+        .quest-item { border-left: 3px solid var(--text-dim); padding-left: 15px; background: linear-gradient(90deg, rgba(255,255,255,0.03), transparent); }
+        .quest-item:hover { border-left-color: var(--accent-gold); background: linear-gradient(90deg, rgba(255,215,0,0.05), transparent); }
+
+        .card-portrait { flex-shrink: 0; width: 80px; height: 100px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background-color: rgba(0,0,0,0.5); overflow: hidden; display: flex; justify-content: center; align-items: center; box-shadow: inset 0 0 8px rgba(0,0,0,0.8); }
+        .card-portrait img { width: 100%; height: 100%; object-fit: cover; }
+
+        .skill-card { display: flex; gap: 15px; align-items: flex-start; }
+        .partner-card, .npc-card { display: flex; flex-direction: column; gap: 8px; }
+
+        .partner-info, .npc-info, .skill-info { flex-grow: 1; }
+        .partner-header, .npc-header, .skill-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+        .partner-name, .npc-name, .skill-name { font-size: 1.15em; font-weight: bold; color: var(--text-main); text-shadow: 0 2px 2px rgba(0,0,0,0.8); }
+        .skill-name { color: var(--accent-gold); }
+        .partner-species, .npc-title, .skill-type { font-size: 0.8em; color: var(--text-dim); margin-left: 8px; font-weight: normal; }
+        .status-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 4px; background-color: #333; border: 1px solid rgba(255,255,255,0.1); white-space: normal; word-break: break-all; max-width: 50%; line-height: 1.3; text-align: center; }
+        .card-stats-grid { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px 12px; font-size: 0.85em; margin-top: 10px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px; }
+        .card-stats-grid .stat-label { color: var(--text-dim); }
+        .card-stats-grid i { color: #999; font-style: italic; opacity: 0.8; }
+        .npc-info, .skill-info { flex-direction: column; gap: 8px; }
+        .npc-description, .skill-description { font-size: 0.85em; color: #b3b3b3; line-height: 1.5; margin-top: 5px; }
+
+        .portrait-wrapper { width: 100%; margin-top: 5px; }
+        .portrait-toggle-btn { width: 100%; background: linear-gradient(to right, transparent, rgba(255, 215, 0, 0.08), transparent); border: 1px dashed rgba(255, 215, 0, 0.3); color: var(--accent-gold); padding: 8px 0; text-align: center; border-radius: 4px; cursor: pointer; font-size: 0.9em; font-weight: bold; transition: all 0.3s; letter-spacing: 2px; }
+        .portrait-toggle-btn:hover { background: linear-gradient(to right, transparent, rgba(255, 215, 0, 0.15), box-shadow: 0 0 10px var(--accent-gold-glow)); }
+        .large-portrait { display: none; margin-top: 10px; width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 5px 15px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.8); overflow: hidden; align-items: center; justify-content: center; background: rgba(5,4,6,0.9); }
+        .large-portrait.show { display: flex; animation: fadeIn 0.4s ease; }
+        .large-portrait img { width: 100%; max-height: 500px; object-fit: contain; cursor: zoom-in; transition: filter 0.3s; }
+        .large-portrait img:hover { filter: brightness(1.1); }
+
+        .fairy-container { position: absolute; bottom: 5px; right: 20px; display: flex; align-items: flex-end; gap: 12px; z-index: 100; animation: fairy-bob 4s infinite ease-in-out; pointer-events: none; }
+        .fairy-avatar { width: 45px; height: 45px; background-size: cover; background-position: center; border-radius: 50%; cursor: pointer; pointer-events: auto; box-shadow: 0 0 20px var(--accent-gold), 0 0 30px var(--accent-mana); transition: transform 0.3s, filter 0.3s; border: 2px solid #fff; }
+        .fairy-avatar:hover { transform: scale(1.15) rotate(5deg); filter: brightness(1.2); }
+        .fairy-bubble { max-width: 240px; background: rgba(20, 15, 25, 0.95); border: 1px solid var(--accent-gold); padding: 15px; border-radius: 12px; border-bottom-right-radius: 2px; font-size: 0.9em; color: var(--text-main); box-shadow: 0 5px 20px rgba(0,0,0,0.5); position: relative; opacity: 0; transform: translateY(10px); transition: opacity 0.3s ease, transform 0.3s ease; backdrop-filter: blur(4px); }
+        .image-modal-overlay { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.9); justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+                .image-modal-content { margin: auto; display: block; max-width: 90%; max-height: 90vh; border-radius: 8px; box-shadow: 0 0 30px var(--accent-gold-glow); cursor: grab; touch-action: none; user-select: none; -webkit-user-drag: none; transition: transform 0.1s ease-out; }
+        .image-modal-content:active { cursor: grabbing; transition: none; }
+        .image-modal-close { position: absolute; top: 15px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; transition: 0.3s; cursor: pointer; z-index: 10000; }
+        .image-modal-close:hover, .image-modal-close:focus { color: #bbb; text-decoration: none; }
+        .message-reply-container { margin-top: 10px; display: flex; gap: 10px; align-items: flex-end; }
+        .reply-input { flex-grow: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--accent-mana); border-radius: 6px; padding: 10px; color: var(--text-main); font-family: inherit; font-size: 0.9em; resize: none; overflow-y: auto; max-height: 120px; line-height: 1.5; }
+        .reply-input:focus { outline: none; border-color: var(--accent-gold); box-shadow: inset 0 0 5px rgba(0,0,0,0.5), 0 0 8px rgba(255,215,0,0.2); }
+        .reply-input::placeholder { color: var(--text-dim); opacity: 0.7; }
+        .reply-input::-webkit-scrollbar { width: 4px; }
+        .reply-input::-webkit-scrollbar-thumb { background: var(--accent-mana); border-radius: 2px; }
+        .reply-button { background: linear-gradient(135deg, var(--accent-mana), #3480db); color: #fff; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.3); height: 42px; white-space: nowrap; min-width: 140px; flex-shrink: 0; text-align: center; }
+        .reply-button:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(77, 166, 255, 0.3); }
+        .reply-button:disabled { background: #555; cursor: not-allowed; opacity: 0.6; }
+
+        .map-section-title { color: var(--accent-gold); text-align: center; margin: 25px 0 15px; font-size: 1.25em; letter-spacing: 3px; font-weight: 800; text-shadow: 0 0 10px var(--accent-gold-glow), 0 0 20px rgba(255,215,0,0.2); border-bottom: 2px solid transparent; border-image: linear-gradient(90deg, transparent, var(--accent-gold), transparent) 1; padding-bottom: 8px; transition: transform 0.2s; }
+        .map-section-title:hover { transform: scale(1.02); }
+        .map-section-title-xian { color: var(--rare-text); text-shadow: 0 0 10px rgba(217, 128, 250, 0.5), 0 0 20px rgba(217, 128, 250, 0.2); border-image: linear-gradient(90deg, transparent, var(--rare-text), transparent) 1; }
+
+        .map-wrapper { width: 100%; height: 380px; position: relative; background: radial-gradient(circle at 50% 50%, rgba(30,35,45,0.7), rgba(5,5,8,0.9)), repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.03) 39px, rgba(255,255,255,0.03) 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.03) 39px, rgba(255,255,255,0.03) 40px); border: 1px solid var(--border-metal); border-radius: 12px; box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 5px 15px rgba(0,0,0,0.5); overflow: hidden; user-select: none; margin-bottom: 25px; transition: box-shadow 0.3s ease; }
+        .map-wrapper:hover { box-shadow: inset 0 0 60px rgba(0,0,0,0.9), 0 8px 25px rgba(0,0,0,0.7); }
+        .map-grid { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+        .map-node { position: absolute; width: 22px; height: 22px; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 10; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(255,255,255,0.8); }
+        .map-node::before { content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%; opacity: 0.3; background: currentColor; }
+        .map-node::after { content: ''; position: absolute; width: 160%; height: 160%; border-radius: 50%; border: 1px dashed rgba(255,255,255,0.3); pointer-events: none; opacity: 0.5;}
+
+        .map-node:hover, .map-node.active-node { transform: translate(-50%, -50%) scale(1.4); z-index: 25; border-color: #fff; box-shadow: 0 0 25px currentColor; }
+        .map-node.active-node::after { border: 2px solid currentColor; border-style: dotted; opacity: 1; }
+
+        .map-node-label { position: absolute; top: 30px; white-space: nowrap; font-size: 0.85em; text-shadow: 0 2px 4px #000; font-weight: bold; pointer-events: none; transition: all 0.3s; padding: 4px 10px; background: rgba(10, 10, 15, 0.85); border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.6); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); opacity: 0.85; transform: translateY(0); }
+        .map-node:hover .map-node-label, .map-node.active-node .map-node-label { opacity: 1; transform: translateY(3px) scale(1.1); background: rgba(20, 20, 25, 0.95); z-index: 30;}
+
+        .node-center { background: var(--accent-gold); color: var(--accent-gold); box-shadow: 0 0 15px var(--accent-gold); }
+        .node-center .map-node-label { border-color: rgba(255,215,0,0.5); color: var(--accent-gold);}
+        .node-east { background: var(--accent-san); color: var(--accent-san); box-shadow: 0 0 15px var(--accent-san); }
+        .node-east .map-node-label { border-color: rgba(46, 204, 113, 0.5); color: var(--accent-san);}
+        .node-south { background: var(--accent-blood); color: var(--accent-blood); box-shadow: 0 0 15px var(--accent-blood); }
+        .node-south .map-node-label { border-color: rgba(255, 77, 77, 0.5); color: var(--accent-blood);}
+        .node-west { background: #eccc68; color: #eccc68; box-shadow: 0 0 15px #eccc68; }
+        .node-west .map-node-label { border-color: rgba(236, 204, 104, 0.5); color: #eccc68;}
+        .node-north { background: var(--accent-mana); color: var(--accent-mana); box-shadow: 0 0 15px var(--accent-mana); }
+        .node-north .map-node-label { border-color: rgba(77, 166, 255, 0.5); color: var(--accent-mana);}
+        .node-special { background: var(--rare-text); color: var(--rare-text); box-shadow: 0 0 15px var(--rare-text); width: 14px; height: 14px; }
+        .node-special .map-node-label { border-color: rgba(217, 128, 250, 0.5); color: var(--rare-text); font-size: 0.75em; top: 22px; }
+
+        .map-line { position: absolute; height: 2px; background: rgba(255,255,255,0.15); transform-origin: left center; pointer-events: none; z-index: 1; }
+
+        .location-detail-panel { border-top: 2px solid rgba(255,255,255,0.1); padding-top: 20px; display: none; margin-top: 15px; }
+        .location-detail-panel.active { display: block; animation: mapPanelSlideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .location-detail-panel .info-card { transition: border-color 0.3s, box-shadow 0.3s; border-left-width: 4px; }
+
+        .faction-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-right: 5px; margin-bottom: 5px; border: 1px solid; cursor: help; transition: transform 0.2s, box-shadow 0.2s; }
+        .faction-tag:hover { transform: scale(1.05); box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+
+        .tag-human { border-color: var(--accent-gold); color: var(--accent-gold); background: rgba(255,215,0,0.1); }
+        .tag-demon { border-color: var(--accent-blood); color: var(--accent-blood); background: rgba(255,77,77,0.1); }
+        .tag-monster { border-color: var(--accent-san); color: var(--accent-san); background: rgba(46,204,113,0.1); }
+        .tag-neutral { border-color: var(--accent-mana); color: var(--accent-mana); background: rgba(77,166,255,0.1); }
+
+        /* 修复配置页与动画 */
+        @keyframes faction-pop {
+            0% { opacity: 0; transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        .faction-modal-overlay { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(4px); justify-content: center; align-items: center; }
+        .faction-modal-content { background: linear-gradient(145deg, rgba(25, 20, 30, 0.95), rgba(15, 10, 15, 0.98)); border: 1px solid var(--border-metal); border-top: 2px solid var(--accent-gold); border-bottom: 2px solid var(--accent-gold); border-radius: 8px; width: 80%; max-width: 350px; padding: 25px; box-shadow: 0 0 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(255, 215, 0, 0.05); position: relative; animation: faction-pop 0.4s cubic-bezier(0.2, 0.8, 0.2, 1.1); text-align: center; }
+        .faction-modal-close { position: absolute; top: 8px; right: 15px; color: var(--text-dim); font-size: 28px; cursor: pointer; transition: 0.3s; line-height: 1; }
+        .faction-modal-close:hover { color: var(--accent-blood); transform: scale(1.1) rotate(90deg); }
+        .faction-modal-header { font-size: 1.3em; font-weight: bold; color: var(--accent-gold); margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1); text-shadow: 0 0 8px var(--accent-gold-glow); letter-spacing: 2px; }
+        .faction-modal-body { font-size: 1.05em; color: var(--text-main); line-height: 1.6; margin-bottom: 15px; }
+        .faction-modal-footer { font-size: 0.75em; color: var(--rare-text); opacity: 0.8; letter-spacing: 4px; margin-top: 10px; }
+
+        .luck-modal-overlay { display: none; position: fixed; z-index: 99999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(4px); justify-content: center; align-items: center; }
+        .luck-modal-content { background: linear-gradient(145deg, rgba(25, 20, 30, 0.95), rgba(15, 10, 15, 0.98)); border: 1px solid var(--border-metal); border-top: 2px solid var(--accent-gold); border-bottom: 2px solid var(--accent-gold); border-radius: 8px; width: 90%; max-width: 400px; max-height: 85vh; min-height: 400px; padding: 25px; box-shadow: 0 0 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(255, 215, 0, 0.05); position: relative; animation: faction-pop 0.4s cubic-bezier(0.2, 0.8, 0.2, 1.1); display: flex; flex-direction: column; }
+        .luck-modal-close { position: absolute; top: 8px; right: 15px; color: var(--text-dim); font-size: 28px; cursor: pointer; transition: 0.3s; line-height: 1; z-index: 10; }
+        .luck-modal-close:hover { color: var(--accent-blood); transform: scale(1.1) rotate(90deg); }
+        .luck-modal-header { font-size: 1.3em; font-weight: bold; color: var(--accent-gold); margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px dashed rgba(255, 255, 255, 0.1); text-shadow: 0 0 8px var(--accent-gold-glow); letter-spacing: 2px; text-align: center; flex-shrink: 0; }
+        .luck-modal-body { overflow-y: auto; padding-right: 5px; flex: 1 1 auto; }
+        .luck-modal-body::-webkit-scrollbar { width: 4px; }
+        .luck-modal-body::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        .luck-modal-body::-webkit-scrollbar-thumb { background: var(--accent-gold); border-radius: 2px; }
+        .luck-stat-row { cursor: pointer; transition: all 0.2s; border-radius: 4px; padding: 2px 4px; margin: 0 -4px; }
+        .luck-stat-row:hover { background: rgba(255, 215, 0, 0.1); box-shadow: 0 0 8px rgba(255, 215, 0, 0.2); transform: translateX(2px); }
+
+        .card-discard {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 28px;
+            height: 28px;
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: 4px;
+            background: rgba(239,68,68,0.08);
+            color: rgba(239,68,68,0.6);
+            font-size: 16px;
+            line-height: 1;
+            text-align: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s, background 0.2s, color 0.2s, border-color 0.2s;
+            z-index: 2;
+            padding: 0;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .info-card:hover .card-discard,
+        .partner-card:hover .card-discard,
+        .npc-card:hover .card-discard,
+        .skill-card:hover .card-discard,
+        .quest-item:hover .card-discard,
+        .inventory-item:hover .card-discard,
+        .artifact-item:hover .card-discard,
+        .luck-item:hover .card-discard { opacity: 1; }
+        .card-discard:hover {
+            background: rgba(239,68,68,0.25);
+            border-color: rgba(239,68,68,0.6);
+            color: #ff4d4d;
+        }
+        .info-card.discard-confirm .card-discard,
+        .partner-card.discard-confirm .card-discard,
+        .npc-card.discard-confirm .card-discard,
+        .skill-card.discard-confirm .card-discard,
+        .quest-item.discard-confirm .card-discard,
+        .inventory-item.discard-confirm .card-discard,
+        .artifact-item.discard-confirm .card-discard,
+        .luck-item.discard-confirm .card-discard {
+            opacity: 1;
+            width: auto;
+            padding: 0 8px;
+            font-size: 12px;
+            border-color: #ff4d4d;
+            background: rgba(239,68,68,0.2);
+            color: #ff4d4d;
+        }
+        .info-card.discard-confirm,
+        .partner-card.discard-confirm,
+        .npc-card.discard-confirm,
+        .skill-card.discard-confirm,
+        .quest-item.discard-confirm,
+        .inventory-item.discard-confirm,
+        .artifact-item.discard-confirm,
+        .luck-item.discard-confirm {
+            border-color: rgba(239,68,68,0.4) !important;
+        }
+        .info-card.discarding,
+        .partner-card.discarding,
+        .npc-card.discarding,
+        .skill-card.discarding,
+        .quest-item.discarding,
+        .inventory-item.discarding,
+        .wx-list-item.discarding,
+        .artifact-item.discarding,
+        .luck-item.discarding {
+            animation: discard-fade 0.35s ease forwards;
+        }
+        @keyframes discard-fade {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.85) translateY(8px); }
+        }
+
+        #tab-messages { display: none; flex-direction: column; height: 480px; padding: 10px; box-sizing: border-box; overflow: hidden; }
+
+        .wx-list-view { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex-grow: 1; padding-right: 5px; scrollbar-width: thin; scrollbar-color: var(--border-metal) rgba(0,0,0,0.3); }
+        .wx-list-item { display: flex; align-items: center; padding: 10px; background: rgba(30,30,35,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; cursor: pointer; transition: background 0.2s, transform 0.2s; position: relative; overflow: hidden; flex-shrink: 0; user-select: none; }
+        .wx-list-item:hover { background: rgba(40,40,45,0.8); transform: translateY(-1px); }
+        .wx-avatar-container { width: 50px; height: 50px; border-radius: 6px; overflow: hidden; margin-right: 15px; position: relative; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); }
+        .wx-avatar-container img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
+        .wx-avatar-custom-btn { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.6); color: #fff; text-align: center; font-size: 10px; padding: 2px 0; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
+        .wx-avatar-container:hover .wx-avatar-custom-btn { opacity: 1; }
+        .wx-unread-dot { position: absolute; top: -2px; right: -2px; width: 12px; height: 12px; background-color: var(--accent-blood); border-radius: 50%; box-shadow: 0 0 5px var(--accent-blood-glow); display: none; z-index: 5; border: 1px solid #000; }
+        .wx-unread-dot.show { display: block; }
+        .wx-list-info { flex-grow: 1; overflow: hidden; }
+        .wx-list-name { font-size: 1.1em; color: var(--accent-gold); font-weight: bold; margin-bottom: 5px; }
+        .wx-list-preview { font-size: 0.85em; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .wx-chat-view { display: none; flex-direction: column; height: 100%; position: relative; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; overflow: hidden; }
+        .wx-chat-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; filter: brightness(0.35); z-index: 0; }
+        .wx-chat-header { position: relative; z-index: 10; display: flex; align-items: center; padding: 12px 15px; background: linear-gradient(to bottom, rgba(10,10,15,0.9), rgba(10,10,15,0.7)); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .wx-back-btn { cursor: pointer; color: var(--text-dim); font-size: 1.1em; margin-right: 15px; transition: color 0.2s; font-weight: bold; }
+        .wx-back-btn:hover { color: var(--accent-gold); }
+        .wx-chat-title { font-size: 1.15em; color: var(--text-main); font-weight: bold; cursor: pointer; flex-grow: 1; text-align: center; margin-right: 10px; transition: color 0.2s; text-shadow: 0 1px 2px #000; }
+        .wx-chat-title:hover { color: var(--accent-mana); }
+        .wx-api-btn { cursor: pointer; color: var(--text-dim); font-size: 1.2em; transition: color 0.2s, transform 0.2s; }
+        .wx-api-btn:hover { color: var(--accent-mana); transform: rotate(90deg); }
+
+        .wx-chat-messages { position: relative; z-index: 1; flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; scrollbar-width: thin; min-height: 0; }
+        .wx-msg-row { display: flex; flex-direction: column; max-width: 85%; }
+        .wx-msg-left { align-self: flex-start; }
+        .wx-msg-right { align-self: flex-end; align-items: flex-end; }
+        .wx-msg-sender { font-size: 0.75em; color: rgba(255,255,255,0.6); margin-bottom: 4px; padding: 0 5px; text-shadow: 0 1px 1px #000; }
+        .wx-msg-bubble { padding: 10px 14px; border-radius: 8px; font-size: 0.9em; line-height: 1.5; word-wrap: break-word; box-shadow: 0 2px 6px rgba(0,0,0,0.4); backdrop-filter: blur(2px); white-space: pre-wrap; }
+        .wx-msg-left .wx-msg-bubble { background: rgba(30, 40, 50, 0.85); border: 1px solid rgba(77, 166, 255, 0.3); color: #e0f0ff; border-top-left-radius: 0; }
+        .wx-msg-right .wx-msg-bubble { background: rgba(46, 204, 113, 0.25); border: 1px solid rgba(46, 204, 113, 0.4); color: #e0f0ff; border-top-right-radius: 0; }
+
+        .wx-msg-actions { display: none; gap: 10px; margin-top: 4px; font-size: 0.75em; opacity: 0.8; justify-content: flex-end; }
+        .wx-msg-left .wx-msg-actions { justify-content: flex-start; }
+        .wx-msg-row:hover .wx-msg-actions { display: flex; }
+        .wx-msg-action-btn { cursor: pointer; color: var(--text-dim); transition: color 0.2s; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); }
+        .wx-msg-action-btn:hover { color: var(--accent-gold); border-color: var(--accent-gold); background: rgba(255,215,0,0.1); }
+
+        .wx-chat-input-area { position: relative; z-index: 105; padding: 12px; background: rgba(10,10,15,0.9); border-top: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
+
+        .wx-detail-modal { display: none; position: absolute; top: 45px; left: 50%; transform: translateX(-50%); background: linear-gradient(145deg, rgba(25,25,30,0.95), rgba(15,15,20,0.98)); border: 1px solid var(--accent-mana); border-radius: 8px; padding: 15px; z-index: 100; box-shadow: 0 5px 20px rgba(0,0,0,0.6), inset 0 0 10px rgba(77,166,255,0.1); width: 200px; text-align: center; backdrop-filter: blur(5px); animation: fadeIn 0.2s ease; }
+        .wx-detail-modal.show { display: block; }
+        .wx-detail-item { margin: 10px 0; font-size: 0.95em; display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 6px; }
+        .wx-detail-item:last-child { border-bottom: none; margin-bottom: 0; }
+
+        @media (max-width: 700px) {
+            .terminal-container { border-radius: 0; border: none; border-top: 2px solid var(--border-metal); border-bottom: 2px solid var(--border-metal); }
+            .content-grid { grid-template-columns: 1fr; }
+            .status-panel { flex-direction: row; padding: 15px; gap: 20px; flex-wrap: wrap; justify-content: center; background-color: rgba(20, 18, 22, 0.8); border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
+            .avatar-frame { width: 70px; height: 70px; }
+            .stat-group { flex: 1; min-width: 200px; }
+            .rank-tag { margin-top: -5px; }
+            .tab-content { max-height: 350px; padding: 15px; }
+            #tab-messages { padding: 10px; height: 350px; }
+            .wx-chat-input-area { padding: 8px; }
+            .message-reply-container { gap: 6px; }
+            .reply-button { min-width: 80px; padding: 8px 12px; }
+            .fairy-container { right: 10px; bottom: 10px; }
+            .fairy-bubble { max-width: 180px; font-size: 0.85em; padding: 10px; }
+            .wx-msg-actions { display: flex; flex-wrap: wrap; }
+        }
+
+        .portrait-custom-btn { display: inline-block; width: auto; margin-left: 8px; background: linear-gradient(to right, transparent, rgba(100, 180, 255, 0.1), transparent); border: 1px dashed rgba(100, 180, 255, 0.4); color: #64b4ff; padding: 6px 12px; text-align: center; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: all 0.3s; letter-spacing: 1px; }
+        .portrait-custom-btn:hover { background: linear-gradient(to right, transparent, rgba(100, 180, 255, 0.2), box-shadow: 0 0 8px rgba(100, 180, 255, 0.3); }
+        .portrait-file-label { display: flex; align-items: center; justify-content: center; padding: 8px 16px; background: linear-gradient(135deg, rgba(100,180,255,0.2), rgba(100,180,255,0.1)); border: 1px dashed rgba(100,180,255,0.5); border-radius: 6px; color: #64b4ff; cursor: pointer; font-size: 0.85em; white-space: nowrap; transition: all 0.3s; }
+        .portrait-file-label:hover { background: linear-gradient(135deg, rgba(100,180,255,0.3), rgba(100,180,255,0.15)); }
+        .portrait-custom-modal, .api-config-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center; }
+        .portrait-custom-modal.show, .api-config-modal.show { display: flex; }
+        .portrait-custom-dialog, .api-config-dialog { background: linear-gradient(145deg, rgba(20,25,35,0.95), rgba(10,15,25,0.98)); border: 1px solid rgba(100, 180, 255, 0.4); border-radius: 12px; padding: 25px; max-width: 500px; width: 90%; box-shadow: 0 0 30px rgba(100, 180, 255, 0.3); }
+        .portrait-custom-dialog h3, .api-config-dialog h3 { color: #64b4ff; margin: 0 0 15px 0; text-align: center; font-size: 1.1em; letter-spacing: 2px; }
+        .portrait-custom-dialog label, .api-config-dialog label { color: #a0b8cc; font-size: 0.9em; display: block; margin-bottom: 5px; }
+        .portrait-custom-dialog input, .api-config-dialog input, .api-config-dialog select, .api-config-dialog textarea { width: 100%; padding: 10px; border: 1px solid rgba(100, 180, 255, 0.3); border-radius: 6px; background: rgba(0,0,0,0.4); color: #e0f0ff; font-size: 0.9em; margin-bottom: 12px; box-sizing: border-box; font-family: inherit; }
+        .portrait-custom-dialog input:focus, .api-config-dialog input:focus, .api-config-dialog select:focus, .api-config-dialog textarea:focus { outline: none; border-color: #64b4ff; box-shadow: 0 0 10px rgba(100, 180, 255, 0.2); }
+        .portrait-custom-dialog .btn-row, .api-config-dialog .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 5px; }
+        .portrait-custom-dialog .btn-confirm, .api-config-dialog .btn-confirm { background: linear-gradient(135deg, #1a5fa8, #2a7fd8); color: #fff; border: none; padding: 8px 24px; border-radius: 6px; cursor: pointer; font-size: 0.9em; letter-spacing: 1px; transition: all 0.3s; }
+        .portrait-custom-dialog .btn-confirm:hover, .api-config-dialog .btn-confirm:hover { background: linear-gradient(135deg, #2a7fd8, #3a8fe8); box-shadow: 0 0 12px rgba(100, 180, 255, 0.4); }
+        .portrait-custom-dialog .btn-cancel, .api-config-dialog .btn-cancel { background: rgba(255,255,255,0.1); color: #a0b8cc; border: 1px solid rgba(255,255,255,0.2); padding: 8px 24px; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.3s; }
+        .portrait-custom-dialog .btn-cancel:hover, .api-config-dialog .btn-cancel:hover { background: rgba(255,255,255,0.2); }
+        .portrait-custom-dialog .btn-reset { background: rgba(255,80,80,0.15); color: #ff6b6b; border: 1px solid rgba(255,80,80,0.3); padding: 8px 24px; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.3s; }
+        .portrait-custom-dialog .btn-reset:hover { background: rgba(255,80,80,0.25); }
+        .portrait-preview { width: 100%; max-height: 120px; object-fit: contain; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; display: none; }
+        .portrait-preview.show { display: block; }
+        .portrait-custom-hint { font-size: 0.75em; color: #6a8a9a; margin-bottom: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+<!-- disable-default-loading -->
+<div class="terminal-container">
+    <div class="top-bar"></div>
+    <div class="header">
+        <div class="guild-badge">
+            <!-- 移除了内联 onclick，改在底部JS中绑定 -->
+            <div class="guild-logo" id="hero-info-btn" title="点击查看主角信息">修</div>
+            <div class="guild-name">面板</div>
+        </div>
+        <div class="time-display" id="env-status"></div>
+
+        <!-- 下拉的主角信息面板 -->
+        <div class="hero-info-dropdown" id="hero-info-dropdown">
+            <div class="stat-row"><div class="stat-label"><span>姓名</span><span id="name-value" class="rare-text" style="font-weight:normal; text-align:right; flex:1; margin-left:10px; word-break:break-all;"></span></div></div>
+            <div class="stat-row"><div class="stat-label"><span>性别</span><span id="gender-value" class="rare-text" style="font-weight:normal; text-align:right; flex:1; margin-left:10px; word-break:break-all;"></span></div></div>
+            <div class="stat-row"><div class="stat-label"><span>容貌</span><span id="appearance-value" class="rare-text" style="font-weight:normal; text-align:right; flex:1; margin-left:10px; word-break:break-all;"></span></div></div>
+            <div class="stat-row"><div class="stat-label"><span>身形</span><span id="body-value" class="rare-text" style="font-weight:normal; text-align:right; flex:1; margin-left:10px; word-break:break-all;"></span></div></div>
+            <div class="stat-row"><div class="stat-label"><span>衣着</span><span id="clothing-value" class="rare-text" style="font-weight:normal; text-align:right; flex:1; margin-left:10px; word-break:break-all;"></span></div></div>
+        </div>
+    </div>
+    <div class="content-grid">
+        <div class="status-panel">
+            <div class="avatar-wrapper">
+                <div class="avatar-frame"><div class="user_avatar"></div></div>
+                <div class="rank-tag"></div>
+            </div>
+            <div class="stat-group">
+                <div class="stat-row"><div class="stat-label"><span>生命</span><span id="hp-value"></span></div><div class="progress-bg"><div class="progress-fill fill-hp" id="hp-bar"></div></div></div>
+                <div class="stat-row"><div class="stat-label"><span>精血</span><span id="blood-value"></span></div><div class="progress-bg"><div class="progress-fill fill-hp" id="blood-bar"></div></div></div>
+                <div class="stat-row"><div class="stat-label"><span>灵力</span><span id="mp-value"></span></div><div class="progress-bg"><div class="progress-fill fill-mp" id="mp-bar"></div></div></div>
+                <div class="stat-row"><div class="stat-label"><span>修为</span><span id="exp-value"></span></div><div class="progress-bg"><div class="progress-fill fill-exp" id="exp-bar"></div></div></div>
+                <div class="stat-row"><div class="stat-label"><span>神识</span><span id="san-value"></span></div><div class="progress-bg"><div class="progress-fill fill-san" id="san-bar"></div></div></div>
+                <div class="stat-row"><div class="stat-label"><span>道心</span><span id="daoxin-value"></span></div><div class="progress-bg"><div class="progress-fill fill-daoxin" id="daoxin-bar"></div></div></div>
+
+                <div class="stat-row"><div class="stat-label"><span>神念</span><span id="san-status" class="rare-text" style="font-weight:normal; text-align:right; flex:1; margin-left:10px; word-break:break-all;"></span></div></div>
+                <div class="stat-row luck-stat-row" onclick="document.getElementById('luck-modal-overlay').style.display='flex'">
+                    <div class="stat-label">
+                        <span title="点击查看气运详情">气运</span>
+                        <span id="luck-value" class="rare-text" style="font-weight:normal; text-align:right; flex:1; margin-left:10px; word-break:break-all;"></span>
+                    </div>
+                </div>
+                <div class="stat-row"><div class="stat-label"><span>灵根</span><span id="spirit-root-value" class="rare-text" style="font-weight:normal; text-align:right; flex:1; margin-left:10px; word-break:break-all;"></span></div></div>
+                <div class="stat-row luck-stat-row" id="clan-row">
+                    <div class="stat-label">
+                        <span title="点击查看宗门详情">宗门</span>
+                        <span id="clan-value" class="rare-text" style="font-weight:normal; text-align:right; flex:1; margin-left:10px; word-break:break-all;">无</span>
+                    </div>
+                </div>
+                <div class="stat-row"><div class="stat-label"><span>状态</span><span id="status-effects" class="rare-text" style="font-weight:normal; text-align:right; flex:1; margin-left:10px; word-break:break-all;">无</span></div></div>
+            </div>
+        </div>
+        <div class="main-panel">
+            <div class="nav-tabs">
+                <button class="tab-btn active" onclick="switchTab(event, 'dashboard')">概览</button>
+                <button class="tab-btn" onclick="switchTab(event, 'skills')">功法</button>
+                <button class="tab-btn" onclick="switchTab(event, 'partners')">道侣</button>
+                <button class="tab-btn" onclick="switchTab(event, 'npcs')">人物</button>
+                <button class="tab-btn" onclick="switchTab(event, 'pets')">灵宠</button>
+                <button class="tab-btn" onclick="switchTab(event, 'quests')">机遇</button>
+                <button class="tab-btn" onclick="switchTab(event, 'database')">绝色榜</button>
+                <button class="tab-btn" onclick="switchTab(event, 'world_events')">动向</button>
+                <button class="tab-btn" onclick="switchTab(event, 'messages')">玉简</button>
+                <button class="tab-btn" onclick="switchTab(event, 'map')">舆图</button>
+            </div>
+
+            <!-- Other Tabs Content -->
+            <div id="tab-dashboard" class="tab-content" style="display: block;"></div>
+            <div id="tab-skills" class="tab-content" style="display: none;"></div>
+            <div id="tab-partners" class="tab-content" style="display: none;"></div>
+            <div id="tab-npcs" class="tab-content" style="display: none;"></div>
+            <div id="tab-pets" class="tab-content" style="display: none;"></div>
+            <div id="tab-quests" class="tab-content" style="display: none;"></div>
+            <div id="tab-database" class="tab-content" style="display: none;"></div>
+            <div id="tab-world_events" class="tab-content" style="display: none;"></div>
+
+            <!-- 玉简 Tab Content -->
+            <div id="tab-messages" class="tab-content">
+                <!-- 列表视图 -->
+                <div id="wx-list-view" class="wx-list-view"></div>
+
+                <!-- 聊天视图 -->
+                <div id="wx-chat-view" class="wx-chat-view">
+                    <div class="wx-chat-bg" id="wx-chat-bg"></div>
+                    <div class="wx-chat-header">
+                        <div class="wx-back-btn" onclick="document.getElementById('wx-chat-view').style.display='none'; document.getElementById('wx-list-view').style.display='flex'; window.currentActiveChat=null;">❮ 返回</div>
+                        <div class="wx-chat-title" id="wx-chat-title" onclick="document.getElementById('wx-detail-modal').classList.toggle('show');">名字</div>
+                        <div class="wx-api-btn" onclick="window.openWxPromptModal();" title="玉简设定">⚙️</div>
+                        <div class="wx-detail-modal" id="wx-detail-modal">
+                            <div class="wx-detail-item"><span style="color:var(--text-dim)">境界</span><span id="wx-detail-level" class="rare-text">未知</span></div>
+                            <div class="wx-detail-item"><span style="color:var(--text-dim)">性别</span><span id="wx-detail-gender" style="color:var(--text-main)">未知</span></div>
+                            <div class="wx-detail-item"><span style="color:var(--text-dim)">关系</span><span id="wx-detail-relation" style="color:var(--accent-gold)">陌生</span></div>
+                            <div class="wx-detail-item"><span style="color:var(--text-dim)">好感度</span><span id="wx-detail-favor" style="color:var(--accent-san)">0</span></div>
+                        </div>
+                    </div>
+                    <div class="wx-chat-messages" id="wx-chat-messages">
+                        <!-- 消息列表 -->
+                    </div>
+                    <div class="wx-chat-input-area">
+                        <div class="message-reply-container">
+                            <textarea class="reply-input" id="wx-reply-input" rows="1" placeholder="输入传讯内容..."></textarea>
+                            <button class="reply-button" id="wx-reply-btn" onclick="window.handleReply(this, document.getElementById('wx-chat-title').textContent)">发送</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Tab Content -->
+            <div id="tab-map" class="tab-content" style="display: none;">
+
+                <!-- 玄天界 Map -->
+                <div style="text-align: center; margin-top: 15px; margin-bottom: 0px; cursor: pointer; color: var(--text-dim); font-size: 0.85em; letter-spacing: 2px; transition: color 0.3s; font-weight: bold;" onclick="const p = document.getElementById('xuantian-map-img'); p.style.display = p.style.display === 'none' ? 'block' : 'none';" onmouseover="this.style.color='var(--accent-gold)'" onmouseout="this.style.color='var(--text-dim)'">
+                    [ 点击查看玄天界全图 ]
+                </div>
+                <div class="map-section-title" style="margin-top: 5px;">
+                    ✦ 玄 天 界 ✦
+                </div>
+                <div id="xuantian-map-img" style="display: none; margin-bottom: 20px; text-align: center;">
+                    <img src="https://free-img.400040.xyz/4/2026/05/17/6a09d0b65af1c.png" style="max-width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 5px 15px rgba(0,0,0,0.5); cursor: zoom-in;" onclick="document.getElementById('modal-image').src=this.src; document.getElementById('image-modal-overlay').style.display='flex';">
+                </div>
+
+                <div class="map-wrapper" id="world-map-xuantian">
+                    <div class="map-grid"></div>
+                </div>
+
+                <!-- 仙界 Map -->
+                <div class="map-section-title map-section-title-xian">✧ 九 天 仙 界 ✧</div>
+                <div class="map-wrapper" id="world-map-xianjie">
+                    <div class="map-grid"></div>
+                </div>
+
+                <!-- Shared Location Detail Panel -->
+                <div id="map-details" class="location-detail-panel">
+                    <div class="info-card" style="border-color: var(--accent-gold);">
+                        <div class="info-title" style="color:var(--accent-gold);">
+                            <span id="map-loc-name">请选择区域</span>
+                            <span style="font-size:0.8em; color:var(--text-dim)" id="map-loc-type">探索</span>
+                        </div>
+                        <div class="info-text">
+                            <p id="map-loc-desc">点击地图上的节点查看势力分布与环境详情。</p>
+                            <div id="map-loc-factions" style="margin-top:10px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <div class="fairy-container" id="fairy-guide">
+        <div class="fairy-bubble" style="opacity: 0; transform: translateY(10px); pointer-events: none;"><span id="fairy-text">...</span></div>
+        <div class="fairy-avatar" title="点击器灵查看提示, 长按/右键查看大图"></div>
+    </div>
+</div>
+
+<div id="image-modal-overlay" class="image-modal-overlay">
+    <span class="image-modal-close">×</span>
+    <img class="image-modal-content" id="modal-image">
+</div>
+
+<div id="faction-modal-overlay" class="faction-modal-overlay">
+    <div class="faction-modal-content">
+        <span class="faction-modal-close">×</span>
+        <div class="faction-modal-header" id="faction-modal-title"></div>
+        <div class="faction-modal-body" id="faction-modal-note"></div>
+        <div class="faction-modal-footer">✨ 乾坤洞察 ✨</div>
+    </div>
+</div>
+
+<!-- 气运详情弹窗 -->
+<div id="luck-modal-overlay" class="luck-modal-overlay">
+    <div class="luck-modal-content">
+        <span class="luck-modal-close" id="luck-modal-close">×</span>
+        <div class="luck-modal-header">✨ 气运加身 ✨</div>
+        <div class="luck-modal-body" id="luck-modal-body"></div>
+    </div>
+</div>
+
+<!-- 玉简设定弹窗 -->
+<div id="wx-prompt-modal" class="luck-modal-overlay" style="z-index: 99999;">
+    <div class="luck-modal-content" style="max-height: 85vh; min-height: 400px; max-width: 550px; width: 90%; display: flex; flex-direction: column; padding: 0;">
+        <!-- Header -->
+        <div class="luck-modal-header" style="margin: 20px 20px 10px 20px;">✨ 玉简传讯设定 ✨</div>
+        <span class="luck-modal-close" onclick="document.getElementById('wx-prompt-modal').style.display='none';" style="top: 15px; right: 20px;">×</span>
+
+        <!-- Body: 增加了 transform: translateZ(0) 解决滑动白屏渲染bug -->
+        <div class="luck-modal-body" style="display: flex; flex-direction: column; gap: 15px; flex-grow: 1; overflow-y: auto; padding: 0 20px 20px 20px; transform: translateZ(0); -webkit-transform: translateZ(0);">
+
+            <!-- 预设功能区 -->
+            <div class="info-card" style="margin-bottom: 0; flex-shrink: 0; overflow: visible;">
+                <div style="color: var(--accent-gold); font-size: 0.95em; font-weight: bold; margin-bottom: 10px; border-bottom: 1px dashed rgba(255,215,0,0.2); padding-bottom: 5px;">预设配置方案</div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                    <select id="wx-preset-select" class="reply-input" style="height: 35px; padding: 5px 10px; flex: 1; min-width: 150px; box-sizing: border-box;" onchange="window.applyPreset(this.value)">
+                        <option value="">-- 当前手动配置 --</option>
+                    </select>
+                    <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                        <button class="reply-button" style="height: 35px; min-width: 60px; padding: 0 15px; font-size: 0.85em; background: linear-gradient(135deg, #27ae60, #2ecc71);" onclick="window.saveAsPreset()">保存</button>
+                        <button class="reply-button" style="height: 35px; min-width: 60px; padding: 0 15px; font-size: 0.85em; background: linear-gradient(135deg, #c0392b, #e74c3c);" onclick="window.deletePreset()">删除</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 附加设定 / 规则 -->
+            <div class="info-card" style="margin-bottom: 0; flex-shrink: 0; overflow: visible;">
+                <div style="color: var(--accent-gold); font-size: 0.95em; font-weight: bold; margin-bottom: 5px;">附加设定 / 规则</div>
+                <div style="color: var(--text-dim); font-size: 0.8em; line-height: 1.4; margin-bottom: 10px;">在此输入自定义设定补充或规则要求，发送传讯时将作为系统提示词附加：</div>
+                <textarea id="wx-custom-prompt" rows="4" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--accent-mana); border-radius: 6px; padding: 10px; color: var(--text-main); font-family: inherit; font-size: 0.9em; resize: vertical; box-sizing: border-box;" placeholder="例如：你现在正在用玉简（类似微信）与主角进行私聊互动。
+请直接输出你回复的单句话，必须贴合你的人物性格，口语化、简短，可带表情符号。
+【绝对禁令】：除了你要说的那句话本身，禁止输出任何其他内容！禁止带角色署名，禁止加任何括号、标签或特殊符号，禁止分段换行！直接开口说话！"></textarea>
+            </div>
+
+            <!-- 世界书知识注入 -->
+            <div class="info-card" style="margin-bottom: 0; flex-shrink: 0; overflow: visible;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <div style="color: var(--accent-gold); font-size: 0.95em; font-weight: bold;">📚 角色知识注入 (世界书)</div>
+                    <button class="reply-button" style="height: 28px; min-width: 60px; padding: 0 10px; font-size: 0.8em; background: linear-gradient(135deg, #e67e22, #d35400);" onclick="window.saveWxLoreSettings(); alert('✅ 世界书勾选已保存至本地！');">💾 保存勾选</button>
+                </div>
+                <div style="color: var(--text-dim); font-size: 0.8em; line-height: 1.4; margin-bottom: 10px;">勾选你需要让对方在当前传讯中知晓的设定（每次勾选都会自动保存）：</div>
+
+                <div style="margin-bottom: 10px;">
+                    <input type="text" id="wx-lore-search" class="reply-input" placeholder="搜索条目名称或内容..." style="width: 100%; height: 32px; padding: 5px 10px; box-sizing: border-box;" oninput="window.filterLorebooks(this.value)">
+                </div>
+
+                <div id="wx-lorebook-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; padding-right: 5px;">
+                    <div style="color: var(--text-dim); font-style: italic; font-size: 0.85em;">请先在玉简中选择聊天对象并打开此面板...</div>
+                </div>
+            </div>
+
+            <!-- 自定义 API 配置 -->
+            <div class="info-card" style="margin-bottom: 0; flex-shrink: 0; overflow: visible; display: flex; flex-direction: column; gap: 10px;">
+                <div>
+                    <div style="color: var(--accent-mana); font-size: 0.95em; font-weight: bold; margin-bottom: 5px;">自定义 API 配置 (兼容 OpenAI)</div>
+                    <div style="color: var(--text-dim); font-size: 0.8em; line-height: 1.3;">若配置此项，将优先使用自定义API生成回复；留空则默认使用酒馆内建生成。</div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size: 0.85em; color: var(--text-dim);">基础 URL (Endpoint)</label>
+                    <input type="text" id="wx-api-url" class="reply-input" placeholder="例如: https://api.xxx.xxx/v1" style="height: 35px; padding: 5px 10px; box-sizing: border-box; width: 100%;">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size: 0.85em; color: var(--text-dim);">API 密钥 (API Key)</label>
+                    <input type="password" id="wx-api-key" class="reply-input" placeholder="sk-..." style="height: 35px; padding: 5px 10px; box-sizing: border-box; width: 100%;">
+                </div>
+
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;">
+                    <div style="flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 4px;">
+                        <label style="font-size: 0.85em; color: var(--text-dim);">模型名称</label>
+                        <input type="text" id="wx-api-model" class="reply-input" placeholder="例如: gpt-3.5-turbo" style="height: 35px; padding: 5px 10px; box-sizing: border-box; width: 100%;">
+                    </div>
+                    <button class="reply-button" style="height: 35px; min-width: 80px; padding: 0 15px; font-size: 0.85em; flex-shrink: 0;" onclick="window.fetchApiModels()">获取模型</button>
+                </div>
+                <select id="wx-api-model-select" class="reply-input" style="height: 35px; display: none; padding: 5px 10px; box-sizing: border-box; width: 100%; margin-top: -5px;" onchange="document.getElementById('wx-api-model').value = this.value; this.style.display='none';">
+                    <option value="">-- 选择模型 --</option>
+                </select>
+            </div>
+
+            <!-- 原始返回日志框 -->
+            <div class="info-card" style="margin-bottom: 0; flex-shrink: 0; overflow: visible;">
+                <div style="color: var(--rare-text); font-size: 0.95em; font-weight: bold; margin-bottom: 5px;">📜 最近一次原始返回日志</div>
+                <div style="color: var(--text-dim); font-size: 0.8em; line-height: 1.3; margin-bottom: 10px;">如果在手机上无法打开控制台，可以在这里查看模型真实的返回内容，方便排查“空回”或“截断”问题。</div>
+                <textarea id="wx-debug-log" readonly rows="4" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid rgba(217, 128, 250, 0.4); border-radius: 6px; padding: 10px; color: #a4b0be; font-family: 'JetBrains Mono', monospace; font-size: 0.8em; resize: vertical; box-sizing: border-box;" placeholder="暂无日志..."></textarea>
+            </div>
+
+            <!-- 保存按钮 -->
+            <button class="reply-button" onclick="window.saveWxSettings(); alert('✅ 基础设定与 API 配置已保存！');" style="align-self: center; margin-top: 5px; width: 60%; max-width: 200px; height: 40px; font-size: 1em; letter-spacing: 2px; flex-shrink: 0;">保存基础设定</button>
+
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    /* 预设的人物立绘映射表 */
+    const charPortraits = {
+                "瑶汐": "https://free-img.400040.xyz/4/2026/04/25/69ebbf6726ea3.png",
+        "林雪": "https://free-img.400040.xyz/4/2026/04/25/69ebbf6728614.png",
+        "苏沐雪": "https://free-img.400040.xyz/4/2026/04/25/69ebbf6ae4ed0.png",
+        "白薇": "https://free-img.400040.xyz/4/2026/06/18/6a33cca635334.png",
+        "苏清雪": "https://free-img.400040.xyz/4/2026/04/25/69ec1fc67ce4e.png",
+        "叶冰": "https://free-img.400040.xyz/4/2026/04/25/69ec2002f175a.png",
+        "玄虚": "https://free-img.400040.xyz/4/2026/04/25/69ec203083844.png",
+        "云舒窈": "https://free-img.400040.xyz/4/2026/04/25/69ec2056498fc.png",
+        "慧空": "https://free-img.400040.xyz/4/2026/04/25/69ec207590e70.png",
+        "般若": "https://free-img.400040.xyz/4/2026/04/25/69ec209e775a1.png",
+        "广慧": "https://free-img.400040.xyz/4/2026/04/25/69ec20c0e5e4f.png",
+        "紫薇": "https://free-img.400040.xyz/4/2026/04/25/69ec20dbb6bcc.png",
+        "大衍": "https://free-img.400040.xyz/4/2026/04/25/69ec2109303d4.png",
+        "炎帝": "https://free-img.400040.xyz/4/2026/04/25/69ec2122ae66d.png",
+        "曦和": "https://free-img.400040.xyz/4/2026/04/25/69ec213d38411.png",
+        "烈阳": "https://free-img.400040.xyz/4/2026/04/25/69ec2158f146d.png",
+        "许千寻": "https://free-img.400040.xyz/4/2026/06/10/6a28ceb9ac6ff.png",
+        "嫣雨烟": "https://free-img.400040.xyz/4/2026/04/25/69ec219feb2e8.png",
+        "唐弎": "https://free-img.400040.xyz/4/2026/04/25/69ec21d896bf6.png",
+        "玄清": "https://free-img.400040.xyz/4/2026/04/25/69ec21f19bd37.png",
+        "绯月": "https://free-img.400040.xyz/4/2026/04/25/69ec221297e22.png",
+        "秦心": "https://free-img.400040.xyz/4/2026/04/25/69ec22365e9b3.png",
+        "构军": "https://free-img.400040.xyz/4/2026/04/25/69ec22549a190.png",
+        "秦浅月": "https://free-img.400040.xyz/4/2026/05/13/6a04143e92cce.png",
+        "幽梦": "https://i.postimg.cc/L5tjpm6Y/1-10.png",
+        "噬魂": "https://free-img.400040.xyz/4/2026/05/13/6a0414e30c529.png",
+        "天妤": "https://free-img.400040.xyz/4/2026/05/13/6a041c2621ad0.png",
+        "红绡": "https://free-img.400040.xyz/4/2026/06/07/6a2496e980506.png",
+        "林欣": "https://free-img.400040.xyz/4/2026/05/13/6a0416f8adcb1.png",
+        "幽悦": "https://free-img.400040.xyz/4/2026/06/07/6a249f94a8b9b.png",
+        "凌月": "https://i.postimg.cc/63j6DntQ/4-4.png",
+        "阴罗": "https://free-img.400040.xyz/4/2026/05/13/6a0417967825c.png",
+        "晚絮": "https://free-img.400040.xyz/4/2026/05/13/6a0417c0228a3.png",
+        "姬昊天:https": "//free-img.400040.xyz/4/2026/05/13/6a0417e105034.png",
+        "冰凤": "https://free-img.400040.xyz/4/2026/05/13/6a041803c7b88.png",
+        "姬紫月": "https://free-img.400040.xyz/4/2026/05/13/6a04183dd9a71.png",
+        "李牧": "https://free-img.400040.xyz/4/2026/05/13/6a0418688ab5e.png",
+        "萧衍": "https://free-img.400040.xyz/4/2026/05/13/6a041892ce17f.png",
+        "萧婉儿": "https://free-img.400040.xyz/4/2026/05/13/6a0418c3c73ec.png",
+        "石昊": "https://free-img.400040.xyz/4/2026/05/13/6a041947ae6db.png",
+        "苏琉璃": "https://free-img.400040.xyz/4/2026/05/13/6a04197b477e8.png",
+        "袁琪": "https://free-img.400040.xyz/4/2026/05/13/6a0419a1613fb.png",
+        "孔灵月": "https://free-img.400040.xyz/4/2026/05/13/6a0419cb62c7c.png",
+        "蛛心儿": "https://free-img.400040.xyz/4/2026/05/13/6a0419ecd93d2.png",
+        "敖凌霜": "https://free-img.400040.xyz/4/2026/05/13/6a041a09944ab.png",
+        "银黎": "https://free-img.400040.xyz/4/2026/05/13/6a041a258d8b3.png",
+        "宋文": "https://free-img.400040.xyz/4/2026/05/13/6a041a625e783.png",
+        "灵玥": "https://free-img.400040.xyz/4/2026/04/25/69ebba752d5d1.png",
+        "苏灿灿": "https://free-img.400040.xyz/4/2026/04/25/69ebbcb198c9f.png",
+        "温小暖": "https://free-img.400040.xyz/4/2026/04/25/69ebbc209c0f5.jpg",
+        "古月方源": "https://free-img.400040.xyz/4/2026/05/13/6a041b399091c.png",
+        "侯小妹": "https://free-img.400040.xyz/4/2026/05/13/6a041c4d36194.png",
+        "白小纯": "https://free-img.400040.xyz/4/2026/05/13/6a041c8a97bd4.png",
+        "龙傲飞": "https://free-img.400040.xyz/4/2026/05/13/6a041cb836926.png",
+        "温月清": "https://free-img.400040.xyz/4/2026/05/13/6a041d1bda8a7.png",
+        "红蝶": "https://free-img.400040.xyz/4/2026/05/13/6a041d3d29124.png",
+        "王林": "https://free-img.400040.xyz/4/2026/05/13/6a041d60bb106.png",
+        "苏辰": "https://free-img.400040.xyz/4/2026/05/13/6a041d91e96dd.png",
+        "南宫婉": "https://free-img.400040.xyz/4/2026/05/13/6a041db20d918.png",
+        "银月": "https://free-img.400040.xyz/4/2026/05/13/6a041de4d467b.png",
+        "韩立": "https://free-img.400040.xyz/4/2026/05/13/6a041e25dbd91.png",
+        "慕清弦": "https://free-img.400040.xyz/4/2026/05/05/69f9fb318af62.png",
+        "林妙音": "https://free-img.400040.xyz/4/2026/05/13/6a041e637a440.png",
+        "韩月灵": "https://free-img.400040.xyz/4/2026/05/13/6a041e8981a37.png",
+        "叶清": "https://free-img.400040.xyz/4/2026/05/13/6a041e9f065ad.png",
+        "江楚楚": "https://free-img.400040.xyz/4/2026/05/13/6a041eb69bd6e.png",
+        "舞弦琴": "https://free-img.400040.xyz/4/2026/05/20/6a0d344824fe3.png",
+        "秦无夜": "https://free-img.400040.xyz/4/2026/05/13/6a041f0be4844.png",
+        "陆雪琪": "https://free-img.400040.xyz/4/2026/05/13/6a041f395a25d.png",
+        "苏千媚": "https://free-img.400040.xyz/4/2026/05/13/6a041f643ef4e.png",
+        "苏媚": "https://free-img.400040.xyz/4/2026/05/13/6a041f8d009c1.png",
+        "商心慈": "https://free-img.400040.xyz/4/2026/05/13/6a041fa9eb250.png",
+        "玖柒": "https://free-img.400040.xyz/4/2026/05/13/6a041fca5427f.png",
+        "宫银叶": "https://free-img.400040.xyz/4/2026/06/07/6a2497102d445.png",
+        "红莲": "https://free-img.400040.xyz/4/2026/04/30/69f3047ced213.png",
+        "星宿": "https://free-img.400040.xyz/4/2026/06/04/6a210f67bc6da.png",
+        "公孙清": "https://free-img.400040.xyz/4/2026/06/07/6a2500200a15f.png",
+        "凤灵儿": "https://free-img.400040.xyz/4/2026/05/13/6a04202dbc59f.png",
+        "南可熙": "https://free-img.400040.xyz/4/2026/05/13/6a04204c9a7b3.png",
+        "乔梦玉": "https://free-img.400040.xyz/4/2026/06/07/6a249a7335036.png",
+        "阳宇": "https://free-img.400040.xyz/4/2026/06/07/6a249a8b59da6.png",
+        "玄璃": "https://free-img.400040.xyz/4/2026/06/07/6a249ba3e3222.png",
+        "林寒绾": "https://free-img.400040.xyz/4/2026/06/07/6a249b8b4c166.png",
+        "元容": "https://free-img.400040.xyz/4/2026/06/07/6a249c050921f.png",
+        "慕欣心": "https://free-img.400040.xyz/4/2026/05/19/6a0bd4d517e95.png",
+        "楚星绾": "https://free-img.400040.xyz/4/2026/05/19/6a0bd70442357.png",
+        "上官玥": "https://free-img.400040.xyz/4/2026/05/19/6a0bd943bc5e2.png",
+        "柳依依": "https://free-img.400040.xyz/4/2026/05/19/6a0bd50bdf761.png",
+        "顾长枫": "https://free-img.400040.xyz/4/2026/06/07/6a249db19cfbb.png",
+        "林若悠": "https://free-img.400040.xyz/4/2026/06/07/6a249fca25c0a.png",
+        "萧玉寒": "https://free-img.400040.xyz/4/2026/05/19/6a0bda27c720f.png",
+        "苏清禾": "https://free-img.400040.xyz/4/2026/05/19/6a0bd752758ba.png",
+        "云糯糯": "https://free-img.400040.xyz/4/2026/06/07/6a249c4671c78.png",
+        "苏绾影": "https://free-img.400040.xyz/4/2026/05/19/6a0bdc8167192.png",
+        "凌阮阮": "https://free-img.400040.xyz/4/2026/05/20/6a0d372502ecc.png",
+        "叶倾心": "https://free-img.400040.xyz/4/2026/05/20/6a0d32498cf66.png",
+        "汐怡": "https://free-img.400040.xyz/4/2026/05/19/6a0bdfa916b95.png",
+        "桃夭夭": "https://free-img.400040.xyz/4/2026/05/20/6a0d3758b8f24.png",
+        "顾幽梵": "https://free-img.400040.xyz/4/2026/05/19/6a0bd5a27d8a2.png",
+        "苏珞刹": "https://free-img.400040.xyz/4/2026/06/07/6a24a036e015a.png",
+        "霖仙怡": "https://free-img.400040.xyz/4/2026/05/19/6a0be066d7ff0.png",
+        "冥霜儿": "https://free-img.400040.xyz/4/2026/06/07/6a24a010b9e66.png",
+        "楚玉璃": "https://free-img.400040.xyz/4/2026/05/20/6a0d38a34b4ee.png",
+        "白玖璃": "https://free-img.400040.xyz/4/2026/05/20/6a0d320411d0f.png",
+        "青木璇": "https://free-img.400040.xyz/4/2026/06/07/6a249efcee3e9.png",
+        "璃杏": "https://free-img.400040.xyz/4/2026/06/07/6a249ea3ddeda.png",
+        "杜月菲": "https://free-img.400040.xyz/4/2026/05/20/6a0d383aed23b.png",
+        "慕容无尘": "https://free-img.400040.xyz/4/2026/05/20/6a0d3a8ca682c.png",
+        "慕容初袖": "https://free-img.400040.xyz/4/2026/06/07/6a249d4d6d571.png",
+        "慕容落羽": "https://free-img.400040.xyz/4/2026/05/19/6a0bd5da36eac.png",
+        "萌梦": "https://free-img.400040.xyz/4/2026/05/20/6a0d7aa83d0ed.png",
+        "钰仙儿": "https://free-img.400040.xyz/4/2026/05/19/6a0be2cf0602e.png",
+        "青渝": "https://free-img.400040.xyz/4/2026/05/19/6a0c06419fa4b.png",
+        "齐天麟": "https://free-img.400040.xyz/4/2026/05/19/6a0c0ec43c08d.png",
+        "风梧音": "https://free-img.400040.xyz/4/2026/05/19/6a0bd6468bf2e.png",
+        "秦汐雅": "https://free-img.400040.xyz/4/2026/05/19/6a0bd6228b29a.png",
+        "凌天辰": "https://free-img.400040.xyz/4/2026/05/19/6a0c1431ab96d.png",
+        "凌紫嫣": "https://free-img.400040.xyz/4/2026/05/19/6a0c1fb9923cd.png",
+        "叶婷": "https://free-img.400040.xyz/4/2026/05/19/6a0c1fdb3b5d1.png",
+        "朱离": "https://free-img.400040.xyz/4/2026/05/19/6a0c23c8e522d.png",
+        "侯景": "https://free-img.400040.xyz/4/2026/05/19/6a0c239da5acf.png",
+        "长孙镜华": "https://free-img.400040.xyz/4/2026/05/20/6a0d392aafe65.png",
+        "柳青螭": "https://free-img.400040.xyz/4/2026/06/07/6a249785b7cbe.webp",
+        "希夷": "https://free-img.400040.xyz/4/2026/05/19/6a0c066a7ba7a.png",
+        "辟易川": "https://free-img.400040.xyz/4/2026/05/19/6a0c226a12d15.png",
+        "欧阳灵": "https://free-img.400040.xyz/4/2026/05/20/6a0d34eed1224.png",
+        "黑姬结灯": "https://free-img.400040.xyz/4/2026/05/20/6a0d3ac968bf1.png",
+        "李未晞": "https://free-img.400040.xyz/4/2026/05/19/6a0c22bcd892b.png",
+        "九歌": "https://free-img.400040.xyz/4/2026/05/19/6a0c22ed5fa30.png",
+        "小D": "https://free-img.400040.xyz/4/2026/05/20/6a0d32271c875.png",
+        "阴丽华": "https://free-img.400040.xyz/4/2026/05/19/6a0c229554114.png",
+        "晏青": "https://free-img.400040.xyz/4/2026/05/20/6a0d37e2a17e2.png",
+        "白祈昼": "https://free-img.400040.xyz/4/2026/05/20/6a0d3e1729a28.png",
+        "绛鳞王": "https://free-img.400040.xyz/4/2026/05/20/6a0d9079a270b.png",
+        "青练": "https://free-img.400040.xyz/4/2026/05/20/6a0d906620b53.png",
+        "青衣": "https://free-img.400040.xyz/4/2026/05/20/6a0d9079a270b.png",
+        "柳舞蝶": "https://free-img.400040.xyz/4/2026/06/07/6a2497ffe2232.webp",
+        "海伊": "https://free-img.400040.xyz/4/2026/06/07/6a24fcfd43387.png",
+        "小显示": "https://free-img.400040.xyz/4/2026/06/07/6a24973ddee21.png",
+        "显宝": "https://free-img.400040.xyz/4/2026/06/07/6a24973ddee21.png",
+        "叶焚渊": "https://free-img.400040.xyz/4/2026/06/07/6a24987e731ee.png",
+        "万璇玑": "https://free-img.400040.xyz/4/2026/06/01/6a1cf19bbae5e.png",
+        "万金柝": "https://free-img.400040.xyz/4/2026/06/07/6a249687d9f15.png",
+        "小翠": "https://free-img.400040.xyz/4/2026/06/01/6a1c5de8a2615.png",
+        "金玉满": "https://free-img.400040.xyz/4/2026/06/04/6a21118a598c8.png",
+        "紫澪": "https://free-img.400040.xyz/4/2026/06/07/6a24983c2cfae.png",
+        "璃宫火花": "https://free-img.400040.xyz/4/2026/05/25/6a1457853b3c2.png",
+        "白疏影": "https://i.postimg.cc/2SrQjNnb/IMG-4083.png",
+        "白倾颜": "https://i.postimg.cc/BZNs7xNk/1782741214-03a5f0675dfde9d311cb3eab35e410f0-1.png",
+        "云初未来": "https://i.postimg.cc/nz285JKj/6800FF80-0202-4E0F-B4CE-34BFEE818FA2.png",
+        "姜梦": "https://i.postimg.cc/nV1cb8cp/e545aea65f57427b.png",
+        "魏喑": "https://i.postimg.cc/5yDzWZb8/2e8770d4-224b-4ff5-8803-01e55ef680d8-0.png",
+        "李铭": "https://i.postimg.cc/Xqts1HPG/mmexport1782276180132.jpg",
+        "林素铃": "https://i.postimg.cc/4NV3LK7Y/21-1.png",
+        "燕重微": "https://i.postimg.cc/kgTfkgL8/file-000000005fac71fba349f383259a100a.png",
+        "姬觅弥": "https://i.postimg.cc/8cLZ3BVG/file-000000004cb0723089c308297182fe86.png",
+        "苏慕渊": "https://i.postimg.cc/Jhycvcbd/1782467601-02b30792fbeb573622cd885b790c9cf6-1.png",
+        "桃夭诺": "https://i.postimg.cc/8cKPWWjn/3-4.png",
+        "颜小落": "https://i.postimg.cc/hP27bzH5/9-1.png",
+        "桃幽": "https://i.postimg.cc/YqCv92hm/3-3.png",
+        "代安池": "https://i.postimg.cc/mknY2PNG/a44c6c6b-463e-4ae7-bb38-407fdaa1a201.png",
+        "君姝": "https://i.postimg.cc/4dXWHhCN/file-00000000cf74720692aabe3b2f52f203.png",
+        "卡斯蒂利亚·哈布斯堡": "https://i.postimg.cc/Pqymc3cp/c8741b7d7056417ea5707ea529c55461-2.png",
+        "樊月汐": "https://i.postimg.cc/nLg4Kj95/1-1.png",
+        "百铃": "https://i.postimg.cc/3Npn0jLz/430335e7-176c-4552-ad31-341d214038e0.png",
+        "李溯": "https://i.postimg.cc/7hmM2B3T/file-000000007cc07206960e238cefbe92f7.png",
+        "苏清漪": "https://i.postimg.cc/bJxbf6dQ/file-00000000de8071fb9f70479c21e42f1f.png",
+        "顾清清": "https://i.postimg.cc/Z5Rvf83K/4-5.png"
+    };
+
+    /* 姓转立绘：当角色自身性别为女性时，以下人物的立绘替换为女版 */
+    const charPortraitsFemale = {
+        "晏青": "https://i.postimg.cc/sXDFk4Pn/2bc928d7-82ed-4158-80bd-f37d0884771f.png",
+        "辟易川": "https://i.postimg.cc/sxkNgYWS/e8079d39-152b-4a10-8f10-d5c85652d5d4.png",
+        "侯景": "https://i.postimg.cc/3JPTkp75/d5011d43-a4eb-4a31-b5d2-8d9dd189453b.png",
+        "凌天辰": "https://i.postimg.cc/gjh1bS7B/a874b439-4ac2-4214-80f6-b9ca435d64b4.png",
+        "齐天麟": "https://i.postimg.cc/kgQYctry/17.png",
+        "慕容无尘": "https://i.postimg.cc/kgqzLyv1/355e3c51-546d-44df-adad-3088d7aaf27a.png",
+        "顾幽梵": "https://i.postimg.cc/Vv0DbJBM/3-3.png",
+        "顾长枫": "https://i.postimg.cc/8zGgNGN4/1-18.png",
+        "元容": "https://i.postimg.cc/SNqM9XGw/bd25cca4-d52a-4a99-a8ee-c751c35b2771.png",
+        "阳宇": "https://i.postimg.cc/d1p9vqPM/98a7a387-0a32-471f-bf07-b9117621a453.png",
+        "秦无夜": "https://i.postimg.cc/PNGdn85P/9-1.png",
+        "韩立": "https://i.postimg.cc/KY9FvW8D/20127407-c254-4c54-849d-90a4c80baa99.png",
+        "苏辰": "https://i.postimg.cc/pXP0qLZh/90f5f6d8-e93a-4546-a370-d0e0fcea96c8.png",
+        "王林": "https://i.postimg.cc/sfLFLSMZ/3f4a26ce-7bdf-466d-aac0-eac533ba7d44.png",
+        "龙傲飞": "https://i.postimg.cc/LXNqSDry/48e1362c-2ce5-46b2-9052-24da8f5520b7.png",
+        "白小纯": "https://i.postimg.cc/PrFmYXVV/76470027-f091-4130-ab6a-e111f81abb59.png",
+        "古月方源": "https://i.postimg.cc/BQGWs3Cb/3831756b-03c4-4b64-8a47-b687de45ff64.png",
+        "宋文": "https://i.postimg.cc/JzHx6Dfw/file-000000005e5472078e3d1c621b29398d.png",
+        "石昊": "https://i.postimg.cc/W3jrThtw/175b2a95-f5d4-4a33-8c86-c4205f5be4e6.png",
+        "萧衍": "https://i.postimg.cc/7Zwy14Cs/4045dd78-0c7c-4c67-a374-4adcf6845a5d.png",
+        "李牧": "https://i.postimg.cc/4NncfC4p/4207dac4-1ccb-46b0-8961-5cdbab6733ed.png",
+        "姬昊天": "https://i.postimg.cc/YCqsqCGZ/08ad214f-c685-4dd9-b7ec-aaec20167ec1.png",
+        "阴罗": "https://i.postimg.cc/MKb130Tv/content-13.png",
+        "噬魂": "https://i.postimg.cc/ryHm9Dc7/2-9.png",
+        "构军": "https://i.postimg.cc/j5ZT2Fdr/1d3975d0-dcd9-49f8-8463-0f7d12286555.png",
+        "玄清": "https://i.postimg.cc/RV33rcXx/1-25.png",
+        "唐弎": "https://i.postimg.cc/bNYT1Fyg/2aa49696-4bda-4597-8210-05beb8d23eae.png",
+        "烈阳": "https://i.postimg.cc/Hndfw4nD/2-10.png",
+        "炎帝": "https://i.postimg.cc/Y913z5Lh/9029c056-d311-4ffb-8e56-512ec5050cdc.png",
+        "广慧": "https://i.postimg.cc/V6nJr1rZ/96dc295b-fc7e-4209-a0e0-8535d26d008e.png",
+        "慧空": "https://i.postimg.cc/BQyq2kTg/1e139b23-3e03-422f-9d92-522c73b0031a.png",
+        "玄虚": "https://i.postimg.cc/hvCch3sq/cf50bab3-8c4c-40a3-bfe6-9f62666bfdca.png",
+        "万金柝": "https://i.postimg.cc/9Qk0Lzyk/ef78d864-8717-4829-808c-da52dbc7f6b9.png"
+    };
+
+    /* 获取立绘URL：角色自身性别为女性且有姓转版时优先使用 */
+    function getPortraitUrl(name, gender) {
+        if (charPortraitsFemale[name] && gender && /^女/.test(gender)) {
+            return charPortraitsFemale[name];
+        }
+        return charPortraits[name];
+    }
+
+    /* 从 localStorage 加载自定义立绘并合并 */
+    (function() {
+        try {
+            const saved = localStorage.getItem('daoyuan_custom_portraits');
+            if (saved) {
+                const customPortraits = JSON.parse(saved);
+                Object.assign(charPortraits, customPortraits);
+            }
+        } catch(e) {
+            console.warn('[道渊] 加载自定义立绘失败:', e);
+        }
+    })();
+
+    /* 保存自定义立绘到 localStorage */
+    window.saveCustomPortrait = function(name, url) {
+        try {
+            let customPortraits = {};
+            const saved = localStorage.getItem('daoyuan_custom_portraits');
+            if (saved) {
+                customPortraits = JSON.parse(saved);
+            }
+            customPortraits[name] = url;
+            const dataStr = JSON.stringify(customPortraits);
+            if (url && url.startsWith('data:') && url.length > 2 * 1024 * 1024) {
+                console.warn('[道渊] 单张立绘过大(' + (url.length/1024/1024).toFixed(1) + 'MB)，建议压缩图片或使用图床');
+            }
+            if (dataStr.length > 3 * 1024 * 1024) {
+                alert('⚠️ 立绘数据过大（' + (dataStr.length/1024/1024).toFixed(1) + 'MB），已接近localStorage上限(5MB)。建议使用图床URL而非本地图片，或删除部分自定义立绘。');
+            }
+            if (dataStr.length > 4.5 * 1024 * 1024) {
+                alert('⚠️ 立绘数据超过4.5MB，localStorage可能无法保存！请立即使用图床URL替代本地图片。');
+                return false;
+            }
+            localStorage.setItem('daoyuan_custom_portraits', dataStr);
+            charPortraits[name] = url;
+            if (typeof populateCharacterData === 'function') {
+                populateCharacterData();
+            }
+            return true;
+        } catch(e) {
+            console.warn('[道渊] 保存自定义立绘失败:', e);
+            if (e.name === 'QuotaExceededError') {
+                alert('⚠️ 存储空间不足！本地图片过多，请使用图床URL（如 catbox.moe）替代，或删除一些不需要的自定义立绘。');
+            } else {
+                alert('保存失败：' + e.message);
+            }
+            return false;
+        }
+    };
+
+    /* 处理本地图片上传 */
+    window.handlePortraitFileUpload = function(fileInput, charName) {
+        const file = fileInput.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            alert('图片文件过大，请选择小于5MB的图片（建议使用图床URL）');
+            return;
+        }
+        if (!file.type.startsWith('image/')) {
+            alert('请选择有效的图片文件');
+            return;
+        }
+        const fileNameSpan = document.getElementById('portrait-file-name');
+        if (fileNameSpan) {
+            fileNameSpan.textContent = '📷 ' + file.name + ' (' + (file.size/1024).toFixed(1) + 'KB)';
+            fileNameSpan.style.color = '#64ff8a';
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const base64 = e.target.result;
+            const previewImg = document.getElementById('portrait-preview-img');
+            if (previewImg) {
+                previewImg.src = base64;
+                previewImg.classList.add('show');
+                previewImg.onerror = null;
+            }
+            const urlInput = document.getElementById('portrait-url-input');
+            if (urlInput) {
+                urlInput.value = base64;
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    /* 删除自定义立绘（恢复默认） */
+    window.removeCustomPortrait = function(name) {
+        try {
+            let customPortraits = {};
+            const saved = localStorage.getItem('daoyuan_custom_portraits');
+            if (saved) {
+                customPortraits = JSON.parse(saved);
+            }
+            delete customPortraits[name];
+            localStorage.setItem('daoyuan_custom_portraits', JSON.stringify(customPortraits));
+            if (typeof populateCharacterData === 'function') {
+                populateCharacterData();
+            }
+            return true;
+        } catch(e) {
+            console.warn('[道渊] 删除自定义立绘失败:', e);
+            return false;
+        }
+    };
+
+    /* 打开自定义立绘弹窗 */
+    window.openCustomPortraitDialog = function(charName) {
+        const existing = document.getElementById('portrait-custom-modal');
+        if (existing) existing.remove();
+
+        const currentUrl = charPortraits[charName] || '';
+        const isCustom = (function() {
+            try {
+                const saved = localStorage.getItem('daoyuan_custom_portraits');
+                if (saved) {
+                    const cp = JSON.parse(saved);
+                    return cp.hasOwnProperty(charName);
+                }
+            } catch(e) {}
+            return false;
+        })();
+
+        const modal = document.createElement('div');
+        modal.id = 'portrait-custom-modal';
+        modal.className = 'portrait-custom-modal show';
+        modal.innerHTML = `
+            <div class="portrait-custom-dialog">
+                <h3>🎨 自定义立绘 - ${charName}</h3>
+                <img class="portrait-preview" id="portrait-preview-img" alt="预览" style="display:none;" onerror="this.style.display='none'">
+                <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:12px;">
+                    <label for="portrait-file-input" class="portrait-file-label">📁 选择本地图片</label>
+                    <input type="file" id="portrait-file-input" accept="image/*" style="display:none;" onchange="window.handlePortraitFileUpload(this, '${charName}')">
+                    <span id="portrait-file-name" style="flex:1;display:flex;align-items:center;color:var(--text-dim);font-size:0.8em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">或输入URL地址</span>
+                </div>
+                <label>图片URL地址</label>
+                <input type="text" id="portrait-url-input" placeholder="请输入立绘图片的URL地址（支持常见图床）" value="${currentUrl}">
+                <div class="portrait-custom-hint">💡 支持上传本地图片（自动保存），或粘贴图床链接（catbox.moe、postimg.cc等）</div>
+                <div class="btn-row">
+                    <button class="btn-confirm" id="portrait-confirm-btn">✅ 确认保存</button>
+                    ${isCustom ? '<button class="btn-reset" id="portrait-reset-btn">🔄 恢复默认</button>' : ''}
+                    <button class="btn-cancel" id="portrait-cancel-btn">取消</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const previewImgEl = modal.querySelector('#portrait-preview-img');
+        if (currentUrl) {
+            previewImgEl.src = currentUrl;
+            previewImgEl.classList.add('show');
+            previewImgEl.style.display = '';
+        }
+
+        const urlInput = modal.querySelector('#portrait-url-input');
+        const previewImg = modal.querySelector('#portrait-preview-img');
+        urlInput.addEventListener('input', function() {
+            const val = this.value.trim();
+            if (val) {
+                previewImg.src = val;
+                previewImg.classList.add('show');
+            } else {
+                previewImg.classList.remove('show');
+            }
+        });
+
+        modal.querySelector('#portrait-confirm-btn').addEventListener('click', function() {
+            const url = urlInput.value.trim();
+            if (!url) {
+                alert('请输入有效的图片URL地址');
+                return;
+            }
+            if (window.saveCustomPortrait(charName, url)) {
+                const prevImg = modal.querySelector('#portrait-preview-img');
+                if (prevImg) { prevImg.src = ''; prevImg.removeAttribute('src'); }
+                modal.remove();
+            } else {
+                alert('保存失败，请重试');
+            }
+        });
+
+        modal.querySelector('#portrait-cancel-btn').addEventListener('click', function() {
+            const prevImg = modal.querySelector('#portrait-preview-img');
+            if (prevImg) { prevImg.src = ''; prevImg.removeAttribute('src'); }
+            modal.remove();
+        });
+
+        const resetBtn = modal.querySelector('#portrait-reset-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function() {
+                if (confirm('确定要恢复「' + charName + '」的默认立绘吗？')) {
+                    window.removeCustomPortrait(charName);
+                    const prevImg = modal.querySelector('#portrait-preview-img');
+                    if (prevImg) { prevImg.src = ''; prevImg.removeAttribute('src'); }
+                    modal.remove();
+                    if (confirm('需要刷新页面以完全恢复默认立绘，是否刷新？')) {
+                        location.reload();
+                    }
+                }
+            });
+        }
+
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                const prevImg = modal.querySelector('#portrait-preview-img');
+                if (prevImg) { prevImg.src = ''; prevImg.removeAttribute('src'); }
+                modal.remove();
+            }
+        });
+
+        setTimeout(() => urlInput.focus(), 100);
+    };
+
+    window.appendChatMessage = async function(charName, sender, content) {
+        try {
+            const lastMsgId = getLastMessageId();
+            const messages = getChatMessages('0-' + lastMsgId, { role: 'assistant' });
+            if (!messages || messages.length === 0) {
+                console.warn('找不到消息历史');
+                return;
+            }
+            const targetMsgId = messages[messages.length - 1].message_id;
+
+            if (window.Mvu && typeof Mvu.replaceMvuData === 'function') {
+                const fullData = Mvu.getMvuData({ type: 'message', message_id: targetMsgId });
+                if (fullData && fullData.stat_data && fullData.stat_data.玉简) {
+                    if (!fullData.stat_data.玉简[charName]) {
+                        fullData.stat_data.玉简[charName] = { 历史记录: {} };
+                    }
+                    const history = fullData.stat_data.玉简[charName].历史记录 || {};
+                    const newMsgId = 'msg_' + Date.now() + Math.floor(Math.random() * 1000);
+                    const now = new Date();
+                    const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+                    history[newMsgId] = {
+                        "发送者": sender,
+                        "内容": content,
+                        "时间": timeStr
+                    };
+
+                    fullData.stat_data.玉简[charName].历史记录 = history;
+                    await Mvu.replaceMvuData(fullData, { type: 'message', message_id: targetMsgId });
+                    if(typeof populateCharacterData === 'function') populateCharacterData();
+                }
+            } else {
+                 console.warn('MVU 未初始化');
+            }
+        } catch (err) {
+            console.error('[道渊状态栏] 更新玉简消息失败:', err);
+        }
+    };
+
+    /* --- 更新调试日志显示 --- */
+    window.updateDebugLog = function(logContent) {
+        const logBox = document.getElementById('wx-debug-log');
+        if (logBox) {
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
+            logBox.value = `[${timeStr}] 原始返回:\n${logContent}\n\n` + logBox.value;
+        }
+    };
+
+    /* --- 玉简设定及预设功能 --- */
+    window.loadPresets = function() {
+        const select = document.getElementById('wx-preset-select');
+        if (!select) return;
+        select.innerHTML = '<option value="">-- 当前手动配置 --</option>';
+        try {
+            const saved = localStorage.getItem('daoyuan_wx_presets');
+            if (saved) {
+                const presets = JSON.parse(saved);
+                for (const name in presets) {
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    opt.textContent = name;
+                    select.appendChild(opt);
+                }
+            }
+        } catch(e) { console.error('加载预设失败:', e); }
+    };
+
+    window.applyPreset = function(presetName) {
+        if (!presetName) return;
+        try {
+            const saved = localStorage.getItem('daoyuan_wx_presets');
+            if (saved) {
+                const presets = JSON.parse(saved);
+                const p = presets[presetName];
+                if (p) {
+                    if (document.getElementById('wx-custom-prompt')) document.getElementById('wx-custom-prompt').value = p.customPrompt || '';
+                    if (document.getElementById('wx-api-url')) document.getElementById('wx-api-url').value = p.apiBaseUrl || '';
+                    if (document.getElementById('wx-api-key')) document.getElementById('wx-api-key').value = p.apiKey || '';
+                    if (document.getElementById('wx-api-model')) document.getElementById('wx-api-model').value = p.apiModel || '';
+                }
+            }
+        } catch(e) {}
+    };
+
+    window.saveAsPreset = function() {
+        const name = prompt("请输入预设名称：\n(若名称已存在将覆盖原预设)");
+        if (!name) return;
+        try {
+            let presets = {};
+            const saved = localStorage.getItem('daoyuan_wx_presets');
+            if (saved) presets = JSON.parse(saved);
+
+            presets[name] = {
+                customPrompt: document.getElementById('wx-custom-prompt') ? document.getElementById('wx-custom-prompt').value : '',
+                apiBaseUrl: document.getElementById('wx-api-url') ? document.getElementById('wx-api-url').value.trim() : '',
+                apiKey: document.getElementById('wx-api-key') ? document.getElementById('wx-api-key').value.trim() : '',
+                apiModel: document.getElementById('wx-api-model') ? document.getElementById('wx-api-model').value.trim() : ''
+            };
+
+            localStorage.setItem('daoyuan_wx_presets', JSON.stringify(presets));
+            window.loadPresets();
+            document.getElementById('wx-preset-select').value = name;
+            alert(`预设 "${name}" 已保存！`);
+        } catch(e) {
+            alert("保存预设失败：" + e.message);
+        }
+    };
+
+    window.deletePreset = function() {
+        const select = document.getElementById('wx-preset-select');
+        const name = select.value;
+        if (!name) {
+            alert("请先选择一个要删除的预设！");
+            return;
+        }
+        if (!confirm(`确定要删除预设 "${name}" 吗？`)) return;
+        try {
+            let presets = {};
+            const saved = localStorage.getItem('daoyuan_wx_presets');
+            if (saved) presets = JSON.parse(saved);
+
+            delete presets[name];
+            localStorage.setItem('daoyuan_wx_presets', JSON.stringify(presets));
+            window.loadPresets();
+            alert(`预设 "${name}" 已删除！`);
+        } catch(e) {
+            alert("删除预设失败：" + e.message);
+        }
+    };
+
+    window.loadWxSettings = function() {
+        try {
+            const saved = localStorage.getItem('daoyuan_wx_settings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                const promptEl = document.getElementById('wx-custom-prompt');
+                if (promptEl && settings.customPrompt !== undefined) promptEl.value = settings.customPrompt;
+
+                if (settings.apiBaseUrl !== undefined) document.getElementById('wx-api-url').value = settings.apiBaseUrl;
+                if (settings.apiKey !== undefined) document.getElementById('wx-api-key').value = settings.apiKey;
+                if (settings.apiModel !== undefined) document.getElementById('wx-api-model').value = settings.apiModel;
+            }
+            window.loadPresets(); // 初始化预设列表
+        } catch(e) {
+            console.error('加载玉简设定失败:', e);
+        }
+    };
+
+    /* 独立的世界书勾选保存逻辑 (只要 checkbox 变动或点按钮就触发) */
+    window.saveWxLoreSettings = function() {
+        const charName = window.currentActiveChat;
+        if (!charName) return;
+
+        let savedLore = {};
+        try { savedLore = JSON.parse(localStorage.getItem('daoyuan_wx_lore_selected')) || {}; } catch(e){}
+
+        const listContainer = document.getElementById('wx-lorebook-list');
+        // 如果当前弹窗里没有渲染 checkbox，说明根本没加载出世界书，此时千万不要保存，以免误清空数据！
+        if (!listContainer || !listContainer.innerHTML.includes('yujian-lore-checkbox')) {
+            return;
+        }
+
+        const selectedCheckboxes = document.querySelectorAll('.yujian-lore-checkbox:checked');
+        const selectedData = [];
+        selectedCheckboxes.forEach(cb => {
+            const uid = cb.value;
+            if (window.currentLoreEntries) {
+                // 【修复点】：使用 String() 强制转换对比，解决原来因类型不匹配（数字 vs 字符串）导致存入空数组的Bug
+                const entry = window.currentLoreEntries.find(e => String(e.uid) === String(uid));
+                if (entry) {
+                    selectedData.push({ uid: uid, content: entry.content });
+                }
+            }
+        });
+
+        savedLore[charName] = selectedData;
+        localStorage.setItem('daoyuan_wx_lore_selected', JSON.stringify(savedLore));
+    };
+
+    /* 基础设定保存逻辑 */
+    window.saveWxSettings = function() {
+        try {
+            // 顺带再调用一次世界书保存，确保万无一失
+            window.saveWxLoreSettings();
+
+            const promptVal = document.getElementById('wx-custom-prompt').value;
+            let savedSettings = {};
+            try { savedSettings = JSON.parse(localStorage.getItem('daoyuan_wx_settings')) || {}; } catch(e){}
+
+            savedSettings.customPrompt = promptVal;
+            savedSettings.apiBaseUrl = document.getElementById('wx-api-url').value.trim();
+            savedSettings.apiKey = document.getElementById('wx-api-key').value.trim();
+            savedSettings.apiModel = document.getElementById('wx-api-model').value.trim();
+
+            localStorage.setItem('daoyuan_wx_settings', JSON.stringify(savedSettings));
+            document.getElementById('wx-prompt-modal').style.display = 'none';
+        } catch(e) {
+            alert('保存失败: ' + e.message);
+        }
+    };
+
+    /* --- 获取可用模型列表 --- */
+    window.fetchApiModels = async function() {
+        const baseUrl = document.getElementById('wx-api-url').value.trim();
+        const apiKey = document.getElementById('wx-api-key').value.trim();
+
+        if (!baseUrl) {
+            alert('请先填写基础 URL (Endpoint)！');
+            return;
+        }
+
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '获取中...';
+        btn.disabled = true;
+
+        try {
+            let url = baseUrl;
+            if (url.endsWith('/chat/completions')) {
+                url = url.replace('/chat/completions', '/models');
+            } else {
+                url = url.endsWith('/') ? url + 'models' : url + '/models';
+            }
+
+            const headers = {};
+            if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+            const response = await fetch(url, { headers });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const data = await response.json();
+            const select = document.getElementById('wx-api-model-select');
+            select.innerHTML = '<option value="">-- 选择模型 --</option>';
+
+            if (data.data && Array.isArray(data.data)) {
+                data.data.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.textContent = m.id;
+                    select.appendChild(opt);
+                });
+                select.style.display = 'block';
+            } else {
+                alert('获取失败：返回的数据格式异常，不是标准的 OpenAI models 格式。');
+            }
+        } catch (err) {
+            alert('获取模型列表失败: ' + err.message);
+        } finally {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    };
+
+    /* --- 动态渲染与搜索世界书条目 --- */
+    window.renderLorebooks = function(entries, filterText = '') {
+        const listContainer = document.getElementById('wx-lorebook-list');
+        if (!listContainer) return;
+
+        let html = '';
+        let savedLore = {};
+        try { savedLore = JSON.parse(localStorage.getItem('daoyuan_wx_lore_selected')) || {}; } catch(e){}
+        const charName = window.currentActiveChat;
+        const selectedData = savedLore[charName] || [];
+        // 【修复点】：渲染时也需要把 uid 转为字符串进行匹配
+        const selectedUids = selectedData.map(d => String(d.uid));
+
+        entries.forEach((entry, index) => {
+            const displayName = entry.comment || (entry.key && entry.key.join(', ')) || '未命名条目';
+
+            if (filterText) {
+                const ft = filterText.toLowerCase();
+                if (!displayName.toLowerCase().includes(ft) && !(entry.content && entry.content.toLowerCase().includes(ft))) {
+                    return;
+                }
+            }
+
+            // 【修复点】：判断是否 checked 时强制转字符串
+            const isChecked = selectedUids.includes(String(entry.uid)) ? 'checked' : '';
+            const safeContent = String(entry.content || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
+
+            // onchange="window.saveWxLoreSettings()" 保证点一下立刻自动存本地
+            html += `
+                <div style="background: rgba(0,0,0,0.3); border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden; flex-shrink: 0;">
+                    <label style="display: flex; gap: 8px; align-items: flex-start; cursor: pointer; color: var(--text-main); font-size: 0.85em; padding: 8px; transition: background 0.2s; margin: 0;">
+                        <input type="checkbox" class="yujian-lore-checkbox" value="${entry.uid}" style="margin-top: 2px; cursor: pointer;" onchange="window.saveWxLoreSettings()" ${isChecked}>
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            <span style="word-break: break-all; font-weight: bold; color: var(--accent-gold);">${displayName}</span>
+                            <span style="font-size: 0.85em; color: var(--text-dim); margin-top: 2px;">来源: ${entry.lbName}</span>
+                        </div>
+                        <div onclick="event.preventDefault(); window.toggleLoreContent(${index}, this)" style="color: var(--accent-mana); cursor: pointer; padding: 0 5px; font-size: 1.2em; line-height: 1;" title="展开/折叠内容">▼</div>
+                    </label>
+                    <div id="lore-content-${index}" style="display: none; padding: 10px; border-top: 1px dashed rgba(255,255,255,0.1); font-size: 0.85em; color: var(--text-dim); white-space: pre-wrap; background: rgba(0,0,0,0.5); line-height: 1.5;">${safeContent}</div>
+                </div>
+            `;
+        });
+        if (!html) html = '<div style="color: var(--text-dim); font-style: italic; font-size: 0.85em; padding: 5px;">未找到匹配的世界书条目。</div>';
+        listContainer.innerHTML = html;
+    };
+
+    window.filterLorebooks = function(text) {
+        if (window.currentLoreEntries) {
+            window.renderLorebooks(window.currentLoreEntries, text);
+        }
+    };
+
+    window.toggleLoreContent = function(index, btn) {
+        const el = document.getElementById('lore-content-' + index);
+        if (el) {
+            if (el.style.display === 'none') {
+                el.style.display = 'block';
+                if(btn) btn.innerHTML = '▲';
+            } else {
+                el.style.display = 'none';
+                if(btn) btn.innerHTML = '▼';
+            }
+        }
+    };
+
+    /* --- 拉取全局及角色绑定的世界书条目 --- */
+    window.openWxPromptModal = async function() {
+        const modal = document.getElementById('wx-prompt-modal');
+        // 强制显示并保证基础结构立即可见
+        modal.style.display = 'flex';
+        modal.style.zIndex = '99999';
+
+        const charName = window.currentActiveChat;
+        const listContainer = document.getElementById('wx-lorebook-list');
+
+        if (!charName) {
+            if(listContainer) listContainer.innerHTML = '<div style="color: var(--text-dim); font-style: italic; font-size: 0.85em;">请先在玉简中选择一个传讯对象并打开此面板。</div>';
+            return;
+        }
+
+        if(listContainer) listContainer.innerHTML = '<div style="color: var(--accent-mana); font-style: italic; font-size: 0.85em;">正在拉取当前世界与角色的全部世界书设定...</div>';
+
+        try {
+            if (typeof getLorebookEntries !== 'function') {
+                if(listContainer) listContainer.innerHTML = '<div style="color: var(--accent-blood); font-size: 0.85em;">当前环境不支持拉取世界书接口。</div>';
+                return;
+            }
+
+            let lorebookNames = new Set();
+
+            // 1. 尝试获取当前聊天的世界书
+            if (typeof getOrCreateChatLorebook === 'function') {
+                try {
+                    const chatBook = await getOrCreateChatLorebook();
+                    if (chatBook) lorebookNames.add(chatBook);
+                } catch(e) { console.warn("获取聊天世界书失败", e); }
+            }
+
+            // 2. 尝试获取当前主角色绑定的主要世界书
+            if (typeof getCurrentCharPrimaryLorebook === 'function') {
+                try {
+                    const primary = await getCurrentCharPrimaryLorebook();
+                    if (primary) lorebookNames.add(primary);
+                } catch(e) { console.warn("获取主角色世界书失败", e); }
+            }
+
+            // 3. 尝试获取当前传讯对象绑定的世界书
+            if (typeof getCharLorebooks === 'function') {
+                try {
+                    const charBooks = await getCharLorebooks({ name: charName });
+                    if (charBooks && charBooks.length > 0) {
+                        charBooks.forEach(b => lorebookNames.add(b));
+                    }
+                } catch(e) { console.warn("获取传讯对象世界书失败", e); }
+            }
+
+            if (lorebookNames.size === 0) {
+                if(listContainer) listContainer.innerHTML = '<div style="color: var(--text-dim); font-style: italic; font-size: 0.85em;">当前聊天和角色均未绑定任何世界书。</div>';
+                return;
+            }
+
+            let allEntries = [];
+            for (const lbName of lorebookNames) {
+                try {
+                    const entries = await getLorebookEntries(lbName, { fields: ['uid', 'comment', 'key', 'content'] });
+                    if (entries && entries.length > 0) {
+                        allEntries = allEntries.concat(entries.map(e => ({...e, lbName})));
+                    }
+                } catch(e) {
+                    console.warn(`拉取世界书 [${lbName}] 失败`, e);
+                }
+            }
+
+            // 去重（按 content 去重，防止不同世界书里有重复条目）
+            const uniqueEntries = [];
+            const contentSet = new Set();
+            allEntries.forEach(e => {
+                if (e.content && !contentSet.has(e.content)) {
+                    contentSet.add(e.content);
+                    uniqueEntries.push(e);
+                }
+            });
+
+            if (uniqueEntries.length === 0) {
+                if(listContainer) listContainer.innerHTML = '<div style="color: var(--text-dim); font-style: italic; font-size: 0.85em;">绑定的世界书中未找到任何有效条目。</div>';
+                return;
+            }
+
+            window.currentLoreEntries = uniqueEntries;
+            const searchInput = document.getElementById('wx-lore-search');
+            if (searchInput) searchInput.value = '';
+            window.renderLorebooks(uniqueEntries, '');
+
+        } catch (err) {
+            console.error("拉取世界书失败:", err);
+            if(listContainer) listContainer.innerHTML = '<div style="color: var(--accent-blood); font-size: 0.85em;">拉取世界书失败，请检查控制台报错。</div>';
+        }
+    };
+
+    /* --- 核心生成请求提取 (防空回 + 兼容API + 解决截断) --- */
+    window.callGenerateReply = async function(injectContent, userMessage, charName) {
+        let finalReply = "";
+        let settings = {};
+        try {
+            const saved = localStorage.getItem('daoyuan_wx_settings');
+            if (saved) settings = JSON.parse(saved);
+        } catch(e) {}
+
+        const systemPrompt = injectContent + `\n\n(请以【${charName}】的身份回复，严格只输出纯对话内容，绝对不要带角色名、引号、动作描写或[]符号。)`;
+
+        if (settings.apiBaseUrl && settings.apiModel) {
+            // 使用自定义 API
+            let endpoint = settings.apiBaseUrl;
+            if (!endpoint.endsWith('/chat/completions') && !endpoint.endsWith('/chat/completions/')) {
+                endpoint = endpoint.endsWith('/') ? endpoint + 'chat/completions' : endpoint + '/chat/completions';
+            }
+
+            // 增加 max_tokens 防止被截断，针对部分模型增加 temperature
+            const payload = {
+                model: settings.apiModel,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userMessage }
+                ],
+                temperature: 0.7,
+                max_tokens: 2000
+            };
+
+            const headers = { 'Content-Type': 'application/json' };
+            if (settings.apiKey) headers['Authorization'] = `Bearer ${settings.apiKey}`;
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`API 请求失败: ${response.status} - ${errText}`);
+                }
+                const data = await response.json();
+                if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                    finalReply = data.choices[0].message.content;
+                } else {
+                    throw new Error(`API 返回格式异常: ${JSON.stringify(data)}`);
+                }
+            } catch (e) {
+                console.error("自定义API调用失败:", e);
+                window.updateDebugLog(`❌ 请求报错:\n${e.message}`);
+                alert("自定义API调用失败，请查看「玉简设定」中的日志排查问题。");
+                throw e;
+            }
+        } else {
+            // 使用酒馆原生 generate
+            if (typeof generate === 'function') {
+                try {
+                    const combinedPrompt = systemPrompt + "\n\n" + userMessage;
+                    const rawReply = await generate({
+                        user_input: combinedPrompt,
+                        should_stream: false,
+                        max_chat_history: 15
+                    });
+
+                    if (typeof rawReply === 'string') {
+                        finalReply = rawReply;
+                    } else if (rawReply && rawReply.text) {
+                        finalReply = rawReply.text;
+                    } else if (rawReply && rawReply.reply) {
+                        finalReply = rawReply.reply;
+                    } else {
+                        finalReply = String(rawReply || "");
+                    }
+                } catch(e) {
+                    console.error("调用酒馆生成失败:", e);
+                    window.updateDebugLog(`❌ 酒馆原生生成报错:\n${e.message}`);
+                    alert("调用酒馆生成失败，请检查助手配置。");
+                    throw e;
+                }
+            } else {
+                alert("⚠️ 未检测到酒馆 generate 函数，且未配置自定义 API。");
+                throw new Error("无可用生成接口");
+            }
+        }
+
+        console.log('[玉简] AI返回的原始内容:', finalReply);
+        // 把真实返回内容写进 UI 日志里
+        window.updateDebugLog(finalReply || "(空返回)");
+
+        // --- 防空回及提取逻辑 ---
+        if (!finalReply || finalReply.trim() === "") {
+            return "对方似乎没有想好怎么回复...";
+        }
+
+        let extracted = finalReply;
+
+        // 1. 彻底剔除 <think> 思考过程 (匹配包含换行的所有内容)
+        extracted = extracted.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+        // 2. 尝试提取 [REPLY] 标签
+        const replyMatch = extracted.match(/\[REPLY\]([\s\S]*?)\[\/REPLY\]/i) ||
+                           extracted.match(/【回复】([\s\S]*?)【\/回复】/);
+
+        if (replyMatch && replyMatch[1]) {
+            extracted = replyMatch[1].trim();
+        } else {
+            // 3. 增强的清洗逻辑：没有标签时，保留过滤 think 后的完整内容
+            // 去除角色名前缀 (例如 "瑶汐:", "【瑶汐】:", "瑶汐说：")
+            const prefixRegex = new RegExp(`^(?:【?${charName}】?\\s*(?:说)?\\s*[:：\\n])`, 'i');
+            extracted = extracted.replace(prefixRegex, '').trim();
+            // 去除最外层的引号
+            extracted = extracted.replace(/^[<q>"'「”]|["</q>'」]$/g, '').trim();
+        }
+
+        if (!extracted) {
+            extracted = "对方传来了模糊不清的神念...";
+        }
+
+        return extracted;
+    };
+
+    window.handleReply = async function(buttonElement, charName) {
+        const all_variables = getAllVariables();
+        const sanCurrent = parseFloat(_.get(all_variables, 'stat_data.主角.神识', 0));
+
+        if (sanCurrent < 20) {
+            alert('神识不足20，无法传讯！');
+            return;
+        }
+
+        const container = buttonElement.parentElement;
+        const inputElement = container.querySelector('.reply-input');
+        const replyText = inputElement.value.trim();
+
+        if (!replyText) {
+            alert('回复内容不能为空！');
+            return;
+        }
+
+        /* 写入"我"的消息 */
+        inputElement.value = '';
+        inputElement.style.height = 'auto';
+        buttonElement.disabled = true;
+        buttonElement.textContent = '发送中...';
+
+        await window.appendChatMessage(charName, '我', replyText);
+
+        const fullData = _.get(all_variables, 'stat_data', {});
+        const historyObj = (fullData.玉简 && fullData.玉简[charName] && fullData.玉简[charName].历史记录) || {};
+
+        let historyText = "";
+        Object.values(historyObj).forEach(msg => {
+            historyText += `[${msg.发送者}]: ${msg.内容}\n`;
+        });
+        const customPrompt = document.getElementById('wx-custom-prompt') ? document.getElementById('wx-custom-prompt').value.trim() : '';
+
+        // ++ 从最新的独立存储中提取勾选的世界书知识 ++
+        let activeLoreContext = '';
+        let savedLore = {};
+        try { savedLore = JSON.parse(localStorage.getItem('daoyuan_wx_lore_selected')) || {}; } catch(e){}
+        const selectedData = savedLore[charName] || [];
+        selectedData.forEach(data => {
+            if (data.content) activeLoreContext += data.content + '\n\n';
+        });
+
+        // --- 新增：提取主角与对方的状态变量 ---
+        const stat = _.get(all_variables, 'stat_data', {});
+        const hero = stat.主角 || {};
+        const world = stat.世界 || {};
+
+        let heroInfo = `[主角当前状态]\n境界: ${hero.境界 || '未知'}\n所在界域: ${hero.所在界 || '未知'}\n当前地点: ${world.当前地点 || '未知'}\n当前时间: ${world.当前时间 || '未知'}\n灵根: ${hero.灵根 || '无'}\n`;
+        const skills = hero.功法 || {};
+        const skillNames = Object.entries(skills).map(([k, v]) => `${k}(${v.境界 || '未知'})`).join('、');
+        heroInfo += `功法: ${skillNames || '无'}`;
+
+        let charSelfInfo = '\n\n[你的当前状态/面板设定]\n';
+        const partnerData = (stat.道侣 || {})[charName];
+        const npcData = (stat.人物 || {})[charName];
+        const petData = (stat.灵宠 || {})[charName];
+        const targetData = partnerData || npcData || petData || {};
+
+        const yujianData = (stat.玉简 || {})[charName] || {};
+        const mergedData = { ...targetData };
+
+        if (yujianData.境界) mergedData['境界'] = yujianData.境界;
+        if (yujianData.性别) mergedData['性别'] = yujianData.性别;
+        if (yujianData.关系) mergedData['关系'] = yujianData.关系;
+        if (yujianData.好感度) mergedData['好感度'] = yujianData.好感度;
+
+        let hasData = false;
+        Object.entries(mergedData).forEach(([k, v]) => {
+            if (typeof v !== 'object' && v !== undefined && v !== null) {
+                charSelfInfo += `${k}: ${v}\n`;
+                hasData = true;
+            }
+        });
+
+        if (!hasData) {
+            charSelfInfo = '';
+        }
+        // ------------------------------------
+
+        let injectContent = `[玉简传讯历史记录]\n${historyText}`;
+        if (customPrompt) {
+            injectContent += `\n\n【附加设定/规则】\n${customPrompt}`;
+        }
+        if (activeLoreContext) {
+            injectContent += `\n\n【角色已知世界书背景】\n${activeLoreContext}`;
+        }
+
+        // 注入主角面板与对方自身面板数据
+        injectContent += `\n\n${heroInfo}${charSelfInfo}`;
+
+        buttonElement.textContent = '对方输入中';
+
+        try {
+            const finalReply = await window.callGenerateReply(injectContent, `[玉简传讯系统] 主角发来最新传讯：\n"${replyText}"`, charName);
+            await window.appendChatMessage(charName, charName, finalReply);
+        } catch (e) {
+            // 错误已经在 callGenerateReply 内部抛出并提示
+        }
+
+        buttonElement.textContent = '发送';
+        buttonElement.disabled = false;
+    };
+
+    /* ===== 单条消息操作: 删除 与 重试 ===== */
+    window.deleteSingleMessage = async function(charName, msgId) {
+        if(!confirm('确定删除这条传讯吗？')) return;
+        try {
+            const lastMsgId = getLastMessageId();
+            const messages = getChatMessages('0-' + lastMsgId, { role: 'assistant' });
+            if (!messages || messages.length === 0) return;
+            const targetMsgId = messages[messages.length - 1].message_id;
+
+            if (window.Mvu && typeof Mvu.replaceMvuData === 'function') {
+                const fullData = Mvu.getMvuData({ type: 'message', message_id: targetMsgId });
+                if (fullData && fullData.stat_data && fullData.stat_data.玉简 && fullData.stat_data.玉简[charName] && fullData.stat_data.玉简[charName].历史记录) {
+                    delete fullData.stat_data.玉简[charName].历史记录[msgId];
+                    await Mvu.replaceMvuData(fullData, { type: 'message', message_id: targetMsgId });
+
+                    window.currentMessagesData[charName].历史记录 = fullData.stat_data.玉简[charName].历史记录;
+                    window.openChatView(charName);
+                }
+            }
+        } catch (err) {
+            console.error('删除单条消息失败:', err);
+        }
+    };
+
+    window.retrySingleMessage = async function(charName, msgId) {
+        if(!confirm('确定要重试生成这条回复吗？（该条记录将被删除，并重新请求附在最后）')) return;
+        try {
+            const lastMsgId = getLastMessageId();
+            const messages = getChatMessages('0-' + lastMsgId, { role: 'assistant' });
+            const targetMsgId = messages[messages.length - 1].message_id;
+
+            let historyObj = {};
+            if (window.Mvu && typeof Mvu.replaceMvuData === 'function') {
+                const fullData = Mvu.getMvuData({ type: 'message', message_id: targetMsgId });
+                if (fullData && fullData.stat_data && fullData.stat_data.玉简 && fullData.stat_data.玉简[charName] && fullData.stat_data.玉简[charName].历史记录) {
+                    historyObj = { ...fullData.stat_data.玉简[charName].历史记录 };
+                    delete historyObj[msgId];
+                    fullData.stat_data.玉简[charName].历史记录 = historyObj;
+                    await Mvu.replaceMvuData(fullData, { type: 'message', message_id: targetMsgId });
+
+                    window.currentMessagesData[charName].历史记录 = historyObj;
+                    window.openChatView(charName);
+                }
+            }
+
+            const btn = document.getElementById('wx-reply-btn');
+            if(btn) {
+                btn.textContent = '正在重写...';
+                btn.disabled = true;
+            }
+
+            let historyText = "";
+            Object.values(historyObj).forEach(msg => {
+                historyText += `[${msg.发送者}]: ${msg.内容}\n`;
+            });
+            const customPrompt = document.getElementById('wx-custom-prompt') ? document.getElementById('wx-custom-prompt').value.trim() : '';
+
+            // ++ 重试时同样提取最新的独立世界书数据 ++
+            let activeLoreContext = '';
+            let savedLore = {};
+            try { savedLore = JSON.parse(localStorage.getItem('daoyuan_wx_lore_selected')) || {}; } catch(e){}
+            const selectedData = savedLore[charName] || [];
+            selectedData.forEach(data => {
+                if (data.content) activeLoreContext += data.content + '\n\n';
+            });
+
+            // --- 新增：提取主角与对方的状态变量 ---
+            const all_variables = getAllVariables();
+            const stat = _.get(all_variables, 'stat_data', {});
+            const hero = stat.主角 || {};
+            const world = stat.世界 || {};
+
+            let heroInfo = `[主角当前状态]\n境界: ${hero.境界 || '未知'}\n所在界域: ${hero.所在界 || '未知'}\n当前地点: ${world.当前地点 || '未知'}\n当前时间: ${world.当前时间 || '未知'}\n灵根: ${hero.灵根 || '无'}\n`;
+            const skills = hero.功法 || {};
+            const skillNames = Object.entries(skills).map(([k, v]) => `${k}(${v.境界 || '未知'})`).join('、');
+            heroInfo += `功法: ${skillNames || '无'}`;
+
+            let charSelfInfo = '\n\n[你的当前状态/面板设定]\n';
+            const partnerData = (stat.道侣 || {})[charName];
+            const npcData = (stat.人物 || {})[charName];
+            const petData = (stat.灵宠 || {})[charName];
+            const targetData = partnerData || npcData || petData || {};
+
+            const yujianData = (stat.玉简 || {})[charName] || {};
+            const mergedData = { ...targetData };
+
+            if (yujianData.境界) mergedData['境界'] = yujianData.境界;
+            if (yujianData.性别) mergedData['性别'] = yujianData.性别;
+            if (yujianData.关系) mergedData['关系'] = yujianData.关系;
+            if (yujianData.好感度) mergedData['好感度'] = yujianData.好感度;
+
+            let hasData = false;
+            Object.entries(mergedData).forEach(([k, v]) => {
+                if (typeof v !== 'object' && v !== undefined && v !== null) {
+                    charSelfInfo += `${k}: ${v}\n`;
+                    hasData = true;
+                }
+            });
+
+            if (!hasData) {
+                charSelfInfo = '';
+            }
+            // ------------------------------------
+
+            let injectContent = `[玉简传讯历史记录]\n${historyText}`;
+            if (customPrompt) {
+                injectContent += `\n\n【附加设定/规则】\n${customPrompt}`;
+            }
+            if (activeLoreContext) {
+                injectContent += `\n\n【角色已知世界书背景】\n${activeLoreContext}`;
+            }
+
+            // 注入主角面板与对方自身面板数据
+            injectContent += `\n\n${heroInfo}${charSelfInfo}`;
+
+            const finalReply = await window.callGenerateReply(injectContent, `[玉简传讯系统] 请继续通过玉简传讯回复主角的上一条消息。`, charName);
+            await window.appendChatMessage(charName, charName, finalReply);
+
+            if(btn) {
+                btn.textContent = '发送';
+                btn.disabled = false;
+            }
+        } catch(err) {
+            console.error('重试失败:', err);
+            const btn = document.getElementById('wx-reply-btn');
+            if(btn) { btn.textContent = '发送'; btn.disabled = false; }
+        }
+    };
+
+    const fairyImages = [
+        'https://i.postimg.cc/rpz2PCrZ/Image-1765540443504.jpg',
+        'https://i.postimg.cc/B6bsPC8Q/Image-1765540442059.jpg'
+    ];
+    let currentFairyImageIndex = 0;
+
+    /* --- Xuantian Realm Map Logic --- */
+    const xuantianLore = {
+        "center": {
+            name: "中央神州",
+            realm: "人族疆域",
+            type: "human",
+            desc: "人族文明的核心，边长三千亿里正方形。宫阙浮空，金道横空，秩序森严。这里是舞台的中心，宗门林立，王朝更迭。",
+            factions: [
+                {name: "大周仙朝", type: "human", note: "神都洛阳。皇族姬氏底蕴深厚，十万元婴神策军，掌控四成灵石矿。"},
+                {name: "南梁古国", type: "human", note: "中州东南部凡人王朝，受合欢宗与湮丹宗共控，种植紫灵米，表面繁华奢靡，暗藏斩仙盟反抗势力。"},
+                {name: "蜀山剑门", type: "human", note: "西部蜀山群峰。天下剑修朝圣地，万剑归宗大阵。"},
+                {name: "昆仑道门", type: "human", note: "极西昆仑神山。历史悠久的道门正宗，讲究清静无为。"},
+                {name: "万法宗", type: "human", note: "东南方半空万法天仪。海纳百川，解析万法本源。"},
+                {name: "合欢宗", type: "neutral", note: "明线百花谷，暗线极极宫。采补炉鼎的邪派。"},
+                {name: "天机阁", type: "neutral", note: "总阁蜃楼飞阁游移不定。贩卖情报，推演因果。"},
+                {name: "星道宗", type: "neutral", note: "极北三十亿里高空摘星悬岛。融合星道智道，推演天机。"},
+                {name: "湮丹宗", type: "neutral", note: "南部杏临谷。以天地灵物入药，丹道通神。"},
+                {name: "灵墟宗", type: "neutral", note: "东部无尽山脉边缘灵兽原。借妖兽气血反哺己身。"},
+                {name: "青玉宗", type: "neutral", note: "西南部青音湖湖心岛。以音入道，只收女弟子。"},
+                {name: "符韵门", type: "neutral", note: "北部云符山。虚空成符，斗法狂掷符箓。"},
+                {name: "阵天宗", type: "neutral", note: "中部千阵岭迷雾石林。借天地大势，困杀万物。"}
+            ],
+            color: "--accent-gold",
+            x: 50, y: 50
+        },
+        "north": {
+            name: "北冥雪原",
+            realm: "北冥禁地",
+            type: "demon",
+            desc: "终年被冰雪覆盖的北方冻土，东西跨度三千五百亿里。无日月星辰，唯见幽蓝磷光。阴冷死寂。",
+            factions: [
+                {name: "广寒宫", type: "neutral", note: "深处广寒玉宫。修太阴之道，断绝凡尘情爱，只收女弟子。"},
+                {name: "蛟龙一族", type: "monster", note: "北冥之下黑渊。吞噬掠夺，提纯真龙血脉。"}
+            ],
+            color: "--accent-mana",
+            x: 50, y: 15
+        },
+        "south": {
+            name: "南离火洲",
+            realm: "混乱魔域",
+            type: "demon",
+            desc: "火山密布，东西跨度四千亿里。空气中满是硫磺气息，混乱与杀伐并存，弱肉强食。",
+            factions: [
+                {name: "太阳神宫", type: "human", note: "万丈火山之巅太阳火殿。崇拜太阳之力，体修至尊。"},
+                {name: "尸魔宗", type: "demon", note: "与中央神州交界处葬仙坡。炼化尸身，腐朽中求永生。"},
+                {name: "黑金阁", type: "demon", note: "无固定驻地地下黑市，统辖暗杀走私与情报渗透，重弱肉强食执掌地下混乱。"},
+                {name: "万魂殿", type: "demon", note: "阴风山脉万鬼窟。抽魂炼魄，炼化怨鬼壮大神识。"}
+            ],
+            color: "--accent-blood",
+            x: 50, y: 85
+        },
+        "east": {
+            name: "东极青木域",
+            realm: "万妖森林",
+            type: "monster",
+            desc: "古木参天，南北跨度四千五百亿里的妖族世居之地。多方势力维持着微妙的平衡。",
+            factions: [
+                {name: "神猿族", type: "monster", note: "西部万妖山脉。力量至上，以力破法。"},
+                {name: "九尾天狐族", type: "monster", note: "东部沂云森林。修习幻术法则，操纵神魂欲念。"},
+                {name: "五色孔雀族", type: "monster", note: "南部落凤坡五色谷。提纯五行血脉，衍化五色神光。"},
+                {name: "柳蛇族", type: "monster", note: "北部碧玉温泉。雌尊雄卑，交配繁衍。"}
+            ],
+            color: "--accent-san",
+            x: 85, y: 50
+        },
+        "west": {
+            name: "西漠佛国",
+            realm: "佛修净土",
+            type: "human",
+            desc: "广袤的西部沙漠，南北跨度三千五百亿里。佛光普照，致力于普度众生与镇压妖魔。",
+            factions: [
+                {name: "大雷音寺", type: "human", note: "须弥山须弥金顶。度化众生，镇压邪魔，修罗汉金身。"}
+            ],
+            color: "#eccc68",
+            x: 15, y: 50
+        },
+        "special_east": {
+            name: "蓬莱仙岛",
+            realm: "上古秘境",
+            type: "neutral",
+            desc: "【极东尽头归墟之眼深处】每六十年现世三十天的上古仙界碎片。核心物品：澪之果。",
+            factions: [
+                {name: "冥煞玄蛇", type: "monster", note: "守护者。"}
+            ],
+            color: "--rare-text",
+            x: 92, y: 50
+        },
+        "s_youlin": {
+            name: "幽林血沼",
+            realm: "低阶秘境",
+            type: "blood",
+            desc: "【南离火洲十万大山古战场外围】炼气期修士试炼场与坟场。核心物品：蒲灵果、玉髓芝。",
+            factions: [
+                {name: "嗜血鬼藤", type: "monster", note: "守护者。"}
+            ],
+            color: "--accent-blood",
+            x: 35, y: 75
+        },
+        "s_gengjin": {
+            name: "庚金剑冢",
+            realm: "低阶秘境",
+            type: "human",
+            desc: "【西漠佛国叹息沙海地下千丈】上古剑宗遗址，充满庚金剑气。进入限制：元婴以下。核心物品：金灵玉髓。",
+            factions: [
+                {name: "残缺剑傀", type: "monster", note: "守护者。"}
+            ],
+            color: "#eccc68",
+            x: 25, y: 35
+        },
+        "s_liuli": {
+            name: "琉璃净月宫",
+            realm: "高阶秘境",
+            type: "neutral",
+            desc: "【北冥雪原北冥黑渊极境海眼】中古大能折叠行宫，极寒幻境。进入限制：化神以下。核心物品：九曲灵参、造化青莲莲子。",
+            factions: [
+                {name: "霜骨冰蛟", type: "monster", note: "守护者。"}
+            ],
+            color: "--accent-mana",
+            x: 35, y: 15
+        },
+        "s_wuxing": {
+            name: "五行碎层",
+            realm: "高阶绝地",
+            type: "neutral",
+            desc: "【中央神州天陨坑上空万丈虚空夹缝】不稳定空间裂缝，存在法则碾压。进入限制：炼虚以下。核心物品：五行灵髓、虚空花。",
+            factions: [
+                {name: "亚种虚空兽", type: "monster", note: "守护者。"}
+            ],
+            color: "--rare-text",
+            x: 65, y: 35
+        },
+        "s_shahai": {
+            name: "无垠沙海镜像",
+            realm: "大能禁区",
+            type: "neutral",
+            desc: "【依附西漠佛国叹息沙海背面】高维镜像空间，方向与因果皆反。进入限制：合体以下。核心物品：空灵晶液。",
+            factions: [
+                {name: "蜃灵皇残魂", type: "monster", note: "守护者。"}
+            ],
+            color: "--rare-text",
+            x: 10, y: 70
+        },
+        "s_yunsheng": {
+            name: "陨圣乱墟",
+            realm: "大能禁区",
+            type: "demon",
+            desc: "【东极青木域极东九天罡风层深处】远古大能战场残块。进入限制：大乘以下。核心物品：三元归一果。",
+            factions: [
+                {name: "怨念尸魔", type: "demon", note: "守护者。"}
+            ],
+            color: "--accent-blood",
+            x: 85, y: 15
+        },
+        "s_huangquan": {
+            name: "黄泉冥河引",
+            realm: "大能禁区",
+            type: "demon",
+            desc: "【南离火洲阴冥河死脉尽头】阴阳交汇处，生人禁区。核心物品：九转还魂草根须。",
+            factions: [
+                {name: "渡魂诡灵", type: "demon", note: "守护者。"}
+            ],
+            color: "--accent-blood",
+            x: 65, y: 90
+        },
+        "s_tianyuan": {
+            name: "天渊起源地",
+            realm: "世界本源",
+            type: "neutral",
+            desc: "【玄天界界壁护罩最深层夹缝】天道直辖，大乘期伐天之地。核心物品：玄黄之气。",
+            factions: [
+                {name: "天道灾兽化身", type: "neutral", note: "守护者。"}
+            ],
+            color: "--accent-gold",
+            x: 50, y: 5
+        }
+    };
+
+    /* --- Immortal Realm Map Logic --- */
+    const xianjieLore = {
+        "center": {
+            name: "钧天仙域",
+            realm: "仙界之心",
+            type: "human",
+            desc: "此地仙气浓郁到凝为七彩祥云，宫阙浮空，金道横空，龙凤仙鹤往来其间。天地法则最为稳固清晰，甚至可显化为肉眼可见的符文锁链。核心基调：秩序、威严、天道至上。",
+            factions: [
+                {name: "天庭", type: "human", note: "明面上最高权力机构，执掌天规，统御万仙。重要地标：凌霄仙阙、天规神碑。"},
+                {name: "云上瑶池", type: "neutral", note: "真正的顶层决策与至高战力所在之地。"}
+            ],
+            color: "--accent-gold",
+            x: 50, y: 50
+        },
+        "north": {
+            name: "玄冥仙域",
+            realm: "幽冥轮回",
+            type: "blood",
+            desc: "无日月星辰，唯见幽蓝磷光与弱水河光。白骨山脉连绵，魂力、阴煞、死气弥漫。核心基调：死亡、轮回、无序。",
+            factions: [
+                {name: "阴煞宗", type: "demon", note: "明面上势力最强，驻地为灵冥渊。"},
+                {name: "散仙秘境", type: "neutral", note: "大量散仙强者隐居的独立空间。"},
+                {name: "地府入口", type: "neutral", note: "传说中掌管仙神魂灵轮回的神秘之地。"}
+            ],
+            color: "--accent-mana",
+            x: 50, y: 15
+        },
+        "south": {
+            name: "炎极仙域",
+            realm: "不灭火海",
+            type: "demon",
+            desc: "天空悬有三轮烈日，大地之上仙火熔岩长流不息。空气中满是狂暴火元与硫磺气息。核心基调：混乱、力量、弱肉强食。",
+            factions: [
+                {name: "太古王族", type: "demon", note: "盘踞的核心浮空神都「太古神都」。"},
+                {name: "极乐宗", type: "demon", note: "在火海幻境中开宗立派的顶级宗门，内有极乐玉溪。"}
+            ],
+            color: "--accent-blood",
+            x: 50, y: 85
+        },
+        "east": {
+            name: "青华仙域",
+            realm: "万木之乡",
+            type: "monster",
+            desc: "域内尽是原始仙林与参天古木，更有建木、扶桑等开天神木，空气中充斥乙木灵气与生命气息。核心基调：原始、共存、血脉至上。",
+            factions: [
+                {name: "玉灵宫", type: "neutral", note: "顶级仙门之一，山门所在为玉灵仙山。"},
+                {name: "万妖古界", type: "monster", note: "妖族的核心势力范围。"},
+                {name: "先天仙灵域", type: "neutral", note: "先天仙灵的聚居地，传说中种植着无数仙药的万药仙圃亦在此。"}
+            ],
+            color: "--accent-san",
+            x: 85, y: 50
+        },
+        "west": {
+            name: "太白仙域",
+            realm: "万剑之墟",
+            type: "human",
+            desc: "天地间充斥锋锐庚金之气。大地如铸，山峰如利剑倒插天穹。肃杀锐利，铁血不屈。核心基调：战斗、守护、以剑为尊。",
+            factions: [
+                {name: "剑修联盟", type: "human", note: "以剑为尊的主流联盟，强者当道。"},
+                {name: "真灵世家", type: "monster", note: "真灵血脉世家，权势极重，祖地在真灵古穴。"},
+                {name: "天庭前线", type: "human", note: "界碑古关由天庭重兵镇守，抵御时空乱流海。还有陨仙古战场，杀机与机缘并存。"}
+            ],
+            color: "#eccc68",
+            x: 15, y: 50
+        }
+    };
+
+    window.switchTab = function(event, tabId) {
+        const button = event.currentTarget;
+        const panel = button.closest('.main-panel');
+        if (!panel) return;
+        panel.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        panel.querySelectorAll('.tab-content').forEach(p => p.style.display = 'none');
+        const tabToShow = document.getElementById('tab-' + tabId);
+        if (tabToShow) {
+            tabToShow.style.display = (tabId === 'messages') ? 'flex' : 'block';
+        }
+        button.classList.add('active');
+    };
+
+    function drawMap(loreData, containerId) {
+        const mapContainer = document.getElementById(containerId);
+        if (!mapContainer) return;
+
+        const connections = [
+            ['center', 'north'], ['center', 'south'], ['center', 'east'], ['center', 'west']
+        ];
+
+        if (loreData['special_east']) {
+            connections.push(['east', 'special_east']);
+        }
+        if (loreData['s_youlin']) {
+            connections.push(['south', 's_youlin']);
+            connections.push(['west', 's_gengjin']);
+            connections.push(['north', 's_liuli']);
+            connections.push(['center', 's_wuxing']);
+            connections.push(['west', 's_shahai']);
+            connections.push(['east', 's_yunsheng']);
+            connections.push(['south', 's_huangquan']);
+            connections.push(['center', 's_tianyuan']);
+        }
+
+        connections.forEach(([k1, k2]) => {
+            if(!loreData[k1] || !loreData[k2]) return;
+            const n1 = loreData[k1];
+            const n2 = loreData[k2];
+            const line = document.createElement('div');
+            line.className = 'map-line';
+
+            const dx = n2.x - n1.x;
+            const dy = n2.y - n1.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+            line.style.width = `calc(${dist}% - 10px)`;
+            line.style.left = `${n1.x}%`;
+            line.style.top = `${n1.y}%`;
+            line.style.transform = `rotate(${angle}deg)`;
+            mapContainer.appendChild(line);
+        });
+
+        Object.entries(loreData).forEach(([key, data]) => {
+            const node = document.createElement('div');
+            let nodeClass = 'map-node';
+            if(key === 'center') nodeClass += ' node-center';
+            else if(key === 'north') nodeClass += ' node-north';
+            else if(key === 'south') nodeClass += ' node-south';
+            else if(key === 'east') nodeClass += ' node-east';
+            else if(key === 'west') nodeClass += ' node-west';
+            else nodeClass += ' node-special';
+
+            node.className = nodeClass;
+            node.style.left = `${data.x}%`;
+            node.style.top = `${data.y}%`;
+            node.innerHTML = `<div class="map-node-label">${data.name}</div>`;
+
+            node.onclick = () => {
+                document.querySelectorAll(`.map-node`).forEach(n => n.classList.remove('active-node'));
+                node.classList.add('active-node');
+                showLocationDetails(data);
+            };
+            mapContainer.appendChild(node);
+        });
+    }
+
+    function initMap() {
+        drawMap(xuantianLore, 'world-map-xuantian');
+        drawMap(xianjieLore, 'world-map-xianjie');
+    }
+
+    function showLocationDetails(data) {
+        const panel = document.getElementById('map-details');
+        panel.classList.add('active');
+        const titleEl = document.getElementById('map-loc-name');
+
+        const colorVar = data.color.startsWith('#') ? data.color : `var(${data.color})`;
+        titleEl.textContent = data.name;
+        titleEl.style.color = colorVar;
+        titleEl.parentElement.style.color = colorVar;
+
+        const infoCard = panel.querySelector('.info-card');
+        infoCard.style.borderColor = colorVar;
+
+        document.getElementById('map-loc-type').textContent = data.realm;
+        document.getElementById('map-loc-desc').innerHTML = data.desc;
+
+        const factionsContainer = document.getElementById('map-loc-factions');
+        factionsContainer.innerHTML = '';
+        if(data.factions && data.factions.length > 0) {
+            data.factions.forEach(fac => {
+                const tag = document.createElement('span');
+                let tagClass = 'faction-tag';
+                if(fac.type === 'human') tagClass += ' tag-human';
+                else if(fac.type === 'demon') tagClass += ' tag-demon';
+                else if(fac.type === 'monster') tagClass += ' tag-monster';
+                else tagClass += ' tag-neutral';
+
+                tag.className = tagClass;
+                tag.textContent = fac.name;
+                tag.title = fac.note || '';
+
+                tag.onclick = function() {
+                    document.getElementById('faction-modal-title').textContent = '【' + fac.name + '】';
+                    document.getElementById('faction-modal-note').textContent = fac.note || '暂无详细信息';
+                    document.getElementById('faction-modal-overlay').style.display = 'flex';
+                };
+
+                factionsContainer.appendChild(tag);
+            });
+        } else {
+            factionsContainer.innerHTML = '<span style="color:var(--text-dim);font-size:0.8em;">此处尚无势力记载</span>';
+        }
+
+        setTimeout(() => {
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 50);
+    }
+
+    const fairyGuide = {
+        element: document.getElementById('fairy-guide'),
+        textElement: document.getElementById('fairy-text'),
+        lines: [],
+        stats: {},
+        updateData(lines, hp, san, mp) {
+            this.lines = lines || [];
+            this.stats = { hp: parseFloat(hp)||100, san: parseFloat(san)||100, mp: parseFloat(mp)||100 };
+        },
+        toggleAndShowMessage() {
+            const bubble = this.element.querySelector('.fairy-bubble');
+            const isVisible = bubble.style.opacity === '1';
+
+            if (isVisible) {
+                bubble.style.opacity = '0';
+                bubble.style.transform = 'translateY(10px)';
+                bubble.style.pointerEvents = 'none';
+            } else {
+                let msg = "道友，此地天机混沌，竟无一言可示...";
+                if (this.lines.length > 0) {
+                    msg = this.lines[Math.floor(Math.random() * this.lines.length)];
+                }
+
+                this.textElement.textContent = msg;
+                bubble.style.opacity = '1';
+                bubble.style.transform = 'translateY(0)';
+                bubble.style.pointerEvents = 'auto';
+            }
+        },
+        init() {
+            const fairyAvatar = this.element.querySelector('.fairy-avatar');
+            if(fairyAvatar) {
+                fairyAvatar.style.backgroundImage = `url('${fairyImages[currentFairyImageIndex]}')`;
+                fairyAvatar.addEventListener('click', (e) => {
+                    if (e.button === 0) {
+                        currentFairyImageIndex = (currentFairyImageIndex + 1) % fairyImages.length;
+                        fairyAvatar.style.backgroundImage = `url('${fairyImages[currentFairyImageIndex]}')`;
+                        this.toggleAndShowMessage();
+                    }
+                });
+            }
+        }
+    };
+
+    /* ===== 长按删除玉简事件逻辑 ===== */
+    window.pressTimer = null;
+    window.isPressing = false;
+    window.startPress = function(charName) {
+        window.isPressing = false;
+        window.pressTimer = setTimeout(() => {
+            window.isPressing = true;
+            if(confirm('是否要销毁与【' + charName + '】的玉简传讯记录？')) {
+                const card = document.querySelector(`.wx-list-item[data-name="${charName}"]`);
+                deleteStatEntry(['玉简', charName], card);
+            }
+        }, 800);
+    };
+    window.endPress = function() {
+        if (window.pressTimer) {
+            clearTimeout(window.pressTimer);
+            window.pressTimer = null;
+        }
+    };
+    window.handleListItemClick = function(charName) {
+        if (window.isPressing) {
+            window.isPressing = false;
+            return;
+        }
+        openChatView(charName);
+    };
+
+    /* ===== 打开聊天视图的全局函数 ===== */
+    window.currentActiveChat = null;
+    window.openChatView = function(name) {
+        window.currentActiveChat = name;
+        const data = window.currentMessagesData[name];
+        if(!data) return;
+
+        /* 更新已读记录并隐藏红点 */
+        const readStates = JSON.parse(localStorage.getItem('daoyuan_wx_read_states') || '{}');
+        const historyKeys = Object.keys(data.历史记录 || {});
+        if (historyKeys.length > 0) {
+            readStates[name] = historyKeys[historyKeys.length - 1];
+            localStorage.setItem('daoyuan_wx_read_states', JSON.stringify(readStates));
+        }
+        const dot = document.getElementById('unread-dot-' + name);
+        if (dot) dot.classList.remove('show');
+
+        document.getElementById('wx-list-view').style.display = 'none';
+        document.getElementById('wx-chat-view').style.display = 'flex';
+
+        document.getElementById('wx-chat-title').textContent = name;
+        document.getElementById('wx-detail-level').textContent = data.境界 || '未知';
+        document.getElementById('wx-detail-gender').textContent = data.性别 || '未知';
+        document.getElementById('wx-detail-relation').textContent = data.关系 || '陌生';
+        document.getElementById('wx-detail-favor').textContent = data.好感度 || '0';
+
+        document.getElementById('wx-detail-modal').classList.remove('show');
+        document.getElementById('wx-reply-input').placeholder = `输入传讯给 ${name}... (Enter发送, Shift+Enter换行)`;
+        document.getElementById('wx-reply-input').value = '';
+        document.getElementById('wx-reply-input').style.height = 'auto';
+
+        const hasPortrait = !!getPortraitUrl(name, data.性别);
+        const portraitUrl = hasPortrait ? getPortraitUrl(name, data.性别) : '';
+        if(portraitUrl) {
+            document.getElementById('wx-chat-bg').style.backgroundImage = `url('${portraitUrl}')`;
+        } else {
+            document.getElementById('wx-chat-bg').style.backgroundImage = 'none';
+            document.getElementById('wx-chat-bg').style.backgroundColor = '#0a0a0f';
+        }
+
+        let chatHtml = '';
+        const history = data.历史记录 || {};
+        Object.entries(history).forEach(([msgId, record]) => {
+            const sender = record.发送者 || '未知';
+            const isSelf = sender === '我';
+            const alignClass = isSelf ? 'wx-msg-right' : 'wx-msg-left';
+            const safeName = String(name).replace(/"/g, '"');
+
+            let actionsHtml = `<div class="wx-msg-actions">`;
+            actionsHtml += `<span class="wx-msg-action-btn" onclick="window.deleteSingleMessage('${safeName}', '${msgId}')" title="删除此条">🗑️删除</span>`;
+            if (!isSelf) {
+                actionsHtml += `<span class="wx-msg-action-btn" onclick="window.retrySingleMessage('${safeName}', '${msgId}')" title="重新生成">🔄重试</span>`;
+            }
+            actionsHtml += `</div>`;
+
+            chatHtml += `
+                <div class="wx-msg-row ${alignClass}">
+                    <div class="wx-msg-sender">${sender} <span style="font-size:0.8em;opacity:0.6;margin-left:5px;">${record.时间 || ''}</span></div>
+                    <div class="wx-msg-bubble">${record.内容 || ''}</div>
+                    ${actionsHtml}
+                </div>
+            `;
+        });
+
+        const msgContainer = document.getElementById('wx-chat-messages');
+        msgContainer.innerHTML = chatHtml || '<div style="text-align:center; color:var(--text-dim); font-size:0.85em; margin-top:20px; z-index:2; position:relative; text-shadow: 0 1px 2px #000;">暂无传讯记录</div>';
+
+        /* 滚动到底部 */
+        setTimeout(() => {
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+        }, 50);
+    };
+
+    function populateCharacterData() {
+        const all_variables = getAllVariables();
+        const stat = _.get(all_variables, 'stat_data', {});
+
+        const world = stat.世界 || {};
+        const hero = stat.主角 || {};
+        const partners = stat.道侣 || {};
+        const npcs = stat.人物 || {};
+        const pets = stat.灵宠 || {};
+        const quests = stat.机遇 || {};
+        const beauties = stat.绝色榜 || {};
+        const messages = stat.玉简 || {};
+
+        const updateStat = (name, current) => {
+            current = parseFloat(current) || 0;
+            const percentage = Math.max(0, Math.min(100, current));
+            $(`#${name}-value`).text(`${Math.round(current)}/100`);
+            $(`#${name}-bar`).css('width', `${percentage}%`);
+        };
+
+        // 新增：渲染主角信息
+        $('#name-value').text(hero.姓名 || '未知');
+        $('#gender-value').text(hero.性别 || '未知');
+        $('#appearance-value').text(hero.容貌 || '未知');
+        $('#body-value').text(hero.身形 || '未知');
+        $('#clothing-value').text(hero.衣着 || '未知');
+
+        updateStat('hp', hero.生命);
+        updateStat('blood', hero.精血);
+        updateStat('mp', hero.灵力);
+        updateStat('exp', hero.修为);
+        updateStat('san', hero.神识);
+        updateStat('daoxin', hero.道心);
+
+        $('.rank-tag').text(hero.境界 || '凡人');
+        $('#san-status').text(hero.神念 || '无');
+
+        /* 气运处理 - 侧边栏显示名称提示，点击弹窗展示 */
+        const lucks = hero.气运 || {};
+        const luckNames = Object.keys(lucks).join('、') || '无';
+        $('#luck-value').text(luckNames);
+
+        $('#spirit-root-value').text(hero.灵根 || '无');
+
+        /* === 宗门显示与宗门贡献点击事件 === */
+        const clanName = hero.宗门 || '无';
+        const clanContribute = hero.宗门贡献 || 0;
+        $('#clan-value').text(clanName);
+        $('#clan-row').off('click').on('click', function() {
+            document.getElementById('faction-modal-title').textContent = '【宗门信息】';
+            document.getElementById('faction-modal-note').innerHTML = `所属宗门：<span style="color:var(--accent-gold)">${clanName}</span><br><br>宗门贡献：<span style="color:var(--rare-text)">${clanContribute}</span>`;
+            document.getElementById('faction-modal-overlay').style.display = 'flex';
+        });
+
+        $('#status-effects').html(hero.状态 || '无异常');
+        $('#env-status').text(` ⚜️ ${world.当前时间 || '未知'}`);
+
+        /* 概览页 - 包含带描述的储物袋、及所在界域 */
+        const inventory = hero.储物袋 || {};
+        let inventoryHtml = '';
+        Object.entries(inventory).forEach(([name, data]) => {
+            const safeItemName = String(name).replace(/"/g, '"');
+            inventoryHtml += `
+                <div class="inventory-item" data-item="${safeItemName}" style="position: relative; margin-bottom: 4px; padding-right: 35px; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 4px; border-radius: 4px;">
+                    <button class="card-discard" title="删除" data-item="${safeItemName}" style="top: -2px; right: 0; width: 24px; height: 24px; font-size: 14px;">✕</button>
+                    <span style="color:var(--text-main);">${name}</span> <span style="color:var(--text-dim);font-size:0.9em;">x${data.数量}</span>${data.描述 ? `<span style="font-size:0.8em; color:var(--text-dim); margin-left:8px;">- ${data.描述}</span>` : ''}
+                </div>`;
+        });
+        if (!inventoryHtml) inventoryHtml = '空空如也';
+
+        /* 提取器物数据并生成HTML */
+        const artifacts = hero.器物 || {};
+        let artifactsHtml = '';
+        Object.entries(artifacts).forEach(([name, data]) => {
+            const damage = parseFloat(data.损耗度) || 0;
+            const safeArtifactName = String(name).replace(/"/g, '"');
+            artifactsHtml += `
+                <div class="artifact-item" data-artifact="${safeArtifactName}" style="margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed rgba(255,255,255,0.1); position: relative;">
+                    <button class="card-discard" title="删除" data-artifact="${safeArtifactName}" style="top: -2px; right: 0; width: 24px; height: 24px; font-size: 14px;">✕</button>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px; padding-right: 25px;">
+                        <span style="color: var(--accent-gold); font-weight: bold;">${name}</span>
+                        <span style="font-size: 0.8em; color: var(--rare-text);">${data.等级 || '未知'} · ${data.类型 || '未知'}</span>
+                    </div>
+                    ${data.描述 ? `<div style="font-size: 0.85em; color: var(--text-dim); margin-bottom: 6px;">${data.描述}</div>` : ''}
+                    <div style="display: flex; gap: 15px; font-size: 0.8em; align-items: center;">
+                        <span style="color: ${data.状态 === '正常' ? 'var(--accent-san)' : 'var(--accent-blood)'};">状态: ${data.状态 || '正常'}</span>
+                        <div style="display: flex; align-items: center; gap: 5px; flex: 1;">
+                            <span>损耗:</span>
+                            <div class="progress-bg" style="flex: 1; height: 6px;"><div class="progress-fill fill-hp" style="width: ${damage}%;"></div></div>
+                            <span>${damage}%</span>
+                        </div>
+                    </div>
+                </div>`;
+        });
+        if (!artifactsHtml) artifactsHtml = '空空如也';
+
+        /* 提取炼丹数据并生成HTML */
+        const alchemy = hero.炼丹 || {};
+        const alchemyHtml = `
+            <div style="margin-bottom: 10px; padding-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: var(--accent-gold); font-weight: bold;">炼丹造诣</span>
+                    <span style="font-size: 0.8em; color: var(--rare-text);">${alchemy.阶级 || '未入门'}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85em;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 50px;">熟练度:</span>
+                        <div class="progress-bg" style="flex: 1; height: 6px;"><div class="progress-fill fill-exp" style="width: ${parseFloat(alchemy.熟练度) || 0}%;"></div></div>
+                        <span style="width: 35px; text-align: right;">${parseFloat(alchemy.熟练度) || 0}%</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 50px;">成功率:</span>
+                        <div class="progress-bg" style="flex: 1; height: 6px;"><div class="progress-fill fill-san" style="width: ${parseFloat(alchemy.成功率) || 0}%;"></div></div>
+                        <span style="width: 35px; text-align: right;">${parseFloat(alchemy.成功率) || 0}%</span>
+                    </div>
+                    <div style="color: var(--text-dim);">炼制次数: <span style="color: var(--text-main);">${alchemy.次数 || 0}</span> 次</div>
+                </div>
+            </div>`;
+
+        /* 提取炼器数据并生成HTML */
+        const forge = hero.炼器 || {};
+        const forgeHtml = `
+            <div style="margin-bottom: 10px; padding-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: var(--accent-gold); font-weight: bold;">炼器造诣</span>
+                    <span style="font-size: 0.8em; color: var(--rare-text);">${forge.阶级 || '未入门'}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85em;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 50px;">熟练度:</span>
+                        <div class="progress-bg" style="flex: 1; height: 6px;"><div class="progress-fill fill-exp" style="width: ${parseFloat(forge.熟练度) || 0}%;"></div></div>
+                        <span style="width: 35px; text-align: right;">${parseFloat(forge.熟练度) || 0}%</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 50px;">成功率:</span>
+                        <div class="progress-bg" style="flex: 1; height: 6px;"><div class="progress-fill fill-san" style="width: ${parseFloat(forge.成功率) || 0}%;"></div></div>
+                        <span style="width: 35px; text-align: right;">${parseFloat(forge.成功率) || 0}%</span>
+                    </div>
+                    <div style="color: var(--text-dim);">炼制次数: <span style="color: var(--text-main);">${forge.次数 || 0}</span> 次</div>
+                </div>
+            </div>`;
+
+        let lucksHtml = '';
+        Object.entries(lucks).forEach(([name, data]) => {
+            let statusColor = 'var(--accent-san)';
+            if (data.使用状态 === '冷却中') statusColor = 'var(--accent-exp)';
+            if (data.使用状态 === '已耗尽') statusColor = 'var(--text-dim)';
+
+            const safeLuckName = String(name).replace(/"/g, '"');
+            lucksHtml += `
+                <div class="luck-item" data-luck="${safeLuckName}" style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px dashed rgba(255,215,0,0.2); position: relative;">
+                    <button class="card-discard" title="删除" data-luck="${safeLuckName}" style="top: 0; right: 0; width: 24px; height: 24px; font-size: 14px;">✕</button>
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; padding-right: 25px;">
+                        <span style="color: var(--accent-gold); font-weight: bold; font-size: 1.05em; text-shadow: 0 0 5px rgba(255,215,0,0.3);">${name}</span>
+                        <span style="font-size: 0.8em; padding: 2px 6px; border-radius: 4px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);">${data.类型 || '未知'}</span>
+                    </div>
+                    <div style="font-size: 0.9em; color: #dcdde1; line-height: 1.5; margin-bottom: 6px;">${data.效果 || '未知效果'}</div>
+                    <div style="font-size: 0.85em; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <span style="color: ${statusColor};">状态: ${data.使用状态 || '未知'}</span>
+                        <span style="color: ${data.压制状态 === '被压制' ? 'var(--accent-blood)' : 'var(--text-dim)'};">压制: ${data.压制状态 || '正常'}</span>
+                    </div>
+                </div>
+            `;
+        });
+        if (!lucksHtml) lucksHtml = '<div style="color: var(--text-dim); font-style: italic; text-align: center;">凡夫俗子，暂无气运加身。</div>';
+
+        /* 将气运HTML填充到专属弹窗内 */
+        $('#luck-modal-body').html(lucksHtml);
+
+        $('#tab-dashboard').html(`
+            <div class="info-card">
+                <div class="info-title"><span>当前所在</span><span>📍</span></div>
+                <div class="info-text">${hero.所在界 || '玄天界'} · ${world.当前地点 || '未知'}</div>
+            </div>
+            <div class="info-card" style="border-color: var(--accent-blood);">
+                <div class="info-title" style="color: var(--accent-blood);"><span>天机推演</span><span>⚠️</span></div>
+                <div class="info-text">
+                    当前时间: ${world.当前时间 || '未知'}<br>
+                    危机程度: ${world.危机程度 || '无'}
+                </div>
+            </div>
+            <div class="info-card" style="border-color: var(--accent-mana);">
+                <div class="info-title" style="cursor: pointer; color: var(--accent-mana); user-select: none;" data-idx="0" onclick="const panels = ['inventory-content', 'artifact-content', 'alchemy-content', 'forge-content']; const titles = ['储物袋', '器物', '炼丹', '炼器']; const icons = ['🎒', '⚔️', '💊', '🔨']; let idx = parseInt(this.dataset.idx || '0'); idx = (idx + 1) % 4; this.dataset.idx = idx; panels.forEach((id, i) => document.getElementById(id).style.display = (i === idx ? 'block' : 'none')); this.querySelector('.switch-title').textContent = titles[idx]; this.querySelector('.switch-icon').textContent = icons[idx];">
+                    <span class="switch-title">储物袋</span>
+                    <span title="点击切换" style="transition: transform 0.3s; display: inline-block;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"><span class="switch-icon">🎒</span> 🔄</span>
+                </div>
+                <div class="info-text" id="inventory-content" style="display: block;">${inventoryHtml}</div>
+                <div class="info-text" id="artifact-content" style="display: none;">${artifactsHtml}</div>
+                <div class="info-text" id="alchemy-content" style="display: none;">${alchemyHtml}</div>
+                <div class="info-text" id="forge-content" style="display: none;">${forgeHtml}</div>
+            </div>
+        `);
+
+        /* 功法页 */
+        const skills = hero.功法 || {};
+        let skillsHtml = '';
+        Object.entries(skills).forEach(([name, data]) => {
+            const mastery = parseFloat(data.熟练度) || 0;
+            const safeSkillName = String(name).replace(/"/g, '"');
+            skillsHtml += `
+                <div class="skill-card" data-skill="${safeSkillName}">
+                    <button class="card-discard" title="删除" data-skill="${safeSkillName}">✕</button>
+                    <div class="skill-info">
+                        <div class="skill-header"><span class="skill-name">${name}</span><span class="skill-type">${data.类型 || '未知'}</span></div>
+                        <div class="card-stats-grid">
+                            <span class="stat-label">境界/层数</span><span>${data.境界 || '未入门'}</span>
+                            <span class="stat-label">熟练度</span>
+                            <div class="progress-bg"><div class="progress-fill fill-exp" style="width: ${mastery}%;"></div></div>
+                        </div>
+                        <div class="skill-description">${data.描述 || ''}</div>
+                    </div>
+                </div>`;
+        });
+        $('#tab-skills').html(skillsHtml || '<p style="color: var(--text-dim); font-style: italic;">暂无相关记录。</p>');
+
+        /* 道侣页 */
+        let partnersHtml = '';
+        Object.entries(partners).forEach(([name, data]) => {
+            const hp = parseFloat(data.生命) || 0;
+            const mp = parseFloat(data.灵力) || 0;
+            const exp = parseFloat(data.修为) || 0;
+            const daoxin = parseFloat(data.道心) || 0;
+            const loyalty = parseFloat(data.亲密) || 0;
+            const hasPortrait = !!getPortraitUrl(name, data.性别);
+            const portraitSection = `
+                <div class="portrait-wrapper">
+                    <div style="display:flex;gap:6px;align-items:center;">
+                    ${hasPortrait ? `<div class="portrait-toggle-btn" style="flex:1;" onclick="const p = this.parentElement.nextElementSibling; const img = p.querySelector('img'); if(!img.src) { img.src = img.dataset.src; } p.classList.toggle('show'); this.innerHTML = p.classList.contains('show') ? '收起立绘 ▲' : '查看立绘 ▼';">查看立绘 ▼</div>` : `<div class="portrait-toggle-btn" style="flex:1;opacity:0.5;cursor:default;" onclick="event.stopPropagation();">暂无立绘</div>`}
+                    <div class="portrait-custom-btn" onclick="event.stopPropagation(); window.openCustomPortraitDialog('${name}');" title="上传自定义立绘">🎨 自定义</div>
+                </div>
+                    ${hasPortrait ? `<div class="large-portrait"><img data-src="${getPortraitUrl(name, data.性别)}" alt="${name}"></div>` : `<div class="large-portrait" style="display:none;align-items:center;justify-content:center;min-height:100px;color:var(--text-dim);font-size:0.85em;">点击「🎨 自定义」上传本地图片</div>`}
+                </div>`;
+
+            const safePartnerName = String(name).replace(/"/g, '"');
+            partnersHtml += `
+                <div class="partner-card" data-partner="${safePartnerName}">
+                    <button class="card-discard" title="删除" data-partner="${safePartnerName}">✕</button>
+                    <div class="partner-info">
+                        <div class="partner-header">
+                            <div><span class="partner-name">${name}</span><span class="partner-species">${data.种族 || '未知'} · ${data.性别 || '未知'}</span></div>
+                            <span class="status-badge">${data.状态 || '正常'}</span>
+                        </div>
+                        <div class="card-stats-grid">
+                            <span class="stat-label">境界</span><span class="rare-text">${data.境界 || '未知'}</span>
+                            <span class="stat-label">生命</span><div class="progress-bg"><div class="progress-fill fill-hp" style="width:${hp}%;"></div></div>
+                            <span class="stat-label">灵力</span><div class="progress-bg"><div class="progress-fill fill-mp" style="width:${mp}%;"></div></div>
+                            <span class="stat-label">修为</span><div class="progress-bg"><div class="progress-fill fill-exp" style="width:${exp}%;"></div></div>
+                            <span class="stat-label">道心</span><div class="progress-bg"><div class="progress-fill fill-daoxin" style="width:${daoxin}%;"></div></div>
+                            ${loyalty > 0 ? `<span class="stat-label">亲密</span><div class="progress-bg"><div class="progress-fill fill-san" style="width:${loyalty}%;"></div></div>` : ''}
+                            <span class="stat-label">性格</span><div>${data.性格 || '未知'}</div>
+                            <span class="stat-label">外观</span><div>${data.外观 || '未知'}</div>
+                            <span class="stat-label">身高</span><div>${data.身高 || '未知'}</div>
+                            <span class="stat-label">背景</span><div>${data.背景 || '未知'}</div>
+                            <span class="stat-label">神通</span><div>${data.神通 || '无'}</div>
+                            <span class="stat-label">心声</span><div>${data.心声 || '无'}</div>
+                        </div>
+                    </div>
+                    ${portraitSection}
+                </div>`;
+        });
+        $('#tab-partners').html(partnersHtml || '<p style="color: var(--text-dim); font-style: italic;">暂无相关记录。</p>');
+
+        /* 人物页 */
+        let npcsHtml = '';
+        Object.entries(npcs).forEach(([name, data]) => {
+            const hp = parseFloat(data.生命) || 0;
+            const mp = parseFloat(data.灵力) || 0;
+            const exp = parseFloat(data.修为) || 0;
+            const daoxin = parseFloat(data.道心) || 0;
+            const relation = parseFloat(data.好感) || 0;
+            const hasPortrait = !!getPortraitUrl(name, data.性别);
+            const portraitSection = `
+                <div class="portrait-wrapper">
+                    <div style="display:flex;gap:6px;align-items:center;">
+                    ${hasPortrait ? `<div class="portrait-toggle-btn" style="flex:1;" onclick="const p = this.parentElement.nextElementSibling; const img = p.querySelector('img'); if(!img.src) { img.src = img.dataset.src; } p.classList.toggle('show'); this.innerHTML = p.classList.contains('show') ? '收起立绘 ▲' : '查看立绘 ▼';">查看立绘 ▼</div>` : `<div class="portrait-toggle-btn" style="flex:1;opacity:0.5;cursor:default;" onclick="event.stopPropagation();">暂无立绘</div>`}
+                    <div class="portrait-custom-btn" onclick="event.stopPropagation(); window.openCustomPortraitDialog('${name}');" title="上传自定义立绘">🎨 自定义</div>
+                </div>
+                    ${hasPortrait ? `<div class="large-portrait"><img data-src="${getPortraitUrl(name, data.性别)}" alt="${name}"></div>` : `<div class="large-portrait" style="display:none;align-items:center;justify-content:center;min-height:100px;color:var(--text-dim);font-size:0.85em;">点击「🎨 自定义」上传本地图片</div>`}
+                </div>`;
+
+            const safeNpcName = String(name).replace(/"/g, '"');
+            npcsHtml += `
+                <div class="npc-card" data-npc="${safeNpcName}">
+                    <button class="card-discard" title="删除" data-npc="${safeNpcName}">✕</button>
+                    <div class="npc-info">
+                        <div class="npc-header">
+                            <span class="npc-name">${name}</span>
+                            <span class="npc-title">${data.头衔 || ''}</span>
+                        </div>
+                        <div class="card-stats-grid">
+                            <span class="stat-label">境界</span><span class="rare-text">${data.境界 || '未知'}</span>
+                            <span class="stat-label">生命</span><div class="progress-bg"><div class="progress-fill fill-hp" style="width:${hp}%;"></div></div>
+                            <span class="stat-label">灵力</span><div class="progress-bg"><div class="progress-fill fill-mp" style="width:${mp}%;"></div></div>
+                            <span class="stat-label">修为</span><div class="progress-bg"><div class="progress-fill fill-exp" style="width:${exp}%;"></div></div>
+                            <span class="stat-label">道心</span><div class="progress-bg"><div class="progress-fill fill-daoxin" style="width:${daoxin}%;"></div></div>
+                            <span class="stat-label">好感</span><div class="progress-bg"><div class="progress-fill ${relation > 50 ? 'fill-san' : 'fill-hp'}" style="width:${relation}%;"></div></div>
+                            <span class="stat-label">性别</span><span class="rare-text">${data.性别 || '未知'}</span>
+                            <span class="stat-label">性格</span><div>${data.性格 || '未知'}</div>
+                            <span class="stat-label">关系阶段</span><span class="rare-text">${data.关系阶段 || '陌生'}</span>
+                        </div>
+                        <div class="npc-description">${data.描述 || ''}</div>
+                    </div>
+                    ${portraitSection}
+                </div>`;
+        });
+        $('#tab-npcs').html(npcsHtml || '<p style="color: var(--text-dim); font-style: italic;">暂无相关记录。</p>');
+
+        /* 灵宠页 */
+        let petsHtml = '';
+        Object.entries(pets).forEach(([name, data]) => {
+            const hp = parseFloat(data.生命) || 0;
+            const mp = parseFloat(data.灵力) || 0;
+            const exp = parseFloat(data.修为) || 0;
+            const loyalty = parseFloat(data.亲密度) || 0;
+            const hasPortrait = !!getPortraitUrl(name, data.性别);
+            const portraitSection = `
+                <div class="portrait-wrapper">
+                    <div style="display:flex;gap:6px;align-items:center;">
+                    ${hasPortrait ? `<div class="portrait-toggle-btn" style="flex:1;" onclick="const p = this.parentElement.nextElementSibling; const img = p.querySelector('img'); if(!img.src) { img.src = img.dataset.src; } p.classList.toggle('show'); this.innerHTML = p.classList.contains('show') ? '收起立绘 ▲' : '查看立绘 ▼';">查看立绘 ▼</div>` : `<div class="portrait-toggle-btn" style="flex:1;opacity:0.5;cursor:default;" onclick="event.stopPropagation();">暂无立绘</div>`}
+                    <div class="portrait-custom-btn" onclick="event.stopPropagation(); window.openCustomPortraitDialog('${name}');" title="上传自定义立绘">🎨 自定义</div>
+                </div>
+                    ${hasPortrait ? `<div class="large-portrait"><img data-src="${getPortraitUrl(name, data.性别)}" alt="${name}"></div>` : `<div class="large-portrait" style="display:none;align-items:center;justify-content:center;min-height:100px;color:var(--text-dim);font-size:0.85em;">点击「🎨 自定义」上传本地图片</div>`}
+                </div>`;
+
+            const safePetName = String(name).replace(/"/g, '"');
+            petsHtml += `
+                <div class="partner-card" data-pet="${safePetName}">
+                    <button class="card-discard" title="删除" data-pet="${safePetName}">✕</button>
+                    <div class="partner-info">
+                        <div class="partner-header">
+                            <div><span class="partner-name">${name}</span><span class="partner-species">${data.种族 || '未知'} · ${data.性别 || '未知'}</span></div>
+                            <span class="status-badge">${data.状态 || '正常'}</span>
+                        </div>
+                        <div class="card-stats-grid">
+                            <span class="stat-label">境界</span><span class="rare-text">${data.境界 || '未知'}</span>
+                            <span class="stat-label">生命</span><div class="progress-bg"><div class="progress-fill fill-hp" style="width:${hp}%;"></div></div>
+                            <span class="stat-label">灵力</span><div class="progress-bg"><div class="progress-fill fill-mp" style="width:${mp}%;"></div></div>
+                            <span class="stat-label">修为</span><div class="progress-bg"><div class="progress-fill fill-exp" style="width:${exp}%;"></div></div>
+                            <span class="stat-label">亲密度</span><div class="progress-bg"><div class="progress-fill fill-san" style="width:${loyalty}%;"></div></div>
+                            <span class="stat-label">性格</span><div>${data.性格 || '未知'}</div>
+                            <span class="stat-label">容貌外观</span><div>${data.容貌外观 || '未知'}</div>
+                            <span class="stat-label">神通</span><div>${data.神通 || '无'}</div>
+                            <span class="stat-label">心声</span><div>${data.心声 || '无'}</div>
+                        </div>
+                    </div>
+                    ${portraitSection}
+                </div>`;
+        });
+        $('#tab-pets').html(petsHtml || '<p style="color: var(--text-dim); font-style: italic;">暂无相关记录。</p>');
+
+        /* 机遇页 */
+        let questsHtml = '';
+        Object.entries(quests).forEach(([name, data]) => {
+            const safeQuestName = String(name).replace(/"/g, '"');
+            questsHtml += `
+                <div class="quest-item" data-quest="${safeQuestName}">
+                    <button class="card-discard" title="删除" data-quest="${safeQuestName}">✕</button>
+                    <div class="info-title">
+                        <span style="color:var(--text-main)">${name}</span>
+                        <span class="danger-text" style="font-size:0.8em">难度: ${data.难度 || '未知'}</span>
+                    </div>
+                    <div class="info-text">
+                        <b>目标:</b> ${data.目标 || ''}<br>
+                        <b>机缘:</b> <span style="color:var(--accent-gold)">${data.机缘 || ''}</span><br>
+                        <i style="font-size:0.8em; color:#999;">"${data.引言 || ''}"</i>
+                    </div>
+                </div>`;
+        });
+        $('#tab-quests').html(questsHtml || '<p style="color: var(--text-dim); font-style: italic;">暂无相关记录。</p>');
+
+        /* 绝色榜页 */
+        let beautiesHtml = '';
+        const sortedBeauties = Object.entries(beauties).sort((a, b) => (a[1].排名 || 999) - (b[1].排名 || 999));
+        sortedBeauties.forEach(([name, data]) => {
+            const hasPortrait = !!getPortraitUrl(name, data.性别);
+            const portraitSection = `
+                <div class="portrait-wrapper">
+                    <div style="display:flex;gap:6px;align-items:center;">
+                    ${hasPortrait ? `<div class="portrait-toggle-btn" style="flex:1;" onclick="const p = this.parentElement.nextElementSibling; const img = p.querySelector('img'); if(!img.src) { img.src = img.dataset.src; } p.classList.toggle('show'); this.innerHTML = p.classList.contains('show') ? '收起立绘 ▲' : '查看立绘 ▼';">查看立绘 ▼</div>` : `<div class="portrait-toggle-btn" style="flex:1;opacity:0.5;cursor:default;" onclick="event.stopPropagation();">暂无立绘</div>`}
+                    <div class="portrait-custom-btn" onclick="event.stopPropagation(); window.openCustomPortraitDialog('${name}');" title="上传自定义立绘">🎨 自定义</div>
+                </div>
+                    ${hasPortrait ? `<div class="large-portrait"><img data-src="${getPortraitUrl(name, data.性别)}" alt="${name}"></div>` : `<div class="large-portrait" style="display:none;align-items:center;justify-content:center;min-height:100px;color:var(--text-dim);font-size:0.85em;">点击「🎨 自定义」上传本地图片</div>`}
+                </div>`;
+
+            const safeBeautyName = String(name).replace(/"/g, '"');
+            beautiesHtml += `
+                <div class="info-card" data-beauty="${safeBeautyName}" style="border-color: rgba(217, 128, 250, 0.3);">
+                    <button class="card-discard" title="删除" data-beauty="${safeBeautyName}">✕</button>
+                    <div class="info-title">
+                        <span style="color:var(--rare-text)">第${data.排名 || 0}名：${name}</span>
+                        <span style="font-size:0.8em; color:var(--text-dim)">${data.头衔 || ''}</span>
+                    </div>
+                    <div class="info-text">
+                        <b>倾世仙姿：</b> <span style="color:#dcdde1">${data.仙姿 || ''}</span><br><br>
+                        <b>坊间群芳谱：</b> <i style="font-size:0.9em; color:#bbb;">"${data.群芳谱 || ''}"</i>
+                    </div>
+                    ${portraitSection}
+                </div>`;
+        });
+        $('#tab-database').html(beautiesHtml || '<p style="color: var(--text-dim); font-style: italic;">暂无相关记录。</p>');
+
+        /* 动向页 */
+        const events = world.动向 || {};
+        let eventsHtml = '';
+        Object.entries(events).forEach(([title, data]) => {
+            const safeEventTitle = String(title).replace(/"/g, '"');
+            eventsHtml += `
+                <div class="quest-item" data-event="${safeEventTitle}" style="border-left-color: var(--accent-blood);">
+                    <button class="card-discard" title="删除" data-event="${safeEventTitle}">✕</button>
+                    <div class="info-title">
+                        <span style="color:var(--accent-blood)">【${data.类型 || '未知'} · ${data.阶段 || '起'}】 ${title}</span>
+                        <span style="font-size:0.8em; color:var(--text-dim)">📍${data.地点 || '未知'}</span>
+                    </div>
+                    <div class="info-text">
+                        ${data.描述 || ''}
+                    </div>
+                </div>`;
+        });
+        $('#tab-world_events').html(eventsHtml || '<p style="color: var(--text-dim); font-style: italic;">暂无相关记录。</p>');
+
+        /* 玉简页 (微信风) */
+        let messagesListHtml = '';
+        window.currentMessagesData = messages; /* 保存数据供聊天视图使用 */
+        const readStates = JSON.parse(localStorage.getItem('daoyuan_wx_read_states') || '{}');
+
+        Object.entries(messages).forEach(([name, data]) => {
+            const hasPortrait = !!getPortraitUrl(name, data.性别);
+            const portraitUrl = hasPortrait ? getPortraitUrl(name, data.性别) : 'https://via.placeholder.com/50/000000/FFFFFF/?text=?';
+
+            /* 获取最后一条消息预览并判断未读红点 */
+            const historyKeys = Object.keys(data.历史记录 || {});
+            let lastMsg = '暂无传讯记录';
+            let lastTime = '';
+            let hasUnread = false;
+
+            if (historyKeys.length > 0) {
+                const lastMsgId = historyKeys[historyKeys.length - 1];
+                const lastRecord = data.历史记录[lastMsgId];
+                lastTime = lastRecord.时间 || '';
+
+                if (readStates[name] !== lastMsgId) {
+                    hasUnread = true;
+                    lastMsg = '[收到新传讯]';
+                } else {
+                    lastMsg = '[没有新传讯]';
+                }
+            }
+
+            const safeName = String(name).replace(/"/g, '"');
+
+            messagesListHtml += `
+                <div class="wx-list-item" data-name="${safeName}" onpointerdown="window.startPress('${safeName}')" onpointerup="window.endPress()" onpointerleave="window.endPress()" onclick="window.handleListItemClick('${safeName}')">
+                    <div class="wx-unread-dot ${hasUnread ? 'show' : ''}" id="unread-dot-${safeName}"></div>
+                    <div class="wx-avatar-container" onclick="event.stopPropagation();">
+                        <img src="${portraitUrl}" data-src="${portraitUrl}" class="portrait-img" alt="${name}" onclick="document.getElementById('modal-image').src=this.dataset.src; document.getElementById('image-modal-overlay').style.display='flex';">
+                        <div class="wx-avatar-custom-btn" onclick="event.stopPropagation(); window.openCustomPortraitDialog('${safeName}');" title="自定义头像">🎨设置</div>
+                    </div>
+                    <div class="wx-list-info">
+                        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                            <div class="wx-list-name">${name}</div>
+                            <div style="font-size:0.75em; color:var(--text-dim);">${lastTime}</div>
+                        </div>
+                        <div class="wx-list-preview" style="color: ${hasUnread ? 'var(--accent-mana)' : 'var(--text-dim)'}">${lastMsg}</div>
+                    </div>
+                </div>`;
+        });
+        $('#wx-list-view').html(messagesListHtml || '<p style="color: var(--text-dim); font-style: italic; padding: 20px; text-align: center;">暂无玉简传讯记录。</p>');
+
+        /* 刷新正在打开的聊天视图(如果处于激活状态) */
+        if (window.currentActiveChat && document.getElementById('wx-chat-view').style.display !== 'none') {
+            if (window.currentMessagesData[window.currentActiveChat]) {
+                window.openChatView(window.currentActiveChat);
+            } else {
+                /* 好友可能被删除了 */
+                document.getElementById('wx-chat-view').style.display = 'none';
+                document.getElementById('wx-list-view').style.display = 'flex';
+                window.currentActiveChat = null;
+            }
+        }
+
+        /* 更新器灵数据 */
+        fairyGuide.updateData(stat.$器灵台词 || [], hero.生命, hero.神识, hero.灵力);
+
+        /* 绑定删除按钮事件 (其他页面的正常删除逻辑保留) */
+        bindDiscardButtons();
+    }
+
+    /* ===== MVU 删除函数 ===== */
+    async function deleteStatEntry(dataPath, cardElement) {
+        try {
+            const lastMsgId = getLastMessageId();
+            const messages = getChatMessages('0-' + lastMsgId, { role: 'assistant' });
+            if (!messages || messages.length === 0) return;
+            const targetMsgId = messages[messages.length - 1].message_id;
+
+            if (window.Mvu && typeof Mvu.replaceMvuData === 'function') {
+                const fullData = Mvu.getMvuData({ type: 'message', message_id: targetMsgId });
+                if (fullData && fullData.stat_data) {
+                    _.unset(fullData.stat_data, dataPath);
+                    await Mvu.replaceMvuData(fullData, { type: 'message', message_id: targetMsgId });
+                    populateCharacterData();
+                }
+            }
+        } catch (err) {
+            console.error('[道渊状态栏] 删除失败:', dataPath, err);
+            if (cardElement) cardElement.classList.remove('discarding');
+        }
+    }
+
+    /* 点击删除按钮 — 两段确认模式 */
+    function bindDiscardButtons() {
+        document.querySelectorAll('.card-discard').forEach(btn => {
+            btn.removeEventListener('click', handleDiscardClick);
+            btn.addEventListener('click', handleDiscardClick);
+        });
+    }
+
+    function handleDiscardClick(e) {
+        e.stopPropagation();
+        const btn = e.currentTarget;
+        const card = btn.closest('.info-card, .partner-card, .npc-card, .skill-card, .quest-item, .inventory-item, .wx-list-item, .artifact-item, .luck-item');
+        if (!card) return;
+
+        if (card.classList.contains('discard-confirm')) {
+            /* 二次点击 → 确认删除 */
+            card.classList.remove('discard-confirm');
+            card.classList.add('discarding');
+
+            let dataPath = null;
+            if (btn.dataset.npc) dataPath = ['人物', btn.dataset.npc];
+            else if (btn.dataset.partner) dataPath = ['道侣', btn.dataset.partner];
+            else if (btn.dataset.pet) dataPath = ['灵宠', btn.dataset.pet];
+            else if (btn.dataset.skill) dataPath = ['主角', '功法', btn.dataset.skill];
+            else if (btn.dataset.quest) dataPath = ['机遇', btn.dataset.quest];
+            else if (btn.dataset.event) dataPath = ['世界', '动向', btn.dataset.event];
+            else if (btn.dataset.beauty) dataPath = ['绝色榜', btn.dataset.beauty];
+            else if (btn.dataset.item) dataPath = ['主角', '储物袋', btn.dataset.item];
+            else if (btn.dataset.artifact) dataPath = ['主角', '器物', btn.dataset.artifact];
+            else if (btn.dataset.luck) dataPath = ['主角', '气运', btn.dataset.luck];
+
+            if (dataPath) {
+                deleteStatEntry(dataPath, card);
+            }
+        } else {
+            /* 首次点击 → 确认态 */
+            card.classList.add('discard-confirm');
+            btn.textContent = '删除?';
+            setTimeout(() => {
+                card.classList.remove('discard-confirm');
+                btn.textContent = '✕';
+            }, 2000);
+        }
+    }
+
+    async function init() {
+        /* MVU架构接入 */
+        await waitGlobalInitialized('Mvu');
+
+        window.loadWxSettings();
+
+        fairyGuide.init();
+        initMap();
+
+        const fairyAvatar = document.querySelector('.fairy-avatar');
+        const modalOverlay = document.getElementById('image-modal-overlay');
+        const modalImage = document.getElementById('modal-image');
+        const closeModal = document.querySelector('.image-modal-close');
+        const factionOverlay = document.getElementById('faction-modal-overlay');
+        const closeFaction = document.querySelector('.faction-modal-close');
+        const luckOverlay = document.getElementById('luck-modal-overlay');
+        const closeLuck = document.getElementById('luck-modal-close');
+
+        /* 绑定聊天文本框自适应高度与快捷键 */
+        const replyInput = document.getElementById('wx-reply-input');
+        if (replyInput) {
+            replyInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
+            replyInput.addEventListener('keydown', function(e) {
+                if(e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    document.getElementById('wx-reply-btn').click();
+                }
+            });
+        }
+
+        /* 为所有动态生成的立绘图片绑定点击放大事件 (事件委托) */
+        document.body.addEventListener('click', function(e) {
+            if (e.target.tagName === 'IMG' && e.target.closest('.large-portrait')) {
+                const imageUrl = e.target.src || e.target.dataset.src;
+                if (imageUrl) {
+                    modalImage.src = imageUrl;
+                    modalOverlay.style.display = 'flex';
+                }
+            }
+        });
+
+        if (fairyAvatar) {
+            fairyAvatar.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                const style = window.getComputedStyle(fairyAvatar);
+                const bgImage = style.backgroundImage;
+                const imageUrl = bgImage.slice(5, -2);
+                if (imageUrl) {
+                    modalImage.src = imageUrl;
+                    modalOverlay.style.display = 'flex';
+                }
+            });
+        }
+
+                const resetImgTransform = () => {
+            imgScale = 1; imgPointX = 0; imgPointY = 0;
+            if(modalImage) modalImage.style.transform = `translate(0px, 0px) scale(1)`;
+        };
+
+        if (closeModal) closeModal.onclick = () => { modalOverlay.style.display = "none"; resetImgTransform(); };
+        if (modalOverlay) modalOverlay.onclick = e => { if (e.target === modalOverlay) { modalOverlay.style.display = "none"; resetImgTransform(); } }
+
+        /* --- 图片缩放与拖拽功能 --- */
+        let imgScale = 1;
+        let imgPointX = 0;
+        let imgPointY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+        let initialPinchDistance = null;
+
+        const updateImgTransform = () => {
+            modalImage.style.transform = `translate(${imgPointX}px, ${imgPointY}px) scale(${imgScale})`;
+        };
+
+        // 电脑端：鼠标滚轮缩放
+        modalOverlay.addEventListener('wheel', (e) => {
+            if (modalOverlay.style.display === 'none') return;
+            e.preventDefault();
+            const delta = Math.sign(e.deltaY) * -0.1;
+            imgScale = Math.min(Math.max(0.5, imgScale + delta), 5); // 限制缩放比例 0.5倍 到 5倍
+            updateImgTransform();
+        }, { passive: false });
+
+        // 电脑端：鼠标拖拽移动
+        modalImage.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            startX = e.clientX - imgPointX;
+            startY = e.clientY - imgPointY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging || modalOverlay.style.display === 'none') return;
+            imgPointX = e.clientX - startX;
+            imgPointY = e.clientY - startY;
+            updateImgTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // 手机端：双指缩放与单指拖拽
+        modalOverlay.addEventListener('touchstart', (e) => {
+            if (modalOverlay.style.display === 'none') return;
+            if (e.touches.length === 2) {
+                initialPinchDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            } else if (e.touches.length === 1 && e.target === modalImage) {
+                isDragging = true;
+                startX = e.touches[0].clientX - imgPointX;
+                startY = e.touches[0].clientY - imgPointY;
+            }
+        }, { passive: false });
+
+        modalOverlay.addEventListener('touchmove', (e) => {
+            if (modalOverlay.style.display === 'none') return;
+            e.preventDefault(); // 阻止手机浏览器默认的下拉刷新或滚动
+            if (e.touches.length === 2 && initialPinchDistance) {
+                const currentDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                const delta = currentDistance / initialPinchDistance;
+                imgScale = Math.min(Math.max(0.5, imgScale * delta), 5);
+                initialPinchDistance = currentDistance;
+                updateImgTransform();
+            } else if (e.touches.length === 1 && isDragging) {
+                imgPointX = e.touches[0].clientX - startX;
+                imgPointY = e.touches[0].clientY - startY;
+                updateImgTransform();
+            }
+        }, { passive: false });
+
+        modalOverlay.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) {
+                initialPinchDistance = null;
+            }
+            if (e.touches.length === 0) {
+                isDragging = false;
+            }
+        });
+
+        if (closeFaction) closeFaction.onclick = () => factionOverlay.style.display = "none";
+        if (factionOverlay) factionOverlay.onclick = e => { if (e.target === factionOverlay) factionOverlay.style.display = "none"; }
+        if (closeLuck) closeLuck.onclick = () => luckOverlay.style.display = "none";
+        if (luckOverlay) luckOverlay.onclick = e => { if (e.target === luckOverlay) luckOverlay.style.display = "none"; }
+
+        /* 绑定自定义提示词弹窗的背景点击关闭 */
+        const promptOverlay = document.getElementById('wx-prompt-modal');
+        if (promptOverlay) promptOverlay.onclick = e => { if (e.target === promptOverlay) promptOverlay.style.display = "none"; }
+
+        const avatarUrl = window.parent.document.querySelector('#user_avatar_image')?.src;
+        const userAvatarElement = document.querySelector('.user_avatar');
+        if (userAvatarElement && avatarUrl) {
+            userAvatarElement.style.backgroundImage = `url('${avatarUrl}')`;
+        }
+
+        const firstTab = document.querySelector('.tab-btn');
+        if (firstTab) {
+            firstTab.click();
+        }
+
+        /* 首次渲染数据 */
+        populateCharacterData();
+
+        /* 监听变量更新事件，实现自动刷新 */
+        eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, () => {
+            populateCharacterData();
+        });
+
+        /* 绑定主角信息面板点击事件 (替换掉容易报错的内联写法) */
+        $('#hero-info-btn').on('click', function(e) {
+            e.stopPropagation();
+            $('#hero-info-dropdown').toggleClass('show');
+        });
+
+        /* 全局点击关闭下拉面板事件 */
+        $(document).on('click', function(e) {
+            if (!$(e.target).closest('#hero-info-dropdown').length && !$(e.target).closest('#hero-info-btn').length) {
+                $('#hero-info-dropdown').removeClass('show');
+            }
+        });
+    }
+
+    /* 使用 errorCatched 包装入口并运行 */
+    $(errorCatched(init));
+</script>
+</body>
+</html>
+```

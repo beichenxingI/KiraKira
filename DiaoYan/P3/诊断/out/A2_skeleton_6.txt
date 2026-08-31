@@ -1,0 +1,10 @@
+##### [6] MVU状态栏 骨架 (总长 182939 字符)
+  [0] FENCE: "```html\n<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n    <styl"
+  [55] STYLE_OPEN: "<style>\n        @import url('https://fonts.googleapis.com/cs"
+  [39254] STYLE_CLOSE: "</style>\n</head>\n<body>\n<!-- disable-default-loading -->\n<di"
+  [59695] SCRIPT_OPEN: "<script type=\"module\">\n    /* 预设的人物立绘映射表 */\n    const charPo"
+  [175064] FUNC_INIT: "function init() {\n        /* MVU架构接入 */\n        await waitGl"
+  [182859] errorCatched: "errorCatched 包装入口并运行 */\n    $(errorCatched(init));\n</script>"
+  [182889] errorCatched: "errorCatched(init));\n</script>\n</body>\n</html>\n```"
+  [182910] SCRIPT_CLOSE: "</script>\n</body>\n</html>\n```"
+  [182936] FENCE: "```"

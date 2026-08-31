@@ -1,0 +1,497 @@
+```html
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026</title>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700&display=swap');
+
+        :root {
+            --bg-color: #030a16;
+            --card-bg: radial-gradient(circle at 50% 0%, rgba(20, 150, 255, 0.25), rgba(5, 10, 20, 0.85));
+            --border-color-1: #00ffff;
+            --border-color-2: #ffffff;
+            --primary-text: #f0f8ff;
+            --secondary-text: #a7d0d6;
+            --accent-color: #00ffff;
+            --highlight-color: #d500f9;
+            --header-font: 'Noto Sans SC', sans-serif;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow: hidden;
+        }
+
+        #fireworks-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .info-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 40px 30px;
+            max-width: 700px;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.4), 0 0 45px rgba(255, 255, 255, 0.2);
+            transition: transform 0.2s ease-out;
+            animation: fadeIn 1s ease-out forwards;
+            opacity: 0;
+            backdrop-filter: blur(5px);
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        .info-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 16px;
+            padding: 2px;
+            background: conic-gradient(from var(--angle), var(--border-color-1), var(--border-color-2), var(--border-color-1));
+            -webkit-mask:
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            animation: spin 5s linear infinite;
+            pointer-events: none;
+        }
+
+        @property --angle {
+          syntax: '<angle>';
+          initial-value: 0deg;
+          inherits: false;
+        }
+
+        @keyframes spin {
+          to {
+            --angle: 360deg;
+          }
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.8em;
+            color: #fff;
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-shadow: 0 0 5px var(--accent-color), 0 0 10px var(--highlight-color), 0 0 20px var(--border-color-1);
+        }
+
+        .section {
+            margin-bottom: 20px;
+            padding-left: 20px;
+            border-left: 3px solid var(--accent-color);
+            position: relative;
+        }
+
+        .section::before {
+            content: '';
+            position: absolute;
+            left: -3px;
+            top: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--accent-color);
+            box-shadow: 0 0 8px var(--accent-color);
+            opacity: 0.8;
+        }
+
+        .section h3 {
+            font-size: 1.1em;
+            color: var(--accent-color);
+            margin: 0 0 10px 0;
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+        }
+
+        .section p, .section ul {
+            margin: 0;
+            padding: 0;
+            font-size: 0.95em;
+            line-height: 1.8;
+            color: var(--secondary-text);
+        }
+
+        .section ul {
+            list-style-type: none;
+        }
+
+        .section strong {
+            color: var(--highlight-color);
+            font-weight: 700;
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 1em;
+            color: var(--primary-text);
+        }
+
+        .author {
+            margin-top: 25px;
+            text-align: right;
+            font-size: 0.9em;
+            color: var(--secondary-text);
+        }
+        .author strong {
+            color: var(--highlight-color);
+        }
+
+        .icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            filter: drop-shadow(0 0 5px var(--accent-color));
+        }
+
+        .icon-warning { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300ffff"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>'); }
+        .icon-copyright { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300ffff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1.5-12.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5c.42 0 .8-.17 1.06-.44L13 12.01c-.06.05-.12.1-.18.15l-1.35-1.35c-.32.22-.7.35-1.12.35-1.1 0-2-.9-2-2s.9-2 2-2c.42 0 .8.13 1.12.35L12.82 8l.18-.15c-.05-.06-.1-.12-.15-.18L11.5 9.01c-.26-.27-.64-.44-1.06-.44zM16 12c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2z"/></svg>'); }
+        .icon-rules { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300ffff"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg>'); }
+        .icon-update { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300ffff"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>'); }
+        .icon-feedback { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300ffff"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>'); }
+        .icon-guide { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300ffff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-1.07 1.07c-.67.67-.93 1.55-.93 2.43h-2v-.5c0-1.28.48-2.43 1.34-3.29l1.3-1.3c.4-.4.66-1.01.66-1.66 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>'); }
+
+        .journey-container {
+            margin-top: 25px;
+            text-align: center;
+            padding: 15px;
+            background: rgba(213, 0, 249, 0.08);
+            border-radius: 8px;
+            border: 1px dashed rgba(213, 0, 249, 0.4);
+            box-shadow: 0 0 15px rgba(213, 0, 249, 0.1) inset;
+        }
+
+        .journey-text {
+            font-size: 0.95em;
+            color: var(--primary-text);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .journey-link {
+            color: var(--accent-color);
+            font-weight: 700;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            text-decoration: underline;
+            text-decoration-style: dashed;
+            text-underline-offset: 4px;
+        }
+
+        .journey-link:hover {
+            color: var(--highlight-color);
+            background: rgba(0, 255, 255, 0.1);
+            text-shadow: 0 0 8px var(--highlight-color);
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .info-card {
+                padding: 25px 20px;
+            }
+            h1 {
+                font-size: 1.5em;
+            }
+            .section p, .section ul {
+                font-size: 0.9em;
+                line-height: 1.7;
+            }
+            .journey-text {
+                font-size: 0.85em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="fireworks-canvas"></canvas>
+    <div class="info-card" id="info-card">
+        <h1>欢迎体验本卡，希望为您带来沉浸式游玩感受！</h1>
+
+        <div class="section">
+            <h3><span class="icon icon-warning"></span>重要提示</h3>
+            <p>本卡搭载前端代码，使用前请确保已安装酒馆助手、提示词模板语法</p>
+        </div>
+
+        <div class="section">
+            <h3><span class="icon icon-copyright"></span>版权声明</h3>
+            <p>本卡禁止商用、二传、倒卖；原创发布于 <strong>Discord类脑社区</strong>，作者：<strong>玖神</strong></p>
+        </div>
+
+        <div class="section">
+            <h3><span class="icon icon-rules"></span>二创规则</h3>
+            <p>允许二创及发布，仅限发布在 <strong>Discord类脑社区</strong>，且需经我的授权并标注原作者及出处。</p>
+        </div>
+
+        <div class="section">
+            <h3><span class="icon icon-update"></span>更新计划</h3>
+            <p>本卡将持续迭代，<strong>下次</strong> 核心更新为 <strong>完善设定</strong>。</p>
+        </div>
+
+        <div class="section">
+            <h3><span class="icon icon-guide"></span>全局世界书说明</h3>
+            <ul>
+                <li>1. 开启仙途后，系统将自动生成一本全新世界书，书名定为<strong>《道渊开局创造人物》</strong>。</li>
+                <li>2. 该书内已包含你开局设定好的功法、气运、天定道侣等内容，可选择外挂全局(MVU不用挂)。</li>
+                <li>3. <strong>重要提示</strong>：每次开启新存档前，记得删除上一轮自动生成的该世界书。</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3><span class="icon icon-guide"></span>道渊配置小助手使用说明</h3>
+            <ul>
+                <li><strong>一、悬浮窗入口</strong><br>屏幕左侧有一个「<strong>悬浮窗</strong>」，点击展开配置面板，再次点击收起。面板可拖拽移动。</li>
+                <li><strong>二、出生地切换</strong><br>默认出生点为<strong>玄天界</strong>。需要切换到仙界时，直接在面板内点击「仙界」按钮即可自动切换。</li>
+                <li><strong>三、模块检测</strong><br>面板打开后会自动检测各模块状态：<br>· 状态栏模式（MVU / XML）(默认且推荐为MVU状态栏)<br>· 提示词模板配置<br>· MVU插件配置<br>· 世界书条目数量</li>
+                <li><strong>四、一键最优配置</strong><br>提示词模板和MVU插件各有一键最优配置按钮。点击后自动写入最优值并<strong>刷新页面</strong>（约2秒后生效）。</li>
+                <li><strong>五、异常处理</strong><br>若面板顶部显示「配置异常」，请前往帖子内询问原因。可复制面板顶部的<strong>后台配置码</strong>一并附上，便于排查。</li>
+                <li><strong>请确保上述模块全部最优且出生地无误后，再开始游戏。</strong></li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3><span class="icon icon-feedback"></span>交流与反馈</h3>
+            <p>若有优质创意、建议、问题，可前往 <strong>Discord类脑社区</strong> 对应帖子共同探讨。</p>
+        </div>
+
+        <div class="journey-container">
+            <p class="journey-text">
+                请<span class="journey-link" onclick="switchToSecondGreeting()">点击这里</span>开始您的仙途吧♡
+            </p>
+        </div>
+
+        <div class="author">
+            —— <strong>玖神</strong>
+        </div>
+
+        <div class="footer">
+            <p>感谢各位的支持，祝游玩愉快！ </p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('fireworks-canvas');
+        const ctx = canvas.getContext('2d');
+        let fireworks = [];
+        let particles = [];
+
+        function setupCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        setupCanvas();
+        window.addEventListener('resize', setupCanvas);
+
+        function Firework(sx, sy, tx, ty) {
+            this.x = sx;
+            this.y = sy;
+            this.sx = sx;
+            this.sy = sy;
+            this.tx = tx;
+            this.ty = ty;
+            this.distanceToTarget = Math.sqrt(Math.pow(tx - sx, 2) + Math.pow(ty - sy, 2));
+            this.distanceTraveled = 0;
+            this.coordinates = [];
+            this.coordinateCount = 3;
+            while(this.coordinateCount--) {
+                this.coordinates.push([this.x, this.y]);
+            }
+            this.angle = Math.atan2(ty - sy, tx - sx);
+            this.speed = 2;
+            this.acceleration = 1.05;
+            this.brightness = Math.random() * 20 + 50;
+            this.targetRadius = 1;
+        }
+
+        Firework.prototype.update = function(index) {
+            this.coordinates.pop();
+            this.coordinates.unshift([this.x, this.y]);
+            this.speed *= this.acceleration;
+            let vx = Math.cos(this.angle) * this.speed;
+            let vy = Math.sin(this.angle) * this.speed;
+            this.distanceTraveled = Math.sqrt(Math.pow(this.x - this.sx, 2) + Math.pow(this.y - this.sy, 2));
+            if(this.distanceTraveled >= this.distanceToTarget) {
+                createParticles(this.tx, this.ty);
+                fireworks.splice(index, 1);
+            } else {
+                this.x += vx;
+                this.y += vy;
+            }
+        }
+
+        Firework.prototype.draw = function() {
+            ctx.beginPath();
+            ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+            ctx.lineTo(this.x, this.y);
+            ctx.strokeStyle = `hsl(${180 + Math.random() * 60}, 100%, ${this.brightness}%)`;
+            ctx.stroke();
+        }
+
+        function Particle(x, y) {
+            this.x = x;
+            this.y = y;
+            this.coordinates = [];
+            this.coordinateCount = 5;
+            while(this.coordinateCount--) {
+                this.coordinates.push([this.x, this.y]);
+            }
+            this.angle = Math.random() * (Math.PI * 2);
+            this.speed = Math.random() * 5 + 1;
+            this.friction = 0.95;
+            this.gravity = 1;
+            this.hue = 180 + Math.random() * 60;
+            this.brightness = Math.random() * 30 + 50;
+            this.alpha = 1;
+            this.decay = Math.random() * 0.03 + 0.015;
+        }
+
+        Particle.prototype.update = function(index) {
+            this.coordinates.pop();
+            this.coordinates.unshift([this.x, this.y]);
+            this.speed *= this.friction;
+            this.x += Math.cos(this.angle) * this.speed;
+            this.y += Math.sin(this.angle) * this.speed + this.gravity;
+            this.alpha -= this.decay;
+            if(this.alpha <= this.decay) {
+                particles.splice(index, 1);
+            }
+        }
+
+        Particle.prototype.draw = function() {
+            ctx.beginPath();
+            ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+            ctx.lineTo(this.x, this.y);
+            ctx.strokeStyle = `hsla(${this.hue}, 100%, ${this.brightness}%, ${this.alpha})`;
+            ctx.stroke();
+        }
+
+        function createParticles(x, y) {
+            let particleCount = 100;
+            while(particleCount--) {
+                particles.push(new Particle(x, y));
+            }
+        }
+
+        let launchInterval = 200;
+        let lastLaunch = new Date().getTime();
+
+        function loop() {
+            requestAnimationFrame(loop);
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.globalCompositeOperation = 'lighter';
+
+            let i = fireworks.length;
+            while(i--) {
+                fireworks[i].draw();
+                fireworks[i].update(i);
+            }
+
+            let j = particles.length;
+            while(j--) {
+                particles[j].draw();
+                particles[j].update(j);
+            }
+
+            let now = new Date().getTime();
+            if(now - lastLaunch > launchInterval) {
+                fireworks.push(new Firework(canvas.width/2, canvas.height, Math.random() * canvas.width, Math.random() * canvas.height / 2));
+                lastLaunch = now;
+            }
+        }
+        loop();
+
+        const card = document.getElementById('info-card');
+        const sensitivity = 20;
+
+        card.addEventListener('mousemove', (e) => {
+            const { clientX, clientY } = e;
+            const { left, top, width, height } = card.getBoundingClientRect();
+
+            const x = clientX - left;
+            const y = clientY - top;
+
+            const rotateY = sensitivity * ((x - width / 2) / width);
+            const rotateX = -sensitivity * ((y - height / 2) / height);
+
+            card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        });
+
+        card.addEventListener('mouseleave', () => {
+            card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg)';
+        });
+
+        async function switchToSecondGreeting() {
+            if (typeof getChatMessages !== 'undefined' && typeof setChatMessage !== 'undefined') {
+                try {
+                    const msgs = await getChatMessages(0, { include_swipe: true });
+
+                    if (msgs && msgs[0] && msgs[0].swipes && msgs[0].swipes.length > 1) {
+                        const targetSwipeContent = msgs[0].swipes[1];
+
+                        setChatMessage(targetSwipeContent, 0, {
+                            swipe_id: 1,
+                            refresh: 'display_and_render_current'
+                        });
+
+                    } else {
+                        alert('当前未检测到第二个开场白。请确保你已配置了 Alternate Greetings 选项。');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('灵力流转受阻，仙途开启失败，请查看控制台报错。');
+                }
+            } else if (typeof triggerSlash !== 'undefined') {
+                triggerSlash('/send 开启仙途');
+            } else {
+                alert('当前环境如同无法吸纳灵气的虚空，未检测到任何助手指令哦~');
+            }
+        }
+    </script>
+</body>
+</html>
+```

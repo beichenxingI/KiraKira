@@ -1,0 +1,8 @@
+e.setAttribute('data-frame-id', m.id);
+          frame.setAttribute('scrolling', 'no');
+          frame.setAttribute('data-html', m.html);
+          (function(f, html, id){
+            var injected = injectBridge(html, id, (m.floor ? (m.floor - 1) : -1));
+            try {
+              var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
+              var url = URL.createObjectURL

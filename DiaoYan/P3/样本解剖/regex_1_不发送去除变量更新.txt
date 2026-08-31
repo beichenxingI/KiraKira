@@ -1,0 +1,7 @@
+// 来源: data.extensions.regex_scripts[1]
+// scriptName=[不发送]去除变量更新 disabled=False runOnEdit=True
+// placement=2 substituteRegex=0 minDepth= maxDepth= markdownOnly=False promptOnly=True
+// findRegex(原始):
+/<(update(?:variable)?)>(?:(?!.*<\/\1>)(?:(?!<\1>).)*$|(?:(?!<\1>).)*<\/\1?>)/gsi
+
+// ===== replaceString(反转义后的原文)=====

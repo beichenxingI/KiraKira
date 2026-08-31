@@ -1,0 +1,7 @@
+MSG_ID 瀹氫箟鍖?
+orIdx: sid}}
+      // 鏀跺埌鍗冲瓨; window.Mvu 鐨勫畾涔夎闂ㄦ帶鍒?棣栦唤鍚?stat_data 鐨?message 绾?MvuData 鍒拌揪"(闃插亣绌烘暟鎹?銆?      '__TH_MSG_ID=' + JSON.stringify(id) + ';' +
+      '__TH_FLOOR_IDX=' + JSON.stringify(_thFloorIdx) + ';' +
+      // [P3-E2] Mvu facade(瀵硅薄,鍑芥暟涓嶈兘璺?iframe 浼?鍗′晶鑷缓鍚屽悕 facade)銆?      // events 甯搁噺鐓?exported.mvu.d.ts / 涓婃父婧愮爜纭紪鐮? 'mag_variable_initiailized'
+      // 鐨勬嫾鍐欓敊璇槸瀹樻柟鑷甫, 涓嶈"淇"銆傚厛鏀?__TH_MVU_FACADE 鏆傚瓨,
+     

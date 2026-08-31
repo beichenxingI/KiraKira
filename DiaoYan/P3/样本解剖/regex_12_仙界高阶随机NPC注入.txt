@@ -1,0 +1,8 @@
+// 来源: data.extensions.regex_scripts[12]
+// scriptName=仙界高阶随机NPC注入 disabled=True runOnEdit=True
+// placement=5 substituteRegex=0 minDepth= maxDepth= markdownOnly=False promptOnly=True
+// findRegex(原始):
+\[RANDOM_FAIRY_HIGH\]
+
+// ===== replaceString(反转义后的原文)=====
+{{random::玖柒::南可熙::李未晞::舞弦琴::慕欣心::楚星绾::顾长枫::林若悠::苏绾影::凌阮阮::叶倾心::汐怡::顾幽梵::霖仙怡::白玖璃::青木璇::慕容无尘::慕容初袖::慕容落羽::钰仙儿::青渝::齐天麟::风梧音::凌天辰::凌紫嫣}}

@@ -1,0 +1,6 @@
+鍥存爮瀵规暟: 2
+seg[0] start=4 end=182943 鍐呭闀?182928 鍚獶OCTYPE: true  鍚?script: true
+seg[1] start=182944 end=390079 鍐呭闀?207124 鍚獶OCTYPE: true  鍚?script: true
+鍥存爮澶栫鐗囨暟: 2
+frag[0] len=4 : "鏃佺櫧銆俓n"
+frag[1] len=1 : "\n"

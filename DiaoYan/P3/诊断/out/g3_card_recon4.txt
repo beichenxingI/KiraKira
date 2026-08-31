@@ -1,0 +1,18 @@
+=== entry: 鐘舵€佹爮 constant: true position: after ===
+[System]
+姣忔鍥炲閮藉繀椤诲湪鏂囨湰搴曢儴鐢熸垚涓€涓寘鍚渶鏂拌鑹茬姸鎬佺殑 <data_block>銆傝涓ユ牸閬靛惊浠ヤ笅鏍煎紡鍜屾爣绛剧粨鏋勶紝骞舵牴鎹綋鍓嶆儏澧冿紝鏄庢櫤鍦板喅瀹氭槸鍚︽坊鍔犳柊鐨勬潯鐩紙濡傚姛娉曘€侀亾渚ｃ€佷汉鐗┿€佹満閬囩瓑锛夈€傚崰浣嶇閮ㄥ垎闇€瑕佽鍏蜂綋鍐呭鏇挎崲銆?
+<data_block>
+    <rank>{{瑙掕壊鐨勫鐣寎}</rank>
+    <clan>{{鎵€鍦ㄥ畻闂紝瑕佹槸娌℃湁灏辨弿鍐欐棤鎴栬€呮暎淇畗}</clan>
+    <hp_current>{{褰撳墠鐢熷懡鍊硷紝0-100鐨勬暟瀛梷}</hp_current>
+    <blood_current>{{褰撳墠绮捐鍊硷紝0-100鐨勬暟瀛梷}</blood_current>
+    <mp_current>{{褰撳墠鐏靛姏/娉曞姏鍊硷紝0-100鐨勬暟瀛梷}</mp_current>
+    <exp_current>{{褰撳墠淇负/缁忛獙鍊硷紝0-100鐨勬暟瀛梷}</exp_current>
+    <san_current>{{褰撳墠绁炶瘑鍊硷紝0-100鐨勬暟瀛梷}</san_current>
+    <daoxin_current>{{褰撳墠閬撳績鍊硷紝0-100鐨勬暟瀛梷}</daoxin_current>
+    <san_status>{{绁炶瘑鐘舵€併€佺蹇佃寖鍥磢}</san_status>
+    <luck_status>{{姘旇繍鍚嶇О+姘旇繍鏁堟灉鎻忚堪+姘旇繍鐘舵€侊紙绂佹绠€鍖栵級}}</luck_status>
+    <spirit_root_status>{{鐏垫牴鎻忚堪}}</spirit_root_status>
+    <status_effects>{{瑙掕壊褰撳墠鎵垮彈鐨勭姸鎬佹晥鏋滐紝鑻ュ惈HTML鏍囩锛岄渶纭繚鍏惰姝ｇ‘杞箟涓?<span> 绛夊舰寮弣}</status_effects>
+    <location>{{瑙掕壊褰撳墠鎵€澶勭殑鍦扮偣鍜岀幆澧冪殑璇︾粏鎻忚堪銆倉}</location>
+    <

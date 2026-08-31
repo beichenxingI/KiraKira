@@ -2879,10 +2879,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     rawContent = rawContent
         .replaceAll(RegExp(r'<image>[\s\S]*?</image>', caseSensitive: false), '')
         .trim();
+    // [H1] afterRegexPrePeel = 2882 codeBlockMatch 剥壳之前的真实正则产物长度。
+    // 旧 [WV-2] 的 afterRegex 打的是剥壳之后的值(afterRegex==afterUnwrap 恒成立)，等于没有观测。
+    final afterRegexPrePeel = rawContent.length;
     final codeBlockMatch = RegExp(
       r'^```[a-zA-Z]*\n([\s\S]*?)```\s*$',
       multiLine: false,
     ).firstMatch(rawContent.trim());
+    final codeBlockHit = codeBlockMatch != null;
     if (codeBlockMatch != null) {
       rawContent = codeBlockMatch.group(1) ?? rawContent;
     }
@@ -2978,12 +2982,45 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final wvScript = RegExp(r'<script', caseSensitive: false).hasMatch(m.content);
     final wvStyle = RegExp(r'<style', caseSensitive: false).hasMatch(m.content);
     final wvHtmlTag = RegExp(r'<[a-zA-Z]', caseSensitive: false).hasMatch(m.content);
+    // [H1] docCount: <!DOCTYPE|<html 出现次数(裸文档,无围栏)
+    final docCount = RegExp(r'<!DOCTYPE|<html', caseSensitive: false)
+        .allMatches(processed)
+        .length;
     print('[WV-1] id=${m.id} role=${m.role.name} len=${m.content.length} '
         'script=$wvScript style=$wvStyle htmlTag=$wvHtmlTag '
-        'fence=${htmlFenceMatch != null} rich=$looksLikeHtml');
-    // [WV-2] 各步骤长度轨迹(raw→regex→fenceUnwrap→split→render),定位转义/吞内容步
-    print('[WV-2] id=${m.id} raw=${m.content.length} afterRegex=${rawContent.length} '
+        'fence=${htmlFenceMatch != null} fenceCount=${htmlFenceMatches.length} '
+        'docCount=$docCount unwrapped=$codeBlockHit rich=$looksLikeHtml');
+    // [WV-2] 各步骤长度轨迹(raw→regex→fenceUnwrap→split→render),定位转义/吞内容步。
+    // afterRegex 改打剥壳(<codeBlockMatch>)之前的真实正则产物长度,否则与 afterUnwrap 恒等。
+    print('[WV-2] id=${m.id} raw=${m.content.length} afterRegex=${afterRegexPrePeel} '
         'afterUnwrap=${processed.length} body=${bodyForRender.length} rendered=${rendered.length}');
+    // [WV-3] segs 产出审计：产没产、几段、每段 type+长度；null 时给原因(禁止静默)。
+    if (segs != null) {
+      final segDetail = segs
+          .map((s) => '${s['type']}:${(s['html'] as String?)?.length ?? 0}')
+          .join(',');
+      print('[WV-3] id=${m.id} segs=${segs.length} [$segDetail]');
+    } else {
+      final reason = htmlFenceMatches.isEmpty
+          ? 'no-html-fence(全消息无```html围栏)'
+          : 'fenceCount<=1(单前端,走旧 prose/html 字段)';
+      print('[WV-3] id=${m.id} segs=null reason=$reason');
+    }
+    // [WV-4] 丢弃审计:真实被丢内容。铁律5落地——没它发现不了下一次静默丢弃。
+    // - segs 模式:构造上逐字符覆盖 processed,丢 0(回归守卫)。
+    // - 无 segs + 单围栏路径:围栏尾段(以及围栏标记)被静默丢弃 → droppedRaw=尾段长度+围栏标记开销。
+    // - 无 segs + docStart 路径:bodyForRender 切到消息末尾,无丢弃。
+    int droppedRaw = 0;
+    if (segs != null) {
+      droppedRaw = 0;
+    } else if (htmlFenceMatch != null) {
+      final fenceBodyLen = (htmlFenceMatch.group(1) ?? '').length;
+      droppedRaw = processed.length - fenceBodyLen - htmlFenceMatch.start;
+    }
+    final warnTag = droppedRaw > 500 ? ' <== WARN: 疑似静默丢弃!' : '';
+    print('[WV-4] id=${m.id} processed=${processed.length} '
+        'droppedRaw=$droppedRaw (${segs != null ? 'segs模式=0' : 'no-segs单围栏路径'})'
+        '$warnTag');
     return {
       'id': m.id,
       'role': m.role.name,

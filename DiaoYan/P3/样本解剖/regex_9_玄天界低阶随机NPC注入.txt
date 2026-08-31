@@ -1,0 +1,8 @@
+// 来源: data.extensions.regex_scripts[9]
+// scriptName=玄天界低阶随机NPC注入 disabled=False runOnEdit=True
+// placement=5 substituteRegex=0 minDepth= maxDepth= markdownOnly=False promptOnly=True
+// findRegex(原始):
+\[RANDOM_NPC\]
+
+// ===== replaceString(反转义后的原文)=====
+{{random::灵玥::温月清::温小暖::慕清弦::苏灿灿::苏辰::龙傲飞::萧婉儿::苏媚::韩立::南宫婉::银月::白小纯::侯小妹::宋文::古月方源::石昊::商心慈::王林::红蝶::宫银叶::红莲::公孙清::辟易川::长孙镜华::晏青::欧阳灵::柳舞蝶::海伊::小翠::代安池::苏慕渊::燕重微::李溯::百铃::姬觅弥::林素铃::李铭::魏喑::唐弎::苏清漪::萧衍}}

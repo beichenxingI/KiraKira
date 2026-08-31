@@ -1,0 +1,7 @@
+// 来源: data.extensions.regex_scripts[3]
+// scriptName=不输出思考 disabled=False runOnEdit=True
+// placement=2 substituteRegex=0 minDepth= maxDepth= markdownOnly=True promptOnly=True
+// findRegex(原始):
+(<logic_check>[\s\S]*?<\/logic_check>)
+
+// ===== replaceString(反转义后的原文)=====
