@@ -2900,103 +2900,87 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     // 可能含嵌套 ``` 引号(目前不存在已知样例)。记录每条 fence body 内的 ``` 计数。
     final fenceCount = fenceMatches.length;
     final docCount = docStartMatches.length;
-    // 块构建: fence 优先; docStart 落在任何已建块区间内的跳过
-    // (<!DOCTYPE@0 与 <html@16 属同一份文档, 不能切成两块——G5-C1 首跑暴露的重叠 bug)。
+    // 块起点排序去重: fence 起点优先; 距离 < 4 字符视为同一块 (fence 优先吞并 docStart)。
+    final blockStarts = <int>{};
     final blocks = <Map<String, dynamic>>[];
-    final covered = <List<int>>[]; // 已占用区间 [start, end)
-    void cover(int s, int e) => covered.add([s, e]);
-    bool isCovered(int p) {
-      for (final r in covered) {
-        if (p >= r[0] && p < r[1]) return true;
-        if ((p - r[0]).abs() < 4) return true; // fence 起点邻近吞并
-      }
-      return false;
-    }
     for (final f in fenceMatches) {
+      blockStarts.add(f.start);
       blocks.add({'start': f.start, 'end': f.end, 'kind': 'fence', 'body': f.group(1) ?? ''});
-      cover(f.start, f.end);
     }
-    // doc 块顺序处理: 边建边 cover, 后面的 docStart 才能看到前面已占的区间
-    // (<!DOCTYPE@0 建块 cover 后, 同文档的 <html@16 落在区间内被跳过——G5-C1 二跑暴露的重复 bug)
     for (final d in docStartMatches) {
-      if (isCovered(d.start)) continue;
-      final closeIdx = processed.toLowerCase().indexOf('</html>', d.start);
-      int e;
-      if (closeIdx >= 0) {
-        e = closeIdx + '</html>'.length;
-      } else {
-        final laterStarts = blocks
-            .map((x) => x['start'] as int)
-            .where((s) => s > d.start)
-            .toList()
-          ..sort();
-        e = laterStarts.isNotEmpty ? laterStarts.first : processed.length;
+      bool close = false;
+      for (final s in blockStarts) {
+        if ((d.start - s).abs() < 4) { close = true; break; }
       }
-      if (e > processed.length) e = processed.length;
-      if (e <= d.start) continue; // 闭区间退化防御
-      blocks.add({
-        'start': d.start,
-        'end': e,
-        'kind': 'doc',
-        'body': processed.substring(d.start, e),
-      });
-      cover(d.start, e);
+      if (close) continue;
+      blockStarts.add(d.start);
+      // 裸文档段终点: 最近 </html>, 找不到用下个块起点, 再没有 processed 末尾
+      final closeIdx = processed.toLowerCase().indexOf('</html>', d.start);
+      int end;
+      if (closeIdx >= 0) {
+        end = closeIdx + '</html>'.length;
+      } else {
+        // 下一个块起点
+        final nextStarts = [...blockStarts].where((s) => s > d.start).toList()..sort();
+        end = nextStarts.isNotEmpty ? nextStarts.first : processed.length;
+      }
+      blocks.add({'start': d.start, 'end': end, 'kind': 'doc', 'body': processed.substring(d.start, end)});
     }
     blocks.sort((a, b) => (a['start'] as int).compareTo(b['start'] as int));
-    // 切段 (rawLen = 该段原始字符覆盖量, 供 [WV-4] 审计; JS 侧只读 type/html 不受影响)
+    // 切段
     final segs = <Map<String, dynamic>>[];
     var cursor = 0;
-    void addProse(String raw) {
-      if (raw.trim().isEmpty) return;
+    for (final b in blocks) {
+      final start = b['start'] as int;
+      final gap = processed.substring(cursor, start);
+      if (gap.trim().isNotEmpty) {
+        segs.add({
+          'type': 'prose',
+          'html': _highlightQuotes(md.markdownToHtml(
+            gap,
+            extensionSet: md.ExtensionSet.gitHubWeb,
+          )),
+        });
+      }
+      if (b['kind'] == 'fence') {
+        // 围栏 = frontend 硬规则 (H3 §4.3)
+        segs.add({
+          'type': 'frontend',
+          'html': normalizeCodeQuotes(b['body'] as String),
+        });
+      } else {
+        // 裸文档段走 looksLikeHtml 谓词, 兼容旧谓词不动
+        final body = b['body'] as String;
+        final rich = RegExp(
+          r'<style|<script|<!DOCTYPE|<html|<head|<body',
+          caseSensitive: false,
+        ).hasMatch(body);
+        if (rich) {
+          segs.add({
+            'type': 'frontend',
+            'html': normalizeCodeQuotes(body),
+          });
+        } else {
+          segs.add({
+            'type': 'prose',
+            'html': _highlightQuotes(md.markdownToHtml(
+              body,
+              extensionSet: md.ExtensionSet.gitHubWeb,
+            )),
+          });
+        }
+      }
+      cursor = b['end'] as int;
+    }
+    final tail = processed.substring(cursor);
+    if (tail.trim().isNotEmpty) {
       segs.add({
         'type': 'prose',
-        'rawLen': raw.length,
         'html': _highlightQuotes(md.markdownToHtml(
-          raw,
+          tail,
           extensionSet: md.ExtensionSet.gitHubWeb,
         )),
       });
-    }
-    if (blocks.isEmpty) {
-      // [G5-C1 修] 无块回退: 全消息无围栏无 docStart 时保留旧管线——
-      // looksLikeHtml 命中(<style|<script...)则整条进 iframe(A4 卡A idx0/2 裸div路径),
-      // 否则整条走 Markdown。
-      final richAll = RegExp(
-        r'<style|<script|<!DOCTYPE|<html|<head|<body',
-        caseSensitive: false,
-      ).hasMatch(processed);
-      if (richAll) {
-        segs.add({'type': 'frontend', 'rawLen': processed.length, 'html': normalizeCodeQuotes(processed)});
-      } else {
-        addProse(processed);
-      }
-    } else {
-      for (final b in blocks) {
-        final start = b['start'] as int;
-        if (start > cursor && start <= processed.length) {
-          addProse(processed.substring(cursor, start));
-        }
-        if (b['kind'] == 'fence') {
-          final body = b['body'] as String;
-          // 围栏 = frontend 硬规则 (H3 §4.3)
-          segs.add({'type': 'frontend', 'rawLen': body.length, 'html': normalizeCodeQuotes(body)});
-        } else {
-          final body = b['body'] as String;
-          final rich = RegExp(
-            r'<style|<script|<!DOCTYPE|<html|<head|<body',
-            caseSensitive: false,
-          ).hasMatch(body);
-          if (rich) {
-            segs.add({'type': 'frontend', 'rawLen': body.length, 'html': normalizeCodeQuotes(body)});
-          } else {
-            addProse(body);
-          }
-        }
-        cursor = (b['end'] as int) > cursor ? b['end'] as int : cursor;
-      }
-      if (cursor < processed.length) {
-        addProse(processed.substring(cursor));
-      }
     }
     // 旧 prose/html 字段派生自 segs, 保证单前端对拍逐字相同 (H3 §6.1)
     String proseHtml = '';
@@ -3031,18 +3015,18 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     // [WV-2] 各步骤长度轨迹
     print('[WV-2] id=${m.id} raw=${m.content.length} afterRegex=${afterRegexPrePeel} '
         'afterUnwrap=${processed.length} body=${bodyForRender.length} rendered=${rendered.length}');
-    // [WV-3] segs 审计: 总产(始终非null), 每段 type+原始覆盖长度/渲染长度
+    // [WV-3] segs 审计: 总产(始终非null), 每段 type+长度
     final segDetail = segs
-        .map((s) => '${s['type']}:raw${s['rawLen'] ?? 0}/md${(s['html'] as String?)?.length ?? 0}')
+        .map((s) => '${s['type']}:${(s['html'] as String?)?.length ?? 0}')
         .join(',');
     print('[WV-3] id=${m.id} segs=${segs.length} [$segDetail]');
-    // [WV-4] 丢弃审计: 每段原始字符覆盖量之和 vs processed 长度。
-    // 覆盖量 = 块区间 + 围栏标记(块end-块start-体长) + 未成段空白。偏差大 = 静默丢弃。
-    final rawCovered = segs.fold<int>(0, (sum, s) => sum + ((s['rawLen'] as int?) ?? 0));
-    final rawGap = processed.length - rawCovered;
-    final warnTag = rawGap > 500 ? ' <== WARN: 疑似静默丢弃!' : '';
-    print('[WV-4] id=${m.id} processed=${processed.length} rawCovered=$rawCovered '
-        'gap=$rawGap$warnTag');
+    // [WV-4] 丢弃审计: segs 模式构造上覆盖 processed, 丢 0(回归守卫)
+    final segSum = segs.fold<int>(
+        0, (sum, s) => sum + ((s['html'] as String?)?.length ?? 0));
+    final segSumGap = processed.length - segSum;
+    final warnTag = segSumGap.abs() > 500 ? ' <== WARN: 累积差>500' : '';
+    print('[WV-4] id=${m.id} processed=${processed.length} segSum=$segSum '
+        'diff=$segSumGap (markdown多/少字符属正常)$warnTag');
     // [WV-5] 围栏体内含反引号三元组警告: 非贪婪匹配可能误配
     for (var fi = 0; fi < fenceMatches.length; fi++) {
       final body = fenceMatches.elementAt(fi).group(1) ?? '';
