@@ -1465,6 +1465,8 @@ function injectBridge(html, id, floorIdx) {
               wrap.appendChild(segProse);
             }
           }
+          // [P3-K1] hasSegs 分支补挂载 wrap：建完不挂,所有 seg frame/prose 游离(t3 实测 cardIframes=0)
+          group.appendChild(wrap);
         } else if (isRichHtml(m.html)) {
           var frame = document.createElement('iframe');
           frame.className = 'card-frame';
@@ -1473,6 +1475,7 @@ function injectBridge(html, id, floorIdx) {
           frame.style.background = 'rgba(255,255,255,0.06)';
           frame.style.borderRadius = '18px';
           frame.setAttribute('data-frame-id', m.id);
+          frame.setAttribute('data-floor', m.floor || 0);
           frame.setAttribute('scrolling', 'no');
           frame.setAttribute('data-html', m.html);
           (function(f, html, id){
@@ -1490,6 +1493,8 @@ function injectBridge(html, id, floorIdx) {
             }
           })(frame, m.html, m.id);
           group.appendChild(frame);
+          // [P3-K1] isRichHtml 分支补挂载 wrap：reasoning 塞在 wrap 里，不挂出来 reasoning 必丢(t4 实测)
+          if (wrap.children.length > 0) group.appendChild(wrap);
         } else {
           var c = document.createElement('div');
           c.innerHTML = (m.html && m.html.trim() !== '')

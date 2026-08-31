@@ -2886,10 +2886,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       r'^```[a-zA-Z]*\n([\s\S]*?)```\s*$',
       multiLine: false,
     ).firstMatch(rawContent.trim());
-    final codeBlockHit = codeBlockMatch != null;
-    if (codeBlockMatch != null) {
+    // [P3-K1-3] 剥壳收窄:仅当全消息 ```html 围栏数 ≤1 时才剥。
+    // 多围栏消息剥壳会破坏 segs 配对(P3-H §2 实测);单围栏消息剥与不剥,
+    // 下游 htmlFenceMatch/docStart 两条路径结果一致,保持兼容。
+    final fenceCountPrePeel = RegExp(r'```html\s*\n', caseSensitive: false)
+        .allMatches(rawContent)
+        .length;
+    if (codeBlockMatch != null && fenceCountPrePeel <= 1) {
       rawContent = codeBlockMatch.group(1) ?? rawContent;
     }
+    final codeBlockPeeled = codeBlockMatch != null && fenceCountPrePeel <= 1;
     final processed = rawContent;
     // 若消息是"旁白文字 + 完整 HTML 文档"的混合体，以文档起点(<!DOCTYPE/<html)为界切开：
     // 旁白走 markdown 气泡，文档单独进 iframe，避免旁白被拖进 iframe 与卡片抢 flex 空间(挤成窄条)。
@@ -2989,7 +2995,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     print('[WV-1] id=${m.id} role=${m.role.name} len=${m.content.length} '
         'script=$wvScript style=$wvStyle htmlTag=$wvHtmlTag '
         'fence=${htmlFenceMatch != null} fenceCount=${htmlFenceMatches.length} '
-        'docCount=$docCount unwrapped=$codeBlockHit rich=$looksLikeHtml');
+        'docCount=$docCount peeled=$codeBlockPeeled rich=$looksLikeHtml');
     // [WV-2] 各步骤长度轨迹(raw→regex→fenceUnwrap→split→render),定位转义/吞内容步。
     // afterRegex 改打剥壳(<codeBlockMatch>)之前的真实正则产物长度,否则与 afterUnwrap 恒等。
     print('[WV-2] id=${m.id} raw=${m.content.length} afterRegex=${afterRegexPrePeel} '
