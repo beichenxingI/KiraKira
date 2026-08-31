@@ -665,13 +665,9 @@ function injectBridge(html, id, floorIdx) {
       '_TH.triggerSlash=function(cmd){return __thCall("triggerSlash",[cmd]);};' +
       '_TH.setInput=function(t){return __thCall("setInput",[t]);};' +
       // [P3-C/T3] __lastMsgId 用 injectBridge 第二参(该 iframe 所属消息的真实 id,见 setMessages 建 frame 处 m.id),不再恒 0
-      // [P3-G/G5-C2] 官方 iframe/util.d.ts: getCurrentMessageId() 返回 number(楼层), getIframeName() 返回 'TH-message--楼层--序号'
-      //   卡里拼 /cut ${getCurrentMessageId()} 必须拿到数字楼层才能正确路由; 字符串 id 由 __kiraMsgFloorMap 映射回数字
       '_TH.__lastMsgId=' + JSON.stringify(id) + ';' +
-      // floorIdx (injectBridge 第三参)= 本 iframe 所属消息的数字楼层(0 起, = floor-1)。用它当 getCurrentMessageId 的返回值。
-      '_TH.getCurrentMessageId=function(){return (' + JSON.stringify(floorIdx) + '>=0)?' + JSON.stringify(floorIdx) + ':_TH.__lastMsgId;};' +
-      // getIframeName 仍返回官方形状: 'TH-message--<floor>--<index>'
-      '_TH.getIframeName=function(){return ' + JSON.stringify(id) + ';};' +
+      '_TH.getCurrentMessageId=function(){return _TH.__lastMsgId;};' +
+      '_TH.getIframeName=function(){return _TH.__lastMsgId;};' +
       'window.getIframeName=_TH.getIframeName;' +
       // [P3-E3] getVariables/getAllVariables 改走本地同步快照(在下方 __thVars 段重定义),
       // 此处先移除原 __thCall 异步版, 防卡同步读拿到 Promise。
@@ -1447,22 +1443,17 @@ function injectBridge(html, id, floorIdx) {
               segFrame.setAttribute('scrolling', 'no');
               segFrame.setAttribute('data-html', segHtml);
               (function(f, html, id, floor){
+                var injected = injectBridge(html, id, floor > 0 ? floor - 1 : -1);
                 try {
-                  var injected = injectBridge(html, id, floor > 0 ? floor - 1 : -1);
-                  try {
-                    var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
-                    var url = URL.createObjectURL(blob);
-                    f.src = url;
-                    f.addEventListener('load', function onLoad(){
-                      f.removeEventListener('load', onLoad);
-                      URL.revokeObjectURL(url);
-                    });
-                  } catch(e) {
-                    f.srcdoc = injected;
-                  }
+                  var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
+                  var url = URL.createObjectURL(blob);
+                  f.src = url;
+                  f.addEventListener('load', function onLoad(){
+                    f.removeEventListener('load', onLoad);
+                    URL.revokeObjectURL(url);
+                  });
                 } catch(e) {
-                  try { sendToFlutter('log', { text: '[WV-9-FRAME-ERR] id=' + id + ' err=' + e }); } catch(_){}
-                  f.srcdoc = '<html><body style="background:rgba(255,0,0,0.1);padding:12px;color:red"><p>前端渲染失败</p></body></html>';
+                  f.srcdoc = injected;
                 }
               })(segFrame, segHtml, segId, m.floor || 0);
               wrap.appendChild(segFrame);
@@ -1485,22 +1476,17 @@ function injectBridge(html, id, floorIdx) {
           frame.setAttribute('scrolling', 'no');
           frame.setAttribute('data-html', m.html);
           (function(f, html, id){
+            var injected = injectBridge(html, id, (m.floor ? (m.floor - 1) : -1));
             try {
-              var injected = injectBridge(html, id, (m.floor ? (m.floor - 1) : -1));
-              try {
-                var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
-                var url = URL.createObjectURL(blob);
-                f.src = url;
-                f.addEventListener('load', function onLoad(){
-                  f.removeEventListener('load', onLoad);
-                  URL.revokeObjectURL(url);
-                });
-              } catch(e) {
-                f.srcdoc = injected;
-              }
+              var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
+              var url = URL.createObjectURL(blob);
+              f.src = url;
+              f.addEventListener('load', function onLoad(){
+                f.removeEventListener('load', onLoad);
+                URL.revokeObjectURL(url);
+              });
             } catch(e) {
-              try { sendToFlutter('log', { text: '[WV-9-FRAME-ERR] id=' + id + ' err=' + e }); } catch(_){}
-              f.srcdoc = '<html><body style="background:rgba(255,0,0,0.1);padding:12px;color:red"><p>前端渲染失败</p></body></html>';
+              f.srcdoc = injected;
             }
           })(frame, m.html, m.id);
           group.appendChild(frame);
