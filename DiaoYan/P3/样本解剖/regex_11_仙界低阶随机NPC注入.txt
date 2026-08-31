@@ -1,8 +1,0 @@
-// 来源: data.extensions.regex_scripts[11]
-// scriptName=仙界低阶随机NPC注入 disabled=True runOnEdit=True
-// placement=5 substituteRegex=0 minDepth= maxDepth= markdownOnly=False promptOnly=True
-// findRegex(原始):
-\[RANDOM_FAIRY_LOW\]
-
-// ===== replaceString(反转义后的原文)=====
-{{random::柳依依::上官玥::苏清禾::云糯糯::萧玉寒::桃夭夭::苏珞刹::冥霜儿::楚玉璃::璃杏::杜月菲::萌梦::秦汐雅::叶婷}}

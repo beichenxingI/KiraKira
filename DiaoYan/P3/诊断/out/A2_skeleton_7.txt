@@ -1,7 +1,0 @@
-##### [7] 开局创造人物2 骨架 (总长 207135 字符)
-  [0] FENCE: "```html\n<!DOCTYPE html>\n<html>\n<head>\n<title>道渊</title>\n<met"
-  [127] STYLE_OPEN: "<style>\n    @import url('https://fonts.googleapis.com/css2?f"
-  [29822] STYLE_CLOSE: "</style>\n</head>\n<body>\n    <!-- 新增音乐播放器及开关 -->\n    <audio i"
-  [43039] SCRIPT_OPEN: "<script>\n        document.addEventListener('DOMContentLoaded"
-  [201388] SCRIPT_CLOSE: "</script>\n\n    <!-- 告道渊同胞书弹窗（简单模式 → 自选气运） -->\n    <div id=\"d"
-  [207132] FENCE: "```"

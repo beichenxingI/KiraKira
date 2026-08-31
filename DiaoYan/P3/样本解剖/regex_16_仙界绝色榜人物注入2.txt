@@ -1,8 +1,0 @@
-// 来源: data.extensions.regex_scripts[16]
-// scriptName=仙界绝色榜人物注入2 disabled=True runOnEdit=True
-// placement=5 substituteRegex=0 minDepth= maxDepth= markdownOnly=False promptOnly=True
-// findRegex(原始):
-\[RANDOM_XIAN\]
-
-// ===== replaceString(反转义后的原文)=====
-{{random:玖柒,南可熙,李未晞,舞弦琴,慕欣心,楚星绾,上官玥,柳依依,林若悠,萧玉寒,苏清禾,云糯糯,苏绾影,凌阮阮,叶倾心,汐怡,桃夭夭,苏珞刹,霖仙怡,冥霜儿,楚玉璃,白玖璃,青木璇,璃杏,杜月菲,慕容初袖,慕容落羽,萌梦,钰仙儿,青渝,风梧音,秦汐雅,凌紫嫣,叶婷}}

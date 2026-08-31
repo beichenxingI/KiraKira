@@ -1,2 +1,0 @@
-旁白前。<StatusPlaceHolderImpl/>
-这段文字在围栏之后出现。

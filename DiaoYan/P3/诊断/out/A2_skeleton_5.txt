@@ -1,7 +1,0 @@
-##### [5] XML状态栏 骨架 (总长 88416 字符)
-  [0] FENCE: "```html\n<html>\n<head>\n    <style>\n        @import url('https"
-  [26] STYLE_OPEN: "<style>\n        @import url('https://fonts.googleapis.com/cs"
-  [26112] STYLE_CLOSE: "</style>\n</head>\n<body>\n<!-- disable-default-loading -->\n<te"
-  [34487] SCRIPT_OPEN: "<script>\n    let globalXmlData = null;\n\n    const fairyImage"
-  [88387] SCRIPT_CLOSE: "</script>\n</body>\n</html>\n```"
-  [88413] FENCE: "```"
