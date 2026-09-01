@@ -190,8 +190,8 @@ String buildTavernHelperFacadeJs({
       '_TH.getAllVariables=function(){return __thCall("getAllVariables",[]);};'
       '_TH.getTavernHelperVersion=function(){return "4.9.1";};'
       // MVU 启动依赖:唯一脚本机制(假对象)
-      '_TH.getScriptId=function(){parent.postMessage({__thLog:true,text:"[身份] getScriptId被调"},"*");return "kirakira-mvu-0";};'
-      'window.getScriptId=_TH.getScriptId;'
+        '_TH.__gsidN=0;'
+        '_TH.getScriptId=function(){_TH.__gsidN++;if(_TH.__gsidN<=3||_TH.__gsidN%100===0){parent.postMessage({__thLog:true,text:"[身份] getScriptId被调 #"+_TH.__gsidN},"*");}return "kirakira-mvu-0";};'      'window.getScriptId=_TH.getScriptId;'
       '_TH.registerAsUniqueScript=function(id){'
       'parent.postMessage({__thLog:true,text:"[身份] registerAsUniqueScript被调 id="+id},"*");'
       'return {listenPreferenceState:function(cb){parent.postMessage({__thLog:true,text:"[身份] listenPreferenceState注册,即将回调"},"*");try{cb("kirakira-mvu-0");}catch(e){parent.postMessage({__thLog:true,text:"[身份] cb异常"+e},"*");}return {stop:function(){}};}};};'
