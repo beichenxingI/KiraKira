@@ -1789,6 +1789,18 @@ function injectBridge(html, id, floorIdx) {
       parent.postMessage({__thLog:true, text:'[clearGenerating] 失败: ' + e}, '*');
     }
   });
+  window.__kiraTimerCount=0;
+  (function(){
+    var si=window.setInterval, ci=window.clearInterval, active={};
+    window.setInterval=function(){var id=si.apply(this,arguments);active[id]=true;window.__kiraTimerCount++;return id;};
+    window.clearInterval=function(id){if(active[id]){delete active[id];window.__kiraTimerCount=Math.max(0,window.__kiraTimerCount-1);}return ci.call(this,id);};
+  })();
+  function cleanupFrame(frame){
+    if(!frame||!frame.contentWindow)return;
+    try{var win=frame.contentWindow;for(var i=1;i<=10000;i++){win.clearInterval(i);win.clearTimeout(i);}win.removeEventListener&&win.removeEventListener('beforeunload',cleanupFrame);}catch(e){console.log('[清理] iframe内容清理失败');}
+  }
+  window.addEventListener('beforeunload',function(){document.querySelectorAll('iframe').forEach(cleanupFrame);});
+
   function createPresetScriptsRoom() {
     try {
       var host = document.getElementById('__presetScriptsRoomHost');
@@ -1836,15 +1848,24 @@ function injectBridge(html, id, floorIdx) {
         try {
           var _es = (W.SillyTavern && W.SillyTavern.extensionSettings) || null;
           var _ms = _es && _es.mvu_settings;
-          sendScriptLog('[探针T] ' + JSON.stringify({
-            st: typeof W.SillyTavern,
-            esKeys: _es ? Object.keys(_es) : null,
-            mvu: !!_ms,
-            notif: _ms ? _ms['通知'] : null,
-            upd: _ms ? _ms['更新方式'] : null,
-            ejs: !!(_es && _es.EjsTemplate),
-            th: ['getWorldbookNames','getWorldbook','replaceWorldbook','getTavernRegexes','updateTavernRegexesWith','getScriptTrees','updateScriptTreesWith'].map(function(k){ return k + '=' + (typeof (W.TavernHelper||{})[k])[0]; }).join(','),
-          }));
+           sendScriptLog('[最终探针] ' + JSON.stringify({
+             timestamp: Date.now(),
+             scope: W === window ? 'main-doc' : 'engine-room',
+             mvuSettings: !!(_es && _es.mvu_settings),
+             ejsTemplate: !!(_es && _es.EjsTemplate),
+             tavernHelper: {
+               object: typeof W.TavernHelper,
+               getWorldbookNames: typeof (W.TavernHelper && W.TavernHelper.getWorldbookNames),
+               getWorldbook: typeof (W.TavernHelper && W.TavernHelper.getWorldbook),
+               replaceWorldbook: typeof (W.TavernHelper && W.TavernHelper.replaceWorldbook)
+             },
+             mvu: typeof W.Mvu,
+             timers: window.__kiraTimerCount || 0,
+             performance: {
+               heap: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1024 / 1024) : 'unknown',
+               frames: document.querySelectorAll('iframe').length
+             }
+           }, null, 2));
         } catch (e) { sendScriptLog('[探针T] 失败: ' + e.message); }
         return;
       }
@@ -2008,8 +2029,17 @@ function injectBridge(html, id, floorIdx) {
       } catch(e) {
         frame.srcdoc = doc;
       }
-      host.appendChild(frame);
-      parent.postMessage({__thLog:true,text:'[引擎房] iframe 已创建'},'*');
+       host.appendChild(frame);
+       function ensureTavernHelperInFrame(){
+         var engineFrame=document.querySelector('iframe[data-frame-id="engine-room"]');
+         if(engineFrame&&engineFrame.contentWindow&&window.__ENGINE_FACADE_JS){
+           try{engineFrame.contentWindow.eval(window.__ENGINE_FACADE_JS);console.log('[TavernHelper] 门面已注入引擎房');}
+           catch(e){console.error('[TavernHelper] 门面注入失败:',e);}
+         }
+       }
+       frame.addEventListener('load',ensureTavernHelperInFrame);
+       setTimeout(ensureTavernHelperInFrame,100);
+       parent.postMessage({__thLog:true,text:'[引擎房] iframe 已创建'},'*');
     } catch(e) {
       parent.postMessage({__thLog:true,text:'[引擎房] 创建失败: '+e},'*');
     }

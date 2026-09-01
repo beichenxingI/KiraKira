@@ -398,17 +398,31 @@ class PromptManagerConfig {
     final customPrompts = <String, PromptSection>{};
     
     if (promptsArray != null) {
+      var generatedIdentifier = 0;
       for (final prompt in promptsArray) {
         if (prompt is Map<String, dynamic>) {
-          final identifier = prompt['identifier'] as String?;
+          var identifier = prompt['identifier'] as String?;
           final name = prompt['name'] as String? ?? 'Custom Prompt';
+          final rawType = identifierMap[identifier] ?? PromptSectionType.custom;
+          if (identifier == null || identifier.isEmpty) {
+            do {
+              generatedIdentifier++;
+              identifier = '${rawType.name}_${name}_$generatedIdentifier';
+            } while (customPrompts.containsKey(identifier));
+          } else if (customPrompts.containsKey(identifier)) {
+            var suffix = 1;
+            final baseIdentifier = identifier;
+            do {
+              identifier = '${baseIdentifier}_$suffix';
+              suffix++;
+            } while (customPrompts.containsKey(identifier));
+          }
           final content = prompt['content'] as String? ?? '';
           final role = prompt['role'] as String? ?? 'system';
           final injectionPosition = prompt['injection_position'] as int?;
           final injectionDepth = prompt['injection_depth'] as int?;
           
           if (identifier != null) {
-            // Check if this is a known identifier or a custom one
             final type = identifierMap[identifier] ?? PromptSectionType.custom;
             customPrompts[identifier] = PromptSection(
               type: type,

@@ -1711,8 +1711,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         ? config.sections.where((s) =>
             s.type == type && s.identifier == null).toList()
         : config.sections.where((s) => s.identifier == ident).toList();
-    debugPrint('[PM] toggle matches=${matches.length} type=$typeName ident=$ident');
+    debugPrint('[预设球] 匹配请求: type=$typeName, identifier=$ident, name=${payload['name']}');
+    debugPrint('[预设球] 匹配结果: 找到${matches.length}个section');
     if (matches.length != 1) {
+      debugPrint('[预设球] 匹配失败: 期望1个，实际${matches.length}个');
       debugPrint('[PM] toggle 拒绝: 命中数=${matches.length} type=$typeName ident=$ident');
       return _handlePmGetSections(payload);
     }
