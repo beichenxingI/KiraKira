@@ -1810,6 +1810,22 @@ function injectBridge(html, id, floorIdx) {
         // [P3-M] 按 scripts 数组顺序串行注入:classic 同步立即执行;module 等 onload/onerror 后再注下一个,
         // 否则并行 forEach 不能保证 module 加载顺序,前置 module 未挂上时后续 import 引用会 z is not defined。
         var queue = (scripts || []).slice();
+        // [P3-N] zod shim:MVU/mvu_zod 期望全局 z 为 zod 包 namespace(实测用法 r=z; r.z.looseObject,
+        // looseObject 是 zod v4 API)。zod v4 无 UMD 构建,走不了 __KIRA_LIBS 的 base64 老路,
+        // 改用 ESM shim 排队首,依赖 P3-M 的串行队列保证它先于其余 module 完成。
+        var _hasMod = queue.some(function(s){ return s && s.content && /(^|[\r\n;])\s*(import|export)[\s'"(]/.test(s.content); });
+        if (_hasMod) {
+          // [P3-N/2] module script 的 onload/onerror 在本 WebView 不触发(CDN 已排除:200/435KB 可达),
+          // 队列会死锁。改用动态 import()——它是表达式,能被 try/catch 抓住(P3-I 记账第4条的正解),
+          // 且由 shim 自己回调驱动队列,不依赖元素事件。
+          queue.unshift({ name: '__zod_shim', enabled: true, shim: true, content: [
+            "(async function(){ try {",
+            "  var Z = await import('https://testingcf.jsdelivr.net/npm/zod@4.5.4/+esm');",
+            "  window.z = Z; window.Zod = Z;",
+            "  window.__kiraShimDone('zod shim OK z.z=' + (typeof (Z && Z.z)) + ' looseObject=' + (typeof (Z && Z.z && Z.z.looseObject)));",
+            "} catch(e) { window.__kiraShimDone('zod shim 失败 ' + e); } })();"
+          ].join('\n') });
+        }
         function injectOne(){
           if (!queue.length) { sendScriptLog('父文档节点数='+document.querySelectorAll('*').length); return; }
           var s = queue.shift();
@@ -1821,15 +1837,22 @@ function injectBridge(html, id, floorIdx) {
             if(isMod){
               el.type='module';
               el.src=W.URL.createObjectURL(new W.Blob([s.content],{type:'text/javascript'}));
-              el.onload=function(){sendScriptLog('module完成 name='+nm);injectOne();};
-              el.onerror=function(){sendScriptLog('module加载失败 name='+nm);injectOne();};
+              var _done=false; var _next=function(tag){ if(_done)return; _done=true; sendScriptLog(tag+' name='+nm); injectOne(); };
+              el.onload=function(){_next('module完成');};
+              el.onerror=function(){_next('module加载失败');};
+              W.setTimeout(function(){_next('module超时跳过');},8000);
               sendScriptLog('module注入 name='+nm+' length='+s.content.length);
               D.body.appendChild(el);
             } else {
+              var _sdone=false;
+              if (s.shim) {
+                W.__kiraShimDone=function(msg){ if(_sdone)return; _sdone=true; sendScriptLog(msg); injectOne(); };
+                W.setTimeout(function(){ if(_sdone)return; _sdone=true; sendScriptLog('shim超时跳过 name='+nm); injectOne(); },8000);
+              }
               el.textContent=s.content;
               D.body.appendChild(el);
               sendScriptLog('classic注入 name='+nm+' length='+s.content.length);
-              injectOne();
+              if(!s.shim) injectOne();
             }
           } catch(e){ sendScriptLog('异常 name='+nm+' error='+e); injectOne(); }
         }
