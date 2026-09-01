@@ -306,6 +306,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       await c.evaluateJavascript(
         source: 'window.__KIRA_PRESET_SCRIPTS=${jsonEncode(enabledScripts)};',
       );
+      await c.evaluateJavascript(
+        source: 'if(window.resetPresetScriptsRoom)window.resetPresetScriptsRoom();');
+      debugPrint('[预设脚本] Dart侧注入 ${enabledScripts.length} 个 允许=$allowed');
     } catch (e) {
       KiraLogger().info('预设脚本', '注入失败: $e');
     }
@@ -580,9 +583,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       if (prev != next && _webViewMounted) {
         final controller = _controller;
         if (controller != null) {
-          _injectPresetScripts(controller);
-          controller.evaluateJavascript(
-              source: 'if(window.resetPresetScriptsRoom)window.resetPresetScriptsRoom();');
+                _injectPresetScripts(controller);
         }
       }
     });
