@@ -213,6 +213,13 @@ String buildTavernHelperFacadeJs({
       'window.substitudeMacros=_TH.substitudeMacros;'
       // 世界书接口
       '_TH.getLorebookEntries=function(name){return __thCall("getLorebookEntries",[name]);};'
+      '_TH.getWorldbookNames=function(){return __thCall("th_wiGetLorebooks",[]).then(function(names){if(!Array.isArray(names))throw new Error("worldbook names must be an array");return names;});};'
+      '_TH.getWorldbook=function(name){return __thCall("th_wiGetEntries",[name]).then(function(entries){if(!Array.isArray(entries))throw new Error("worldbook entries must be an array");return entries;});};'
+      '_TH.replaceWorldbook=function(name,entries){if(!Array.isArray(entries))return Promise.reject(new Error("replaceWorldbook requires an array"));return __thCall("th_wiSetEntries",[name,entries]).then(function(result){return result;});};'
+      '_TH.getTavernRegexes=function(){return Promise.reject(new Error("getTavernRegexes: no Flutter data source"));};'
+      '_TH.updateTavernRegexesWith=function(){return Promise.reject(new Error("updateTavernRegexesWith: no Flutter data source"));};'
+      '_TH.getScriptTrees=function(){return Promise.reject(new Error("getScriptTrees: no Flutter data source"));};'
+      '_TH.updateScriptTreesWith=function(){return Promise.reject(new Error("updateScriptTreesWith: no Flutter data source"));};'
       '_TH.getCurrentCharPrimaryLorebook=function(){return _TH.__primaryLorebook;};'
       'window.getCurrentCharPrimaryLorebook=_TH.getCurrentCharPrimaryLorebook;'
       '_TH.getEnabledLorebookList=function(){return __thCall("getEnabledLorebookList",[]);};'

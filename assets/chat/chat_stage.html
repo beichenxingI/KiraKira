@@ -1831,7 +1831,23 @@ function injectBridge(html, id, floorIdx) {
           ].join('\n') });
         }
         function injectOne(){
-          if (!queue.length) { sendScriptLog('父文档节点数='+document.querySelectorAll('*').length); return; }
+      if (!queue.length) {
+        sendScriptLog('父文档节点数='+document.querySelectorAll('*').length);
+        try {
+          var _es = (W.SillyTavern && W.SillyTavern.extensionSettings) || null;
+          var _ms = _es && _es.mvu_settings;
+          sendScriptLog('[探针T] ' + JSON.stringify({
+            st: typeof W.SillyTavern,
+            esKeys: _es ? Object.keys(_es) : null,
+            mvu: !!_ms,
+            notif: _ms ? _ms['通知'] : null,
+            upd: _ms ? _ms['更新方式'] : null,
+            ejs: !!(_es && _es.EjsTemplate),
+            th: ['getWorldbookNames','getWorldbook','replaceWorldbook','getTavernRegexes','updateTavernRegexesWith','getScriptTrees','updateScriptTreesWith'].map(function(k){ return k + '=' + (typeof (W.TavernHelper||{})[k])[0]; }).join(','),
+          }));
+        } catch (e) { sendScriptLog('[探针T] 失败: ' + e.message); }
+        return;
+      }
           var s = queue.shift();
           if(!s||s.enabled===false||s.disabled===true||!s.content){ injectOne(); return; }
           var nm=(s.name||s.id||'unnamed');
@@ -2008,292 +2024,53 @@ function injectBridge(html, id, floorIdx) {
   }
   window.resetEngineRoom = resetEngineRoom;
 
-  // ════════════════════════════════════════════════════════════════════════
-  // [P3-K2] 自研悬浮球 (KiraKira Orb) —— 浮动在聊天页上,可拖拽/折叠。
-  //   - 挂 document.body(不进 #__kira_root, 避免 setMessages innerHTML='' 被杀)
-  //   - position:fixed + 高 z-index(2147483640, 低于输入框的遮罩优先级以下)
-  //   - 持久化: localStorage('kirakira.orb.state') = {x, y, collapsed}
-  //   - 兼容触屏: 同时监听 mouse 和 touch 事件, dragstart 阻止默认防长按选词
-  //   - 不依赖任何外部资源;CSS/HTML/DOM 全内联
-  // ════════════════════════════════════════════════════════════════════════
-  (function initKiraOrb(){
-    if (window.__kiraOrb) return; // 防重复挂载(HMR/重建时也只一份)
-    var STORAGE_KEY = 'kirakira.orb.state';
-    function loadState(){
-      try {
-        var raw = window.localStorage.getItem(STORAGE_KEY);
-        if (!raw) return null;
-        var s = JSON.parse(raw);
-        if (typeof s.x === 'number' && typeof s.y === 'number') return s;
-      } catch(_e) {}
-      return null;
+  function renderSections(sections){
+    var shadow = document.getElementById('completion_prompt_manager_list');
+    if (!shadow) return;
+    shadow.innerHTML = '';
+    if (!sections || !sections.length) return;
+    for (var i = 0; i < sections.length; i++) {
+      var section = sections[i] || {};
+      var item = document.createElement('li');
+      item.setAttribute('data-pm-identifier', section.identifier || section.type || '');
+      if (!section.enabled) item.className = 'completion_prompt_manager_prompt_disabled';
+      var name = document.createElement('span');
+      name.setAttribute('data-pm-name', section.name || section.type || '');
+      name.textContent = section.name || section.type || '';
+      var toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'prompt-manager-toggle-action';
+      toggle.setAttribute('aria-pressed', section.enabled ? 'true' : 'false');
+      (function(s, li, button){
+        button.addEventListener('click', function(){
+          if (window.__shadowWriting) return;
+          window.__shadowWriting = true;
+          window.__sendRequest('th_pmToggleSection', {
+            type: s.type, identifier: s.identifier, name: s.name,
+            enabled: !li.classList.contains('completion_prompt_manager_prompt_disabled')
+          }).then(function(result){
+            var current = (result || []).filter(function(x){
+              return x && x.type === s.type && (x.identifier || '') === (s.identifier || '') && x.name === s.name;
+            })[0];
+            if (!current) throw new Error('写入后未找到 section: ' + s.type);
+            li.classList.toggle('completion_prompt_manager_prompt_disabled', !current.enabled);
+            button.setAttribute('aria-pressed', current.enabled ? 'true' : 'false');
+          }).catch(function(err){
+            try { sendToFlutter('log', {text: '[shadow] toggle失败: ' + (err && err.message || err)}); } catch (_) {}
+          }).then(function(){ window.__shadowWriting = false; });
+        });
+      })(section, item, toggle);
+      item.appendChild(name);
+      item.appendChild(toggle);
+      shadow.appendChild(item);
     }
-    function saveState(s){
-      try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch(_e) {}
-    }
-    // 默认位置: 右上角, 避开输入框 (输入框通常 ~96px 高, 距屏底)
-    var W = 56, H = 56; // 折叠态尺寸
-    var W2 = 240, H2 = 200; // 展开态尺寸
-    var MARGIN = 12;
-    var initial = loadState();
-    var startX, startY, dragging = false, dragOffsetX = 0, dragOffsetY = 0;
-    var orb = document.createElement('div');
-    orb.id = 'kira-orb';
-    orb.setAttribute('aria-label', 'KiraKira 悬浮球');
-    orb.style.cssText = [
-      'position:fixed',
-      'z-index:2147483640',
-      'width:' + W + 'px',
-      'height:' + H + 'px',
-      'border-radius:50%',
-      'background:linear-gradient(135deg,#7c3aed 0%,#ec4899 100%)',
-      'box-shadow:0 6px 16px rgba(0,0,0,0.35),0 0 0 1px rgba(255,255,255,0.12) inset',
-      'color:#fff',
-      'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-      'font-size:13px',
-      'font-weight:600',
-      'display:flex',
-      'align-items:center',
-      'justify-content:center',
-      'cursor:grab',
-      'touch-action:none',
-      'user-select:none',
-      '-webkit-user-select:none',
-      'transition:width 0.2s ease,height 0.2s ease,border-radius 0.2s ease,box-shadow 0.2s ease',
-      'overflow:hidden'
-    ].join(';');
-    orb.innerHTML = '<div data-orb-drag style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;">✦</div>';
-
-    // 展开后的功能面板
-    var panel = document.createElement('div');
-    panel.setAttribute('data-orb-panel', '1');
-    panel.style.cssText = [
-      'display:none',
-      'flex-direction:column',
-      'width:100%',
-      'height:100%',
-      'padding:10px',
-      'box-sizing:border-box',
-      'background:linear-gradient(135deg,#4c1d95 0%,#831843 100%)',
-      'color:#fff',
-      'font-size:13px',
-      'line-height:1.4',
-      'overflow:auto'
-    ].join(';');
-    panel.innerHTML =
-      '<div data-orb-drag style="display:flex;justify-content:space-between;align-items:center;height:24px;flex:0 0 auto;cursor:grab;">'
-        + '<span style="font-weight:700;letter-spacing:0.5px;">Kira Orb · v0.2</span>'
-        + '<span data-orb-collapse title="收起" style="cursor:pointer;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.12);">✕</span>'
-      + '</div>'
-      + '<div data-orb-list style="flex:1 1 auto;margin-top:8px;display:flex;flex-direction:column;gap:6px;overflow:auto;">'
-        + '<div data-orb-loading style="opacity:0.7;font-size:11px;">加载中…</div>'
-      + '</div>'
-      + '<div data-orb-status style="flex:0 0 auto;margin-top:8px;opacity:0.6;font-size:10px;text-align:right;">位置已记住 ✓</div>';
-    orb.appendChild(panel);
-
-    // [P3-K2-2] 渲染 sections 列表(checkbox + 名字)
-    function renderSections(sections){
-      var list = panel.querySelector('[data-orb-list]');
-      var shadow = document.getElementById('completion_prompt_manager_list');
-      if (!list || !shadow) return;
-      list.innerHTML = '';
-      shadow.innerHTML = '';
-      if (!sections || !sections.length) {
-        list.innerHTML = '<div style="opacity:0.7;font-size:11px;">暂无 section</div>';
-        return;
-      }
-      for (var i = 0; i < sections.length; i++) {
-        var s = sections[i] || {};
-        var row = document.createElement('label');
-        row.setAttribute('data-orb-row', '');
-        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;padding:3px 4px;border-radius:4px;';
-        row.innerHTML = '<span style="flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
-          + escapeHtml(s.name || s.type || '?') + '</span>'
-          + '<input type="checkbox" ' + (s.enabled ? 'checked' : '') + '>';
-        var cb = row.querySelector('input');
-        (function(section, checkbox){
-          checkbox.addEventListener('change', function(){
-            checkbox.disabled = true;
-            window.__sendRequest('th_pmToggleSection', {
-              type: section.type,
-              identifier: section.identifier,
-              name: section.name,
-              enabled: !!checkbox.checked
-            }).then(function(){
-              checkbox.disabled = false;
-            }).catch(function(err){
-              checkbox.disabled = false;
-              checkbox.checked = !checkbox.checked;
-              sendToFlutter('log', { text: '[orb] toggle失败: ' + (err && err.message || err) });
-            });
-          });
-        })(s, cb);
-        list.appendChild(row);
-
-        var li = document.createElement('li');
-        li.setAttribute('data-pm-identifier', s.identifier || s.type);
-        if (!s.enabled) li.className = 'completion_prompt_manager_prompt_disabled';
-        var name = document.createElement('span');
-        name.setAttribute('data-pm-name', s.name || s.type || '');
-        name.textContent = s.name || s.type || '';
-        var toggle = document.createElement('button');
-        toggle.type = 'button';
-        toggle.className = 'prompt-manager-toggle-action';
-        toggle.setAttribute('aria-pressed', s.enabled ? 'true' : 'false');
-        (function(section, item, button){
-          button.addEventListener('click', function(){
-            if (window.__shadowWriting) return;
-            window.__shadowWriting = true;
-            window.__sendRequest('th_pmToggleSection', {
-              type: section.type,
-              identifier: section.identifier,
-              name: section.name,
-              enabled: !item.classList.contains('completion_prompt_manager_prompt_disabled')
-            }).then(function(result){
-              var current = (result || []).filter(function(x){ return x && x.type === section.type && (x.identifier || '') === (section.identifier || '') && x.name === section.name; })[0];
-              if (!current) throw new Error('写入后未找到 section: ' + section.type);
-              item.classList.toggle('completion_prompt_manager_prompt_disabled', !current.enabled);
-              button.setAttribute('aria-pressed', current.enabled ? 'true' : 'false');
-            }).catch(function(err){
-              sendToFlutter('log', { text: '[shadow] toggle失败: ' + (err && err.message || err) });
-            }).then(function(){ window.__shadowWriting = false; });
-          });
-        })(s, li, toggle);
-        li.appendChild(name);
-        li.appendChild(toggle);
-        shadow.appendChild(li);
-      }
-    }
-    function escapeHtml(s){
-      return String(s).replace(/[&<>"']/g, function(c){
-        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
-      });
-    }
-    // [P3-K2-4] 监听 Dart 下行 pmSectionsChanged
-    if (typeof registerBridgeHandler === 'function') {
-      registerBridgeHandler('pmSectionsChanged', function(payload){
-        try {
-          renderSections((payload && payload.sections) || []);
-          var st = panel.querySelector('[data-orb-status]');
-          if (st) st.textContent = '已同步 ✓  ' + new Date().toLocaleTimeString();
-        } catch (e) {
-          try { sendToFlutter('log', { text: '[orb] pmSectionsChanged 失败: ' + e }); } catch(_e) {}
-        }
-      });
-    }
-    // 初次拉取 sections 列表
-    function fetchSections(){
-      if (typeof window.__sendRequest !== 'function') {
-        setTimeout(fetchSections, 200); // 等桥就绪
-        return;
-      }
-      window.__sendRequest('th_pmGetSections', {}).then(function(sections){
-        renderSections(sections || []);
-      }).catch(function(err){
-        var list = panel.querySelector('[data-orb-list]');
-        if (list) list.innerHTML = '<div style="opacity:0.7;font-size:11px;color:#FFB4B4;">拉取失败: '
-          + escapeHtml((err && err.message) || String(err)) + '</div>';
-      });
-    }
-    fetchSections();
-
-    function placeAt(x, y){
-      var vw = window.innerWidth, vh = window.innerHeight;
-      if (x < MARGIN) x = MARGIN;
-      if (y < MARGIN) y = MARGIN;
-      if (x + W2 > vw - MARGIN) x = vw - W2 - MARGIN;
-      if (y + H2 > vh - MARGIN) y = vh - H2 - MARGIN;
-      // 折叠态按 W/H 重新夹紧
-      if (orb._collapsed) {
-        if (x + W > vw - MARGIN) x = vw - W - MARGIN;
-        if (y + H > vh - MARGIN) y = vh - H - MARGIN;
-      }
-      orb.style.left = x + 'px';
-      orb.style.top = y + 'px';
-      orb._x = x; orb._y = y;
-    }
-    function persist(){
-      saveState({ x: orb._x || 0, y: orb._y || 0, collapsed: !!orb._collapsed });
-    }
-    function setCollapsed(c){
-      orb._collapsed = c;
-      if (c) {
-        panel.style.display = 'none';
-        orb.style.width = W + 'px';
-        orb.style.height = H + 'px';
-        orb.style.borderRadius = '50%';
-      } else {
-        panel.style.display = 'flex';
-        orb.style.width = W2 + 'px';
-        orb.style.height = H2 + 'px';
-        orb.style.borderRadius = '18px';
-      }
-      placeAt(orb._x, orb._y);
-      persist();
-    }
-    function onDown(clientX, clientY, target){
-      // 只在标题/折叠球处触发拖拽;点 panel 内 checkbox 不拖
-      var isDragHandle = target && target.getAttribute && target.getAttribute('data-orb-drag') !== null;
-      var isCollapseBtn = target && target.getAttribute && target.getAttribute('data-orb-collapse') !== null;
-      dragging = true;
-      dragOffsetX = clientX - (orb._x || 0);
-      dragOffsetY = clientY - (orb._y || 0);
-      orb.style.cursor = 'grabbing';
-      if (isCollapseBtn) {
-        // 单击折叠/展开: 在 mouseup 时判定(阈值:位移 < 6px)
-        orb._pendingCollapse = true;
-      } else {
-        orb._pendingCollapse = false;
-      }
-      try { sendToFlutter('log', { text: '[orb] dragdown x=' + clientX + ' y=' + clientY + ' handle=' + !!isDragHandle }); } catch(_e) {}
-    }
-    function onMove(clientX, clientY){
-      if (!dragging) return;
-      var nx = clientX - dragOffsetX;
-      var ny = clientY - dragOffsetY;
-      placeAt(nx, ny);
-    }
-    function onUp(target){
-      if (!dragging) return;
-      dragging = false;
-      orb.style.cursor = 'grab';
-      if (orb._pendingCollapse) {
-        orb._pendingCollapse = false;
-        setCollapsed(!orb._collapsed);
-      } else {
-        persist();
-      }
-    }
-    // mouse events
-    orb.addEventListener('mousedown', function(e){
-      onDown(e.clientX, e.clientY, e.target);
-      e.preventDefault();
+  }
+  if (typeof registerBridgeHandler === 'function') {
+    registerBridgeHandler('pmSectionsChanged', function(payload){
+      renderSections((payload && payload.sections) || []);
     });
-    window.addEventListener('mousemove', function(e){ onMove(e.clientX, e.clientY); });
-    window.addEventListener('mouseup', function(e){ onUp(e.target); });
-    // touch events
-    orb.addEventListener('touchstart', function(e){
-      var t = e.touches && e.touches[0]; if (!t) return;
-      onDown(t.clientX, t.clientY, e.target);
-      e.preventDefault();
-    }, {passive:false});
-    window.addEventListener('touchmove', function(e){
-      var t = e.touches && e.touches[0]; if (!t) return;
-      onMove(t.clientX, t.clientY);
-    }, {passive:true});
-    window.addEventListener('touchend', function(e){ onUp(e.target); });
-    // 防止长按选词/拖图片
-    orb.addEventListener('dragstart', function(e){ e.preventDefault(); });
+  }
 
-    // 初始位置: 右上角或持久化坐标
-    var def = initial || { x: window.innerWidth - W - MARGIN, y: MARGIN + 80 };
-    orb._collapsed = true;
-    orb._x = def.x; orb._y = def.y;
-    setCollapsed(initial ? !!initial.collapsed : true);
-    document.body.appendChild(orb);
-    window.__kiraOrb = orb;
-    try { sendToFlutter('log', { text: '[orb] mounted at ' + orb._x + ',' + orb._y + ' collapsed=' + orb._collapsed }); } catch(_e) {}
-  })();
 </script>
 </body>
 </html>

@@ -406,6 +406,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           'sections': next.sortedSections
               .map((s) => {
                     'type': s.type.name,
+                    'identifier': s.identifier,
                     'name': s.name,
                     'enabled': s.enabled,
                     'order': s.order,
