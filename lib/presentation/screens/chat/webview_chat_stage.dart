@@ -89,6 +89,7 @@ class WebViewChatStage extends ConsumerStatefulWidget {
 class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with TickerProviderStateMixin, WidgetsBindingObserver {
   ProviderSubscription<PromptManagerConfig>? _pmSub;
   InAppWebViewController? _controller;
+  bool _pmIdentifiersLogged = false;
   int _wvCrashCount = 0; // [WV-6/P1-A5] renderer 崩溃自愈次数上限,防"崩→reload→再崩"死循环
   bool _webViewMounted = false; // 延迟挂载:入场后才创建WebView,避免动画期被重活饿死
   final TextEditingController _inputController = TextEditingController();
@@ -1672,6 +1673,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   Future<List<Map<String, dynamic>>> _handlePmGetSections(
       Map<String, dynamic> payload) async {
     final config = ref.read(promptManagerProvider);
+    if (!_pmIdentifiersLogged) {
+      _pmIdentifiersLogged = true;
+      debugPrint('[PM] sections identifiers=${config.sortedSections.map((s) => {
+        'identifier': s.identifier,
+        'type': s.type.name,
+        'name': s.name,
+      }).toList()}');
+    }
     return config.sortedSections
         .map((s) => {
               'type': s.type.name,
@@ -1691,26 +1700,22 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final typeName = payload['type']?.toString() ?? '';
     if (typeName.isEmpty) return _handlePmGetSections(payload);
     final ident = payload['identifier']?.toString();
-    final nm = payload['name']?.toString();
+    debugPrint('[PM] toggle payload=$payload');
+    final config = ref.read(promptManagerProvider);
     final type = PromptSectionType.values.firstWhere(
       (t) => t.name == typeName,
       orElse: () => PromptSectionType.custom,
     );
-    // 三元组精确定位:type 对 custom 条目不唯一,必须靠 identifier/name 区分
-    // (匹配规则与 PromptManagerConfig.updateSection 的 L536/L551 一致)
-    final matches = ref
-        .read(promptManagerProvider)
-        .sections
-        .where((s) =>
-            s.type == type &&
-            (ident == null || s.identifier == ident) &&
-            (nm == null || s.name == nm))
-        .toList();
-    if (matches.isEmpty) {
-      debugPrint('[PM] toggle 未命中 type=$typeName ident=$ident name=$nm');
+    final matches = ident == null || ident.isEmpty
+        ? config.sections.where((s) =>
+            s.type == type && s.identifier == null).toList()
+        : config.sections.where((s) => s.identifier == ident).toList();
+    debugPrint('[PM] toggle matches=${matches.length} type=$typeName ident=$ident');
+    if (matches.length != 1) {
+      debugPrint('[PM] toggle 拒绝: 命中数=${matches.length} type=$typeName ident=$ident');
       return _handlePmGetSections(payload);
     }
-    final cur = matches.first;
+    final cur = matches.single;
     final next =
         payload.containsKey('enabled') ? payload['enabled'] == true : !cur.enabled;
     final notifier = ref.read(promptManagerProvider.notifier);

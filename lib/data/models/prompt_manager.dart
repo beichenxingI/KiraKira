@@ -311,12 +311,25 @@ class PromptManagerConfig {
 
   /// Update a section
   PromptManagerConfig updateSection(PromptSection updatedSection) {
-    final newSections = sections.map((s) {
-      if (s.type == updatedSection.type) {
-        return updatedSection;
+    final matchingIndexes = <int>[];
+    for (var i = 0; i < sections.length; i++) {
+      final section = sections[i];
+      if (section.identifier != null &&
+          section.identifier == updatedSection.identifier) {
+        matchingIndexes.add(i);
+      } else if (updatedSection.identifier == null &&
+          section.identifier == null &&
+          section.type == updatedSection.type) {
+        matchingIndexes.add(i);
       }
-      return s;
-    }).toList();
+    }
+    if (matchingIndexes.length != 1) {
+      assert(matchingIndexes.length == 1);
+      return this;
+    }
+    final newSections = List<PromptSection>.from(sections);
+    newSections[matchingIndexes.single] = updatedSection;
+    assert(newSections.length == sections.length);
     return copyWith(sections: newSections);
   }
 
