@@ -143,6 +143,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   static String? _toastrJsB64;
   static String? _toastrCssB64;
   static String? _yamlB64;
+  static String? _vueB64;
   static bool _libsLoaded = false;
   static String? _mvuBundleRaw;
   static bool _mvuLoaded = false;
@@ -183,11 +184,20 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       } catch (e) {
         KiraLogger().info('兼容库', 'yaml 库读取失败(仅 YAML 全局缺失): $e');
       }
+      // [P3-M] vue 单独 try:必须用 global 构建才能挂 window.Vue,道渊 CDN bundle 依赖它;
+      // 缺失/损坏只失去 Vue,不拖垮其他库
+      String? vueJs;
+      try {
+        vueJs = await rootBundle.loadString('assets/libs/vue.global.prod.js');
+      } catch (e) {
+        KiraLogger().info('兼容库', 'vue 库读取失败(仅 Vue 全局缺失): $e');
+      }
       _jqueryB64 = base64Encode(utf8.encode(jquery));
       _lodashB64 = base64Encode(utf8.encode(lodash));
       _toastrJsB64 = base64Encode(utf8.encode(toastrJs));
       _toastrCssB64 = base64Encode(utf8.encode(toastrCss));
       _yamlB64 = yamlJs == null ? null : base64Encode(utf8.encode(yamlJs));
+      _vueB64 = vueJs == null ? null : base64Encode(utf8.encode(vueJs));
       _libsLoaded = true;
     } catch (e) {
       // 加载失败不阻断聊天，仅记录
@@ -237,7 +247,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         'lodash:"${_lodashB64 ?? ''}",'
         'toastrJs:"${_toastrJsB64 ?? ''}",'
         'toastrCss:"${_toastrCssB64 ?? ''}",'
-        'yaml:"${_yamlB64 ?? ''}"'
+        'yaml:"${_yamlB64 ?? ''}",'
+        'vue:"${_vueB64 ?? ''}"'
         '};';
     try {
       await c.evaluateJavascript(source: js);

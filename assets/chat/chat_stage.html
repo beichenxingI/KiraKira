@@ -1798,6 +1798,7 @@ function injectBridge(html, id, floorIdx) {
         + (libs.jquery ? '<script>' + decodeB64Utf8(libs.jquery) + '<\/script>' : '')
         + (libs.lodash ? '<script>' + decodeB64Utf8(libs.lodash) + '<\/script>' : '')
         + (libs.toastrJs ? '<script>' + decodeB64Utf8(libs.toastrJs) + '<\/script>' : '')
+        + (libs.vue ? '<script>' + decodeB64Utf8(libs.vue) + '<\/script>' : '')
         + '<script>window.errorCatched=function(fn){return function(){try{return fn.apply(this,arguments);}catch(e){console.error(e);}}};'
         + '(function(){var s={};try{localStorage.getItem("__kira_probe");}catch(e){Object.defineProperty(window,"localStorage",{configurable:true,value:{getItem:function(k){return s[k]||null;},setItem:function(k,v){s[k]=String(v);},removeItem:function(k){delete s[k];},clear:function(){s={};}}});parent.postMessage({__thLog:true,text:"[SCRIPT] 使用内存态 localStorage"},"*");}})();<\/script>'
         + '<script>' + (window.__ENGINE_FACADE_JS || '') + '<\/script>'
