@@ -290,6 +290,7 @@ if (!String.prototype.at) {
 <div id="__kira_root"></div>
 <div id="__engineRoomHost" style="display:none;width:0;height:0;overflow:hidden;"></div>
 <div id="__presetScriptsRoomHost" style="display:none;width:0;height:0;overflow:hidden;"></div>
+<div id="completion_prompt_manager_list" style="display:none;width:0;height:0;overflow:hidden;"></div>
 <div id="__kira_model_sheet" class="model-sheet-overlay">
   <div class="model-sheet-panel">
     <div class="model-sheet-header">选择模型</div>
@@ -2093,8 +2094,10 @@ function injectBridge(html, id, floorIdx) {
     // [P3-K2-2] 渲染 sections 列表(checkbox + 名字)
     function renderSections(sections){
       var list = panel.querySelector('[data-orb-list]');
-      if (!list) return;
+      var shadow = document.getElementById('completion_prompt_manager_list');
+      if (!list || !shadow) return;
       list.innerHTML = '';
+      shadow.innerHTML = '';
       if (!sections || !sections.length) {
         list.innerHTML = '<div style="opacity:0.7;font-size:11px;">暂无 section</div>';
         return;
@@ -2109,29 +2112,56 @@ function injectBridge(html, id, floorIdx) {
           + '<input type="checkbox" ' + (s.enabled ? 'checked' : '') + '>';
         var cb = row.querySelector('input');
         (function(section, checkbox){
-          cb.addEventListener('change', function(){
-            // 即时视觉反馈 + 发桥
+          checkbox.addEventListener('change', function(){
             checkbox.disabled = true;
-            try {
-              window.__sendRequest('th_pmToggleSection', {
-                type: section.type,
-                enabled: !!checkbox.checked
-              }).then(function(){
-                checkbox.disabled = false;
-                try { sendToFlutter('log', { text: '[orb] toggled ' + section.type + ' -> ' + checkbox.checked }); } catch(_e) {}
-              }).catch(function(err){
-                checkbox.disabled = false;
-                // 回滚视觉
-                checkbox.checked = !checkbox.checked;
-                try { sendToFlutter('log', { text: '[orb] toggle失败: ' + (err && err.message || err) }); } catch(_e2) {}
-              });
-            } catch (e) {
+            window.__sendRequest('th_pmToggleSection', {
+              type: section.type,
+              identifier: section.identifier,
+              name: section.name,
+              enabled: !!checkbox.checked
+            }).then(function(){
+              checkbox.disabled = false;
+            }).catch(function(err){
               checkbox.disabled = false;
               checkbox.checked = !checkbox.checked;
-            }
+              sendToFlutter('log', { text: '[orb] toggle失败: ' + (err && err.message || err) });
+            });
           });
         })(s, cb);
         list.appendChild(row);
+
+        var li = document.createElement('li');
+        li.setAttribute('data-pm-identifier', s.identifier || s.type);
+        if (!s.enabled) li.className = 'completion_prompt_manager_prompt_disabled';
+        var name = document.createElement('span');
+        name.setAttribute('data-pm-name', s.name || s.type || '');
+        name.textContent = s.name || s.type || '';
+        var toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'prompt-manager-toggle-action';
+        toggle.setAttribute('aria-pressed', s.enabled ? 'true' : 'false');
+        (function(section, item, button){
+          button.addEventListener('click', function(){
+            if (window.__shadowWriting) return;
+            window.__shadowWriting = true;
+            window.__sendRequest('th_pmToggleSection', {
+              type: section.type,
+              identifier: section.identifier,
+              name: section.name,
+              enabled: !item.classList.contains('completion_prompt_manager_prompt_disabled')
+            }).then(function(result){
+              var current = (result || []).filter(function(x){ return x && x.type === section.type && (x.identifier || '') === (section.identifier || '') && x.name === section.name; })[0];
+              if (!current) throw new Error('写入后未找到 section: ' + section.type);
+              item.classList.toggle('completion_prompt_manager_prompt_disabled', !current.enabled);
+              button.setAttribute('aria-pressed', current.enabled ? 'true' : 'false');
+            }).catch(function(err){
+              sendToFlutter('log', { text: '[shadow] toggle失败: ' + (err && err.message || err) });
+            }).then(function(){ window.__shadowWriting = false; });
+          });
+        })(s, li, toggle);
+        li.appendChild(name);
+        li.appendChild(toggle);
+        shadow.appendChild(li);
       }
     }
     function escapeHtml(s){

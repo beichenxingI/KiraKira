@@ -1675,6 +1675,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return config.sortedSections
         .map((s) => {
               'type': s.type.name,
+              'identifier': s.identifier,
               'name': s.name,
               'enabled': s.enabled,
               'order': s.order,
@@ -1689,22 +1690,31 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       Map<String, dynamic> payload) async {
     final typeName = payload['type']?.toString() ?? '';
     if (typeName.isEmpty) return _handlePmGetSections(payload);
+    final ident = payload['identifier']?.toString();
+    final nm = payload['name']?.toString();
     final type = PromptSectionType.values.firstWhere(
       (t) => t.name == typeName,
       orElse: () => PromptSectionType.custom,
     );
-    final notifier = ref.read(promptManagerProvider.notifier);
-    if (payload.containsKey('enabled')) {
-      // 直接 set: 找到 section, copyWith(enabled: ...), updateSection
-      final cur = ref.read(promptManagerProvider).getSection(type);
-      if (cur != null) {
-        await notifier.updateSection(
-          cur.copyWith(enabled: payload['enabled'] == true),
-        );
-      }
-    } else {
-      await notifier.toggleSection(type);
+    // 三元组精确定位:type 对 custom 条目不唯一,必须靠 identifier/name 区分
+    // (匹配规则与 PromptManagerConfig.updateSection 的 L536/L551 一致)
+    final matches = ref
+        .read(promptManagerProvider)
+        .sections
+        .where((s) =>
+            s.type == type &&
+            (ident == null || s.identifier == ident) &&
+            (nm == null || s.name == nm))
+        .toList();
+    if (matches.isEmpty) {
+      debugPrint('[PM] toggle 未命中 type=$typeName ident=$ident name=$nm');
+      return _handlePmGetSections(payload);
     }
+    final cur = matches.first;
+    final next =
+        payload.containsKey('enabled') ? payload['enabled'] == true : !cur.enabled;
+    final notifier = ref.read(promptManagerProvider.notifier);
+    await notifier.updateSection(cur.copyWith(enabled: next));
     // 不主动 push,listener 会自动推 pmSectionsChanged;但同步返当前状态供球即时刷新
     return _handlePmGetSections(payload);
   }
