@@ -93,6 +93,12 @@ class BridgeType {
   static const String wiDeleteEntries = 'th_wiDeleteEntries';
   static const String wiGetCharLorebooks = 'th_wiGetCharLorebooks';
   static const String response = 'th_response'; // 请求-响应回传（带 id 配对）
+
+  // [P3-K2] 提示词管理（入站请求-响应）
+  static const String pmGetSections = 'th_pmGetSections';       // 读取当前 sections 列表
+  static const String pmToggleSection = 'th_pmToggleSection';   // 切换某 section 开关
+  // [P3-K2] 提示词管理（出站推送：Dart → JS）
+  static const String pmSectionsChanged = 'pmSectionsChanged';  // sections 列表变化时推给球
 }
 
 

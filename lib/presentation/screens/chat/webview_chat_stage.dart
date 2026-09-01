@@ -22,12 +22,14 @@ import 'package:kirakira/domain/services/chat_export_service.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:uuid/uuid.dart';
 import 'package:kirakira/presentation/screens/chat/chat_screen.dart' show chatExportServiceProvider;
+import 'package:kirakira/presentation/providers/prompt_manager_providers.dart';
 import 'package:kirakira/presentation/widgets/chat/context_usage_indicator.dart';
 import '../../providers/quote_color_providers.dart';
 import 'package:kirakira/presentation/providers/llm_configs_provider.dart';
 import 'dart:io';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/data/database/database.dart' as db;
+import 'package:kirakira/data/models/prompt_manager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kirakira/presentation/widgets/chat/chat_background_widget.dart';
 import 'package:kirakira/core/logger/logger.dart';
@@ -84,6 +86,7 @@ class WebViewChatStage extends ConsumerStatefulWidget {
 }
 
 class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with TickerProviderStateMixin, WidgetsBindingObserver {
+  ProviderSubscription<PromptManagerConfig>? _pmSub;
   InAppWebViewController? _controller;
   int _wvCrashCount = 0; // [WV-6/P1-A5] renderer 崩溃自愈次数上限,防"崩→reload→再崩"死循环
   bool _webViewMounted = false; // 延迟挂载:入场后才创建WebView,避免动画期被重活饿死
@@ -341,6 +344,23 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     ref.read(ejsRenderRegistryProvider).register(
                       (text) => _handleRenderEJS({'text': text}),
                     );
+    // [P3-K2-4] 监听 prompt sections 变化, 出站推给悬浮球
+    _pmSub = ref.listenManual<PromptManagerConfig>(
+      promptManagerProvider,
+      (prev, next) {
+        // ChatBridge.send 内部自动排队握手前消息, 无需检查 ready
+        _bridge.send(BridgeType.pmSectionsChanged, {
+          'sections': next.sortedSections
+              .map((s) => {
+                    'type': s.type.name,
+                    'name': s.name,
+                    'enabled': s.enabled,
+                    'order': s.order,
+                  })
+              .toList(),
+        });
+      },
+    );
     WidgetsBinding.instance.addObserver(this);
     _maskController.value = 1.0;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -394,6 +414,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     _maskController.dispose();
     _inputController.dispose();
     _inputFocus.dispose();
+    _pmSub?.close();
     _bridge.dispose();
     super.dispose();
   }
@@ -692,6 +713,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest('th_wiSetLorebookSettings', _handleWiSetLorebookSettings);
                     _bridge.onRequest('th_generateRaw', _handleGenerateRaw);
     _bridge.onRequest('th_renderEJS', _handleRenderEJS);
+                    // [P3-K2] 提示词管理 API
+                    _bridge.onRequest(BridgeType.pmGetSections, _handlePmGetSections);
+                    _bridge.onRequest(BridgeType.pmToggleSection, _handlePmToggleSection);
                   },
                   onLoadStop: (c, url) async {
                     await _injectCompatLibs(c); // 注入第三方库到外层window
@@ -1579,6 +1603,48 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final msgsNow = ref.read(activeChatProvider).messages;
     _syncVarsToEngine('chat', readBack, lastMsgId: msgsNow.isNotEmpty ? msgsNow.length - 1 : null);
     return readBack;
+  }
+
+  /// [P3-K2-2] 读取当前 prompt sections 列表（球用）
+  /// 返 [{type, name, enabled, order}, ...] 全 section（无论 enabled），方便球一次性渲染开关。
+  Future<List<Map<String, dynamic>>> _handlePmGetSections(
+      Map<String, dynamic> payload) async {
+    final config = ref.read(promptManagerProvider);
+    return config.sortedSections
+        .map((s) => {
+              'type': s.type.name,
+              'name': s.name,
+              'enabled': s.enabled,
+              'order': s.order,
+            })
+        .toList();
+  }
+
+  /// [P3-K2-2] 切换某 section 开关（球点击 → 这）
+  /// payload: { type: 'nsfw' } 或 { type: 'nsfw', enabled: false }。
+  /// 若提供 enabled 则直接 set；否则 toggle。返更新后的 section 列表。
+  Future<List<Map<String, dynamic>>> _handlePmToggleSection(
+      Map<String, dynamic> payload) async {
+    final typeName = payload['type']?.toString() ?? '';
+    if (typeName.isEmpty) return _handlePmGetSections(payload);
+    final type = PromptSectionType.values.firstWhere(
+      (t) => t.name == typeName,
+      orElse: () => PromptSectionType.custom,
+    );
+    final notifier = ref.read(promptManagerProvider.notifier);
+    if (payload.containsKey('enabled')) {
+      // 直接 set: 找到 section, copyWith(enabled: ...), updateSection
+      final cur = ref.read(promptManagerProvider).getSection(type);
+      if (cur != null) {
+        await notifier.updateSection(
+          cur.copyWith(enabled: payload['enabled'] == true),
+        );
+      }
+    } else {
+      await notifier.toggleSection(type);
+    }
+    // 不主动 push,listener 会自动推 pmSectionsChanged;但同步返当前状态供球即时刷新
+    return _handlePmGetSections(payload);
   }
   /// 反向同步:把变量表推进引擎房镜像。
   void _syncVarsToEngine(String type, Map<String, dynamic> data, {int? messageId, int? lastMsgId, int? swipeId}) {
