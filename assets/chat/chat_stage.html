@@ -289,6 +289,7 @@ if (!String.prototype.at) {
 <body>
 <div id="__kira_root"></div>
 <div id="__engineRoomHost" style="display:none;width:0;height:0;overflow:hidden;"></div>
+<div id="__presetScriptsRoomHost" style="display:none;width:0;height:0;overflow:hidden;"></div>
 <div id="__kira_model_sheet" class="model-sheet-overlay">
   <div class="model-sheet-panel">
     <div class="model-sheet-header">选择模型</div>
@@ -1787,6 +1788,30 @@ function injectBridge(html, id, floorIdx) {
       parent.postMessage({__thLog:true, text:'[clearGenerating] 失败: ' + e}, '*');
     }
   });
+  function createPresetScriptsRoom() {
+    try {
+      var host = document.getElementById('__presetScriptsRoomHost');
+      if (!host || host.querySelector('iframe')) return;
+      var scripts = window.__KIRA_PRESET_SCRIPTS || [];
+      var libs = window.__KIRA_LIBS || {};
+      var doc = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'
+        + (libs.jquery ? '<script>' + decodeB64Utf8(libs.jquery) + '<\/script>' : '')
+        + (libs.lodash ? '<script>' + decodeB64Utf8(libs.lodash) + '<\/script>' : '')
+        + (libs.toastrJs ? '<script>' + decodeB64Utf8(libs.toastrJs) + '<\/script>' : '')
+        + '<script>window.errorCatched=function(fn){return function(){try{return fn.apply(this,arguments);}catch(e){console.error(e);}}};'
+        + '(function(){var s={};try{localStorage.getItem("__kira_probe");}catch(e){Object.defineProperty(window,"localStorage",{configurable:true,value:{getItem:function(k){return s[k]||null;},setItem:function(k,v){s[k]=String(v);},removeItem:function(k){delete s[k];},clear:function(){s={};}}});parent.postMessage({__thLog:true,text:"[SCRIPT] 使用内存态 localStorage"},"*");}})();<\/script>'
+        + '<script>' + (window.__ENGINE_FACADE_JS || '') + '<\/script>'
+        + '<script>(function(){function send(p){try{parent.postMessage({__thLog:true,text:"[SCRIPT] "+p},"*");}catch(_){} }var o=console.error;console.error=function(){send("console.error "+Array.prototype.join.call(arguments," "));o.apply(console,arguments);};window.onerror=function(m,s,l,c,x){send("onerror "+m+" @"+l+":"+c);};window.addEventListener("unhandledrejection",function(x){send("unhandledrejection "+x.reason);});})();<\/script>'
+        + '</body></html>';
+      var frame=document.createElement('iframe'); frame.setAttribute('data-frame-id','preset-scripts-room'); frame.style.cssText='width:0;height:0;border:0;';
+      frame.srcdoc=doc; host.appendChild(frame);
+      frame.addEventListener('load',function(){ sendScriptLog('加载 '+scripts.length+' 个脚本'); scripts.forEach(function(s){if(!s||s.enabled===false||s.disabled===true||!s.content)return;try{var el=frame.contentDocument.createElement('script');el.textContent=s.content;frame.contentDocument.body.appendChild(el);sendScriptLog('成功 name='+(s.name||s.id||'unnamed')+' length='+s.content.length);}catch(e){sendScriptLog('失败 name='+(s.name||s.id||'unnamed')+' length='+s.content.length+' error='+e);}}); sendScriptLog('父文档节点数='+document.querySelectorAll('*').length); });
+      function sendScriptLog(t){try{parent.postMessage({__thLog:true,text:'[预设脚本] '+t},'*');}catch(_){} }
+    } catch(e) { parent.postMessage({__thLog:true,text:'[预设脚本] 创建失败: '+e},'*'); }
+  }
+  window.createPresetScriptsRoom=createPresetScriptsRoom;
+  window.resetPresetScriptsRoom=function(){var h=document.getElementById('__presetScriptsRoomHost');if(h)h.innerHTML='';createPresetScriptsRoom();};
+  createPresetScriptsRoom();
   function createEngineRoom() {
     try {
       var host = document.getElementById('__engineRoomHost');

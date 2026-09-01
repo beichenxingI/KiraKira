@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:kirakira/presentation/screens/chat/tavern_helper_facade.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
+import 'package:kirakira/presentation/providers/ai_preset_providers.dart';
 import 'package:kirakira/presentation/providers/regex_providers.dart';
 import 'package:kirakira/domain/services/regex_service.dart';
 import 'package:kirakira/data/models/regex_script.dart';
@@ -273,6 +274,43 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       KiraLogger().info('引擎房', '门面注入失败: $e');
     }
   }
+  Future<void> _injectPresetScripts(InAppWebViewController c) async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final character = ref.read(activeChatProvider).character;
+    final preset = ref.read(activeAIPresetProvider);
+    final scripts = <Map<String, dynamic>>[
+      ...preset?.tavernHelperScripts ?? const <Map<String, dynamic>>[],
+    ];
+    final raw = ref.read(activeChatProvider).character?.extensions['tavern_helper'];
+    if (raw is Map && raw['scripts'] is List) {
+      scripts.addAll((raw['scripts'] as List).whereType<Map>().map(Map<String, dynamic>.from));
+    }
+    final enabledScripts = scripts.where((s) => s['enabled'] == true && s['content'] is String).toList();
+    final authKey = 'tavern_scripts_auth_${character?.id ?? 'none'}_${preset?.id ?? 'none'}';
+    var allowed = prefs.getBool(authKey);
+    if (enabledScripts.isNotEmpty && allowed == null && mounted) {
+      final names = enabledScripts.map((s) => '• ${s['name'] ?? '未命名脚本'}').join('\n');
+      allowed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+        title: Text('此内容包含 ${enabledScripts.length} 个脚本'),
+        content: Text('$names\n\n是否允许运行？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('拒绝')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('允许')),
+        ],
+      )) ?? false;
+      await prefs.setBool(authKey, allowed);
+      if (!allowed) KiraLogger().info('预设脚本', '用户拒绝，脚本不执行');
+    }
+    if (allowed != true) enabledScripts.clear();
+    try {
+      await c.evaluateJavascript(
+        source: 'window.__KIRA_PRESET_SCRIPTS=${jsonEncode(enabledScripts)};',
+      );
+    } catch (e) {
+      KiraLogger().info('预设脚本', '注入失败: $e');
+    }
+  }
+
   /// 把 MVU bundle(base64)注入外层 window.__KIRA_MVU_BUNDLE,
   /// 供 createEngineRoom 建引擎房时内联为 ES module。
   Future<void> _injectEjsStub(InAppWebViewController c) async {
@@ -538,6 +576,17 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       }
     });
 
+    ref.listen(activeAIPresetIdProvider, (prev, next) {
+      if (prev != next && _webViewMounted) {
+        final controller = _controller;
+        if (controller != null) {
+          _injectPresetScripts(controller);
+          controller.evaluateJavascript(
+              source: 'if(window.resetPresetScriptsRoom)window.resetPresetScriptsRoom();');
+        }
+      }
+    });
+
     ref.listen(activeChatIdProvider, (prev, next) {
       if (prev != next && next != null && _webViewMounted) {
         _controller?.evaluateJavascript(
@@ -720,8 +769,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                   onLoadStop: (c, url) async {
                     await _injectCompatLibs(c); // 注入第三方库到外层window
                     await _injectMacroValues(c); // 注入宏替换用的角色名/用户名
-                    await _injectEngineFacade(c); // 注入引擎房共享门面
-                    await _injectMvuBundle(c);
+                     await _injectEngineFacade(c); // 注入引擎房共享门面
+                     await _injectPresetScripts(c);
+                     await _injectMvuBundle(c);
       await _injectEjsStub(c);
       await _injectEjsBundle(c); // 注入 EJS bundle 供引擎房内联
                     await c.evaluateJavascript(
