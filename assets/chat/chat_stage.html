@@ -1806,7 +1806,35 @@ function injectBridge(html, id, floorIdx) {
         + '</body></html>';
       var frame=document.createElement('iframe'); frame.setAttribute('data-frame-id','preset-scripts-room'); frame.style.cssText='width:0;height:0;border:0;';
       frame.srcdoc=doc; host.appendChild(frame);
-      frame.addEventListener('load',function(){ sendScriptLog('加载 '+scripts.length+' 个脚本'); var W=frame.contentWindow, D=frame.contentDocument; scripts.forEach(function(s){ if(!s||s.enabled===false||s.disabled===true||!s.content)return; var nm=(s.name||s.id||'unnamed'); var isMod=/(^|[\r\n;])\s*(import|export)[\s'"(]/.test(s.content); try{ var el=D.createElement('script'); if(isMod){ el.type='module'; el.src=W.URL.createObjectURL(new W.Blob([s.content],{type:'text/javascript'})); el.onload=function(){sendScriptLog('module完成 name='+nm);}; el.onerror=function(){sendScriptLog('module加载失败 name='+nm);}; sendScriptLog('module注入 name='+nm+' length='+s.content.length); } else { el.textContent=s.content; } D.body.appendChild(el); if(!isMod) sendScriptLog('classic注入 name='+nm+' length='+s.content.length); } catch(e){ sendScriptLog('异常 name='+nm+' error='+e); } }); sendScriptLog('父文档节点数='+document.querySelectorAll('*').length); });      function sendScriptLog(t){try{parent.postMessage({__thLog:true,text:'[预设脚本] '+t},'*');}catch(_){} }
+      frame.addEventListener('load',function(){ sendScriptLog('加载 '+scripts.length+' 个脚本'); var W=frame.contentWindow, D=frame.contentDocument;
+        // [P3-M] 按 scripts 数组顺序串行注入:classic 同步立即执行;module 等 onload/onerror 后再注下一个,
+        // 否则并行 forEach 不能保证 module 加载顺序,前置 module 未挂上时后续 import 引用会 z is not defined。
+        var queue = (scripts || []).slice();
+        function injectOne(){
+          if (!queue.length) { sendScriptLog('父文档节点数='+document.querySelectorAll('*').length); return; }
+          var s = queue.shift();
+          if(!s||s.enabled===false||s.disabled===true||!s.content){ injectOne(); return; }
+          var nm=(s.name||s.id||'unnamed');
+          var isMod=/(^|[\r\n;])\s*(import|export)[\s'"(]/.test(s.content);
+          try {
+            var el=D.createElement('script');
+            if(isMod){
+              el.type='module';
+              el.src=W.URL.createObjectURL(new W.Blob([s.content],{type:'text/javascript'}));
+              el.onload=function(){sendScriptLog('module完成 name='+nm);injectOne();};
+              el.onerror=function(){sendScriptLog('module加载失败 name='+nm);injectOne();};
+              sendScriptLog('module注入 name='+nm+' length='+s.content.length);
+              D.body.appendChild(el);
+            } else {
+              el.textContent=s.content;
+              D.body.appendChild(el);
+              sendScriptLog('classic注入 name='+nm+' length='+s.content.length);
+              injectOne();
+            }
+          } catch(e){ sendScriptLog('异常 name='+nm+' error='+e); injectOne(); }
+        }
+        injectOne();
+      });      function sendScriptLog(t){try{parent.postMessage({__thLog:true,text:'[预设脚本] '+t},'*');}catch(_){} }
     } catch(e) { parent.postMessage({__thLog:true,text:'[预设脚本] 创建失败: '+e},'*'); }
   }
   window.createPresetScriptsRoom=createPresetScriptsRoom;
