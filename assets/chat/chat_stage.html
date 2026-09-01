@@ -74,6 +74,7 @@ if (!String.prototype.at) {
   img { max-width: 100%; height: auto; display: block; }
   .quote-q { color: var(--quote-q-color, #FFA726); font-weight: 500; }
   .quote-p { color: var(--quote-p-color, #29B6F6); font-weight: 500; }
+  .msg.has-frames { display: block; max-width: 100%; width: 100%; padding: 0; background: none; border: none; box-shadow: none; }
   .msg {
     display: inline-block; max-width: 78%;
     margin: 14px 0; padding: 16px 18px; border-radius: 22px;
@@ -1423,6 +1424,7 @@ function injectBridge(html, id, floorIdx) {
         }
 
         var hasSegs = Array.isArray(m.segs) && m.segs.length > 0;
+        if (hasSegs) { wrap.className += ' has-frames'; }
         if (hasSegs) {
           var frontendIndex = 0;
           for (var si = 0; si < m.segs.length; si++) {
