@@ -1799,6 +1799,9 @@ function injectBridge(html, id, floorIdx) {
         + (libs.lodash ? '<script>' + decodeB64Utf8(libs.lodash) + '<\/script>' : '')
         + (libs.toastrJs ? '<script>' + decodeB64Utf8(libs.toastrJs) + '<\/script>' : '')
         + (libs.vue ? '<script>' + decodeB64Utf8(libs.vue) + '<\/script>' : '')
+                // [P3-N] 脚本房补 YAML:MVU bundle 用裸 YAML 全局(真机实测 YAML is not defined),
+        // 引擎房 1879 行已有同款注入,脚本房是独立 iframe 不能共享
+        + (libs.yaml ? '<script>' + decodeB64Utf8(libs.yaml) + '<\/script>' : '')
         + '<script>window.errorCatched=function(fn){return function(){try{return fn.apply(this,arguments);}catch(e){console.error(e);}}};'
         + '(function(){var s={};try{localStorage.getItem("__kira_probe");}catch(e){Object.defineProperty(window,"localStorage",{configurable:true,value:{getItem:function(k){return s[k]||null;},setItem:function(k,v){s[k]=String(v);},removeItem:function(k){delete s[k];},clear:function(){s={};}}});parent.postMessage({__thLog:true,text:"[SCRIPT] 使用内存态 localStorage"},"*");}})();<\/script>'
         + '<script>' + (window.__ENGINE_FACADE_JS || '') + '<\/script>'
