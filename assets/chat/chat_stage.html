@@ -1357,6 +1357,31 @@ function injectBridge(html, id, floorIdx) {
       return 0;
     };
 
+    // ── [P5-6阶段2.3] getScriptTrees 纯JS只读(不过桥) ──
+    // 数据源 __KIRA_PRESET_SCRIPTS(preset+卡脚本合并列表,Dart注入),剥content防肥大。
+    // 道渊第4条报警(状态栏模式N项误开计数)依赖此API。
+    TH.getScriptTrees = function (options) {
+      var type = (options && options.type) || 'global';
+      var all = (window.__KIRA_PRESET_SCRIPTS || []);
+      var list;
+      if (type === 'preset') {
+        // 预设脚本无独立标记时降级为全部;卡侧一般只取 enabled 计数
+        list = all;
+      } else if (type === 'character') {
+        list = all;
+      } else {
+        list = all;
+      }
+      return Promise.resolve(list.map(function (s, i) {
+        return {
+          id: String(s.id != null ? s.id : i),
+          name: String(s.name != null ? s.name : ('脚本' + (i + 1))),
+          enabled: !!s.enabled,
+          type: type
+        };
+      }));
+    };
+
     // ── 写 API(不走读合并;Dart侧写handler会失效读缓存) ──
     TH.replaceWorldbook = function (name, entries) {
       if (!Array.isArray(entries)) return Promise.reject(new Error('entries must be an array'));
