@@ -62,6 +62,12 @@ String buildTavernHelperFacadeJs({
       '})();'
       // ── frameId(请求路由用) ──
       'var _id=${jsonEncode(frameId)};'
+      // ── [P5-6阶段3.2] iframe内setInterval/clearInterval计数(照chat_stage.html:1986-1990) ──
+      // 主文档计数看不到 iframe 内的轮询计时器;扩到每个 iframe 后探针可断言"轮询活着/数量稳定"。
+      'window.__kiraTimerCount=0;'
+      '(function(){var si=window.setInterval,ci=window.clearInterval,active={};'
+      'window.setInterval=function(){var id=si.apply(this,arguments);active[id]=true;window.__kiraTimerCount++;return id;};'
+      'window.clearInterval=function(id){if(active[id]){delete active[id];window.__kiraTimerCount=Math.max(0,window.__kiraTimerCount-1);}return ci.call(this,id);};})();'
       // ── __thCall 通信桥(iframe → Dart 请求/响应) ──
       'var __thPending={};var __thId=1;'
       'function __thCall(method,args){'

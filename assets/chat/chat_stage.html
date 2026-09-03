@@ -2053,7 +2053,9 @@ function injectBridge(html, id, floorIdx) {
                replaceWorldbook: typeof (W.TavernHelper && W.TavernHelper.replaceWorldbook)
              },
              mvu: typeof W.Mvu,
-             timers: window.__kiraTimerCount || 0,
+             // [P5-6阶段3.2] 读脚本房iframe自己的计时器计数(W=frame.contentWindow),
+             // 主文档计数看不到iframe内的轮询;加了宿主兜底防门面未注入旧帧
+             timers: (W === window) ? (window.__kiraTimerCount || 0) : (W.__kiraTimerCount != null ? W.__kiraTimerCount : (window.__kiraTimerCount || 0)),
              performance: {
                heap: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1024 / 1024) : 'unknown',
                frames: document.querySelectorAll('iframe').length
