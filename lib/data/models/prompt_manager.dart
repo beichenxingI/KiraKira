@@ -422,20 +422,19 @@ class PromptManagerConfig {
           final injectionPosition = prompt['injection_position'] as int?;
           final injectionDepth = prompt['injection_depth'] as int?;
           
-          if (identifier != null) {
-            final type = identifierMap[identifier] ?? PromptSectionType.custom;
-            customPrompts[identifier] = PromptSection(
-              type: type,
-              name: name,
-              enabled: true,
-              order: 0, // Will be set later based on prompt_order
-              content: content,
-              identifier: identifier,
-              role: role,
-              injectionPosition: injectionPosition,
-              injectionDepth: injectionDepth,
-            );
-          }
+          // 经上方去重/生成后 identifier 必为非空,无需再判空
+          final type = identifierMap[identifier] ?? PromptSectionType.custom;
+          customPrompts[identifier] = PromptSection(
+            type: type,
+            name: name,
+            enabled: true,
+            order: 0, // Will be set later based on prompt_order
+            content: content,
+            identifier: identifier,
+            role: role,
+            injectionPosition: injectionPosition,
+            injectionDepth: injectionDepth,
+          );
         }
       }
     }

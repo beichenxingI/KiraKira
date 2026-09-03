@@ -77,6 +77,21 @@ String buildTavernHelperFacadeJs({
       'var p=__thPending[d.rid];if(!p)return;delete __thPending[d.rid];'
       'if(d.ok)p.resolve(d.result);else p.reject(new Error(d.error||"th failed"));'
       '});'
+      // ── [P5-4] 只读桥调用"进行中合并":道渊 5 秒轮询 getWorldbook,单次往返>5s 时
+      // setInterval 不等上次完成就会叠加桥消息/DB查询/序列化(实测卡、烫的根因)。
+      // 读是幂等的:同方法+同参数的请求在上一笔未完成时复用同一 Promise,语义不变;
+      // 完成/失败后自清缓存,下一笔照常新发。写路径(setVariables/replaceWorldbook 等)绝不走这里。
+      'var __thInFlight={};'
+      'function __thCallRead(method,args){'
+      'var key;try{key=method+"|"+JSON.stringify(args||[]);}catch(e){key=method;}'
+      'var p=__thInFlight[key];'
+      'if(p)return p;'
+      'p=__thCall(method,args);'
+      '__thInFlight[key]=p;'
+      'var done=function(){if(__thInFlight[key]===p){try{delete __thInFlight[key];}catch(e){}}};'
+      'p.then(done,done);'
+      'return p;'
+      '}'
       // ── 收外层中继来的事件 → 触发 MVU 注册的 eventOn 回调(点火) ──
       'window.__chatMessages=window.__chatMessages||[];'
       'window.addEventListener("message",function(e){'
@@ -187,7 +202,7 @@ String buildTavernHelperFacadeJs({
       '};'
       'window.updateVariablesWith=_TH.updateVariablesWith;'
       'window.insertOrAssignVariables=_TH.insertOrAssignVariables;'
-      '_TH.getAllVariables=function(){return __thCall("getAllVariables",[]);};'
+      '_TH.getAllVariables=function(){return __thCallRead("getAllVariables",[]);};'
       '_TH.getTavernHelperVersion=function(){return "4.9.1";};'
       // MVU 启动依赖:唯一脚本机制(假对象)
         '_TH.__gsidN=0;'
@@ -212,9 +227,9 @@ String buildTavernHelperFacadeJs({
       '};'
       'window.substitudeMacros=_TH.substitudeMacros;'
       // 世界书接口
-      '_TH.getLorebookEntries=function(name){return __thCall("getLorebookEntries",[name]);};'
-      '_TH.getWorldbookNames=function(){return __thCall("th_wiGetLorebooks",[]).then(function(names){if(!Array.isArray(names))throw new Error("worldbook names must be an array");return names;});};'
-      '_TH.getWorldbook=function(name){return __thCall("th_wiGetEntries",[name]).then(function(entries){if(!Array.isArray(entries))throw new Error("worldbook entries must be an array");return entries;});};'
+      '_TH.getLorebookEntries=function(name){return __thCallRead("getLorebookEntries",[name]);};'
+      '_TH.getWorldbookNames=function(){return __thCallRead("th_wiGetLorebooks",[]).then(function(names){if(!Array.isArray(names))throw new Error("worldbook names must be an array");return names;});};'
+      '_TH.getWorldbook=function(name){return __thCallRead("th_wiGetEntries",[name]).then(function(entries){if(!Array.isArray(entries))throw new Error("worldbook entries must be an array");return entries;});};'
       '_TH.replaceWorldbook=function(name,entries){if(!Array.isArray(entries))return Promise.reject(new Error("replaceWorldbook requires an array"));return __thCall("th_wiSetEntries",[name,entries]).then(function(result){return result;});};'
       '_TH.getTavernRegexes=function(){return Promise.reject(new Error("getTavernRegexes: no Flutter data source"));};'
       '_TH.updateTavernRegexesWith=function(){return Promise.reject(new Error("updateTavernRegexesWith: no Flutter data source"));};'
@@ -222,19 +237,19 @@ String buildTavernHelperFacadeJs({
       '_TH.updateScriptTreesWith=function(){return Promise.reject(new Error("updateScriptTreesWith: no Flutter data source"));};'
       '_TH.getCurrentCharPrimaryLorebook=function(){return _TH.__primaryLorebook;};'
       'window.getCurrentCharPrimaryLorebook=_TH.getCurrentCharPrimaryLorebook;'
-      '_TH.getEnabledLorebookList=function(){return __thCall("getEnabledLorebookList",[]);};'
+      '_TH.getEnabledLorebookList=function(){return __thCallRead("getEnabledLorebookList",[]);};'
       'window.getEnabledLorebookList=_TH.getEnabledLorebookList;'
       '_TH.setLorebookEntries=function(name,entries){return __thCall("setLorebookEntries",[name,entries||[]]);};'
       '_TH.createLorebookEntry=function(name,entry){return __thCall("createLorebookEntry",[name,entry||{}]);};'
       '_TH.deleteLorebookEntries=function(name,uids){return __thCall("deleteLorebookEntries",[name,uids||[]]);};'
-      '_TH.getCharacterLorebooks=function(){return __thCall("getCharacterLorebooks",[]);};'
-      '_TH.getCharacterLorebooks=function(){return __thCall("getCharacterLorebooks",[]);};'
+      '_TH.getCharacterLorebooks=function(){return __thCallRead("getCharacterLorebooks",[]);};'
+      '_TH.getCharacterLorebooks=function(){return __thCallRead("getCharacterLorebooks",[]);};'
       'window.getCharacterLorebooks=_TH.getCharacterLorebooks;'  // MVU若喊长名
       '_TH.getCharLorebooks=_TH.getCharacterLorebooks;'          // MVU实际喊的短名
       'window.getCharLorebooks=_TH.getCharacterLorebooks;'       // 裸挂，让MVU够得着
-      '_TH.getCharWorldbookNames=function(t){return __thCall("getCharacterLorebooks",[]);};'  // MVU新版API名,initvar路径必调
+      '_TH.getCharWorldbookNames=function(t){return __thCallRead("getCharacterLorebooks",[]);};'  // MVU新版API名,initvar路径必调
       'window.getCharWorldbookNames=_TH.getCharWorldbookNames;'
-      '_TH.getLorebooks=function(){return __thCall("getLorebooks",[]);};'
+      '_TH.getLorebooks=function(){return __thCallRead("getLorebooks",[]);};'
       '_TH.getLorebookSettings=function(){return {selected_global_lorebooks:[]};};'
       'window.getLorebookSettings=_TH.getLorebookSettings;'
       '_TH.setLorebookSettings=function(s){return true;};'
