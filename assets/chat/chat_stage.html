@@ -991,6 +991,8 @@ function injectBridge(html, id, floorIdx) {
       try {
         var cards2 = document.querySelectorAll('iframe[data-frame-id]:not([data-frame-id="engine-room"])');
         for (var mi = 0; mi < cards2.length; mi++) {
+          // 跳过事件来源帧,防止脚本房↔主文档无限循环
+          if (cards2[mi].contentWindow === e.source) continue;
           if (cards2[mi].contentWindow) {
             cards2[mi].contentWindow.postMessage({ __thEvent: true, type: d.type, args: d.args || [] }, '*');
           }

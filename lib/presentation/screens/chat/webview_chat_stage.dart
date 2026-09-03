@@ -88,6 +88,7 @@ class WebViewChatStage extends ConsumerStatefulWidget {
 
 class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with TickerProviderStateMixin, WidgetsBindingObserver {
   ProviderSubscription<PromptManagerConfig>? _pmSub;
+  ProviderSubscription<String?>? _charSub; // [P5-7B] character 变化自愈监听
   InAppWebViewController? _controller;
   bool _pmIdentifiersLogged = false;
   int _wvCrashCount = 0; // [WV-6/P1-A5] renderer 崩溃自愈次数上限,防"崩→reload→再崩"死循环
@@ -287,8 +288,19 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
   Future<void> _injectPresetScripts(InAppWebViewController c) async {
+    // [P5-7B] 校验: 确保 provider 中的 chat 与本 widget 匹配,防止切卡竞态注入错误脚本
+    final currentChat = ref.read(activeChatProvider).chat;
+    if (currentChat?.id != widget.chatId) {
+      debugPrint(
+          '[脚本注入] 跳过: provider中的chat(${currentChat?.id})与widget.chatId(${widget.chatId})不匹配');
+      return;
+    }
     final prefs = ref.read(sharedPreferencesProvider);
     final character = ref.read(activeChatProvider).character;
+    if (character == null) {
+      debugPrint('[脚本注入] 跳过: character为null');
+      return;
+    }
     final preset = ref.read(activeAIPresetProvider);
     final scripts = <Map<String, dynamic>>[
       ...preset?.tavernHelperScripts ?? const <Map<String, dynamic>>[],
@@ -425,12 +437,27 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       await _loadEjsStub();
       await _loadEjsBundle();
       if (!mounted) return;
-      ref.read(activeChatProvider.notifier).loadChat(widget.chatId);
+      // [P5-7B] 等 loadChat 真正完成,确保 character 数据就绪后再挂 WebView
+      await ref.read(activeChatProvider.notifier).loadChat(widget.chatId);
       // 延迟挂载 WebView:让入场这段时间保持纯 Flutter(无 WebView 重活),动画/遮罩流畅
       await Future.delayed(const Duration(milliseconds: 350));
       if (!mounted) return;
       setState(() => _webViewMounted = true);
     });
+    // [P5-7B] 自愈: character 变化时重新注入脚本,防止时序竞态注入旧卡脚本
+    _charSub = ref.listenManual(
+      activeChatProvider.select((s) => s.character?.id),
+      (previous, next) {
+        if (next != null &&
+            next != previous &&
+            _webViewMounted &&
+            _controller != null) {
+          debugPrint('[脚本监听] character变化: $previous → $next, 重新注入');
+          final c = _controller;
+          if (c != null) _injectPresetScripts(c);
+        }
+      },
+    );
   }
   @override
   void didChangeMetrics() {
@@ -469,6 +496,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     _inputController.dispose();
     _inputFocus.dispose();
     _pmSub?.close();
+    _charSub?.close();
     _bridge.dispose();
     super.dispose();
   }
