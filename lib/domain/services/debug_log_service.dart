@@ -129,8 +129,26 @@ class DebugLogService {
     String? error,
     StackTrace? stackTrace,
   }) {
-    if (!_isCapturing) return;
-    
+    // [P5-6阶段1.2] ERROR/WARN 不受 _isCapturing 门控,环形缓冲常驻 ——
+    // 用户模式(未开捕获)下错误也得留痕,否则排查无从下手(方案2.3-S7)。
+    final alwaysKeep = level == 'ERROR' || level == 'WARN';
+    if (!_isCapturing && !alwaysKeep) return;
+
+    // [P5-6阶段1.2] ERROR 同文案 5 秒窗口内去重合并,防高频错误刷爆缓冲/toast
+    if (alwaysKeep) {
+      final key = '$level|$source|$message';
+      final last = _recentErrors[key];
+      if (last != null && DateTime.now().difference(last) < const Duration(seconds: 5)) {
+        return;
+      }
+      _recentErrors[key] = DateTime.now();
+      if (_recentErrors.length > 128) {
+        _recentErrors.removeWhere(
+          (k, v) => DateTime.now().difference(v) >= const Duration(seconds: 5),
+        );
+      }
+    }
+
     _addLog(LogEntry(
       timestamp: DateTime.now(),
       level: level,
@@ -148,6 +166,9 @@ class DebugLogService {
       stackTrace: stackTrace,
     );
   }
+
+  /// [P5-6阶段1.2] ERROR/WARN 5 秒去重窗口: key → 上次记录时间
+  final Map<String, DateTime> _recentErrors = {};
 
   void _addLog(LogEntry entry) {
     _logs.add(entry);

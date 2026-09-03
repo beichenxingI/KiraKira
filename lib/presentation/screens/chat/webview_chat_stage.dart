@@ -52,6 +52,8 @@ import 'package:image/image.dart' as img;
 import 'package:kirakira/presentation/providers/tts_providers.dart';
 import 'package:kirakira/domain/services/llm_service.dart';
 import 'package:kirakira/presentation/providers/mvu_settings_providers.dart';
+import 'package:kirakira/domain/services/debug_log_service.dart';
+import 'package:kirakira/presentation/widgets/snackbar_utils.dart';
 import 'package:kirakira/core/utils/file_utils.dart';
 
 /// compute 用的顶层函数：isolate 中只读图片头部拿宽高，不解码整图（内存安全）。
@@ -810,9 +812,26 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _controller = c;
                     _bridge.attach(c);
                     _bridge.on(BridgeType.action, _handleAction);
+                    // [P5-6阶段1.2] 卡片日志分级: error→toast+常驻缓冲, warn→常驻缓冲,
+                    // info/debug→仅开发模式打印(由 DebugLogService 捕获开关门控)
                     _bridge.on(BridgeType.log, (payload) {
                       final t = payload['text']?.toString() ?? '';
-                      debugPrint('[卡片日志] $t');
+                      final level = payload['level']?.toString().toLowerCase() ?? 'info';
+                      switch (level) {
+                        case 'error':
+                          DebugLogService().log(t, level: 'ERROR', source: '卡片日志');
+                          if (mounted) {
+                            showErrorSnackBar(context, t);
+                          }
+                          break;
+                        case 'warn':
+                          DebugLogService().log(t, level: 'WARN', source: '卡片日志');
+                          debugPrint('[卡片警告] $t');
+                          break;
+                        default:
+                          debugPrint('[卡片日志] $t');
+                          break;
+                      }
                     });
                     // 酒馆助手 API：读取当前会话消息（请求-响应）
                     _bridge.onRequest('th_getMessages', _handleGetMessages);
