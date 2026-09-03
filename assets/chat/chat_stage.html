@@ -340,6 +340,45 @@ if (!String.prototype.at) {
 </div>
 <script>
 __KIRA_CHAT_BRIDGE__
+  // ── [P5-6阶段1.1] 主文档错误转发: onerror/unhandledrejection/console.error → Flutter日志 ──
+  // 之前主文档JS抛错只有WebView devtools可见,Flutter/用户全盲(方案2.3-S3)。
+  // 去重: 每条错误文本首次出现才发送,防道渊5s轮询类重复刷屏。转发函数自身try/catch防死循环。
+  (function () {
+    var __mainSeenErrs = {};
+    function __mainLog(text, level) {
+      try {
+        if (__mainSeenErrs[text]) return;
+        __mainSeenErrs[text] = 1;
+        sendToFlutter('log', { text: '[MAIN] ' + text, level: level || 'error' });
+      } catch (_e) {}
+    }
+    var _oe = window.onerror;
+    window.onerror = function (msg, src, line, col, err) {
+      __mainLog(String(msg) + ' @' + (line || '?') + ':' + (col || '?') + (err && err.stack ? ' ' + err.stack : ''));
+      if (_oe) return _oe.apply(this, arguments);
+      return false;
+    };
+    window.addEventListener('unhandledrejection', function (ev) {
+      var r = ev && ev.reason;
+      var t = r ? (r.message || String(r)) : 'unknown rejection';
+      __mainLog('unhandledrejection ' + t + (r && r.stack ? ' ' + r.stack : ''));
+    });
+    if (!console.__kiraMainWrapped) {
+      var _ce = console.error.bind(console);
+      console.error = function () {
+        try {
+          var parts = Array.prototype.slice.call(arguments).map(function (a) {
+            if (a instanceof Error) return a.stack || a.message;
+            if (typeof a === 'object' && a !== null) { try { return JSON.stringify(a); } catch (_j) { return String(a); } }
+            return String(a);
+          });
+          __mainLog('console.error ' + parts.join(' '));
+        } catch (_f) {}
+        _ce.apply(null, arguments);
+      };
+      console.__kiraMainWrapped = true;
+    }
+  })();
   var __allModels = [];
   var __currentModel = '';
   function __renderModelList(filter) {
