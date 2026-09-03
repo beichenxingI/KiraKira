@@ -324,6 +324,34 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       KiraLogger().info('引擎房', '门面注入失败: $e');
     }
   }
+
+  /// [P5-6阶段2.1] 把主环境快照注入外层 window.__KIRA_MAIN_ENV,
+  /// 供主文档 SillyTavern.getContext() 骨架读取(mvu_settings/EjsTemplate)。
+  /// 注入失败由 HTML 侧降级为空对象并打 [主环境] 日志,不阻断。
+  Future<void> _injectMainEnv(InAppWebViewController c) async {
+    final mvu = ref.read(mvuSettingsProvider);
+    final env = <String, dynamic>{
+      'mvu': <String, dynamic>{
+        '更新方式': mvu.updateMode,
+        '额外模型解析配置': <String, dynamic>{
+          '破限方案': mvu.jailbreakScheme,
+          '启用自动请求': mvu.autoRequest,
+          'max_chat_history': mvu.maxChatHistory,
+          '模型来源': mvu.modelSource,
+          'api地址': mvu.apiUrl,
+          '模型名称': mvu.modelName,
+        },
+      },
+      // EJS 引擎真实加载状态门控(_ejsLoaded 静态标志),不是造假
+      'ejsLoaded': _ejsLoaded,
+    };
+    final js = 'window.__KIRA_MAIN_ENV=${jsonEncode(env)};';
+    try {
+      await c.evaluateJavascript(source: js);
+    } catch (e) {
+      KiraLogger().info('主环境', '注入失败: $e');
+    }
+  }
   Future<void> _injectPresetScripts(InAppWebViewController c) async {
     // [P5-7B] 校验: 确保 provider 中的 chat 与本 widget 匹配,防止切卡竞态注入错误脚本
     final currentChat = ref.read(activeChatProvider).chat;
@@ -869,6 +897,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                   onLoadStop: (c, url) async {
                     await _injectCompatLibs(c); // 注入第三方库到外层window
                     await _injectMacroValues(c); // 注入宏替换用的角色名/用户名
+                    await _injectMainEnv(c); // [P5-6阶段2.1] 注入主环境快照(主文档ST骨架读)
                      await _injectEngineFacade(c); // 注入引擎房共享门面
                      await _injectPresetScripts(c);
                      await _injectMvuBundle(c);

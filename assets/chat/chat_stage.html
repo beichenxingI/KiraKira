@@ -381,6 +381,30 @@ __KIRA_CHAT_BRIDGE__
   })();
   var __allModels = [];
   var __currentModel = '';
+  // ── [P5-6阶段2.1] 共享 method 表: TH方法名 → 桥请求type ──
+  // 中转器(iframe通路A)与主文档最小TavernHelper(通路B直连)同表查法,
+  // 保持"method名 = typeMap key = Dart门面method名"一个约定,三层不漂。
+  window.__TH_METHOD_TO_BRIDGE = {
+    getChatMessages: 'th_getMessages',
+    setChatMessage:  'th_setMessage',
+    triggerSlash:    'th_triggerSlash',
+    setInput: 'th_setInput',
+    getVariables:    'th_getVars',
+    setVariables:    'th_setVars',
+    replaceVariables: 'th_setVars',
+    getLorebookEntries:    'th_wiGetEntries',
+    getEnabledLorebookList: 'th_wiGetEnabledList',
+    setLorebookEntries:    'th_wiSetEntries',
+    createLorebookEntry:   'th_wiCreateEntries',
+    deleteLorebookEntries: 'th_wiDeleteEntries',
+    setChatMessages:       'th_setMessages',
+    getCharacterLorebooks: 'th_wiGetCharLorebooks',
+    getLorebookSettings: 'th_wiGetLorebookSettings',
+    setLorebookSettings: 'th_wiSetLorebookSettings',
+    getLorebooks:          'th_wiGetLorebooks',
+    createLorebook:        'th_wiCreateBook',
+    generateRaw:           'th_generateRaw'
+  };
   function __renderModelList(filter) {
     var list = document.getElementById('model-list');
     if (!list) return;
@@ -1168,69 +1192,24 @@ function injectBridge(html, id, floorIdx) {
     }, 200);
   })();
 
-  // ── 酒馆助手 API：顶层中转 ────────────────────────────────────────
-  // 收 iframe 的 __thRequest → 走桥的请求-响应到 Flutter →
-  // 结果用 __thResponse postMessage 回对应 iframe。
-  window.addEventListener('message', function(e) {
-    var d = e.data;
-    if (!d || !d.__thRequest) return;
-    var frameId = d.frameId, rid = d.rid, method = d.method, args = d.args || [];
-    var srcWin = e.source;
-
-    function reply(ok, result, error) {
-      if (srcWin) srcWin.postMessage({
-        __thResponse: true, rid: rid, ok: ok,
-        result: result, error: error
-      }, '*');
-    }
-
-    // method → 桥的请求 type + payload 组装
-    var typeMap = {
-      getChatMessages: 'th_getMessages',
-      setChatMessage:  'th_setMessage',
-      triggerSlash:    'th_triggerSlash',
-      setInput: 'th_setInput',
-      getVariables:    'th_getVars',
-      setVariables:    'th_setVars',
-      replaceVariables: 'th_setVars',
-      getLorebookEntries:    'th_wiGetEntries',
-      getEnabledLorebookList: 'th_wiGetEnabledList',
-      setLorebookEntries:    'th_wiSetEntries',
-      createLorebookEntry:   'th_wiCreateEntries',
-      deleteLorebookEntries: 'th_wiDeleteEntries',
-      setChatMessages:       'th_setMessages',
-      getCharacterLorebooks: 'th_wiGetCharLorebooks',
-      getLorebookSettings: 'th_wiGetLorebookSettings',
-      setLorebookSettings: 'th_wiSetLorebookSettings',
-      getLorebooks:          'th_wiGetLorebooks',
-      createLorebook:        'th_wiCreateBook',
-      generateRaw:           'th_generateRaw'
-    };
-    // [P3-C/T5] 降噪:同 method 只在首次出现打一条,防刷屏淹没 CARD-ENV 探针;
-    // 下方成功/失败日志不受影响(失败必须可见是铁律)。
-    var _seen = window.__thSeenMethods || (window.__thSeenMethods = {});
-    if (!_seen[method]) { _seen[method] = 1; sendToFlutter('log', { text: '[TH中转] 收到iframe请求 method=' + method }); }
-    // [P3-E3] VariableOption 规范化: message_id 若是 iframe 字符串 id → 换算成楼层下标。
-    // 卡 getCurrentMessageId() 返回字符串 id; Dart 侧 setVars/广播都用数字楼层下标。
-    function __thNormVarOption(opt) {
-      var o = opt || {};
-      try {
-        if (o.message_id !== undefined && typeof o.message_id === 'string') {
-          if (window.__kiraMsgFloorMap && window.__kiraMsgFloorMap[o.message_id] !== undefined) {
-            o = Object.assign({}, o, { message_id: window.__kiraMsgFloorMap[o.message_id] });
-          } else {
-            var _nm = parseInt(o.message_id, 10);
-            if (!isNaN(_nm)) o = Object.assign({}, o, { message_id: _nm });
-            else { o = Object.assign({}, o); delete o.message_id; } // 'latest' → 宿主自定位
-          }
+  // ── [P5-6阶段2.1] TH方法位置参数拍平成桥payload(与各 th_* handler 的约定对齐)。
+  // 中转器(iframe通路A)与主文档最小TH(通路B直连)共用,防止两处漂移。
+  function __thNormVarOption(opt) {
+    var o = opt || {};
+    try {
+      if (o.message_id !== undefined && typeof o.message_id === 'string') {
+        if (window.__kiraMsgFloorMap && window.__kiraMsgFloorMap[o.message_id] !== undefined) {
+          o = Object.assign({}, o, { message_id: window.__kiraMsgFloorMap[o.message_id] });
+        } else {
+          var _nm = parseInt(o.message_id, 10);
+          if (!isNaN(_nm)) o = Object.assign({}, o, { message_id: _nm });
+          else { o = Object.assign({}, o); delete o.message_id; } // 'latest' → 宿主自定位
         }
-      } catch (_nvoE) {}
-      return o;
-    }
-    var type = typeMap[method];
-    if (!type) { reply(false, null, 'unknown method: ' + method); return; }
-
-    // 把卡片的位置参数拍平成 payload（与各 window.xxx 的约定对齐）
+      }
+    } catch (_nvoE) {}
+    return o;
+  }
+  function __thBuildPayload(method, args) {
     var payload = {};
     if (method === 'getChatMessages') {
       payload = { start: args[0] || 0, include_swipe: (args[1] && args[1].include_swipe) || false };
@@ -1267,7 +1246,36 @@ function injectBridge(html, id, floorIdx) {
     } else if (method === 'generateRaw') {
       payload = { cfg: args[0] || {} };
     }
+    return payload;
+  }
 
+  // ── 酒馆助手 API：顶层中转 ────────────────────────────────────────
+  // 收 iframe 的 __thRequest → 走桥的请求-响应到 Flutter →
+  // 结果用 __thResponse postMessage 回对应 iframe。
+  window.addEventListener('message', function(e) {
+    var d = e.data;
+    if (!d || !d.__thRequest) return;
+    var frameId = d.frameId, rid = d.rid, method = d.method, args = d.args || [];
+    var srcWin = e.source;
+
+    function reply(ok, result, error) {
+      if (srcWin) srcWin.postMessage({
+        __thResponse: true, rid: rid, ok: ok,
+        result: result, error: error
+      }, '*');
+    }
+
+    // method → 桥的请求 type(共享表,见顶部 __TH_METHOD_TO_BRIDGE)
+    var typeMap = window.__TH_METHOD_TO_BRIDGE;
+    // [P3-C/T5] 降噪:同 method 只在首次出现打一条,防刷屏淹没 CARD-ENV 探针;
+    // 下方成功/失败日志不受影响(失败必须可见是铁律)。
+    var _seen = window.__thSeenMethods || (window.__thSeenMethods = {});
+    if (!_seen[method]) { _seen[method] = 1; sendToFlutter('log', { text: '[TH中转] 收到iframe请求 method=' + method }); }
+    var type = typeMap[method];
+    if (!type) { reply(false, null, 'unknown method: ' + method); return; }
+
+    // 把卡片的位置参数拍平成 payload(共用 __thBuildPayload)
+    var payload = __thBuildPayload(method, args);
     __sendRequest(type, payload)
       .then(function(res) {
         sendToFlutter('log', { text: '[TH中转] ' + method + ' 成功返回' });
@@ -1280,6 +1288,120 @@ function injectBridge(html, id, floorIdx) {
         sendToFlutter('log', { text: '[TH中转] ' + method + ' 失败: ' + (err && err.message || err) });
         reply(false, null, String(err && err.message || err));
       });
+  });
+
+  // ── [P5-6阶段2.1] 主文档最小 TavernHelper(方案C1) ─────────────────────
+  // ST 顶层页面天然有 window.TavernHelper(官方类型 function/index.d.ts 注释实证),
+  // 道渊类"把代码送去顶层执行"的卡赌的就是这个不变量。本平台此前顶层没有 → 通路C全灭。
+  // 职责分区(防冲突): 只挂读+replaceWorldbook;
+  // 严禁 registerAsUniqueScript/getScriptId/th_unique_check/事件总线/Mvu/generateRaw ——
+  // MVU选主与事件扇出只应发生在 引擎房门面→主文档中继 一条链上,主文档出现第二套会双头。
+  (function () {
+    if (window.__KIRA_TH) return;
+    var TH = {};
+    window.__KIRA_TH = TH;
+
+    // ── 读合并(照抄 tavern_helper_facade.dart:84-94 的 __thCallRead)──
+    // 道渊 5s 轮询: 单次往返>5s 时叠加桥消息;读幂等,同方法+同参数在途复用同一Promise。
+    var __thInFlight = {};
+    function __thCall(method, args) {
+      // 共享 method 表: 主文档直连桥,method名与typeMap key同约定
+      var type = (window.__TH_METHOD_TO_BRIDGE || {})[method];
+      if (!type) return Promise.reject(new Error('unknown method: ' + method));
+      return __sendRequest(type, __thBuildPayload(method, args || []));
+    }
+    function __thCallRead(method, args) {
+      var key;
+      try { key = method + '|' + JSON.stringify(args || []); } catch (e) { key = method; }
+      var p = __thInFlight[key];
+      if (p) return p;
+      p = __thCall(method, args);
+      __thInFlight[key] = p;
+      var done = function () { if (__thInFlight[key] === p) { try { delete __thInFlight[key]; } catch (e) {} } };
+      p.then(done, done);
+      return p;
+    }
+
+    // ── 只读 API(走既有桥,受读合并保护) ──
+    TH.getWorldbookNames = function () { return __thCallRead('th_wiGetLorebooks', []); };
+    TH.getWorldbook = function (name) { return __thCallRead('th_wiGetEntries', [name]); };
+    TH.getLorebookEntries = function (name) { return __thCallRead('th_wiGetEntries', [name]); };
+    TH.getCharWorldbookNames = function (name) {
+      if (name && name !== 'current') {
+        return Promise.resolve({ primary: null, additional: [] });
+      }
+      return __thCallRead('th_wiGetCharLorebooks', [name || 'current']);
+    };
+    TH.getCharacterLorebooks = TH.getCharWorldbookNames;
+    TH.getEnabledLorebookList = function () { return __thCallRead('th_wiGetEnabledList', []); };
+    TH.getLorebookSettings = function () { return __thCallRead('th_wiGetLorebookSettings', []); };
+    TH.getTavernHelperVersion = function () { return '4.9.1'; };
+    // 纯JS读主环境宏值(注入见 _injectMacroValues),不过桥
+    TH.substitudeMacros = function (str) {
+      var out = String(str == null ? '' : str);
+      try {
+        var mv = window.__KIRA_MACRO_VALUES || {};
+        out = out.split('{{user}}').join(mv.user || '{{user}}')
+                 .split('<user>').join(mv.user || '<user>')
+                 .split('{{char}}').join(mv.char || '{{char}}')
+                 .split('<char>').join(mv.char || '<char>');
+      } catch (e) {}
+      return out;
+    };
+    TH.getLastMessageId = function () {
+      try {
+        if (window.__chatMessages && window.__chatMessages.length) {
+          return window.__chatMessages.length - 1;
+        }
+      } catch (e) {}
+      return 0;
+    };
+
+    // ── 写 API(不走读合并;Dart侧写handler会失效读缓存) ──
+    TH.replaceWorldbook = function (name, entries) {
+      if (!Array.isArray(entries)) return Promise.reject(new Error('entries must be an array'));
+      return __thCall('th_wiSetEntries', [name, entries]);
+    };
+
+    window.TavernHelper = TH;
+    try {
+      Object.defineProperty(window, 'TavernHelper', { configurable: false, writable: false });
+    } catch (e) {}
+  })();
+
+  // ── [P5-6阶段2.1] window.SillyTavern 最小骨架: 仅 extensionSettings 读 ──
+  // 道渊 bp 串直接读 getContext().extensionSettings.mvu_settings / EjsTemplate。
+  // 数据源: Dart onLoadStop 注入的 __KIRA_MAIN_ENV;注入失败降级空对象并打日志。
+  (function () {
+    if (window.SillyTavern) return;
+    var env = window.__KIRA_MAIN_ENV;
+    if (!env) {
+      env = {};
+      try { sendToFlutter('log', { text: '[主环境] __KIRA_MAIN_ENV 注入缺失,降级空对象', level: 'warn' }); } catch (e) {}
+    }
+    var mvuSnap = (env && env.mvu) || {};
+    window.SillyTavern = {
+      getContext: function () {
+        return {
+          extensionSettings: {
+            mvu_settings: mvuSnap,
+            EjsTemplate: { enabled: !!(env && env.ejsLoaded) }
+          }
+        };
+      },
+      saveSettingsDebounced: function () {},
+      getCurrentChatId: function () { return window.__KIRA_CHAT_ID || ''; }
+    };
+  })();
+
+  // ── [P5-6阶段2.1] bp-result 错误监听: 卡的catch吞得掉自己的错误,吞不掉我们先看到的事件 ──
+  window.addEventListener('bp-result', function (ev) {
+    try {
+      var d = ev && ev.detail;
+      if (d && d.error) {
+        sendToFlutter('log', { text: '[bp桥] 错误: ' + (d.error && d.error.message || d.error), level: 'error' });
+      }
+    } catch (e) {}
   });
 
 
