@@ -158,6 +158,41 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   static String? _chatBridgeJs;
   static bool _chatStageLoaded = false;
 
+  // [P5-6阶段0.1] 世界书读缓存: (方法+参数+角色) → (到期时间, 结果), TTL 2s。
+  // 背景: 通路C复活后道渊等卡 5s 轮询 getWorldbook,不缓存则是 N+1 全量 DB+序列化。
+  static const Duration _wiCacheTtl = Duration(seconds: 2);
+  final Map<String, (DateTime, dynamic)> _wiCache = {};
+  static const Object _wiCacheMiss = Object();
+
+  String _wiCacheKey(String method, [Object? arg]) =>
+      '$method|${arg ?? ''}|${ref.read(activeChatProvider).character?.id ?? 'none'}';
+
+  /// 读缓存命中返回缓存值;未命中/过期返回 _wiCacheMiss 哨兵(结果本身可为空列表)。
+  dynamic _wiCacheLookup(String method, [Object? arg]) {
+    final key = _wiCacheKey(method, arg);
+    final hit = _wiCache[key];
+    if (hit != null) {
+      if (DateTime.now().isBefore(hit.$1)) {
+        debugPrint('[WI缓存] 方法=$method, 缓存命中');
+        return hit.$2;
+      }
+      _wiCache.remove(key);
+    }
+    debugPrint('[WI缓存] 方法=$method, 缓存未命中');
+    return _wiCacheMiss;
+  }
+
+  void _wiCacheStore(String method, Object? arg, dynamic value) {
+    _wiCache[_wiCacheKey(method, arg)] = (DateTime.now().add(_wiCacheTtl), value);
+  }
+
+  /// 世界书写操作/角色切换后调用,保证写后读一致(写路径不走缓存)。
+  void _wiCacheInvalidate([String? reason]) {
+    if (_wiCache.isEmpty) return;
+    debugPrint('[WI缓存] 失效${reason == null ? '' : '($reason)'}: 清空 ${_wiCache.length} 条');
+    _wiCache.clear();
+  }
+
   /// 读取聊天壳资产(html + 桥 js)。成功后才置 _chatStageLoaded=true,
   /// 失败保持 false 以便下次重试,_htmlShell() 会走显性错误页而不是白屏。
   static Future<void> _loadChatStageAssets() async {
@@ -453,6 +488,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
             _webViewMounted &&
             _controller != null) {
           debugPrint('[脚本监听] character变化: $previous → $next, 重新注入');
+          _wiCacheInvalidate('character变化'); // [P5-6阶段0.1] 切角色清空世界书缓存,防串卡旧值
           final c = _controller;
           if (c != null) _injectPresetScripts(c);
         }
@@ -1837,13 +1873,19 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
   /// 取当前角色绑定的世界书列表（含全局）。
   Future<dynamic> _handleWiGetLorebooks(Map<String, dynamic> payload) async {
+    // [P5-6阶段0.1] 读缓存: 5s 轮询稳态下 TTL 窗口内不再打 DB
+    final cached = _wiCacheLookup('th_wiGetLorebooks');
+    if (!identical(cached, _wiCacheMiss)) return cached;
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
     final all = await repo.getAllWorldInfos();
-    return all.map((b) => b.name).toList();
+    final result = all.map((b) => b.name).toList();
+    _wiCacheStore('th_wiGetLorebooks', null, result);
+    return result;
   }
 
   /// 新建一本世界书（SillyTavern createLorebook）。payload: {name}
   Future<dynamic> _handleWiCreateBook(Map<String, dynamic> payload) async {
+    _wiCacheInvalidate('th_wiCreateBook');
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
     final name = payload['name'] as String?;
     if (name == null || name.isEmpty) return {'ok': false, 'error': 'name required'};
@@ -1861,6 +1903,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   /// (按 insertion_order 统一排序),不再被自动空壳遮蔽;
   /// 表侧为空时回退角色卡内嵌 character_book(兼容旧数据)。
   Future<dynamic> _handleWiGetEntries(Map<String, dynamic> payload) async {
+    // [P5-6阶段0.1] 读缓存: key 含请求书名,合并语义下 null/同名同结果
+    final reqName = payload['name'] as String?;
+    final cached = _wiCacheLookup('th_wiGetEntries', reqName);
+    if (!identical(cached, _wiCacheMiss)) return cached;
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
     final charId = ref.read(activeChatProvider).character?.id;
     final merged = <Map<String, dynamic>>[];
@@ -1872,15 +1918,22 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       }
       merged.sort((a, b) => (a['order'] as int? ?? 0).compareTo(b['order'] as int? ?? 0));
     }
-    if (merged.isNotEmpty) return merged;
-
-    // 回退:内嵌 character_book(表侧无条目时的旧数据兼容)
-    final book = ref.read(activeChatProvider).character?.characterBook;
-    if (book == null) return [];
-    final name = payload['name'] as String?;
-    // 519 返回的名字会原样传回来，对不上就不返
-    if (name != null && (book.name ?? 'character_book') != name) return [];
-    return book.entries.map(_charBookEntryToMvu).toList();
+    if (merged.isEmpty) {
+      // 回退:内嵌 character_book(表侧无条目时的旧数据兼容)
+      final book = ref.read(activeChatProvider).character?.characterBook;
+      final fallback = <Map<String, dynamic>>[];
+      if (book != null) {
+        final name = reqName;
+        // 519 返回的名字会原样传回来，对不上就不返
+        if (name == null || (book.name ?? 'character_book') == name) {
+          fallback.addAll(book.entries.map(_charBookEntryToMvu));
+        }
+      }
+      _wiCacheStore('th_wiGetEntries', reqName, fallback);
+      return fallback;
+    }
+    _wiCacheStore('th_wiGetEntries', reqName, merged);
+    return merged;
   }
   Future<dynamic> _handleWiGetLorebookSettings(Map<String, dynamic> payload) async {
     // MVU 从这里拿 selected_global_lorebooks 当作全局启用世界书
@@ -1908,9 +1961,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
   /// 角色绑定的世界书。MVU 期望 {primary, additional:[...]} 结构。
   Future<dynamic> _handleWiGetCharLorebooks(Map<String, dynamic> payload) async {
+    // [P5-6阶段0.1] 读缓存: 同角色 2s 内复用
+    final cached = _wiCacheLookup('th_wiGetCharLorebooks');
+    if (!identical(cached, _wiCacheMiss)) return cached;
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
     final charId = ref.read(activeChatProvider).character?.id;
-    if (charId == null) return {'primary': null, 'additional': <String>[]};
+    if (charId == null) {
+      const empty = {'primary': null, 'additional': <String>[]};
+      _wiCacheStore('th_wiGetCharLorebooks', null, empty);
+      return empty;
+    }
     final books = await repo.getWorldInfosForCharacter(charId);
     // A2修复:primary 取第一本【启用且有条目】的书,空壳不遮蔽真书
     final names = books.map((b) => b.name).whereType<String>().toList();
@@ -1931,14 +1991,17 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       primary = names.first;
       additional.remove(primary);
     }
-    return {
+    final result = {
       'primary': primary,
       'additional': additional,
     };
+    _wiCacheStore('th_wiGetCharLorebooks', null, result);
+    return result;
   }
 
   /// 更新条目（按 uid 找到已有条目改内容/关键词）。payload: {worldId/name, entries:[...]}
   Future<dynamic> _handleWiSetEntries(Map<String, dynamic> payload) async {
+    _wiCacheInvalidate('th_wiSetEntries');
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
     final worldId = await _wiResolveWorldId(repo, payload);
     if (worldId == null) return {'ok': false, 'error': 'lorebook not found'};
@@ -1988,6 +2051,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
   /// 新建条目。payload: {worldId/name, entries:[{keys, content, ...}]}
   Future<dynamic> _handleWiCreateEntries(Map<String, dynamic> payload) async {
+    _wiCacheInvalidate('th_wiCreateEntries');
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
     final worldId = await _wiResolveWorldId(repo, payload);
     if (worldId == null) return {'ok': false, 'error': 'lorebook not found'};
@@ -2009,6 +2073,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
   /// 删除条目。payload: {uids:[...]}
   Future<dynamic> _handleWiDeleteEntries(Map<String, dynamic> payload) async {
+    _wiCacheInvalidate('th_wiDeleteEntries');
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
     final uids = (payload['uids'] as List?)?.cast<String>() ?? [];
     for (final uid in uids) {
