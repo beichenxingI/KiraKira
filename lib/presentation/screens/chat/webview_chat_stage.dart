@@ -889,7 +889,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest('th_wiGetLorebookSettings', _handleWiGetLorebookSettings);
                     _bridge.onRequest('th_wiSetLorebookSettings', _handleWiSetLorebookSettings);
                     _bridge.onRequest('th_generateRaw', _handleGenerateRaw);
-    _bridge.onRequest('th_renderEJS', _handleRenderEJS);
+                    _bridge.onRequest('th_renderEJS', _handleRenderEJS);
+                    // [P5-6阶段2.4] 酒馆正则只读桥(道渊第3条报警数据链)
+                    _bridge.onRequest('th_getRegexes', _handleThGetRegexes);
                     // [P3-K2] 提示词管理 API
                     _bridge.onRequest(BridgeType.pmGetSections, _handlePmGetSections);
                     _bridge.onRequest(BridgeType.pmToggleSection, _handlePmToggleSection);
@@ -1991,6 +1993,52 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     // 先返空列表，保证 MVU 不报错、能继续跑
     return {'selected_global_lorebooks': <String>[], 'overflow_alert': false};
   }
+
+  /// [P5-6阶段2.4] getTavernRegexes 只读桥: RegexScript → ST TavernRegex 形状映射。
+  /// type=global 只回全局; character 回全局+当前角色合并(combined,禁用脚本已滤);
+  /// preset 平台无此维度,降级同 global。排序按 order(执行顺序)。
+  Future<dynamic> _handleThGetRegexes(Map<String, dynamic> payload) async {
+    final type = payload['type']?.toString() ?? 'global';
+    final character = ref.read(activeChatProvider).character;
+    List<RegexScript> scripts;
+    switch (type) {
+      case 'character':
+        scripts = ref.read(combinedRegexScriptsProvider(character?.id));
+        break;
+      case 'global':
+      case 'preset':
+      default:
+        scripts = ref.read(globalRegexScriptsProvider).where((s) => !s.disabled).toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
+    }
+    return scripts.map(_regexScriptToTavernRegex).toList();
+  }
+
+  /// RegexScript → TavernRegex(官方 tavern_regex.d.ts 形状: source/destination 布尔桶)
+  Map<String, dynamic> _regexScriptToTavernRegex(RegexScript s) => {
+        'id': s.id,
+        'script_name': s.scriptName,
+        'enabled': !s.disabled,
+        'scope': s.scriptType == RegexScriptType.character ? 'character' : 'global',
+        'find_regex': s.findRegex,
+        'replace_string': s.replaceString,
+        'trim_strings': s.trimStrings,
+        'source': {
+          'user_input': s.placement.contains(RegexPlacement.userInput),
+          'ai_output': s.placement.contains(RegexPlacement.aiOutput),
+          'slash_command': s.placement.contains(RegexPlacement.slashCommand),
+          'world_info': s.placement.contains(RegexPlacement.worldInfo),
+          'reasoning': s.placement.contains(RegexPlacement.reasoning),
+        },
+        'destination': {
+          'display': !s.promptOnly,
+          'prompt': s.promptOnly || !s.markdownOnly,
+        },
+        'run_on_edit': s.runOnEdit,
+        'min_depth': s.minDepth,
+        'max_depth': s.maxDepth,
+      };
+
 
   Future<dynamic> _handleWiSetLorebookSettings(Map<String, dynamic> payload) async {
     return {'ok': true};

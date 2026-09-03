@@ -1333,6 +1333,11 @@ function injectBridge(html, id, floorIdx) {
       return __thCallRead('th_wiGetCharLorebooks', [name || 'current']);
     };
     TH.getCharacterLorebooks = TH.getCharWorldbookNames;
+    // [P5-6阶段2.4] 酒馆正则只读桥(th_getRegexes handler, RegexScript→TavernRegex形状)
+    TH.getTavernRegexes = function (option) {
+      var type = (option && option.type) || 'global';
+      return __thCallRead('th_getRegexes', [type]);
+    };
     TH.getEnabledLorebookList = function () { return __thCallRead('th_wiGetEnabledList', []); };
     TH.getLorebookSettings = function () { return __thCallRead('th_wiGetLorebookSettings', []); };
     TH.getTavernHelperVersion = function () { return '4.9.1'; };
