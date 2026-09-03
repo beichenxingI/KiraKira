@@ -2141,6 +2141,15 @@ function injectBridge(html, id, floorIdx) {
       renderSections((payload && payload.sections) || []);
     });
   }
+  // [P5-6阶段1.3] 方案A' 双保险: ready 后主动拉取一次 sections 喂给隐藏列表。
+  // 覆盖"listenManual 在极端时序下未生效"的可能; renderSections 幂等(先清空再填),与A同发无害。
+  if (typeof __sendRequest === 'function' && typeof renderSections === 'function') {
+    __sendRequest('th_pmGetSections', {}).then(function(sections){
+      renderSections(sections || []);
+    }).catch(function(err){
+      try { sendToFlutter('log', {text: '[预设球] 启动拉取失败: ' + (err && err.message || err), level: 'warn'}); } catch (_) {}
+    });
+  }
 
 </script>
 </body>

@@ -447,6 +447,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                       (text) => _handleRenderEJS({'text': text}),
                     );
     // [P3-K2-4] 监听 prompt sections 变化, 出站推给悬浮球
+    // [P5-6阶段1.3] fireImmediately: provider 同步定型且早被别处读走,监听附加后
+    // 无"变化"则回调永不触发 → 隐藏列表首帧空。立即推一次兜底(outbox 排队,幂等无害)。
     _pmSub = ref.listenManual<PromptManagerConfig>(
       promptManagerProvider,
       (prev, next) {
@@ -463,6 +465,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
               .toList(),
         });
       },
+      fireImmediately: true,
     );
     WidgetsBinding.instance.addObserver(this);
     _maskController.value = 1.0;
