@@ -1245,6 +1245,15 @@ function injectBridge(html, id, floorIdx) {
       payload = { name: args[0] };
     } else if (method === 'generateRaw') {
       payload = { cfg: args[0] || {} };
+    } else if (method === 'th_wiGetLorebooks' || method === 'th_wiGetCharLorebooks'
+      || method === 'th_wiGetEnabledList' || method === 'th_wiGetLorebookSettings') {
+      payload = {};
+    } else if (method === 'th_wiGetEntries') {
+      payload = { name: args[0] };
+    } else if (method === 'th_wiSetEntries') {
+      payload = { name: args[0], entries: args[1] || [] };
+    } else if (method === 'th_getRegexes') {
+      payload = { type: args[0] || 'global' };
     }
     return payload;
   }
@@ -1271,7 +1280,8 @@ function injectBridge(html, id, floorIdx) {
     // 下方成功/失败日志不受影响(失败必须可见是铁律)。
     var _seen = window.__thSeenMethods || (window.__thSeenMethods = {});
     if (!_seen[method]) { _seen[method] = 1; sendToFlutter('log', { text: '[TH中转] 收到iframe请求 method=' + method }); }
-    var type = typeMap[method];
+    // [P5-7D修复B] 优先方法名查表;th_ 开头视为桥 type 直传(facade 世界书API历史传法)
+    var type = typeMap[method] || (typeof method === 'string' && method.indexOf('th_') === 0 ? method : null);
     if (!type) { reply(false, null, 'unknown method: ' + method); return; }
 
     // 把卡片的位置参数拍平成 payload(共用 __thBuildPayload)
@@ -1305,8 +1315,9 @@ function injectBridge(html, id, floorIdx) {
     // 道渊 5s 轮询: 单次往返>5s 时叠加桥消息;读幂等,同方法+同参数在途复用同一Promise。
     var __thInFlight = {};
     function __thCall(method, args) {
-      // 共享 method 表: 主文档直连桥,method名与typeMap key同约定
-      var type = (window.__TH_METHOD_TO_BRIDGE || {})[method];
+      // [P5-7D修复B] 优先方法名查表;以 th_ 开头视为桥 type 直传(历史实现两套并存)
+      var table = window.__TH_METHOD_TO_BRIDGE || {};
+      var type = table[method] || (typeof method === 'string' && method.indexOf('th_') === 0 ? method : null);
       if (!type) return Promise.reject(new Error('unknown method: ' + method));
       return __sendRequest(type, __thBuildPayload(method, args || []));
     }
@@ -1404,17 +1415,19 @@ function injectBridge(html, id, floorIdx) {
   // 数据源: Dart onLoadStop 注入的 __KIRA_MAIN_ENV;注入失败降级空对象并打日志。
   (function () {
     if (window.SillyTavern) return;
-    var env = window.__KIRA_MAIN_ENV;
-    if (!env) {
-      env = {};
-      try { sendToFlutter('log', { text: '[主环境] __KIRA_MAIN_ENV 注入缺失,降级空对象', level: 'warn' }); } catch (e) {}
-    }
-    var mvuSnap = (env && env.mvu) || {};
+    var warnLogged = false;  // 缺失日志只打一次
     window.SillyTavern = {
       getContext: function () {
+        // [P5-7D修复A] 每次现读 __KIRA_MAIN_ENV,不做 IIFE 闭包捕获 ——
+        // 静态 script 执行时注入尚未发生(在 onLoadStop 后),闭包捕获必得空对象。
+        var env = window.__KIRA_MAIN_ENV || {};
+        if (!window.__KIRA_MAIN_ENV && !warnLogged) {
+          warnLogged = true;
+          try { sendToFlutter('log', { text: '[主环境] __KIRA_MAIN_ENV 注入缺失,降级空对象', level: 'warn' }); } catch (e) {}
+        }
         return {
           extensionSettings: {
-            mvu_settings: mvuSnap,
+            mvu_settings: (env && env.mvu) || {},
             EjsTemplate: { enabled: !!(env && env.ejsLoaded) }
           }
         };
@@ -2272,7 +2285,8 @@ function injectBridge(html, id, floorIdx) {
           window.__shadowWriting = true;
           window.__sendRequest('th_pmToggleSection', {
             type: s.type, identifier: s.identifier, name: s.name,
-            enabled: !li.classList.contains('completion_prompt_manager_prompt_disabled')
+            // [P5-7D修复C] 发目标态: 当前OFF(disabled类在)→发true(要开)
+            enabled: li.classList.contains('completion_prompt_manager_prompt_disabled')
           }).then(function(result){
             var current = (result || []).filter(function(x){
               return x && x.type === s.type && (x.identifier || '') === (s.identifier || '') && x.name === s.name;
