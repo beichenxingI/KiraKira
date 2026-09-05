@@ -1374,6 +1374,8 @@ function injectBridge(html, id, floorIdx) {
     TH.getEnabledLorebookList = function () { return __thCallRead('th_wiGetEnabledList', []); };
     TH.getLorebookSettings = function () { return __thCallRead('th_wiGetLorebookSettings', []); };
     TH.getTavernHelperVersion = function () { return '4.9.1'; };
+    // [P5-9/P2] ST 本体版本号(玄枢启动门槛 getTavernVersion>="1.13.4")
+    TH.getTavernVersion = function () { return '1.13.4'; };
     // ── [P5-9/P1] 预设管理 API(主文档同源,道渊/狐神经顶层跑时也能用) ──
     TH.getPresetNames = function () { return __thCallRead('th_getPresetNames', []); };
     TH.getPreset = function (name) { return __thCallRead('th_getPreset', [name]); };

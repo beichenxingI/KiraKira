@@ -227,6 +227,8 @@ String buildTavernHelperFacadeJs({
       'window.insertOrAssignVariables=_TH.insertOrAssignVariables;'
       '_TH.getAllVariables=function(){return __thCallRead("getAllVariables",[]);};'
       '_TH.getTavernHelperVersion=function(){return "4.9.1";};'
+      // [P5-9/P2] ST 本体版本号(玄枢 msgcompress 启动检查 getTavernVersion>="1.13.4")
+      '_TH.getTavernVersion=function(){return "1.13.4";};'
       // MVU 启动依赖:唯一脚本机制(假对象)
         '_TH.__gsidN=0;'
         // [P5-9/P0-2] getScriptId 按脚本唯一：脚本房注入前设 __KIRA_CURRENT_SCRIPT_ID，
@@ -258,9 +260,10 @@ String buildTavernHelperFacadeJs({
       '_TH.getWorldbookNames=function(){return __thCallRead("th_wiGetLorebooks",[]).then(function(names){if(!Array.isArray(names))throw new Error("worldbook names must be an array");return names;});};'
       '_TH.getWorldbook=function(name){return __thCallRead("th_wiGetEntries",[name]).then(function(entries){if(!Array.isArray(entries))throw new Error("worldbook entries must be an array");return entries;});};'
       '_TH.replaceWorldbook=function(name,entries){if(!Array.isArray(entries))return Promise.reject(new Error("replaceWorldbook requires an array"));return __thCall("th_wiSetEntries",[name,entries]).then(function(result){return result;});};'
-      '_TH.getTavernRegexes=function(){return Promise.reject(new Error("getTavernRegexes: no Flutter data source"));};'
+      '_TH.getTavernRegexes=function(opts){var t=(opts&&opts.type)||"global";return __thCallRead("th_getRegexes",[t]);};'
       '_TH.updateTavernRegexesWith=function(){return Promise.reject(new Error("updateTavernRegexesWith: no Flutter data source"));};'
-      '_TH.getScriptTrees=function(){return Promise.reject(new Error("getScriptTrees: no Flutter data source"));};'
+      // [P5-9/P2] getScriptTrees 与主文档同源:读主文档 __KIRA_PRESET_SCRIPTS(剥content只回元数据)
+      '_TH.getScriptTrees=function(opts){var t=(opts&&opts.type)||"global";var all=[];try{all=(window.parent&&window.parent.__KIRA_PRESET_SCRIPTS)||[];}catch(e){}return Promise.resolve(all.map(function(s,i){return {id:String(s.id!=null?s.id:i),name:String(s.name!=null?s.name:("脚本"+(i+1))),enabled:!!s.enabled,type:t};}));};'
       '_TH.updateScriptTreesWith=function(){return Promise.reject(new Error("updateScriptTreesWith: no Flutter data source"));};'
       '_TH.getCurrentCharPrimaryLorebook=function(){return _TH.__primaryLorebook;};'
       'window.getCurrentCharPrimaryLorebook=_TH.getCurrentCharPrimaryLorebook;'
