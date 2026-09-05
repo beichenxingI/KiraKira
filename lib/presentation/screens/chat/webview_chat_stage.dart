@@ -680,6 +680,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           _controller?.evaluateJavascript(
               source: 'if(window.__emitToEngine)window.__emitToEngine("message_received",[$lastIdx],$msgsJson);');
         }
+        // [P5-9/P1] 生成结束(完成或取消)必发 GENERATION_ENDED(官方值 generation_ended),
+        // 狐神"生成结束后恢复"等 listener 依赖;取消路径 cancelGeneration 也走这里,不再空转。
+        _emitPresetEvent('generation_ended');
       }
       _wasGenerating = gen;
       // 自动生图完成：消息 attachments 变化 → 刷新让新图显示。
@@ -1033,6 +1036,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     final initMsgsJson = jsonEncode(_serializeMessagesForMvu());
                     _controller?.evaluateJavascript(
                         source: 'if(window.__emitToEngine)window.__emitToEngine("chat_changed",[],$initMsgsJson);');
+                    // [P5-9/P1] 官方命名对齐:facade tavern_events 里 CHAT_CHANGED='chat_id_changed',
+                    // 只发旧串会让监听 CHAT_CHANGED 的脚本(狐神)收不到 → 双发兼容新旧。
+                    _controller?.evaluateJavascript(
+                        source: 'if(window.__emitToEngine)window.__emitToEngine("chat_id_changed",[],$initMsgsJson);');
                     await Future.delayed(const Duration(milliseconds: 500));
                     await Future.delayed(const Duration(milliseconds: 500));
                     if (mounted) _maskController.reverse();
@@ -2341,6 +2348,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       // 主文档 __KIRA_MAIN_ENV 同源刷新,道渊下一轮读到的就是新值
       final c = _controller;
       if (c != null) await _injectMainEnv(c);
+      // [P5-9/P1] 设置保存后发 SETTINGS_UPDATED(狐神监听它做面板状态同步)
+      _emitPresetEvent('settings_updated');
       return {'ok': true};
     } catch (e) {
       debugPrint('[saveExtensionSettings] 错误: $e');
