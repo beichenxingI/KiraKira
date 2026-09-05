@@ -2080,6 +2080,11 @@ function injectBridge(html, id, floorIdx) {
           var s = queue.shift();
           if(!s||s.enabled===false||s.disabled===true||!s.content){ injectOne(); return; }
           var nm=(s.name||s.id||'unnamed');
+          // [P5-9/P0-2] 每脚本唯一 ID：门面 getScriptId() 按当前注入脚本返回，供脚本级变量/按钮隔离。
+          var _sid=(s.id&&typeof s.id==='string'&&s.id.length>0)?s.id:(s.name||'unnamed');
+          W.__KIRA_CURRENT_SCRIPT_ID=_sid;
+          // [P5-9/P0-3] 脚本级变量 hydrate:把 Dart 注入的持久化快照填进门面脚本缓存。
+          if(typeof W.__kiraSetScriptVars==='function'){var _sv=W.__KIRA_SCRIPT_VARS_SNAPSHOT||{};W.__kiraSetScriptVars(_sid,_sv[_sid]||{});}
           var isMod=/(^|[\r\n;])\s*(import|export)[\s'"(]/.test(s.content);
           try {
             var el=D.createElement('script');

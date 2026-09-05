@@ -395,6 +395,22 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       await c.evaluateJavascript(
         source: 'window.__KIRA_PRESET_SCRIPTS=${jsonEncode(enabledScripts)};',
       );
+      // [P5-9/P0-3] 脚本级变量快照:为每个启用脚本预取持久化变量,注入后脚本房在
+      //   每个脚本启动前 hydrate 进门面 __varCache.script,getVariables({type:'script'}) 即可同步读到。
+      final snapshot = <String, dynamic>{};
+      for (final s in enabledScripts) {
+        final sid = (s['id'] as String?)?.isNotEmpty == true
+            ? s['id'] as String
+            : (s['name'] as String? ?? 'unnamed');
+        if (sid.isNotEmpty) {
+          try {
+            snapshot[sid] = VariablesService.instance.getScriptVariables(sid);
+          } catch (_) {}
+        }
+      }
+      await c.evaluateJavascript(
+        source: 'window.__KIRA_SCRIPT_VARS_SNAPSHOT=${jsonEncode(snapshot)};',
+      );
       await c.evaluateJavascript(
         source: 'if(window.resetPresetScriptsRoom)window.resetPresetScriptsRoom();');
       debugPrint('[预设脚本] Dart侧注入 ${enabledScripts.length} 个 允许=$allowed');
@@ -799,7 +815,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     data: _htmlShell(),
                     mimeType: 'text/html',
                     encoding: 'utf-8',
-                    baseUrl: WebUri('about:blank'),
+                    // [P5-9/P0-1] baseUrl 用合成 https 源替代 about:blank：
+                    //   about:blank 是不透明源(opaque origin)，主文档与 srcdoc 脚本房的
+                    //   localStorage 访问一律抛 SecurityError → 三预设(人间月下/狐神/玄枢)
+                    //   的"设置持久化/点击保存"全部失效（见 P5-9 报告第二部分）。
+                    //   改为稳定 https 源后，主文档与 iframe 获得同源真实 localStorage。
+                    //   合成源不会被网络解析(loadData 仅用 baseUrl 做资源/来源解析，不发起导航)。
+                    baseUrl: WebUri('https://kirakira.app/'),
                   ),
                   initialSettings: InAppWebViewSettings(
                     transparentBackground: true,
@@ -1716,6 +1738,13 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (type == 'global') {
       return service.getAllGlobalVariables();
     }
+    // [P5-9/P0-3] 脚本级变量(读走门面本地缓存,此处为桥直达路径的兜底)。
+    if (type == 'script') {
+      final scriptId = (option['script_id'] as String?) ??
+          (option['scriptId'] as String?) ??
+          '';
+      return service.getScriptVariables(scriptId);
+    }
     // 默认 chat 局部变量
     final result = service.getAllLocalVariables(widget.chatId);
     return result;
@@ -1729,6 +1758,19 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final type = (option['type'] as String?) ?? 'chat';
     final service = VariablesService.instance;
     KiraLogger().info('助手API', 'th_setVars 被调用 type=$type keys=${vars.keys.toList()}');
+
+    // [P5-9/P0-3] 脚本级变量:按 script_id 隔离,整表写入,设备级持久。
+    if (type == 'script') {
+      final scriptId = (option['script_id'] as String?) ??
+          (option['scriptId'] as String?) ??
+          '';
+      if (scriptId.isEmpty) {
+        KiraLogger().info('助手API', 'th_setVars type=script 但缺少 script_id,忽略');
+        return {};
+      }
+      await service.setScriptVariables(scriptId, vars);
+      return service.getScriptVariables(scriptId);
+    }
 
     if (type == 'global') {
       for (final entry in vars.entries) {

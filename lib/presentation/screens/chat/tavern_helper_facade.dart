@@ -137,7 +137,12 @@ String buildTavernHelperFacadeJs({
       // 读走本地镜像,写走桥落库后回填镜像(见 updateVariablesWith / __varSync)
       '_TH.__lastMsgId=0;'
       '_TH.__primaryLorebook=null;'
-      '_TH.__varCache={global:{},chat:{},message:{}};'
+      '_TH.__varCache={global:{},chat:{},message:{},script:{}};'
+      // [P5-9/P0-3] 脚本级变量:主文档注入快照后,Dart/写入路径会调用此函数回填本地缓存。
+      //   脚本房每个脚本注入前先 hydrate 一次,getVariables({type:'script'}) 即可同步读到持久值。
+      'window.__kiraSetScriptVars=function(sid,vars){if(!sid)return;_TH.__varCache.script[sid]=vars&&typeof vars==="object"?(vars):{};};'
+      // 供 updateVariablesWith/setVariables 写成功后回填脚本缓存,保持读写一致。
+      '_TH.__kiraTouchScriptCache=function(option,vars){var _sid=(option&&option.script_id)||(option&&option.scriptId)||(window.__KIRA_CURRENT_SCRIPT_ID||"");if(_sid){_TH.__varCache.script[_sid]=vars&&typeof vars==="object"?vars:{};}};'
       // ── EJS 标准对象:与镜像同源,供 dist/index.js 的 externals import ──
       'window.extension_settings=window.extension_settings||{};'
       'window.extension_settings.variables=window.extension_settings.variables||{global:{}};'
@@ -181,10 +186,16 @@ String buildTavernHelperFacadeJs({
       'if(typeof mid==="number"&&mid<0)mid=_TH.__lastMsgId+1+mid;'
       'return _TH.__varCache.message[mid]||{};'
       '}'
+      // [P5-9/P0-3] 脚本级变量:按 option.script_id(或当前脚本)取缓存。
+      'if(t==="script"){'
+      'var _sid=option.script_id||option.scriptId||(window.__KIRA_CURRENT_SCRIPT_ID||"");'
+      'if(_sid)return _TH.__varCache.script[_sid]||{};'
+      'return {};'
+      '}'
       'return _TH.__varCache[t]||{};'
       '};'
-      '_TH.setVariables=function(vars,option){return __thCall("setVariables",[vars,option||{}]);};'
-      '_TH.replaceVariables=function(vars,option){return __thCall("replaceVariables",[vars,option||{}]);};'
+      '_TH.setVariables=function(vars,option){option=option||{};return __thCall("setVariables",[vars,option]).then(function(r){if(option.type==="script")_TH.__kiraTouchScriptCache(option,r||vars);return r;});};'
+      '_TH.replaceVariables=function(vars,option){option=option||{};return __thCall("replaceVariables",[vars,option]).then(function(r){if(option.type==="script")_TH.__kiraTouchScriptCache(option,r||vars);return r;});};'
       // ── 写接口(异步落库):MVU 的写操作都 await ──
       // updater 是 MVU 传入的函数,不能过桥,必须在 iframe 内跑;新值(纯数据)才过桥落库
       '_TH.__resolveMid=function(option){'
@@ -196,10 +207,13 @@ String buildTavernHelperFacadeJs({
       '_TH.updateVariablesWith=function(updater,option){'
       'option=option||{};var t=option.type||"chat";'
       'var mid=(t==="message")?_TH.__resolveMid(option):null;'
-      'var cur=(t==="message")?(_TH.__varCache.message[mid]||{}):(_TH.__varCache[t]||{});'
+      'var cur;'
+      'if(t==="script"){var _sid=option.script_id||option.scriptId||(window.__KIRA_CURRENT_SCRIPT_ID||"");cur=_sid?(_TH.__varCache.script[_sid]||{}):{};}'
+      'else{cur=(t==="message")?(_TH.__varCache.message[mid]||{}):(_TH.__varCache[t]||{});}'
       'return Promise.resolve(updater(cur)).then(function(next){'
       'if(next===undefined)next=cur;'
-      'if(t==="message"){_TH.__varCache.message[mid]=next;}else{_TH.__varCache[t]=next;}'
+      'if(t==="script"){var _sid2=option.script_id||option.scriptId||(window.__KIRA_CURRENT_SCRIPT_ID||"");if(_sid2)_TH.__varCache.script[_sid2]=next;}'
+      'else if(t==="message"){_TH.__varCache.message[mid]=next;}else{_TH.__varCache[t]=next;}'
       'return __thCall("setVariables",[next,option]).then(function(){return next;});'
       '});'
       '};'
@@ -212,7 +226,9 @@ String buildTavernHelperFacadeJs({
       '_TH.getTavernHelperVersion=function(){return "4.9.1";};'
       // MVU 启动依赖:唯一脚本机制(假对象)
         '_TH.__gsidN=0;'
-        '_TH.getScriptId=function(){_TH.__gsidN++;if(_TH.__gsidN<=3||_TH.__gsidN%100===0){parent.postMessage({__thLog:true,text:"[身份] getScriptId被调 #"+_TH.__gsidN},"*");}return "kirakira-mvu-0";};'      'window.getScriptId=_TH.getScriptId;'
+        // [P5-9/P0-2] getScriptId 按脚本唯一：脚本房注入前设 __KIRA_CURRENT_SCRIPT_ID，
+        //   返回当前脚本 id；引擎房(未设置)回退 kirakira-mvu-0，保 MVU 选主语义不变。
+        '_TH.getScriptId=function(){_TH.__gsidN++;if(_TH.__gsidN<=3||_TH.__gsidN%100===0){parent.postMessage({__thLog:true,text:"[身份] getScriptId被调 #"+_TH.__gsidN+" id="+((window.__KIRA_CURRENT_SCRIPT_ID)||"kirakira-mvu-0")},"*");}return (typeof window.__KIRA_CURRENT_SCRIPT_ID==="string"&&window.__KIRA_CURRENT_SCRIPT_ID.length>0)?window.__KIRA_CURRENT_SCRIPT_ID:"kirakira-mvu-0";};'      'window.getScriptId=_TH.getScriptId;'
       '_TH.registerAsUniqueScript=function(id){'
       'parent.postMessage({__thLog:true,text:"[身份] registerAsUniqueScript被调 id="+id},"*");'
       'return {listenPreferenceState:function(cb){parent.postMessage({__thLog:true,text:"[身份] listenPreferenceState注册,即将回调"},"*");try{cb("kirakira-mvu-0");}catch(e){parent.postMessage({__thLog:true,text:"[身份] cb异常"+e},"*");}return {stop:function(){}};}};};'
