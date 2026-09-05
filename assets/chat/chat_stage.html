@@ -1052,6 +1052,8 @@ function injectBridge(html, id, floorIdx) {
     // [P3-E3] 引擎房 MVU 事件 → card 本地事件总线中继
     if (d && d.__mvuEvent) {
       try {
+        // [P5-9/P1] 同事件同时喂主文档本地总线(getContext().eventSource)
+        if (window.__localEventBus) { try { window.__localEventBus._fire(d.type, d.args || []); } catch (_lb) {} }
         var cards2 = document.querySelectorAll('iframe[data-frame-id]:not([data-frame-id="engine-room"])');
         for (var mi = 0; mi < cards2.length; mi++) {
           // 跳过事件来源帧,防止脚本房↔主文档无限循环
@@ -1086,6 +1088,11 @@ function injectBridge(html, id, floorIdx) {
   // ── 外层 → 引擎房 iframe 的点火中继 ──
   window.__emitToEngine = function(type, args, msgs) {
     try {
+      // [P5-9/P1] 主文档实时值维护(独立于引擎房存在与否):
+      //   msgs 快照进 __chatMessages;生成开始/结束驱动 __isStreaming。
+      if (msgs) { window.__chatMessages = msgs; }
+      if (type === 'generation_started') { window.__isStreaming = true; }
+      else if (type === 'message_received' || type === 'generation_ended' || type === 'generation_stopped') { window.__isStreaming = false; }
       var host = document.getElementById('__engineRoomHost');
       var f = host && host.querySelector('iframe[data-frame-id="engine-room"]');
       if (f && f.contentWindow) {
@@ -1441,6 +1448,44 @@ function injectBridge(html, id, floorIdx) {
     } catch (e) {}
   })();
 
+  // ── [P5-9/P1] 主文档本地事件总线(只读供 getContext().eventSource) ──
+  // 狐神/玄枢的 agent 守卫依赖 getTopWin().SillyTavern.getContext() 拿到
+  // chat/chatCompletionSettings/isStreaming/eventSource。事件由 __mvuEvent 中继
+  // 喂入(见下方 relay),本总线只开 on/once/removeListener,不开放 emit(防双头,P5-6 红线)。
+  (function () {
+    if (window.__localEventBus) return;
+    var listeners = {};
+    window.__localEventBus = {
+      on: function (type, handler) {
+        (listeners[type] = listeners[type] || []).push(handler);
+        return { stop: this.removeListener.bind(this, type, handler) };
+      },
+      once: function (type, handler) {
+        var self = this;
+        var wrap = function () { self.removeListener(type, wrap); return handler.apply(this, arguments); };
+        return this.on(type, wrap);
+      },
+      removeListener: function (type, handler) {
+        var l = listeners[type]; if (!l) return;
+        var i = l.indexOf(handler); if (i >= 0) l.splice(i, 1);
+      },
+      // 内部点火口(仅 __mvuEvent relay 调用)
+      _fire: function (type, args) {
+        var l = listeners[type]; if (!l) return;
+        args = args || [];
+        for (var i = 0; i < l.length; i++) {
+          try { l[i].apply(null, args); } catch (e) {
+            try { sendToFlutter('log', { text: '[本地总线] 监听器异常 type=' + type + ': ' + e, level: 'warn' }); } catch (_) {}
+          }
+        }
+      },
+      // 调试用只读计数
+      _count: function (type) { return (listeners[type] || []).length; }
+    };
+    window.__chatMessages = window.__chatMessages || [];
+    window.__isStreaming = false;
+  })();
+
   // ── [P5-6阶段2.1] window.SillyTavern 最小骨架: 仅 extensionSettings 读 ──
   // 道渊 bp 串直接读 getContext().extensionSettings.mvu_settings / EjsTemplate。
   // 数据源: Dart onLoadStop 注入的 __KIRA_MAIN_ENV;注入失败降级空对象并打日志。
@@ -1459,8 +1504,35 @@ function injectBridge(html, id, floorIdx) {
         return {
           extensionSettings: {
             mvu_settings: (env && env.mvu) || {},
-            EjsTemplate: { enabled: !!(env && env.ejsLoaded) }
-          }
+            // [P5-8/P1] EjsTemplate 17键与 facade 同形(道渊顶层读取场景)
+            EjsTemplate: {
+              enabled: !!(env && env.ejsLoaded),
+              generate_enabled: true,
+              generate_loader_enabled: true,
+              render_enabled: true,
+              render_loader_enabled: true,
+              with_context_disabled: false,
+              debug_enabled: false,
+              autosave_enabled: false,
+              preload_worldinfo_enabled: true,
+              code_blocks_enabled: true,
+              raw_message_evaluation_enabled: true,
+              filter_message_enabled: true,
+              inject_loader_enabled: false,
+              invert_enabled: true,
+              depth_limit: -1,
+              compile_workers: false,
+              sandbox: false
+            }
+          },
+          // [P5-9/P1] getContext 增肥:主文档为顶层宿主,脚本经 getTopWin() 读这里
+          chat: window.__chatMessages || [],
+          chatId: window.__KIRA_CHAT_ID || '',
+          chatMetadata: {},
+          chatCompletionSettings: (env && env.chatCompletion) || {},
+          isStreaming: !!window.__isStreaming,
+          eventSource: window.__localEventBus || null,
+          eventTypes: window.tavern_events || {}
         };
       },
       // [P5-8/P1] 主文档侧持久化桥:把 getContext 暴露的 extensionSettings 快照送 Dart 落盘。

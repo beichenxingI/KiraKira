@@ -336,9 +336,18 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   /// 注入失败由 HTML 侧降级为空对象并打 [主环境] 日志,不阻断。
   Future<void> _injectMainEnv(InAppWebViewController c) async {
     final mvu = ref.read(mvuSettingsProvider);
+    // [P5-9/P1] chatCompletionSettings 真值(狐神 agent 守卫等待它出现)
+    final llm = ref.read(llmConfigProvider);
     final env = <String, dynamic>{
       'mvu': <String, dynamic>{
         '更新方式': mvu.updateMode,
+        // [P5-8/P1] 通知四键同步进主环境(与 facade 烘焙同源)
+        '通知': <String, dynamic>{
+          'MVU框架加载成功': mvu.notifyFrameworkLoaded,
+          '变量初始化成功': mvu.notifyInitSuccess,
+          '变量更新出错': mvu.notifyVarError,
+          '额外模型解析中': mvu.notifyExtraParsing,
+        },
         '额外模型解析配置': <String, dynamic>{
           '破限方案': mvu.jailbreakScheme,
           '启用自动请求': mvu.autoRequest,
@@ -350,6 +359,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       },
       // EJS 引擎真实加载状态门控(_ejsLoaded 静态标志),不是造假
       'ejsLoaded': _ejsLoaded,
+      'chatCompletion': <String, dynamic>{
+        'temperature': llm.temperature,
+        'top_p': llm.topP,
+        'max_tokens': llm.maxTokens,
+      },
     };
     final js = 'window.__KIRA_MAIN_ENV=${jsonEncode(env)};';
     try {
