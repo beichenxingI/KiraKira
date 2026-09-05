@@ -1953,6 +1953,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   Map<String, dynamic> _wiEntryToJson(models.WorldInfoEntry e) => {
         'uid': e.id,
         'worldId': e.worldInfoId,
+        // [P5-8/P0] 补 name 字段(ST 语义: name=comment 显示名)。
+        //   道渊对条目只做 e.name===/e.name.includes(...) 匹配(e.g pretty.js:1312-1314),
+        //   缺 name 即抛 "Cannot read properties of undefined (reading 'includes')"。
+        'name': e.comment,
         'keys': e.keys,
         'secondary_keys': e.secondaryKeys,
         'content': e.content,
@@ -2089,6 +2093,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   /// MVU 读 comment(筛 [initvar]) 和 content(抽 <initvar> 块)。
   Map<String, dynamic> _charBookEntryToMvu(CharacterBookEntry e) => {
         'uid': e.id,
+        // [P5-8/P0] 补 name 字段(与 _wiEntryToJson 对齐,道渊 .name.includes 必需)。
+        'name': e.name.isNotEmpty ? e.name : e.comment,
         'keys': e.keys,
         'secondary_keys': e.secondaryKeys,
         'content': e.content,
