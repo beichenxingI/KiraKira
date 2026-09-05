@@ -12,6 +12,9 @@ import 'package:kirakira/data/models/mvu_settings.dart';
 String buildTavernHelperFacadeJs({
   required String frameId,
   required MvuSettings mvu,
+  // [P5-8/P1] EJS 真实加载状态(静态标志 _ejsLoaded),驱动 extensionSettings.EjsTemplate.enabled。
+  //   道渊报警4按 Wt 17键比对;enabled 由真源驱动,其余16键为平台恒开/恒关行为声明(见下)。
+  required bool ejsLoaded,
 }) {
   return '(function(){'
       // ── localStorage / sessionStorage polyfill(老 WebView 兜底) ──
@@ -361,6 +364,13 @@ String buildTavernHelperFacadeJs({
       'name1:"You",name2:((window.__KIRA_MACRO_VALUES&&window.__KIRA_MACRO_VALUES.char)||""),'
       'extensionSettings:{mvu_settings:{'
       '更新方式:${jsonEncode(mvu.updateMode)},'
+      // [P5-8/P1] 通知四键(中文键,道渊报警1/面板同源,MvuSettings 持久化真值,出厂默认 true,true,false,true)
+      '通知:{'
+      'MVU框架加载成功:${mvu.notifyFrameworkLoaded},'
+      '变量初始化成功:${mvu.notifyInitSuccess},'
+      '变量更新出错:${mvu.notifyVarError},'
+      '额外模型解析中:${mvu.notifyExtraParsing}'
+      '},'
       '额外模型解析配置:{'
       '破限方案:${jsonEncode(mvu.jailbreakScheme)},'
       '启用自动请求:${mvu.autoRequest},'
@@ -369,7 +379,31 @@ String buildTavernHelperFacadeJs({
       'api地址:${jsonEncode(mvu.apiUrl)},'
       '密钥:${jsonEncode(mvu.apiKey)},'
       '模型名称:${jsonEncode(mvu.modelName)}'
-      '}}}'
+      '}},'
+      // [P5-8/P1] EjsTemplate(道渊 Wt 期望17键,pretty.js:959-977)。
+      //   enabled 由 _ejsLoaded 真驱动;其余16键为平台行为声明:
+      //   平台确有真实 EJS 渲染(llm_service.dart EJSRenderer),模板管线恒按 ST-Prompt-Template
+      //   默认口径工作,无运行时状态可冲突——按"平台恒开/恒关"声明,不伪装 runtime 状态位。
+      'EjsTemplate:{'
+      'enabled:$ejsLoaded,'
+      'generate_enabled:true,'
+      'generate_loader_enabled:true,'
+      'render_enabled:true,'
+      'render_loader_enabled:true,'
+      'with_context_disabled:false,'
+      'debug_enabled:false,'
+      'autosave_enabled:false,'
+      'preload_worldinfo_enabled:true,'
+      'code_blocks_enabled:true,'
+      'raw_message_evaluation_enabled:true,'
+      'filter_message_enabled:true,'
+      'inject_loader_enabled:false,'
+      'invert_enabled:true,'
+      'depth_limit:-1,'
+      'compile_workers:false,'
+      'sandbox:false'
+      '}'
+      '}'
       '};'
       'try{Object.defineProperty(window.SillyTavern,"chat",{configurable:true,get:function(){return window.__chatMessages||[];}});}catch(e){window.SillyTavern.chat=window.__chatMessages||[];}'
       'window.appendInexistentScriptButtons=function(){};'

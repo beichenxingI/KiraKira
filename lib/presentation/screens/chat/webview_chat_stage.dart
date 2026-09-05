@@ -317,7 +317,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   /// 供 createEngineRoom 建引擎房 iframe 时内联。
   Future<void> _injectEngineFacade(InAppWebViewController c) async {
     final mvu = ref.read(mvuSettingsProvider);
-    final facade = buildTavernHelperFacadeJs(frameId: 'engine-room', mvu: mvu);
+    final facade = buildTavernHelperFacadeJs(frameId: 'engine-room', mvu: mvu, ejsLoaded: _ejsLoaded);
     final js = 'window.__ENGINE_FACADE_JS=${jsonEncode(facade)};';
     try {
       await c.evaluateJavascript(source: js);
