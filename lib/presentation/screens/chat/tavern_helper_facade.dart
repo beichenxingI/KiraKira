@@ -280,6 +280,15 @@ String buildTavernHelperFacadeJs({
       '_TH.setLorebookSettings=function(s){return true;};'
       'window.setLorebookSettings=_TH.setLorebookSettings;'
       '_TH.createLorebook=function(name){return __thCall("createLorebook",[name]);};'
+      // ── [P5-9/P1] 预设管理 API(狐神断链二:getPreset×27/updatePresetWith×38) ──
+      // 'in_use' 由 Dart 侧解析到当前激活预设;settings.should_stream 落 llmConfig 立即生效,
+      // prompts 按 identifier 合并进 PromptManagerConfig;写完发 preset_changed。
+      '_TH.getPresetNames=function(){return __thCallRead("th_getPresetNames",[]);};'
+      '_TH.getPreset=function(name){return __thCallRead("th_getPreset",[name]);};'
+      '_TH.setPreset=function(name,preset){return __thCall("th_setPreset",[name,preset]);};'
+      '_TH.getLoadedPresetName=function(){return __thCallRead("th_getLoadedPresetName",[]);};'
+      // updatePresetWith: 读→updater→写(ST 语义;updater 返回 undefined 时用就地修改后的对象)
+      '_TH.updatePresetWith=function(name,updater){return _TH.getPreset(name).then(function(p){if(!p)throw new Error("preset not found: "+name);var u=updater(p);return _TH.setPreset(name,(u===undefined||u===null)?p:u);}).then(function(){return _TH.getPreset(name);});};'
       // ── 事件总线(iframe 本地实现) ──
       '_TH.__events={};'
       '_TH.__eventOn=function(type,listener){(_TH.__events[type]=_TH.__events[type]||[]).push(listener);try{parent.postMessage({__thLog:true,text:"[EVT-REG] on type="+type+" bucket="+_TH.__events[type].length},"*");}catch(_e0){}return {stop:function(){_TH.__eventRemove(type,listener);}};};'

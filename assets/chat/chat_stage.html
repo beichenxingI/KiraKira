@@ -1257,6 +1257,13 @@ function injectBridge(html, id, floorIdx) {
     } else if (method === 'th_saveExtensionSettings') {
       // [P5-8/P1] MVU/道渊 saveSettingsDebounced 持久化:args[0]=extensionSettings 快照
       payload = { settings: args[0] || {} };
+    } else if (method === 'th_getPresetNames' || method === 'th_getLoadedPresetName') {
+      payload = {};
+    } else if (method === 'th_getPreset') {
+      // [P5-9/P1] args[0]=预设名('in_use' 由 Dart 解析为当前激活)
+      payload = { name: args[0] };
+    } else if (method === 'th_setPreset') {
+      payload = { name: args[0], preset: args[1] || {} };
     }
     return payload;
   }
@@ -1355,6 +1362,19 @@ function injectBridge(html, id, floorIdx) {
     TH.getEnabledLorebookList = function () { return __thCallRead('th_wiGetEnabledList', []); };
     TH.getLorebookSettings = function () { return __thCallRead('th_wiGetLorebookSettings', []); };
     TH.getTavernHelperVersion = function () { return '4.9.1'; };
+    // ── [P5-9/P1] 预设管理 API(主文档同源,道渊/狐神经顶层跑时也能用) ──
+    TH.getPresetNames = function () { return __thCallRead('th_getPresetNames', []); };
+    TH.getPreset = function (name) { return __thCallRead('th_getPreset', [name]); };
+    TH.setPreset = function (name, preset) { return __thCall('th_setPreset', [name, preset]); };
+    TH.getLoadedPresetName = function () { return __thCallRead('th_getLoadedPresetName', []); };
+    // updatePresetWith: 读→updater→写(ST 语义;updater 返回 undefined 时用就地修改后的对象)
+    TH.updatePresetWith = function (name, updater) {
+      return TH.getPreset(name).then(function (preset) {
+        if (!preset) return Promise.reject(new Error('preset not found: ' + name));
+        var u = updater(preset);
+        return TH.setPreset(name, (u === undefined || u === null) ? preset : u);
+      }).then(function () { return TH.getPreset(name); });
+    };
     // 纯JS读主环境宏值(注入见 _injectMacroValues),不过桥
     TH.substitudeMacros = function (str) {
       var out = String(str == null ? '' : str);

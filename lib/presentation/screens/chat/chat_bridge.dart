@@ -101,6 +101,11 @@ class BridgeType {
   static const String pmSectionsChanged = 'pmSectionsChanged';  // sections 列表变化时推给球
   // [P5-8/P1] MVU extensionSettings 持久化(道渊/MVU 面板写回落盘)
   static const String saveExtensionSettings = 'th_saveExtensionSettings';
+  // [P5-9/P1] 预设管理 API(狐神读写预设:getPreset/updatePresetWith 等)
+  static const String getPresetNames = 'th_getPresetNames';
+  static const String getPreset = 'th_getPreset';
+  static const String setPreset = 'th_setPreset';
+  static const String getLoadedPresetName = 'th_getLoadedPresetName';
 }
 
 

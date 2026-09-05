@@ -10,6 +10,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:kirakira/presentation/screens/chat/tavern_helper_facade.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
 import 'package:kirakira/presentation/providers/ai_preset_providers.dart';
+import 'package:kirakira/data/models/ai_preset.dart';
 import 'package:kirakira/presentation/providers/regex_providers.dart';
 import 'package:kirakira/domain/services/regex_service.dart';
 import 'package:kirakira/data/models/regex_script.dart';
@@ -94,6 +95,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   ProviderSubscription<String?>? _charSub; // [P5-7B] character 变化自愈监听
   InAppWebViewController? _controller;
   bool _pmIdentifiersLogged = false;
+  /// [P5-9/P1] ST 预设 settings 未知键会话级透传缓存(按预设名)。
+  /// 平台模型无对应字段的 settings 键不设白名单拦截,写时整袋暂存、读时铺底回出;
+  /// should_stream 等已建模键以真值为准覆盖,保证狐神 updatePresetWith 改写后读回一致。
+  final Map<String, Map<String, dynamic>> _stSettingsPassthrough = {};
   int _wvCrashCount = 0; // [WV-6/P1-A5] renderer 崩溃自愈次数上限,防"崩→reload→再崩"死循环
   bool _webViewMounted = false; // 延迟挂载:入场后才创建WebView,避免动画期被重活饿死
   final TextEditingController _inputController = TextEditingController();
@@ -920,6 +925,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest(BridgeType.pmToggleSection, _handlePmToggleSection);
                     // [P5-8/P1] extensionSettings 持久化(道渊/MVU 面板写回落盘)
                     _bridge.onRequest(BridgeType.saveExtensionSettings, _handleSaveExtensionSettings);
+                    // [P5-9/P1] 预设管理 API(狐神读写预设)
+                    _bridge.onRequest(BridgeType.getPresetNames, _handleGetPresetNames);
+                    _bridge.onRequest(BridgeType.getPreset, _handleGetPreset);
+                    _bridge.onRequest(BridgeType.setPreset, _handleSetPreset);
+                    _bridge.onRequest(BridgeType.getLoadedPresetName, _handleGetLoadedPresetName);
                   },
                   onLoadStop: (c, url) async {
                     await _injectCompatLibs(c); // 注入第三方库到外层window
@@ -1888,6 +1898,201 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     // 不主动 push,listener 会自动推 pmSectionsChanged;但同步返当前状态供球即时刷新
     return _handlePmGetSections(payload);
   }
+  // ── [P5-9/P1] 预设管理 API(ST Preset 契约) ─────────────────────
+  // 狐神断链二修复:getPreset('in_use')/updatePresetWith 全链路。
+  // 形状对齐 ST: { name, settings:{should_stream,...}, prompts:[{identifier,name,role,content,enabled,...}] }。
+  // 'in_use' 名字解析到当前激活预设;settings/prompts 的活跃值读 live provider
+  // (llmConfigProvider.streamEnabled / promptManagerProvider.sections)。
+
+  /// ST prompt 条目 ← PromptSection(键集取 ST tavern-helper Preset 契约常用子集)
+  Map<String, dynamic> _stPromptFromSection(PromptSection s) => {
+        'identifier': s.identifier ?? s.type.name,
+        'name': s.name,
+        'system_prompt': s.role == null || s.role == 'system',
+        'role': s.role ?? 'system',
+        'content': s.content ?? '',
+        'enabled': s.enabled,
+        'injection_position': s.injectionPosition ?? 0,
+        'injection_depth': s.injectionDepth ?? 4,
+        'injection_order': s.order,
+        'order': s.order,
+        'forbid_overrides': false,
+        'marker': false,
+      };
+
+  /// AIPreset → ST Preset JSON。live=true 时 settings/prompts 取 live provider 真值。
+  Map<String, dynamic> _stPresetJson(AIPreset preset, {required bool live}) {
+    final passthrough = _stSettingsPassthrough[preset.name];
+    final streamEnabled = live
+        ? ref.read(llmConfigProvider).streamEnabled
+        : preset.generationSettings.streamEnabled;
+    final settings = <String, dynamic>{
+      if (passthrough != null) ...passthrough, // 未知键铺底
+      'should_stream': streamEnabled, // 已建模键以真值覆盖
+      'allow_sending_images':
+          (passthrough?['allow_sending_images'] as String?) ?? 'auto',
+    };
+    final sections = live
+        ? ref.read(promptManagerProvider).sections
+        : (preset.promptManagerConfig?.sections ??
+            PromptManagerConfig.defaultConfig().sections);
+    return {
+      'name': preset.name,
+      'settings': settings,
+      'prompts': sections.map(_stPromptFromSection).toList(),
+    };
+  }
+
+  /// 按名解析预设:'in_use' → 当前激活,否则全量按名查找。
+  (AIPreset?, bool) _resolveStPreset(String? name) {
+    if (name == null || name.isEmpty || name == 'in_use') {
+      final active = ref.read(activeAIPresetProvider);
+      return (active, true);
+    }
+    final all = ref.read(allAIPresetsProvider);
+    final hit = all.firstWhereOrNull((p) => p.name == name);
+    if (hit == null) return (null, false);
+    final active = ref.read(activeAIPresetProvider);
+    return (hit, hit.id == active?.id);
+  }
+
+  Future<dynamic> _handleGetPresetNames(Map<String, dynamic> payload) async {
+    try {
+      return ref.read(allAIPresetsProvider).map((p) => p.name).toList();
+    } catch (e) {
+      debugPrint('[getPresetNames] 错误: $e');
+      return <String>[];
+    }
+  }
+
+  Future<dynamic> _handleGetLoadedPresetName(Map<String, dynamic> payload) async {
+    return ref.read(activeAIPresetProvider)?.name ?? '';
+  }
+
+  Future<dynamic> _handleGetPreset(Map<String, dynamic> payload) async {
+    try {
+      final name = payload['name'] as String?;
+      if (name == null || name.isEmpty) return null;
+      final (preset, live) = _resolveStPreset(name);
+      if (preset == null) return null;
+      return _stPresetJson(preset, live: live);
+    } catch (e) {
+      debugPrint('[getPreset] 错误: $e');
+      return null;
+    }
+  }
+
+  /// setPreset(name, preset): 写回。
+  /// - settings.should_stream → 生成设置(in_use 立即生效到 llmConfig);
+  ///   其余 settings 键进会话透传袋(下次 getPreset 原样铺底,不做字段白名单)。
+  /// - prompts → 按 identifier 合并进 PromptManagerConfig
+  ///   (in_use 同步应用 live promptManagerProvider 并落盘激活预设,切预设往返不丢)。
+  /// - 完成后发 preset_changed / settings_updated 事件(供狐 invalidate/preset/load 钩子)。
+  Future<dynamic> _handleSetPreset(Map<String, dynamic> payload) async {
+    try {
+      final name = payload['name'] as String?;
+      final presetData = payload['preset'] as Map<String, dynamic>?;
+      if (name == null || name.isEmpty || presetData == null) {
+        return {'ok': false, 'error': 'name and preset required'};
+      }
+      final (target, isLive) = _resolveStPreset(name);
+      if (target == null) return {'ok': false, 'error': 'preset not found: $name'};
+
+      final settings = presetData['settings'] as Map<String, dynamic>?;
+      final shouldStream = settings?['should_stream'] as bool?;
+      if (settings != null) {
+        _stSettingsPassthrough[target.name] =
+            Map<String, dynamic>.from(settings);
+      }
+
+      // prompts → sections 合并(按 identifier;未识条目跳过,不名单)
+      PromptManagerConfig? newConfig;
+      final prompts = presetData['prompts'] as List<dynamic>?;
+      if (prompts != null) {
+        final baseSections = isLive
+            ? ref.read(promptManagerProvider).sections
+            : (target.promptManagerConfig?.sections ??
+                PromptManagerConfig.defaultConfig().sections);
+        final sections = List<PromptSection>.from(baseSections);
+        for (final raw in prompts) {
+          if (raw is! Map) continue;
+          final p = raw.cast<String, dynamic>();
+          final ident = (p['identifier'] ?? p['name'])?.toString();
+          if (ident == null || ident.isEmpty) continue;
+          final idx = sections.indexWhere(
+              (s) => (s.identifier ?? s.type.name) == ident);
+          if (idx < 0) continue;
+          final cur = sections[idx];
+          sections[idx] = cur.copyWith(
+            content: p['content'] as String?,
+            enabled: p['enabled'] as bool?,
+            role: p['role'] as String?,
+            name: (p['name'] as String?)?.isNotEmpty == true
+                ? p['name'] as String
+                : null,
+            order: (p['injection_order'] as num? ?? p['order'] as num?)
+                ?.toInt(),
+            injectionPosition: (p['injection_position'] as num?)?.toInt(),
+            injectionDepth: (p['injection_depth'] as num?)?.toInt(),
+          );
+        }
+        newConfig = PromptManagerConfig(sections: sections);
+      }
+
+      // 应用到 live(仅 in_use):流式开关 + prompt 配置立即生效
+      if (isLive) {
+        if (shouldStream != null) {
+          // updateStreamEnabled 是同步 setter(内部自持久化),不可 await
+          ref.read(llmConfigProvider.notifier).updateStreamEnabled(shouldStream);
+        }
+        if (newConfig != null) {
+          await ref.read(promptManagerProvider.notifier).applyPreset(
+                PromptManagerPreset(
+                  id: target.id,
+                  name: target.name,
+                  config: newConfig,
+                  createdAt: target.createdAt,
+                  updatedAt: DateTime.now(),
+                ),
+              );
+        }
+      }
+
+      // 持久化进预设对象(内建首次修改转自定义覆写,同 _saveCurrentToActivePreset)
+      final updatedPreset = target.copyWith(
+        isBuiltIn: false,
+        updatedAt: DateTime.now(),
+        generationSettings: shouldStream != null
+            ? target.generationSettings.copyWith(streamEnabled: shouldStream)
+            : null,
+        promptManagerConfig: newConfig,
+      );
+      final customPresets = ref.read(aiCustomPresetsProvider);
+      final notifier = ref.read(aiCustomPresetsProvider.notifier);
+      if (customPresets.any((p) => p.id == target.id)) {
+        await notifier.updatePreset(updatedPreset);
+      } else {
+        await notifier.addPreset(updatedPreset);
+      }
+
+      _emitPresetEvent('preset_changed');
+      _emitPresetEvent('settings_updated');
+      debugPrint('[setPreset] 已保存: ${target.name} (live=$isLive, '
+          'stream=$shouldStream, prompts=${prompts?.length ?? '-'})');
+      return {'ok': true};
+    } catch (e) {
+      debugPrint('[setPreset] 错误: $e');
+      return {'ok': false, 'error': '$e'};
+    }
+  }
+
+  /// 向引擎房发预设/设置事件(JS __emitToEngine 会中继到全部脚本房)。
+  void _emitPresetEvent(String type) {
+    _controller?.evaluateJavascript(
+        source:
+            'if(window.__emitToEngine)window.__emitToEngine(${jsonEncode(type)},[],null);');
+  }
+
   /// 反向同步:把变量表推进引擎房镜像。
   void _syncVarsToEngine(String type, Map<String, dynamic> data, {int? messageId, int? lastMsgId, int? swipeId}) {
     final dataJson = jsonEncode(data);
