@@ -918,6 +918,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     // [P3-K2] 提示词管理 API
                     _bridge.onRequest(BridgeType.pmGetSections, _handlePmGetSections);
                     _bridge.onRequest(BridgeType.pmToggleSection, _handlePmToggleSection);
+                    // [P5-8/P1] extensionSettings 持久化(道渊/MVU 面板写回落盘)
+                    _bridge.onRequest(BridgeType.saveExtensionSettings, _handleSaveExtensionSettings);
                   },
                   onLoadStop: (c, url) async {
                     await _injectCompatLibs(c); // 注入第三方库到外层window
@@ -2102,6 +2104,44 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'min_depth': s.minDepth,
         'max_depth': s.maxDepth,
       };
+
+  /// [P5-8/P1] extensionSettings 持久化:道渊/MVU 面板写回 → 提取 mvu_settings 落定 MvuSettings。
+  /// 合并语义:null 键保留平台现值(JS 侧 MVU 每次写回完整解析对象,见 mvu_bundle:3154-3161,
+  /// 但防御性按键合并,避免未来半截对象清掉平台值)。
+  /// 持久化后重推 __KIRA_MAIN_ENV,主文档 getContext 当会话内同步新值。
+  Future<dynamic> _handleSaveExtensionSettings(Map<String, dynamic> payload) async {
+    try {
+      final settings = payload['settings'] as Map<String, dynamic>?;
+      if (settings == null) return {'ok': false, 'error': 'settings required'};
+      final mvu = settings['mvu_settings'] as Map<String, dynamic>?;
+      if (mvu == null) return {'ok': true}; // 无 mvu 段,无事可做
+      final notify = mvu['通知'] as Map<String, dynamic>?;
+      final extra = mvu['额外模型解析配置'] as Map<String, dynamic>?;
+      final cur = ref.read(mvuSettingsProvider);
+      final updated = cur.copyWith(
+        updateMode: mvu['更新方式'] as String?,
+        notifyFrameworkLoaded: notify?['MVU框架加载成功'] as bool?,
+        notifyInitSuccess: notify?['变量初始化成功'] as bool?,
+        notifyVarError: notify?['变量更新出错'] as bool?,
+        notifyExtraParsing: notify?['额外模型解析中'] as bool?,
+        jailbreakScheme: extra?['破限方案'] as String?,
+        autoRequest: extra?['启用自动请求'] as bool?,
+        maxChatHistory: (extra?['max_chat_history'] as num?)?.toInt(),
+        modelSource: extra?['模型来源'] as String?,
+        apiUrl: extra?['api地址'] as String?,
+        apiKey: extra?['密钥'] as String?,
+        modelName: extra?['模型名称'] as String?,
+      );
+      await ref.read(mvuSettingsProvider.notifier).applyFromWeb(updated);
+      // 主文档 __KIRA_MAIN_ENV 同源刷新,道渊下一轮读到的就是新值
+      final c = _controller;
+      if (c != null) await _injectMainEnv(c);
+      return {'ok': true};
+    } catch (e) {
+      debugPrint('[saveExtensionSettings] 错误: $e');
+      return {'ok': false, 'error': '$e'};
+    }
+  }
 
 
   Future<dynamic> _handleWiSetLorebookSettings(Map<String, dynamic> payload) async {

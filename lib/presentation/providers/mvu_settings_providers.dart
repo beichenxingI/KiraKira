@@ -141,6 +141,13 @@ debugPrint('[MVU] updateApiUrl调用: $url');
 
   // ── 其他 ──
 
+  /// [P5-8/P1] WebView 侧(道渊/MVU 面板 saveSettingsDebounced)写回的整对象应用。
+  /// 立即落盘(DB+SP 双写),让面板配置/通知四键刷新不丢。
+  Future<void> applyFromWeb(MvuSettings next) async {
+    state = next;
+    await _saveSettings();
+  }
+
   Future<void> resetToDefaults() async {
     state = const MvuSettings();
     await _saveSettings();

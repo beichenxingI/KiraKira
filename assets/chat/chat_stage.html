@@ -1254,6 +1254,9 @@ function injectBridge(html, id, floorIdx) {
       payload = { name: args[0], entries: args[1] || [] };
     } else if (method === 'th_getRegexes') {
       payload = { type: args[0] || 'global' };
+    } else if (method === 'th_saveExtensionSettings') {
+      // [P5-8/P1] MVU/道渊 saveSettingsDebounced 持久化:args[0]=extensionSettings 快照
+      payload = { settings: args[0] || {} };
     }
     return payload;
   }
@@ -1432,7 +1435,16 @@ function injectBridge(html, id, floorIdx) {
           }
         };
       },
-      saveSettingsDebounced: function () {},
+      // [P5-8/P1] 主文档侧持久化桥:把 getContext 暴露的 extensionSettings 快照送 Dart 落盘。
+      saveSettingsDebounced: function () {
+        try {
+          if (typeof window.__sendRequest === 'function') {
+            var ctx = null;
+            try { ctx = window.SillyTavern.getContext(); } catch (e2) {}
+            window.__sendRequest('th_saveExtensionSettings', { settings: (ctx && ctx.extensionSettings) || {} });
+          }
+        } catch (e) {}
+      },
       getCurrentChatId: function () { return window.__KIRA_CHAT_ID || ''; }
     };
   })();

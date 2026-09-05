@@ -99,6 +99,8 @@ class BridgeType {
   static const String pmToggleSection = 'th_pmToggleSection';   // 切换某 section 开关
   // [P3-K2] 提示词管理（出站推送：Dart → JS）
   static const String pmSectionsChanged = 'pmSectionsChanged';  // sections 列表变化时推给球
+  // [P5-8/P1] MVU extensionSettings 持久化(道渊/MVU 面板写回落盘)
+  static const String saveExtensionSettings = 'th_saveExtensionSettings';
 }
 
 
