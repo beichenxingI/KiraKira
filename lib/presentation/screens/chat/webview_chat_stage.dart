@@ -1,4 +1,5 @@
 ﻿import 'dart:convert';
+import 'package:collection/collection.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'dart:ui';
 import '../../widgets/common/glass_container.dart';
@@ -2008,6 +2009,23 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (!identical(cached, _wiCacheMiss)) return cached;
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
     final charId = ref.read(activeChatProvider).character?.id;
+
+    // [P5-8/P0] 按名精确取书:道渊/MVU 都是按名单本请求(TH getWorldbook(name) 语义)。
+    //   原合并语义会让道渊选"未绑定/禁用"书时取到别书条目、MVU 逐本请求拿到重复合集。
+    //   现在:有 reqName 时优先在仓库全量精确命中该书,命中即返回该书全部条目(含禁用,
+    //   道渊要做开关管理);未命中或空书才走下方合并+内嵌兜底(保 519 内嵌回退不回归)。
+    if (reqName != null && reqName.isNotEmpty) {
+      final allBooks = await repo.getAllWorldInfos();
+      final target = allBooks.firstWhereOrNull((b) => b.name == reqName);
+      if (target != null && target.entries.isNotEmpty) {
+        final entries = target.entries.map(_wiEntryToJson).toList()
+          ..sort((a, b) =>
+              (a['order'] as int? ?? 0).compareTo(b['order'] as int? ?? 0));
+        _wiCacheStore('th_wiGetEntries', reqName, entries);
+        return entries;
+      }
+    }
+
     final merged = <Map<String, dynamic>>[];
     if (charId != null) {
       final books = await repo.getWorldInfosForCharacter(charId);
