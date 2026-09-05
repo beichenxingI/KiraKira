@@ -106,6 +106,9 @@ class BridgeType {
   static const String getPreset = 'th_getPreset';
   static const String setPreset = 'th_setPreset';
   static const String getLoadedPresetName = 'th_getLoadedPresetName';
+  // [P5-9/P1] 生成控制(狐神自动推进/停止)
+  static const String generate = 'th_generate';
+  static const String stopGeneration = 'th_stopGeneration';
 }
 
 

@@ -236,9 +236,11 @@ String buildTavernHelperFacadeJs({
       'parent.postMessage({__thLog:true,text:"[身份] registerAsUniqueScript被调 id="+id},"*");'
       'return {listenPreferenceState:function(cb){parent.postMessage({__thLog:true,text:"[身份] listenPreferenceState注册,即将回调"},"*");try{cb("kirakira-mvu-0");}catch(e){parent.postMessage({__thLog:true,text:"[身份] cb异常"+e},"*");}return {stop:function(){}};}};};'
       'window.registerAsUniqueScript=_TH.registerAsUniqueScript;'
-      // MVU 启动依赖:generate 空桩(真实现押后)
-      '_TH.generate=function(cfg){parent.postMessage({__thLog:true,text:"[stub] generate 空桩"},"*");return Promise.resolve("");};'
+      // [P5-9/P1] generate 真桥:完整生成回合(脚本须靠 generation_ended 事件拿结果,30s桥超时前即返回)
+      '_TH.generate=function(arg){return __thCall("th_generate",[arg===undefined?"normal":arg]);};'
       'window.generate=_TH.generate;'
+      '_TH.stopGeneration=function(){return __thCall("th_stopGeneration",[]);};'
+      'window.stopGeneration=_TH.stopGeneration;'
       '_TH.generateRaw=function(cfg){parent.postMessage({__thLog:true,text:"[额外模型] generateRaw被调 hasCustomApi="+(!!(cfg&&cfg.custom_api))+" prompts="+((cfg&&cfg.ordered_prompts||[]).length)+" injects="+((cfg&&cfg.injects||[]).length)},"*");return __thCall("generateRaw",[cfg]);};'
       'window.generateRaw=_TH.generateRaw;'
       // substitudeMacros:同步宏替换(读宿主注入的 window.__KIRA_MACRO_VALUES)

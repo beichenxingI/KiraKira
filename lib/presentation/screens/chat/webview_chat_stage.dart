@@ -933,6 +933,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest(BridgeType.getPreset, _handleGetPreset);
                     _bridge.onRequest(BridgeType.setPreset, _handleSetPreset);
                     _bridge.onRequest(BridgeType.getLoadedPresetName, _handleGetLoadedPresetName);
+                    // [P5-9/P1] 生成控制(狐神自动推进/停止)
+                    _bridge.onRequest(BridgeType.generate, _handleGenerate);
+                    _bridge.onRequest(BridgeType.stopGeneration, _handleStopGeneration);
                   },
                   onLoadStop: (c, url) async {
                     await _injectCompatLibs(c); // 注入第三方库到外层window
@@ -2089,6 +2092,47 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       return {'ok': true};
     } catch (e) {
       debugPrint('[setPreset] 错误: $e');
+      return {'ok': false, 'error': '$e'};
+    }
+  }
+
+  /// [P5-9/P1] generate: 触发完整生成回合(狐神自动推进/二次生成)。
+  /// arg 形态(TH 契约): 'normal'/'continue' 字符串,或 {user_input:'文本'}。
+  /// 桥 30s 超时 < LLM 生成时长 → 不和生成结果绑定,立即返回;
+  /// 完成/取消由 generation_ended 事件通知(见 3.3),脚本应走事件而非返回值。
+  Future<dynamic> _handleGenerate(Map<String, dynamic> payload) async {
+    try {
+      if (ref.read(activeChatProvider).isGenerating) {
+        debugPrint('[generate] 生成中,忽略重复触发');
+        return '';
+      }
+      final config = ref.read(llmConfigProvider);
+      final arg = payload['arg'];
+      String? userInput;
+      if (arg is Map) {
+        userInput = (arg['user_input'] as String?)?.trim();
+      }
+      if (userInput != null && userInput.isNotEmpty) {
+        // {user_input} 语义:插一条用户消息并触发生成
+        await ref.read(activeChatProvider.notifier).sendMessage(userInput, config);
+      } else {
+        // 'normal'/'continue' 均 = 让 AI 基于当前会话生成下一条
+        await ref.read(activeChatProvider.notifier).continueGeneration(config);
+      }
+      return '';
+    } catch (e) {
+      debugPrint('[generate] 错误: $e');
+      return '';
+    }
+  }
+
+  /// [P5-9/P1] stopGeneration: 取消当前生成。
+  Future<dynamic> _handleStopGeneration(Map<String, dynamic> payload) async {
+    try {
+      await ref.read(activeChatProvider.notifier).cancelGeneration();
+      return {'ok': true};
+    } catch (e) {
+      debugPrint('[stopGeneration] 错误: $e');
       return {'ok': false, 'error': '$e'};
     }
   }
