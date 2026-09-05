@@ -2357,5 +2357,30 @@ function injectBridge(html, id, floorIdx) {
   }
 
 </script>
+
+<!-- [P5-9/P1] ST 输入 DOM 锚点:狐神等脚本依赖 #send_textarea/#send_but/#send_form
+     进行"写入文本→.click()发送"与 ft-timeline 挂载(找 send_textarea 的父节点)。
+     隐藏但真实存在于主文档;点击桥到 Dart sendFromStage → chat_providers.sendMessage。 -->
+<form id="send_form" style="display:none; position:fixed; left:-9999px; top:-9999px;">
+  <textarea id="send_textarea"></textarea>
+  <button id="send_but" type="button"></button>
+</form>
+<!-- [P5-9/P1] 玄枢面板挂载容器:ST 扩展设置区锚点(隐藏,供脚本 document.getElementById 挂 Vue app)。 -->
+<div id="extensions_settings2" style="display:none;"></div>
+<script>
+(function () {
+  var sendBtn = document.getElementById('send_but');
+  var sendTa = document.getElementById('send_textarea');
+  if (sendBtn && sendTa) {
+    sendBtn.addEventListener('click', function () {
+      var text = sendTa.value;
+      if (text) {
+        try { sendToFlutter('action', { action: 'sendFromStage', text: text }); } catch (e) {}
+        sendTa.value = '';
+      }
+    });
+  }
+})();
+</script>
 </body>
 </html>

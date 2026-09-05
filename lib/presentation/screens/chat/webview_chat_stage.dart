@@ -3228,6 +3228,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       if (attPath.isNotEmpty) _showFullImage(attPath);
       return;
     }
+    // [P5-9/P1] 脚本经 #send_but 触发的发送(狐神等):等价于用户在输入框点发送。
+    // 无气泡 id,须在 id 判空拦截之前处理。
+    if (action == 'sendFromStage') {
+      final text = (payload['text'] as String? ?? '').trim();
+      if (text.isEmpty) return;
+      if (ref.read(activeChatProvider).isGenerating) return;
+      final config = ref.read(llmConfigProvider);
+      ref.read(activeChatProvider.notifier).sendMessage(text, config);
+      return;
+    }
     if (id.isEmpty) return;
     // 生成中禁止操作气泡按钮，避免与正在进行的生成冲突
     if (ref.read(activeChatProvider).isGenerating) return;
