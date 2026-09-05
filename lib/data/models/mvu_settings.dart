@@ -81,6 +81,23 @@ class MvuSettings {
   /// 自定义 task 提示词内容(默认 = 内置安全版)
   final String customPrompt;
 
+  // ── [P5-8/P1] 通知四键 ──────────────────────────────────────────
+  // 对应 extensionSettings.mvu_settings.通知 的四个中文键,
+  // 默认值与 mvu_bundle.js 出厂 zod schema 对齐(:2988-2993)。
+  // 道渊报警1要求四键全真;出厂默认"变量更新出错"=false,用户可在道渊面板打开。
+
+  /// MVU框架加载成功通知(出厂默认 true)
+  final bool notifyFrameworkLoaded;
+
+  /// 变量初始化成功通知(出厂默认 true)
+  final bool notifyInitSuccess;
+
+  /// 变量更新出错通知(出厂默认 false)
+  final bool notifyVarError;
+
+  /// 额外模型解析中通知(出厂默认 true)
+  final bool notifyExtraParsing;
+
   const MvuSettings({
     this.updateMode = '随AI输出',
     this.maxChatHistory = 10,
@@ -92,6 +109,10 @@ class MvuSettings {
     this.modelName = 'deepseek-chat',
     this.customPromptEnabled = false,
     this.customPrompt = kDefaultMvuTask,
+    this.notifyFrameworkLoaded = true,
+    this.notifyInitSuccess = true,
+    this.notifyVarError = false,
+    this.notifyExtraParsing = true,
   });
 
   MvuSettings copyWith({
@@ -105,6 +126,10 @@ class MvuSettings {
     String? modelName,
     bool? customPromptEnabled,
     String? customPrompt,
+    bool? notifyFrameworkLoaded,
+    bool? notifyInitSuccess,
+    bool? notifyVarError,
+    bool? notifyExtraParsing,
   }) {
     return MvuSettings(
       updateMode: updateMode ?? this.updateMode,
@@ -117,6 +142,10 @@ class MvuSettings {
       modelName: modelName ?? this.modelName,
       customPromptEnabled: customPromptEnabled ?? this.customPromptEnabled,
       customPrompt: customPrompt ?? this.customPrompt,
+      notifyFrameworkLoaded: notifyFrameworkLoaded ?? this.notifyFrameworkLoaded,
+      notifyInitSuccess: notifyInitSuccess ?? this.notifyInitSuccess,
+      notifyVarError: notifyVarError ?? this.notifyVarError,
+      notifyExtraParsing: notifyExtraParsing ?? this.notifyExtraParsing,
     );
   }
 
@@ -131,6 +160,10 @@ class MvuSettings {
         'modelName': modelName,
         'customPromptEnabled': customPromptEnabled,
         'customPrompt': customPrompt,
+        'notifyFrameworkLoaded': notifyFrameworkLoaded,
+        'notifyInitSuccess': notifyInitSuccess,
+        'notifyVarError': notifyVarError,
+        'notifyExtraParsing': notifyExtraParsing,
       };
 
   factory MvuSettings.fromJson(Map<String, dynamic> json) {
@@ -148,6 +181,11 @@ class MvuSettings {
       modelName: json['modelName'] as String? ?? 'deepseek-chat',
       customPromptEnabled: json['customPromptEnabled'] as bool? ?? false,
       customPrompt: json['customPrompt'] as String? ?? kDefaultMvuTask,
+      // [P5-8/P1] 通知四键,旧数据缺省时按 MVU 出厂默认回填(true,true,false,true)
+      notifyFrameworkLoaded: json['notifyFrameworkLoaded'] as bool? ?? true,
+      notifyInitSuccess: json['notifyInitSuccess'] as bool? ?? true,
+      notifyVarError: json['notifyVarError'] as bool? ?? false,
+      notifyExtraParsing: json['notifyExtraParsing'] as bool? ?? true,
     );
   }
  }
