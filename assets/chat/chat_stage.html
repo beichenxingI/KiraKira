@@ -1054,6 +1054,8 @@ function injectBridge(html, id, floorIdx) {
       try {
         // [P5-9/P1] 同事件同时喂主文档本地总线(getContext().eventSource)
         if (window.__localEventBus) { try { window.__localEventBus._fire(d.type, d.args || []); } catch (_lb) {} }
+        // [P5-12] 预设/设置变更 → 清主文档 JS 侧预设缓存
+        if (d.type === 'preset_changed' || d.type === 'settings_updated') { try { if (window.__KIRA_PRESET_CACHE_CLEAR) window.__KIRA_PRESET_CACHE_CLEAR(); } catch (_pc) {} }
         var cards2 = document.querySelectorAll('iframe[data-frame-id]:not([data-frame-id="engine-room"])');
         for (var mi = 0; mi < cards2.length; mi++) {
           // 跳过事件来源帧,防止脚本房↔主文档无限循环
@@ -1377,9 +1379,29 @@ function injectBridge(html, id, floorIdx) {
     // [P5-9/P2] ST 本体版本号(玄枢启动门槛 getTavernVersion>="1.13.4")
     TH.getTavernVersion = function () { return '1.13.4'; };
     // ── [P5-9/P1] 预设管理 API(主文档同源,道渊/狐神经顶层跑时也能用) ──
+    // [P5-12] JS 侧会话级预设缓存(方案1,与脚本房 facade 同构):
+    //   命中返回同一对象引用,零桥往返;失效口:setPreset 成功 /
+    //   __mvuEvent 中继里的 preset_changed / settings_updated(见 1056 行旁)。
+    window.__KIRA_PRESET_CACHE = window.__KIRA_PRESET_CACHE || {};
+    window.__KIRA_PRESET_CACHE_CLEAR = function () {
+      try {
+        for (var k in window.__KIRA_PRESET_CACHE) { delete window.__KIRA_PRESET_CACHE[k]; }
+      } catch (e) {}
+    };
     TH.getPresetNames = function () { return __thCallRead('th_getPresetNames', []); };
-    TH.getPreset = function (name) { return __thCallRead('th_getPreset', [name]); };
-    TH.setPreset = function (name, preset) { return __thCall('th_setPreset', [name, preset]); };
+    TH.getPreset = function (name) {
+      try { if (window.__KIRA_PRESET_CACHE[name]) return Promise.resolve(window.__KIRA_PRESET_CACHE[name]); } catch (e) {}
+      return __thCallRead('th_getPreset', [name]).then(function (r) {
+        try { if (r) window.__KIRA_PRESET_CACHE[name] = r; } catch (e) {}
+        return r;
+      });
+    };
+    TH.setPreset = function (name, preset) {
+      return __thCall('th_setPreset', [name, preset]).then(function (r) {
+        try { window.__KIRA_PRESET_CACHE_CLEAR(); } catch (e) {}
+        return r;
+      });
+    };
     TH.getLoadedPresetName = function () { return __thCallRead('th_getLoadedPresetName', []); };
     // updatePresetWith: 读→updater→写(ST 语义;updater 返回 undefined 时用就地修改后的对象)
     TH.updatePresetWith = function (name, updater) {
