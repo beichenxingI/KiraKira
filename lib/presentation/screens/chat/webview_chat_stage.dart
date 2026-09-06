@@ -1044,6 +1044,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                   onLoadStop: (c, url) async {
                     await _injectCompatLibs(c); // 注入第三方库到外层window
                     await _injectMacroValues(c); // 注入宏替换用的角色名/用户名
+                    await _injectRegexRules(c); // [P6-5.2] 正则规则快照(引擎房烘焙用)
                     await _injectMainEnv(c); // [P5-6阶段2.1] 注入主环境快照(主文档ST骨架读)
                      await _injectEngineFacade(c); // 注入引擎房共享门面
                      await _injectPresetScripts(c);
@@ -1598,18 +1599,19 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'message': null,
         'mid': -1,
         'sid': 0,
+        'floors': const <Map<String, dynamic>>[],
       };
       try {
         final msgs = ref.read(activeChatProvider).messages;
-        for (var i = msgs.length - 1; i >= 0; i--) {
-          final sd = msgs[i].swipesData;
-          if (sd.isNotEmpty) {
-            final sid = msgs[i].currentSwipeIndex < 0 ? 0 : msgs[i].currentSwipeIndex;
-            snap['mid'] = i;
-            snap['sid'] = sid;
-            snap['message'] = sd[sid < sd.length ? sid : 0];
-            break;
-          }
+        // [P6-5.2] Ancestor 历史楼层喂入:最近 30 层的当前 swipe 变量,
+        // dist getvar(withMsg) 可读历史;与 _pushInitialVarSnapshots 窗口一致。
+        final floors = _collectAncestorFloors(msgs, 30);
+        snap['floors'] = floors;
+        if (floors.isNotEmpty) {
+          final last = floors.last;
+          snap['mid'] = last['mid'];
+          snap['sid'] = last['sid'];
+          snap['message'] = last['data'];
         }
       } catch (_) {}
 
@@ -1629,6 +1631,17 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               if (w._TH) {
                 w._TH.__varCache.global = snap.global || {};
                 w._TH.__varCache.chat = snap.chat || {};
+                // [P6-5.2] Ancestor 多层灌入(最近30层当前swipe)
+                var fls = snap.floors || [];
+                for (var fi = 0; fi < fls.length; fi++) {
+                  var fl = fls[fi];
+                  if (!fl || typeof fl.mid !== 'number' || fl.mid < 0) continue;
+                  w._TH.__varCache.message[fl.mid] = fl.data || {};
+                  w.chat[fl.mid] = w.chat[fl.mid] || {};
+                  w.chat[fl.mid].variables = w.chat[fl.mid].variables || [];
+                  w.chat[fl.mid].variables[fl.sid || 0] = fl.data || {};
+                }
+                // 兼容:最新层仍写 message/mid/sid
                 if (snap.message && typeof snap.mid === 'number' && snap.mid >= 0) {
                   w._TH.__varCache.message[snap.mid] = snap.message;
                   w.chat[snap.mid] = w.chat[snap.mid] || {};
@@ -2196,6 +2209,50 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final msgsNow = ref.read(activeChatProvider).messages;
     _syncVarsToEngine('chat', readBack, lastMsgId: msgsNow.isNotEmpty ? msgsNow.length - 1 : null);
     return readBack;
+  }
+
+  /// [P6-5.2] 注入正则规则快照(引擎房/脚本房/卡片门面的同步 getRegexedString 引擎消费)。
+  /// 字段紧凑形:f=findRegex r=replaceString p=placement索引 o=order d=disabled
+  /// mo=markdownOnly po=promptOnly e=runOnEdit t=trimStrings min/max=深度区间。
+  Future<void> _injectRegexRules(dynamic c) async {
+    try {
+      final character = ref.read(activeChatProvider).character;
+      final combined = ref.read(combinedRegexScriptsProvider(character?.id));
+      final rules = combined
+          .map((s) => <String, dynamic>{
+                'f': s.findRegex,
+                'r': s.replaceString,
+                'p': s.placement.map((e) => e.index).toList(),
+                'o': s.order,
+                'd': s.disabled,
+                'mo': s.markdownOnly,
+                'po': s.promptOnly,
+                'e': s.runOnEdit,
+                't': s.trimStrings,
+                'min': s.minDepth,
+                'max': s.maxDepth,
+              })
+          .toList();
+      await c.evaluateJavascript(
+          source: 'window.__KIRA_REGEX_RULES=${jsonEncode(rules)};');
+    } catch (e) {
+      debugPrint('[正则规则注入] 失败: $e');
+    }
+  }
+
+  /// [P6-5.2] Ancestor 历史楼层快照:最近 N 层的当前 swipe 变量。
+  List<Map<String, dynamic>> _collectAncestorFloors(
+      List<ChatMessage> msgs, int maxFloors) {
+    final floors = <Map<String, dynamic>>[];
+    for (var i = msgs.length - 1; i >= 0 && floors.length < maxFloors; i--) {
+      final sd = msgs[i].swipesData;
+      if (sd.isEmpty) continue;
+      final swIdx =
+          msgs[i].currentSwipeIndex < 0 ? 0 : msgs[i].currentSwipeIndex;
+      final sid = swIdx < sd.length ? swIdx : 0;
+      floors.add({'mid': i, 'sid': sid, 'data': sd[sid]});
+    }
+    return floors.reversed.toList(); // 升序(老→新)
   }
 
   /// [P3-K2-2] 读取当前 prompt sections 列表（球用）

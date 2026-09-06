@@ -80,8 +80,14 @@ export const selected_group = null;              // [STUB]
 export const getGroupMembers = ()=>[];           // [STUB]
 
 // ── regex/engine.js ──
-export const getRegexedString = (s)=>s;          // [STUB!→第五章:正则] 原样返回
-export const regex_placement = {MD_DISPLAY:0,USER_INPUT:1,AI_OUTPUT:2,SLASH_COMMAND:3,WORLD_INFO:5}; // [STUB→第五章:正则]
+// [P6-5.2] 接真:委托门面的同步正则引擎(平台 regex 资产快照 __KIRA_REGEX_RULES)
+export const getRegexedString = (s, placement, opts) => {
+  try {
+    if (typeof window.__kiraRunRegex === 'function') return window.__kiraRunRegex(s, placement, opts);
+  } catch (e) { /* fallthrough */ }
+  return s;
+};
+export const regex_placement = {MD_DISPLAY:0,USER_INPUT:1,AI_OUTPUT:2,SLASH_COMMAND:3,WORLD_INFO:5,REASONING:6};
 
 // ── tokenizers.js ──
 export const getTokenCountAsync = async()=>0;    // [STUB]
