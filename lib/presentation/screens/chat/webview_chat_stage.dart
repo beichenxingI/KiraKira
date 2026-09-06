@@ -1525,10 +1525,53 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               }
             }
             var t = ${jsonEncode(text)};
+            // [P6-2] 渲染前快照:evalTemplate 后对 global/chat 桶做 diff,
+            // 把模板内 setvar/incvar/delvar 的变化经 th_setVars 持久化到 Dart。
+            window.__krPre = window.__krPre || {};
+            try {
+              window.__krPre[id] = {
+                global: JSON.parse(JSON.stringify(((w.extension_settings && w.extension_settings.variables) || {}).global || {})),
+                chat: JSON.parse(JSON.stringify((w.chat_metadata && w.chat_metadata.variables) || {}))
+              };
+            } catch (ep) { window.__krPre[id] = null; }
             w.EjsTemplate.evalTemplate(t).then(function(v) {
+              var diff = null;
+              try {
+                var pre = window.__krPre[id];
+                delete window.__krPre[id];
+                if (pre) {
+                  var gAfter = ((w.extension_settings && w.extension_settings.variables) || {}).global || {};
+                  var cAfter = (w.chat_metadata && w.chat_metadata.variables) || {};
+                  // dist 写入桶的值是 JSON 字符串,回写 Dart 前先解一层
+                  var unwrap = function(x) {
+                    if (typeof x === 'string') { try { return JSON.parse(x); } catch (eu) { return x; } }
+                    return x;
+                  };
+                  var bucketDiff = function(before, after) {
+                    var set = {}, del = [], has = false;
+                    for (var k in after) {
+                      if (!Object.prototype.hasOwnProperty.call(after, k)) continue;
+                      if (!before || JSON.stringify(before[k]) !== JSON.stringify(after[k])) {
+                        set[k] = unwrap(after[k]); has = true;
+                      }
+                    }
+                    if (before) {
+                      for (var k2 in before) {
+                        if (!Object.prototype.hasOwnProperty.call(before, k2)) continue;
+                        if (!Object.prototype.hasOwnProperty.call(after, k2)) { del.push(k2); has = true; }
+                      }
+                    }
+                    return has ? { set: set, del: del } : null;
+                  };
+                  var gd = bucketDiff(pre.global, gAfter);
+                  var cd = bucketDiff(pre.chat, cAfter);
+                  if (gd || cd) diff = { global: gd, chat: cd };
+                }
+              } catch (ed2) { diff = null; }
               try { if (typeof sendToFlutter === 'function') sendToFlutter('log', { text: '[EJSD-4] slot-write realm_outer=' + (window === parent) + ' id=' + id + ' vlen=' + ((v == null) ? -1 : String(v).length) }); } catch (_e5) {}
-              window.__krRes[id] = { ok: true, v: (v == null ? '' : String(v)) };
+              window.__krRes[id] = { ok: true, v: (v == null ? '' : String(v)), diff: diff };
             }).catch(function(e2) {
+              try { delete window.__krPre[id]; } catch (_e7) {}
               try { if (typeof sendToFlutter === 'function') sendToFlutter('log', { text: '[EJSD-4] slot-write(CATCH) realm_outer=' + (window === parent) + ' id=' + id + ' err=' + String((e2 && (e2.stack || e2.message)) || e2).slice(0, 120) }); } catch (_e6) {}
               window.__krRes[id] = { ok: false, e: String((e2 && (e2.stack || e2.message)) || e2) };
             });
@@ -1567,6 +1610,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         if (res == null) continue;
         if (res['ok'] == true) {
           final v = res['v']?.toString() ?? '';
+          // [P6-2] EJS 写回桥:先把模板内 setvar/delvar 的桶变化持久化,
+          // 必须在空串硬保护之前(纯写变量的模板输出为空也不能丢写回)。
+          if (res['diff'] is Map) {
+            await _persistEjsWriteback(
+                (res['diff'] as Map).cast<String, dynamic>());
+          }
           print('[EJSD-5] evalTemplate ok vlen=${v.length}');
           // E3 硬保护:null/undefined/空串一律回退原文,绝不把空内容交给 LLM
           if (v.isEmpty) {
@@ -1579,10 +1628,78 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
       }
       print('[EJSD-5] poll TIMEOUT -> macro fallback');
+      controller.evaluateJavascript(
+          source:
+              '(function(){try{if(window.__krPre)delete window.__krPre[$idNum];}catch(_){}})()');
       return await _macroFallbackRender(controller, text);
     } catch (e) {
       KiraLogger().info('EJS渲染', '渲染失败 error=$e');
       return text;
+    }
+  }
+
+  /// [P6-2] EJS 写回桥:把引擎房 diff 出的 global/chat 桶变化持久化到 Dart。
+  /// scope 路由与 dist 语义对位;message 桶不落库(防 MVU 双写,只留在镜像)。
+  /// 写回后 _syncVarsToEngine 一次,让 Trinity cache 重合并(同 P6-1 §1.4 第5步)。
+  Future<void> _persistEjsWriteback(Map<String, dynamic> diff) async {
+    try {
+      final service = VariablesService.instance;
+
+      // ── global 桶 ──
+      final g = diff['global'];
+      if (g is Map) {
+        final gm = g.cast<String, dynamic>();
+        final setMap =
+            (gm['set'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
+        final delList = gm['del'] as List? ?? const [];
+        for (final k in delList) {
+          if (k is String && k.isNotEmpty) {
+            await service.deleteGlobalVariable(k);
+          }
+        }
+        if (setMap.isNotEmpty) {
+          await _handleSetVariables(
+              {'vars': setMap, 'option': const {'type': 'global'}});
+        }
+        if (setMap.isNotEmpty || delList.isNotEmpty) {
+          _syncVarsToEngine('global', service.getAllGlobalVariables());
+          KiraLogger().info(
+              'EJS写回', 'global set=${setMap.keys.toList()} del=$delList');
+        }
+      }
+
+      // ── chat 桶 ──
+      final c = diff['chat'];
+      if (c is Map) {
+        final cm = c.cast<String, dynamic>();
+        final setMap =
+            (cm['set'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
+        final delList = cm['del'] as List? ?? const [];
+        var deleted = false;
+        for (final k in delList) {
+          if (k is String && k.isNotEmpty) {
+            service.deleteLocalVariable(widget.chatId, k);
+            deleted = true;
+          }
+        }
+        if (setMap.isNotEmpty) {
+          // setmap 分支自带落盘+引擎房重合并(读回整表)
+          await _handleSetVariables(
+              {'vars': setMap, 'option': const {'type': 'chat'}});
+          KiraLogger().info(
+              'EJS写回', 'chat set=${setMap.keys.toList()} del=$delList');
+        } else if (deleted) {
+          await service.saveLocalVariablesToPrefs(widget.chatId);
+          final readBack = service.getAllLocalVariables(widget.chatId);
+          final msgsNow = ref.read(activeChatProvider).messages;
+          _syncVarsToEngine('chat', readBack,
+              lastMsgId: msgsNow.isNotEmpty ? msgsNow.length - 1 : null);
+          KiraLogger().info('EJS写回', 'chat del=$delList');
+        }
+      }
+    } catch (e) {
+      // fail-open:写回失败只记日志,绝不阻断渲染
+      KiraLogger().info('EJS写回', '持久化失败 error=$e');
     }
   }
 
