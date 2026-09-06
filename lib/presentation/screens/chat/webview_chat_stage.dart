@@ -1,4 +1,5 @@
-﻿import 'dart:convert';
+﻿import 'dart:async';
+import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'dart:ui';
@@ -99,6 +100,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   /// 平台模型无对应字段的 settings 键不设白名单拦截,写时整袋暂存、读时铺底回出;
   /// should_stream 等已建模键以真值为准覆盖,保证狐神 updatePresetWith 改写后读回一致。
   final Map<String, Map<String, dynamic>> _stSettingsPassthrough = {};
+  // [P5-12] 预设读缓存(P5-11 方案1):getPreset TTL 缓存 + 在途请求合并。
+  // 狐神面板 800ms 轮询会高频 getPreset('in_use')(4MB JSON),Dart 侧先做
+  // TTL+合并;真正的带宽省法在 JS 侧 __KIRA_PRESET_CACHE(任务2.2/2.3)。
+  final Map<String, Map<String, dynamic>> _presetReadCache = {};
+  final Map<String, DateTime> _presetCacheAt = {};
+  final Map<String, Completer<dynamic>> _presetReadInflight = {};
+  static const Duration _presetCacheTTL = Duration(milliseconds: 500);
   int _wvCrashCount = 0; // [WV-6/P1-A5] renderer 崩溃自愈次数上限,防"崩→reload→再崩"死循环
   bool _webViewMounted = false; // 延迟挂载:入场后才创建WebView,避免动画期被重活饿死
   final TextEditingController _inputController = TextEditingController();
@@ -1999,9 +2007,40 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     try {
       final name = payload['name'] as String?;
       if (name == null || name.isEmpty) return null;
-      final (preset, live) = _resolveStPreset(name);
-      if (preset == null) return null;
-      return _stPresetJson(preset, live: live);
+      final cacheKey = name;
+
+      // [P5-12] TTL 缓存命中
+      final cached = _presetReadCache[cacheKey];
+      final cachedAt = _presetCacheAt[cacheKey];
+      if (cached != null &&
+          cachedAt != null &&
+          DateTime.now().difference(cachedAt) < _presetCacheTTL) {
+        debugPrint('[getPreset] 缓存命中: $name');
+        return cached;
+      }
+
+      // [P5-12] 在途合并:同一预设的并发读只算一次
+      final inflight = _presetReadInflight[cacheKey];
+      if (inflight != null) {
+        debugPrint('[getPreset] 在途合并: $name');
+        return await inflight.future;
+      }
+      final completer = Completer<dynamic>();
+      _presetReadInflight[cacheKey] = completer;
+      try {
+        final (preset, live) = _resolveStPreset(name);
+        if (preset == null) {
+          completer.complete(null);
+          return null;
+        }
+        final result = _stPresetJson(preset, live: live);
+        _presetReadCache[cacheKey] = result;
+        _presetCacheAt[cacheKey] = DateTime.now();
+        completer.complete(result);
+        return result;
+      } finally {
+        _presetReadInflight.remove(cacheKey);
+      }
     } catch (e) {
       debugPrint('[getPreset] 错误: $e');
       return null;
@@ -2100,6 +2139,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       } else {
         await notifier.addPreset(updatedPreset);
       }
+
+      // [P5-12] 写成功 → 立即失效读缓存(双侧:本层 + 各脚本房 JS 侧由
+      // preset_changed 事件清 __KIRA_PRESET_CACHE)
+      _presetReadCache.clear();
+      _presetCacheAt.clear();
 
       _emitPresetEvent('preset_changed');
       _emitPresetEvent('settings_updated');
