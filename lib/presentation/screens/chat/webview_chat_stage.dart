@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
@@ -108,6 +108,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   final Map<String, Completer<dynamic>> _presetReadInflight = {};
   static const Duration _presetCacheTTL = Duration(milliseconds: 500);
   int _wvCrashCount = 0; // [WV-6/P1-A5] renderer 崩溃自愈次数上限,防"崩→reload→再崩"死循环
+  // [P5-12] WebView 合成源统一从这里取(initialData 与崩溃自愈 loadData 必须同源)
+  static const String _kWebViewBaseUrl = 'https://localhost/';
   bool _webViewMounted = false; // 延迟挂载:入场后才创建WebView,避免动画期被重活饿死
   final TextEditingController _inputController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
@@ -588,7 +590,25 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   /// [P1-A5] 崩溃自愈超限后,用户点「重新加载」:重置计数并重挂 webview 恢复。
   void _reloadWebViewAfterCrash() {
     _wvCrashCount = 0;
-    _controller?.reload();
+    _reloadWebViewContent();
+  }
+
+  /// [P5-12] 崩溃自愈:重新 loadData 重建内容,而非 controller.reload()。
+  /// reload 会把 loadData 页面的历史条目(其 URL 即 baseUrl)当真实导航重新请求,
+  /// 公网域名会 net::ERR_NAME_NOT_RESOLVED(P5-11 诊断第五部分)。
+  /// loadData 重建文档后 onLoadStop 会重跑注入链(兼容库/门面/脚本房/MVU),等价完整恢复。
+  Future<void> _reloadWebViewContent() async {
+    final c = _controller;
+    if (c == null) return;
+    try {
+      await c.loadData(
+        data: _htmlShell(),
+        mimeType: 'text/html',
+        baseUrl: WebUri(_kWebViewBaseUrl),
+      );
+    } catch (e) {
+      debugPrint('[WV-6] 自愈 loadData 失败: $e');
+    }
     Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) {
         _pushMessages();
@@ -854,7 +874,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     //   合成源不会被网络解析(loadData 仅用 baseUrl 做资源/来源解析，不发起导航)。
                     //   [P5-12] localhost 而非公网域名：渲染进程崩溃自愈 reload 会把该地址
                     //   当真实导航重新请求，公网域名会 net::ERR_NAME_NOT_RESOLVED（P5-11 第五部分）。
-                    baseUrl: WebUri('https://localhost/'),
+                    baseUrl: WebUri(_kWebViewBaseUrl),
                   ),
                   initialSettings: InAppWebViewSettings(
                     transparentBackground: true,
@@ -887,12 +907,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                       }
                       return;
                     }
-                    controller.reload();
-                    Future.delayed(const Duration(milliseconds: 800), () {
-                      if (mounted) {
-                        _pushMessages();
-                      }
-                    });
+                    // [P5-12] 自愈改 loadData 重建,避免 reload 对 baseUrl 的真实导航
+                    _reloadWebViewContent();
                   },
                   onWebViewCreated: (c) {
                     _controller = c;
