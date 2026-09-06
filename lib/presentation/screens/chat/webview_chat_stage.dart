@@ -42,6 +42,10 @@ import 'package:kirakira/domain/services/variables_service.dart';
 import 'package:kirakira/domain/services/slash_command/slash_command.dart';
 import 'package:kirakira/domain/services/slash_command/slash_runner.dart';
 import 'package:kirakira/domain/services/slash_command/commands/basic_commands.dart';
+import 'package:kirakira/domain/services/slash_command/commands/variable_commands.dart';
+import 'package:kirakira/domain/services/slash_command/commands/control_flow_commands.dart';
+import 'package:kirakira/domain/services/slash_command/commands/math_commands.dart';
+import 'package:kirakira/domain/services/slash_command/commands/generation_commands.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:kirakira/data/models/world_info.dart' as models;
 import 'package:image_picker/image_picker.dart';
@@ -1248,6 +1252,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   /// 回调不捕获 this 状态,一切经 args.env 注入;注册幂等(覆盖写)。
   void _registerPlatformSlashCommands() {
     registerBasicSlashCommands();
+    registerVariableSlashCommands();
+    registerControlFlowSlashCommands();
+    registerMathSlashCommands();
+    registerGenerationSlashCommands();
     if (_slashCommandsRegistered) return;
     _slashCommandsRegistered = true;
 
@@ -1357,6 +1365,67 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           content: Text('这张卡使用了暂不支持的命令（/$name），部分功能可能无法使用'),
           duration: const Duration(seconds: 3),
         ));
+      },
+      // [P6-4] 变量命令落点:统一走 VariablesService + 落盘 + 引擎重同步
+      onSetVar: (type, name, value, {index, asType}) async {
+        final service = VariablesService.instance;
+        if (type == 'global') {
+          if (name.isEmpty) {
+            await service.clearGlobalVariables();
+          } else {
+            await service.setGlobalVariable(name, value,
+                index: index, asType: asType);
+          }
+          _syncVarsToEngine('global', service.getAllGlobalVariables());
+        } else {
+          if (name.isEmpty) {
+            service.clearLocalVariables(widget.chatId);
+          } else {
+            service.setLocalVariable(widget.chatId, name, value,
+                index: index, asType: asType);
+          }
+          await service.saveLocalVariablesToPrefs(widget.chatId);
+          final msgs = ref.read(activeChatProvider).messages;
+          _syncVarsToEngine('chat', service.getAllLocalVariables(widget.chatId),
+              lastMsgId: msgs.isNotEmpty ? msgs.length - 1 : null);
+        }
+      },
+      onDeleteVar: (type, name) async {
+        final service = VariablesService.instance;
+        if (type == 'global') {
+          if (name.isEmpty) {
+            await service.clearGlobalVariables();
+          } else {
+            await service.deleteGlobalVariable(name);
+          }
+          _syncVarsToEngine('global', service.getAllGlobalVariables());
+        } else {
+          if (name.isEmpty) {
+            service.clearLocalVariables(widget.chatId);
+          } else {
+            service.deleteLocalVariable(widget.chatId, name);
+          }
+          await service.saveLocalVariablesToPrefs(widget.chatId);
+          final msgs = ref.read(activeChatProvider).messages;
+          _syncVarsToEngine('chat', service.getAllLocalVariables(widget.chatId),
+              lastMsgId: msgs.isNotEmpty ? msgs.length - 1 : null);
+        }
+      },
+      // [P6-4] /genraw:静默生成一次,聚合流回文本
+      generateRaw: (prompt) async {
+        final config = ref.read(llmConfigProvider);
+        final messages = <Map<String, dynamic>>[
+          {'role': 'user', 'content': prompt},
+        ];
+        final buffer = StringBuffer();
+        await for (final chunk in ref
+            .read(llmServiceProvider)
+            .generateStreamWithReasoning(messages, config)) {
+          if (chunk.content != null) {
+            buffer.write(chunk.content);
+          }
+        }
+        return buffer.toString();
       },
     );
     // 全局变量宏钩子({{getvar::}} 等) — 覆盖写,幂等

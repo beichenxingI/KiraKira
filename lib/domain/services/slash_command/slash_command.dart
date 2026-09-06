@@ -115,6 +115,9 @@ class SlashEnv {
     this.regenerateLast,
     this.setInput,
     this.onUnsupported,
+    this.onSetVar,
+    this.onDeleteVar,
+    this.generateRaw,
   });
 
   final String? chatId;
@@ -124,6 +127,19 @@ class SlashEnv {
   final Future<void> Function()? regenerateLast;
   final void Function(String text)? setInput;
   final void Function(String command)? onUnsupported;
+
+  /// [P6-4] 写单个变量(宿主负责持久化+引擎同步)。
+  /// type: 'global' | 'chat';name 空 = 清空整桶(flushvar 语义)。
+  final Future<void> Function(
+          String type, String name, Object? value,
+          {String? index, String? asType})?
+      onSetVar;
+
+  /// [P6-4] 删变量(name 空 = 清空整桶)。
+  final Future<void> Function(String type, String name)? onDeleteVar;
+
+  /// [P6-4] /genraw 静默生成:发一次请求回文本。
+  final Future<String> Function(String prompt)? generateRaw;
 }
 
 /// 全局命令注册表。key 全小写,查找不区分大小写。

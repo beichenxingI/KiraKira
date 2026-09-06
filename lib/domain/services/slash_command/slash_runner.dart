@@ -65,18 +65,23 @@ class SlashRunner {
   }
 
   /// 执行一个闭包。
-  /// [parentScope] 的 pipe 会带入;闭包形参按 [providedArgs] 位置绑定。
+  /// [parentScope] 的 pipe 会带入;闭包形参按 [providedArgs] 位置绑定;
+  /// [initialMacros] 预置域内宏(如 /times 的 {{timesIndex}})。
   static Future<SlashResult> executeClosure(
     SlashClosureNode closure, {
     SlashScope? parentScope,
     SlashEnv? env,
     SlashAbortController? abort,
     List<Object?>? providedArgs,
+    Map<String, Object?>? initialMacros,
   }) async {
     final scope = SlashScope();
     if (parentScope != null) {
       scope.parent = parentScope;
       scope.pipe = parentScope.pipe;
+    }
+    if (initialMacros != null) {
+      scope.macros.addAll(initialMacros);
     }
     final ctx = SlashExecContext(abort);
 
