@@ -2511,6 +2511,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final msgs = (payload['msgs'] as List?) ?? const [];
     final messages = ref.read(activeChatProvider).messages;
     final notifier = ref.read(activeChatProvider.notifier);
+    // [P5-12] 狐神 forceRefreshAll 会把全部楼层(仅 message_id,无 swipes_data)
+    // 发过来;此前无条件 _pushMessages 造成"空更新→全量重渲染"无意义回路
+    // (P5-11 第六部分)。改为只在有真实写入时才重渲染。
+    var changed = false;
     for (final raw in msgs) {
       if (raw is! Map) continue;
       final mid = raw['message_id'] as int?;
@@ -2523,8 +2527,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         continue;
       }
       await notifier.updateMessageSwipesData(messages[mid].id, swipesData);
+      changed = true;
     }
-    if (mounted) await _pushMessages();
+    if (changed && mounted) await _pushMessages();
     return {'ok': true};
   }
 
