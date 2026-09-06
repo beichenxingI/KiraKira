@@ -98,6 +98,15 @@ class MvuSettings {
   /// 额外模型解析中通知(出厂默认 true)
   final bool notifyExtraParsing;
 
+  /// [P6-BUG-1] web 侧写回的 mvu_settings 原始对象(中文键,MVU 自有 schema 形状)。
+  ///
+  /// MVU 的 Pinia store 把整份设置(含 internal 已提醒标志/自动清理变量/兼容性等)
+  /// 写回 extensionSettings.mvu_settings;平台此前只提取已知三段落盘,
+  /// internal 标志丢失 → 每次进聊天页 MVU 的"一次性升级提醒"全部重弹。
+  /// 这里原样透传保存,烘焙时以 webRaw 为底、平台已知值覆盖,让 MVU 的
+  /// 只提醒一次机制自然生效。为空(首次)时行为同旧版。
+  final Map<String, dynamic> webRaw;
+
   const MvuSettings({
     this.updateMode = '随AI输出',
     this.maxChatHistory = 10,
@@ -113,6 +122,7 @@ class MvuSettings {
     this.notifyInitSuccess = true,
     this.notifyVarError = false,
     this.notifyExtraParsing = true,
+    this.webRaw = const {},
   });
 
   MvuSettings copyWith({
@@ -130,6 +140,7 @@ class MvuSettings {
     bool? notifyInitSuccess,
     bool? notifyVarError,
     bool? notifyExtraParsing,
+    Map<String, dynamic>? webRaw,
   }) {
     return MvuSettings(
       updateMode: updateMode ?? this.updateMode,
@@ -146,6 +157,7 @@ class MvuSettings {
       notifyInitSuccess: notifyInitSuccess ?? this.notifyInitSuccess,
       notifyVarError: notifyVarError ?? this.notifyVarError,
       notifyExtraParsing: notifyExtraParsing ?? this.notifyExtraParsing,
+      webRaw: webRaw ?? this.webRaw,
     );
   }
 
@@ -164,6 +176,7 @@ class MvuSettings {
         'notifyInitSuccess': notifyInitSuccess,
         'notifyVarError': notifyVarError,
         'notifyExtraParsing': notifyExtraParsing,
+        if (webRaw.isNotEmpty) 'webRaw': webRaw,
       };
 
   factory MvuSettings.fromJson(Map<String, dynamic> json) {
@@ -186,6 +199,7 @@ class MvuSettings {
       notifyInitSuccess: json['notifyInitSuccess'] as bool? ?? true,
       notifyVarError: json['notifyVarError'] as bool? ?? false,
       notifyExtraParsing: json['notifyExtraParsing'] as bool? ?? true,
+      webRaw: (json['webRaw'] as Map?)?.cast<String, dynamic>() ?? const {},
     );
   }
  }

@@ -16,6 +16,33 @@ String buildTavernHelperFacadeJs({
   //   道渊报警4按 Wt 17键比对;enabled 由真源驱动,其余16键为平台恒开/恒关行为声明(见下)。
   required bool ejsLoaded,
 }) {
+  // [P6-BUG-1] mvu_settings 烘焙:webRaw(MVU 写回的原始对象,含 internal
+  // 已提醒标志/自动清理变量/兼容性等自有段)为底,平台已知值覆盖——
+  // 让 MVU 的"一次性升级提醒"标志跨会话生效,不再每次进页重弹。
+  final webRaw = mvu.webRaw;
+  final mvuBaked = <String, dynamic>{
+    ...webRaw,
+    '更新方式': mvu.updateMode,
+    '通知': <String, dynamic>{
+      ...((webRaw['通知'] as Map?)?.cast<String, dynamic>() ?? const {}),
+      'MVU框架加载成功': mvu.notifyFrameworkLoaded,
+      '变量初始化成功': mvu.notifyInitSuccess,
+      '变量更新出错': mvu.notifyVarError,
+      '额外模型解析中': mvu.notifyExtraParsing,
+    },
+    '额外模型解析配置': <String, dynamic>{
+      ...((webRaw['额外模型解析配置'] as Map?)
+              ?.cast<String, dynamic>() ??
+          const {}),
+      '破限方案': mvu.jailbreakScheme,
+      '启用自动请求': mvu.autoRequest,
+      'max_chat_history': mvu.maxChatHistory,
+      '模型来源': mvu.modelSource,
+      'api地址': mvu.apiUrl,
+      '密钥': mvu.apiKey,
+      '模型名称': mvu.modelName,
+    },
+  };
   return '(function(){'
       // ── localStorage / sessionStorage polyfill(老 WebView 兜底) ──
       'var _s={};try{localStorage.getItem("__t");}catch(e){'
@@ -477,24 +504,7 @@ String buildTavernHelperFacadeJs({
       'registerMacro:function(k,fn){try{window.SillyTavern.__macros[k]=fn;}catch(e){}},'
       'unregisterMacro:function(k){try{delete window.SillyTavern.__macros[k];}catch(e){}},'
       'name1:"You",name2:((window.__KIRA_MACRO_VALUES&&window.__KIRA_MACRO_VALUES.char)||""),'
-      'extensionSettings:{mvu_settings:{'
-      '更新方式:${jsonEncode(mvu.updateMode)},'
-      // [P5-8/P1] 通知四键(中文键,道渊报警1/面板同源,MvuSettings 持久化真值,出厂默认 true,true,false,true)
-      '通知:{'
-      'MVU框架加载成功:${mvu.notifyFrameworkLoaded},'
-      '变量初始化成功:${mvu.notifyInitSuccess},'
-      '变量更新出错:${mvu.notifyVarError},'
-      '额外模型解析中:${mvu.notifyExtraParsing}'
-      '},'
-      '额外模型解析配置:{'
-      '破限方案:${jsonEncode(mvu.jailbreakScheme)},'
-      '启用自动请求:${mvu.autoRequest},'
-      'max_chat_history:${mvu.maxChatHistory},'
-      '模型来源:${jsonEncode(mvu.modelSource)},'
-      'api地址:${jsonEncode(mvu.apiUrl)},'
-      '密钥:${jsonEncode(mvu.apiKey)},'
-      '模型名称:${jsonEncode(mvu.modelName)}'
-      '}},'
+      'extensionSettings:{mvu_settings:${jsonEncode(mvuBaked)},'
       // [P5-8/P1] EjsTemplate(道渊 Wt 期望17键,pretty.js:959-977)。
       //   enabled 由 _ejsLoaded 真驱动;其余16键为平台行为声明:
       //   平台确有真实 EJS 渲染(llm_service.dart EJSRenderer),模板管线恒按 ST-Prompt-Template

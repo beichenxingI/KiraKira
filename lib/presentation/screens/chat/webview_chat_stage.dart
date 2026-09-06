@@ -1327,10 +1327,23 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
 
   /// [P6-5.1] toastr 桥:info/success/warning/error → SnackBar。
   /// payload: {level: string, message: string}
+  /// [P6-BUG-1] 同文案 5 秒去重:脚本房/引擎房重复初始化或循环调用时不再连环弹。
+  static final Map<String, DateTime> _toastLastShown = {};
+
   Future<dynamic> _handleToast(Map<String, dynamic> payload) async {
     final level = payload['level']?.toString() ?? 'info';
     final message = payload['message']?.toString() ?? '';
     if (message.isEmpty || !mounted) return {'ok': true};
+    final last = _toastLastShown[message];
+    if (last != null && DateTime.now().difference(last) < const Duration(seconds: 5)) {
+      KiraLogger().info('卡片toast', '[$level] 去重跳过: $message');
+      return {'ok': true, 'deduped': true};
+    }
+    _toastLastShown[message] = DateTime.now();
+    if (_toastLastShown.length > 64) {
+      final cutoff = DateTime.now().subtract(const Duration(seconds: 5));
+      _toastLastShown.removeWhere((_, t) => t.isBefore(cutoff));
+    }
     KiraLogger().info('卡片toast', '[$level] $message');
     final snackBar = SnackBar(
       content: Text(message),
@@ -2847,7 +2860,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         notifyFrameworkLoaded: notify?['MVU框架加载成功'] as bool?,
         notifyInitSuccess: notify?['变量初始化成功'] as bool?,
         notifyVarError: notify?['变量更新出错'] as bool?,
-        notifyExtraParsing: notify?['额外模型解析中'] as bool?,
+        notifyExtraParsing: extra?['额外模型解析中'] as bool?,
         jailbreakScheme: extra?['破限方案'] as String?,
         autoRequest: extra?['启用自动请求'] as bool?,
         maxChatHistory: (extra?['max_chat_history'] as num?)?.toInt(),
@@ -2855,6 +2868,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         apiUrl: extra?['api地址'] as String?,
         apiKey: extra?['密钥'] as String?,
         modelName: extra?['模型名称'] as String?,
+        // [P6-BUG-1] 整份原始对象透传落盘(MVU 的 internal 已提醒标志等
+        // 全在其中;此前只留三段,标志丢失导致升级提醒每次进页重弹)
+        webRaw: mvu,
       );
       await ref.read(mvuSettingsProvider.notifier).applyFromWeb(updated);
       // 主文档 __KIRA_MAIN_ENV 同源刷新,道渊下一轮读到的就是新值
