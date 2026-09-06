@@ -158,6 +158,7 @@ class ChatRepository {
           characterName: Value(message.characterName),
           attachmentsJson: Value(jsonEncode(message.attachments.map((a) => a.toJson()).toList())),
           swipesDataJson: Value(jsonEncode(message.swipesData)),
+          isHidden: Value(message.isHidden),
         ));
     
     // Update chat's updatedAt
@@ -237,6 +238,7 @@ class ChatRepository {
       characterName: row.characterName,
       attachments: _parseAttachments(row.attachmentsJson),
       swipesData: _parseSwipesData(row.swipesDataJson),
+      isHidden: row.isHidden,
     );
   }
 

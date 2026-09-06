@@ -119,6 +119,9 @@ class SlashEnv {
     this.onDeleteVar,
     this.generateRaw,
     this.showButtons,
+    this.messageCount,
+    this.setMessageHidden,
+    this.swipeTo,
   });
 
   final String? chatId;
@@ -144,6 +147,11 @@ class SlashEnv {
 
   /// [P6-5.1] /buttons 按钮选择弹窗:返回选中项,取消返回 null。
   final Future<String?> Function(List<String> labels)? showButtons;
+
+  /// [P6-5.3] 楼层操作:消息数 / 隐藏显示 / swipe 切换
+  final int Function()? messageCount;
+  final Future<void> Function(int index, bool hidden)? setMessageHidden;
+  final Future<void> Function(int index, int swipeIndex)? swipeTo;
 }
 
 /// 全局命令注册表。key 全小写,查找不区分大小写。

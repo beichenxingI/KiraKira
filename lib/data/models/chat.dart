@@ -171,6 +171,7 @@ class ChatMessage {
   final List<String>? reasoningSwipes; // Reasoning content for each swipe
   final List<ChatAttachment> attachments; // Image attachments
   final List<Map<String, dynamic>> swipesData; // per-swipe MvuData: {stat_data, schema, initialized_lorebooks, ...}
+  final bool isHidden; // [P6-5.3] 隐藏楼层(ST /hide 语义,不进提示词)
 
   const ChatMessage({
     required this.id,
@@ -186,6 +187,7 @@ class ChatMessage {
     this.reasoningSwipes,
     this.attachments = const [],
     this.swipesData = const [],
+    this.isHidden = false,
   });
 
   /// Get the current reasoning content (for current swipe)
@@ -220,6 +222,7 @@ class ChatMessage {
     List<String>? reasoningSwipes,
     List<ChatAttachment>? attachments,
     List<Map<String, dynamic>>? swipesData,
+    bool? isHidden,
     bool clearCharacterId = false,
     bool clearCharacterName = false,
     bool clearReasoning = false,
@@ -238,6 +241,7 @@ class ChatMessage {
       reasoningSwipes: clearReasoning ? null : (reasoningSwipes ?? this.reasoningSwipes),
       attachments: attachments ?? this.attachments,
       swipesData: swipesData ?? this.swipesData,
+      isHidden: isHidden ?? this.isHidden,
     );
   }
 
@@ -255,6 +259,7 @@ class ChatMessage {
         if (reasoningSwipes != null) 'reasoningSwipes': reasoningSwipes,
         if (attachments.isNotEmpty) 'attachments': attachments.map((a) => a.toJson()).toList(),
         if (swipesData.isNotEmpty) 'swipesData': swipesData,
+        'isHidden': isHidden,
       };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
@@ -279,5 +284,6 @@ class ChatMessage {
                 ?.map((e) => (e as Map).cast<String, dynamic>())
                 .toList() ??
             const [],
+        isHidden: json['isHidden'] as bool? ?? false,
       );
 }

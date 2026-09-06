@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kirakira/domain/services/slash_command/commands/basic_commands.dart';
 import 'package:kirakira/domain/services/slash_command/commands/control_flow_commands.dart';
+import 'package:kirakira/domain/services/slash_command/commands/floor_commands.dart';
 import 'package:kirakira/domain/services/slash_command/commands/math_commands.dart';
 import 'package:kirakira/domain/services/slash_command/commands/variable_commands.dart';
 import 'package:kirakira/domain/services/slash_command/slash_ast.dart';
@@ -46,6 +47,7 @@ void main() {
     registerVariableSlashCommands();
     registerControlFlowSlashCommands();
     registerMathSlashCommands();
+    registerFloorSlashCommands();
     registerTestCommands();
   });
 
@@ -384,6 +386,56 @@ void main() {
     test('数学命令用变量名取值', () async {
       final r = await SlashRunner.execute('/let a 7 | /add a 3');
       expect(r.pipe, '10');
+    });
+  });
+
+  group('P6-5.3 楼层操作命令', () {
+    final calls = <String>[];
+    SlashEnv floorEnv() {
+      calls.clear();
+      return SlashEnv(
+        messageCount: () => 5,
+        setMessageHidden: (index, hidden) async {
+          calls.add('$index=$hidden');
+        },
+        swipeTo: (index, swipeIndex) async {
+          calls.add('swipe:$index:$swipeIndex');
+        },
+      );
+    }
+
+    test('/messages 返回消息数', () async {
+      final r = await SlashRunner.execute('/messages', env: floorEnv());
+      expect(r.pipe, '5');
+    });
+
+    test('/hide 指定楼层与负数索引', () async {
+      await SlashRunner.execute('/hide 1', env: floorEnv());
+      expect(calls, ['1=true']);
+      await SlashRunner.execute('/hide -1', env: floorEnv());
+      expect(calls, ['4=true']);
+    });
+
+    test('/unhide', () async {
+      await SlashRunner.execute('/unhide 2', env: floorEnv());
+      expect(calls, ['2=false']);
+    });
+
+    test('/swipe named message+swipe', () async {
+      await SlashRunner.execute('/swipe message=2 swipe=1', env: floorEnv());
+      expect(calls, ['swipe:2:1']);
+    });
+
+    test('/swipe left/right 相对约定', () async {
+      await SlashRunner.execute('/swipe left', env: floorEnv());
+      expect(calls, ['swipe:4:-2']);
+      await SlashRunner.execute('/swipe right', env: floorEnv());
+      expect(calls, ['swipe:4:-1']);
+    });
+
+    test('越界索引不触发', () async {
+      await SlashRunner.execute('/hide 99', env: floorEnv());
+      expect(calls, isEmpty);
     });
   });
 }

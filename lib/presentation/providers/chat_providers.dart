@@ -890,6 +890,21 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     state = state.copyWith(messages: updatedMessages);
   }
 
+  /// [P6-5.3] 隐藏/显示单条消息（/hide /unhide 落点，ST 的 is_system 语义）
+  Future<void> setMessageHidden(String messageId, bool hidden) async {
+    final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex < 0) return;
+
+    final updatedMessage =
+        state.messages[messageIndex].copyWith(isHidden: hidden);
+
+    await _chatRepository.updateMessage(updatedMessage);
+
+    final updatedMessages = List<ChatMessage>.from(state.messages);
+    updatedMessages[messageIndex] = updatedMessage;
+    state = state.copyWith(messages: updatedMessages);
+  }
+
   /// Delete a message
   Future<void> deleteMessage(String messageId) async {
     await _chatRepository.deleteMessage(messageId);

@@ -47,6 +47,7 @@ import 'package:kirakira/domain/services/slash_command/commands/control_flow_com
 import 'package:kirakira/domain/services/slash_command/commands/math_commands.dart';
 import 'package:kirakira/domain/services/slash_command/commands/generation_commands.dart';
 import 'package:kirakira/domain/services/slash_command/commands/ui_commands.dart';
+import 'package:kirakira/domain/services/slash_command/commands/floor_commands.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:kirakira/data/models/world_info.dart' as models;
 import 'package:image_picker/image_picker.dart';
@@ -1263,6 +1264,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     registerMathSlashCommands();
     registerGenerationSlashCommands();
     registerUiSlashCommands();
+    registerFloorSlashCommands();
     if (_slashCommandsRegistered) return;
     _slashCommandsRegistered = true;
 
@@ -1314,11 +1316,6 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     SlashCommandRegistry.register(SlashCommand(name: 'setinput',
         callback: (args) async {
       args.env?.setInput?.call(args.unnamedAsString());
-      return '';
-    }));
-    SlashCommandRegistry.register(SlashCommand(name: 'swipe',
-        callback: (args) async {
-      args.env?.onUnsupported?.call('swipe');
       return '';
     }));
     SlashCommandRegistry.register(SlashCommand(name: 'cut',
@@ -1505,6 +1502,37 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         );
         return result;
       },
+      // [P6-5.3] 楼层操作:消息数 / 隐藏 / swipe
+      messageCount: () => ref.read(activeChatProvider).messages.length,
+      setMessageHidden: (index, hidden) async {
+        final msgs = ref.read(activeChatProvider).messages;
+        if (index < 0 || index >= msgs.length) return;
+        await ref
+            .read(activeChatProvider.notifier)
+            .setMessageHidden(msgs[index].id, hidden);
+      },
+      swipeTo: (index, swipeIndex) async {
+        final notifier = ref.read(activeChatProvider.notifier);
+        final msgs = ref.read(activeChatProvider).messages;
+        if (index < 0 || index >= msgs.length) return;
+        final m = msgs[index];
+        if (swipeIndex == -1 || swipeIndex == -2) {
+          // 相对:-1=右(下一 swipe/新 swipe),-2=左(上一 swipe)
+          final cur = m.currentSwipeIndex < 0 ? 0 : m.currentSwipeIndex;
+          final target = swipeIndex == -1 ? cur + 1 : cur - 1;
+          if (target < 0) return;
+          if (target < m.swipes.length) {
+            await notifier.swipeMessage(m.id, target);
+          } else if (index == msgs.length - 1) {
+            // 末层右切超出 = 生成新 swipe
+            await notifier.regenerateLastMessage(config);
+          }
+          return;
+        }
+        if (swipeIndex >= 0 && swipeIndex < m.swipes.length) {
+          await notifier.swipeMessage(m.id, swipeIndex);
+        }
+      },
     );
     // 全局变量宏钩子({{getvar::}} 等) — 覆盖写,幂等
     SlashRunner.globalMacroResolver = (input) =>
@@ -1553,7 +1581,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'message_id': i,
         'name': name,
         'role': m.role.name,
-        'is_hidden': false,
+        'is_hidden': m.isHidden, // [P6-5.3] 真值(/hide 语义)
         'message': currentContent,
         'data': <String, dynamic>{},
         'extra': <String, dynamic>{},
@@ -2086,7 +2114,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'message_id': i,
         'name': name,
         'role': m.role.name, // system / assistant / user
-        'is_hidden': false, // ChatMessage 无隐藏字段，固定 false
+        'is_hidden': m.isHidden, // [P6-5.3] 真值(/hide 语义)
         'message': currentContent,
         'data': <String, dynamic>{},
         'extra': <String, dynamic>{},
