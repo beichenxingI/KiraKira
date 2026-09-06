@@ -106,6 +106,8 @@ String buildTavernHelperFacadeJs({
       'window.addEventListener("message",function(e){'
       'var d=e.data;if(!d||!d.__thEvent)return;'
       'try{'
+      // [P5-12] 预设/设置变更事件 → 清 JS 侧预设缓存(与 setPreset 本地失效双保险)
+      'if(d.type==="preset_changed"||d.type==="settings_updated"){try{if(typeof __KIRA_PRESET_CACHE_CLEAR==="function")__KIRA_PRESET_CACHE_CLEAR();}catch(e2){}}'
       'if(d.__msgs){window.__chatMessages=d.__msgs;}'
       'if(!window.__probed){window.__probed=1;'
       'parent.postMessage({__thLog:true,text:"[探针] typeof _="+(typeof window._)+" throttle="+((window._&&typeof window._.throttle))},"*");'
@@ -288,9 +290,18 @@ String buildTavernHelperFacadeJs({
       // ── [P5-9/P1] 预设管理 API(狐神断链二:getPreset×27/updatePresetWith×38) ──
       // 'in_use' 由 Dart 侧解析到当前激活预设;settings.should_stream 落 llmConfig 立即生效,
       // prompts 按 identifier 合并进 PromptManagerConfig;写完发 preset_changed。
+      // [P5-12] JS 侧会话级预设缓存(方案1):狐神 UI 轮询高频读 getPreset('in_use'),
+      //   4MB JSON 每次桥往返是 OOM 主因;命中缓存直接返回同一对象引用(零序列化)。
+      //   失效口:setPreset 成功 / preset_changed / settings_updated 事件。
+      'window.__KIRA_PRESET_CACHE=window.__KIRA_PRESET_CACHE||{};'
+      '__KIRA_PRESET_CACHE_CLEAR=function(){try{for(var k in window.__KIRA_PRESET_CACHE){delete window.__KIRA_PRESET_CACHE[k];}}catch(e){}};'
       '_TH.getPresetNames=function(){return __thCallRead("th_getPresetNames",[]);};'
-      '_TH.getPreset=function(name){return __thCallRead("th_getPreset",[name]);};'
-      '_TH.setPreset=function(name,preset){return __thCall("th_setPreset",[name,preset]);};'
+      '_TH.getPreset=function(name){'
+      'try{if(window.__KIRA_PRESET_CACHE[name])return Promise.resolve(window.__KIRA_PRESET_CACHE[name]);}catch(e){}'
+      'return __thCallRead("th_getPreset",[name]).then(function(r){'
+      'try{if(r)window.__KIRA_PRESET_CACHE[name]=r;}catch(e){}'
+      'return r;});};'
+      '_TH.setPreset=function(name,preset){return __thCall("th_setPreset",[name,preset]).then(function(r){try{__KIRA_PRESET_CACHE_CLEAR();}catch(e){}return r;});};'
       '_TH.getLoadedPresetName=function(){return __thCallRead("th_getLoadedPresetName",[]);};'
       // updatePresetWith: 读→updater→写(ST 语义;updater 返回 undefined 时用就地修改后的对象)
       '_TH.updatePresetWith=function(name,updater){return _TH.getPreset(name).then(function(p){if(!p)throw new Error("preset not found: "+name);var u=updater(p);return _TH.setPreset(name,(u===undefined||u===null)?p:u);}).then(function(){return _TH.getPreset(name);});};'
