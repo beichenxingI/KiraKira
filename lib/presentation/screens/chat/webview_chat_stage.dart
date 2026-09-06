@@ -421,9 +421,59 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       if (!allowed) KiraLogger().info('预设脚本', '用户拒绝，脚本不执行');
     }
     if (allowed != true) enabledScripts.clear();
+    // [P5-14] 狐神 getPreset 自激环修复(诊断见 DiaoYan/P5/P5-13_狐神超时刷屏诊断.md)。
+    // 根因: 狐神按同步语义读 _TH.getPreset(平台门面返回 Promise),
+    //   isStreamingEnabled / restoreInlineMediaOption 永远读到 undefined
+    //   → 判定"偏离偏好" → setPreset → Dart 无条件回发 preset_changed/settings_updated
+    //   → 事件监听器再读再写 → 无限自激(th timeout: th_getPreset 刷屏)。
+    // 修复: 注入前把这 2 个读点改为读 __KIRA_PRESET_CACHE 同步镜像(P5-12 JS 侧缓存):
+    //   1) isStreamingEnabled: 缓存命中读 should_stream;未命中返回 false(与旧行为一致)。
+    //      首次 setStreaming 成功后 updatePresetWith 收尾的 getPreset 会回填缓存,
+    //      后续事件回调(+300~1000ms)读到 true === 偏好 → 不再写 → 环自然熄火。
+    //   2) restoreInlineMediaOption: 缓存未就绪直接跳过。它在 settings_updated 监听器里
+    //      被同步调用,此刻缓存必刚被事件清空 —— 若仍按 undefined 误判并写回,环永不熄火;
+    //      跳过后其写回只发生在缓存就绪窗口,收敛。
+    // 仅按脚本名命中狐神,其余脚本原样注入;不改脚本源文件,仅注入时内存 patch,可逆。
+    final patchedScripts = enabledScripts.map<Map<String, dynamic>>((s) {
+      final name = s['name']?.toString() ?? '';
+      if (!name.contains('狐神') && !name.contains('玄狐')) return s;
+      final original = s['content'] as String;
+      var patched = original;
+      var hit1 = 0, hit2 = 0;
+      // Patch 1: isStreamingEnabled (pretty.js:9160)
+      patched = patched.replaceAllMapped(
+        RegExp(
+          r'''return\s+getPreset\s*\?\.\s*\(\s*["']in_use["']\s*\)\s*\?\.\s*settings\s*\?\.\s*should_stream\s*===\s*true\s*;''',
+        ),
+        (m) {
+          hit1++;
+          return 'return (((window.__KIRA_PRESET_CACHE||{}).in_use||{}).settings||{})'
+              '.should_stream === true;';
+        },
+      );
+      // Patch 2: restoreInlineMediaOption (pretty.js:74212-74213)
+      patched = patched.replaceAllMapped(
+        RegExp(
+          r'''const\s+(\w+)\s*=\s*getPreset\s*\(\s*["']in_use["']\s*\)\s*;\s*const\s+(\w+)\s*=\s*\1\?\.\s*settings\s*\?\.\s*allow_sending_images\s*;''',
+        ),
+        (m) {
+          hit2++;
+          return 'const ${m[1]} = ((window.__KIRA_PRESET_CACHE||{}).in_use)||null; '
+              'if(!${m[1]}) return; '
+              'const ${m[2]} = ${m[1]}?.settings?.allow_sending_images;';
+        },
+      );
+      if (hit1 == 0 && hit2 == 0) {
+        debugPrint('[P5-14] 警告: 狐神脚本"$name"patch 未命中任何目标,可能版本不匹配');
+        return s;
+      }
+      debugPrint('[P5-14] 狐神patch完成: isStreamingEnabled×$hit1, '
+          'restoreInlineMediaOption×$hit2 (脚本: $name)');
+      return {...s, 'content': patched};
+    }).toList();
     try {
       await c.evaluateJavascript(
-        source: 'window.__KIRA_PRESET_SCRIPTS=${jsonEncode(enabledScripts)};',
+        source: 'window.__KIRA_PRESET_SCRIPTS=${jsonEncode(patchedScripts)};',
       );
       // [P5-9/P0-3] 脚本级变量快照:为每个启用脚本预取持久化变量,注入后脚本房在
       //   每个脚本启动前 hydrate 进门面 __varCache.script,getVariables({type:'script'}) 即可同步读到。
