@@ -46,6 +46,7 @@ import 'package:kirakira/domain/services/slash_command/commands/variable_command
 import 'package:kirakira/domain/services/slash_command/commands/control_flow_commands.dart';
 import 'package:kirakira/domain/services/slash_command/commands/math_commands.dart';
 import 'package:kirakira/domain/services/slash_command/commands/generation_commands.dart';
+import 'package:kirakira/domain/services/slash_command/commands/ui_commands.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:kirakira/data/models/world_info.dart' as models;
 import 'package:image_picker/image_picker.dart';
@@ -64,6 +65,7 @@ import 'package:kirakira/domain/services/llm_service.dart';
 import 'package:kirakira/presentation/providers/mvu_settings_providers.dart';
 import 'package:kirakira/domain/services/debug_log_service.dart';
 import 'package:kirakira/presentation/widgets/snackbar_utils.dart';
+import 'package:kirakira/presentation/screens/chat/th_popup_dialog.dart';
 import 'package:kirakira/core/utils/file_utils.dart';
 
 /// compute 用的顶层函数：isolate 中只读图片头部拿宽高，不解码整图（内存安全）。
@@ -997,6 +999,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest('th_triggerSlash', _handleTriggerSlash);
                     // [P6-3] EJS execute() 的后端:执行并回传 pipe
                     _bridge.onRequest('th_executeSlash', _handleExecuteSlash);
+                    // [P6-5.1] UI 交互桥:toastr → SnackBar,callGenericPopup → Dialog
+                    _bridge.onRequest('th_toast', _handleToast);
+                    _bridge.onRequest('th_popup', _handlePopup);
                     _bridge.onRequest('th_setInput', _handleSetInput);
                     _bridge.onRequest('th_setMessage', _handleSetMessage);
                     _bridge.onRequest('th_getVars', _handleGetVariables);
@@ -1256,6 +1261,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     registerControlFlowSlashCommands();
     registerMathSlashCommands();
     registerGenerationSlashCommands();
+    registerUiSlashCommands();
     if (_slashCommandsRegistered) return;
     _slashCommandsRegistered = true;
 
@@ -1319,6 +1325,48 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       KiraLogger().info('助手API', '/cut 已忽略（保护数据）');
       return '';
     }));
+  }
+
+  /// [P6-5.1] toastr 桥:info/success/warning/error → SnackBar。
+  /// payload: {level: string, message: string}
+  Future<dynamic> _handleToast(Map<String, dynamic> payload) async {
+    final level = payload['level']?.toString() ?? 'info';
+    final message = payload['message']?.toString() ?? '';
+    if (message.isEmpty || !mounted) return {'ok': true};
+    KiraLogger().info('卡片toast', '[$level] $message');
+    final snackBar = SnackBar(
+      content: Text(message),
+      duration: const Duration(seconds: 4),
+      backgroundColor: switch (level) {
+        'error' => Colors.red.shade700,
+        'warning' => Colors.orange.shade800,
+        'success' => Colors.green.shade700,
+        _ => null,
+      },
+    );
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+    return {'ok': true};
+  }
+
+  /// [P6-5.1] callGenericPopup 桥:TEXT/CONFIRM/INPUT/DISPLAY → Flutter Dialog。
+  /// payload: {text, type(1/2/3/4), inputValue}
+  /// 返回:CONFIRM → 1/0(取消 null);INPUT → 字符串(取消 null);TEXT/DISPLAY → 1。
+  Future<dynamic> _handlePopup(Map<String, dynamic> payload) async {
+    final text = payload['text']?.toString() ?? '';
+    final type = (payload['type'] as num?)?.toInt() ?? 1;
+    final inputValue = payload['inputValue']?.toString() ?? '';
+    if (!mounted) return null;
+    KiraLogger().info('卡片弹窗', 'type=$type text=${text.length}字');
+    final result = await showDialog<dynamic>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => ThPopupDialog(
+        text: text,
+        type: type,
+        inputValue: inputValue,
+      ),
+    );
+    return result;
   }
 
   /// [P6-3] th_triggerSlash:执行斜杠脚本,返回 {ok, pipe, isAborted, ...}。
@@ -1426,6 +1474,35 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           }
         }
         return buffer.toString();
+      },
+      // [P6-5.1] /buttons:按钮选择弹窗,选中项回管道
+      showButtons: (labels) async {
+        if (!mounted) return null;
+        final result = await showDialog<String>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final label in labels)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: SizedBox(
+                        width: double.maxFinite,
+                        child: FilledButton.tonal(
+                          onPressed: () => Navigator.of(ctx).pop(label),
+                          child: Text(label),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+        return result;
       },
     );
     // 全局变量宏钩子({{getvar::}} 等) — 覆盖写,幂等

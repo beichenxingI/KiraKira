@@ -77,7 +77,8 @@ String buildTavernHelperFacadeJs({
       'return new Promise(function(resolve,reject){'
       'var rid=_id+"_"+(__thId++);'
       '__thPending[rid]={resolve:resolve,reject:reject};'
-      'setTimeout(function(){if(__thPending[rid]){delete __thPending[rid];reject(new Error("th timeout: "+method));}},30000);'
+      // 超时兜底:120 秒([P6-5.1] 从 30s 提升,容纳 th_popup 等用户操作)
+      'setTimeout(function(){if(__thPending[rid]){delete __thPending[rid];reject(new Error("th timeout: "+method));}},120000);'
       'parent.postMessage({__thRequest:true,frameId:_id,rid:rid,method:method,args:args},"*");'
       '});'
       '}'
@@ -138,6 +139,27 @@ String buildTavernHelperFacadeJs({
       '_TH.deleteChatMessages=function(ids,option){return __thCall("deleteChatMessages",[ids,option||{}]);};'
       '_TH.triggerSlash=function(cmd){return __thCall("triggerSlash",[cmd]);};'
       '_TH.setInput=function(t){return __thCall("setInput",[t]);};'
+      // ── [P6-5.1] UI 交互:toastr → Flutter SnackBar ──
+      // 卡片在引擎房/主文档没有 ST toastr 弹层,35+ 次高频调用全走桥
+      '_TH.toastr={'
+      'info:function(m){return __thCall("th_toast",["info",m==null?"":String(m)]).catch(function(){return"";});},'
+      'success:function(m){return __thCall("th_toast",["success",m==null?"":String(m)]).catch(function(){return"";});},'
+      'warning:function(m){return __thCall("th_toast",["warning",m==null?"":String(m)]).catch(function(){return"";});},'
+      'error:function(m){return __thCall("th_toast",["error",m==null?"":String(m)]).catch(function(){return"";});}'
+      '};'
+      // ── [P6-5.1] 通用弹窗 → Flutter Dialog ──
+      // 枚举真值对齐 ST popup.js:TEXT=1 CONFIRM=2 INPUT=3 DISPLAY=4 CROP=5;
+      // AFFIRMATIVE=1 NEGATIVE=0 CANCELLED=null(取消/关闭返回 null)
+      '_TH.POPUP_TYPE={TEXT:1,CONFIRM:2,INPUT:3,DISPLAY:4,CROP:5};'
+      '_TH.POPUP_RESULT={AFFIRMATIVE:1,NEGATIVE:0,CANCELLED:null,CUSTOM1:1001,CUSTOM2:1002,CUSTOM3:1003,CUSTOM4:1004,CUSTOM5:1005};'
+      '_TH.callGenericPopup=function(text,type,inputValue){'
+      'return __thCall("th_popup",[text==null?"":String(text),(type==null?1:type),inputValue==null?"":String(inputValue)]).catch(function(){return null;});'
+      '};'
+      // 旧版 ask(确认框,返回 bool)与 callPopup 别名
+      '_TH.ask=function(text){'
+      'return __thCall("th_popup",[text==null?"":String(text),2,""]).then(function(r){return r===1;}).catch(function(){return false;});'
+      '};'
+      '_TH.callPopup=_TH.ask;'
       // ── 变量镜像(同步读):MVU 的 getVariables/getLastMessageId 是同步调用 ──
       // 读走本地镜像,写走桥落库后回填镜像(见 updateVariablesWith / __varSync)
       '_TH.__lastMsgId=0;'
@@ -378,7 +400,12 @@ String buildTavernHelperFacadeJs({
       'reloadCurrentChat:function(){return Promise.resolve();},'
       'saveSettingsDebounced:function(){try{__thCall("th_saveExtensionSettings",[window.SillyTavern.extensionSettings]);}catch(e){}},'
       'getRequestHeaders:function(){return {"Content-Type":"application/json"};},'
-      'renderExtensionTemplateAsync:function(){return Promise.resolve("");}'
+      'renderExtensionTemplateAsync:function(){return Promise.resolve("");},'
+      // [P6-5.1] 弹窗 API(exported.sillytavern.d.ts 同形)
+      'POPUP_TYPE:_TH.POPUP_TYPE,'
+      'POPUP_RESULT:_TH.POPUP_RESULT,'
+      'callGenericPopup:function(c,t,i,o){return _TH.callGenericPopup(c,t,i,o);},'
+      'ask:function(t){return _TH.ask(t);}'
       '};'
       'window.SillyTavern={getContext:function(){return _ctx;},'
       'saveChat:function(){return Promise.resolve();},'

@@ -89,13 +89,14 @@
     return new Promise(function (resolve, reject) {
       var id = 'req_' + (__nextRequestId++);
       __pendingRequests[id] = { resolve: resolve, reject: reject };
-      // 超时兜底：30 秒未回应就 reject，避免 Promise 永久挂起
+      // 超时兜底:120 秒未回应就 reject,避免 Promise 永久挂起。
+      // [P6-5.1] 从 30s 提到 120s:th_popup 要等用户操作对话框,30s 会误杀确认弹窗。
       setTimeout(function () {
         if (__pendingRequests[id]) {
           delete __pendingRequests[id];
           reject(new Error('request timeout: ' + type));
         }
-      }, 30000);
+      }, 120000);
       sendToFlutter(type, Object.assign({}, payload, { __requestId: id }));
     });
   }

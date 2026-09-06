@@ -118,6 +118,7 @@ class SlashEnv {
     this.onSetVar,
     this.onDeleteVar,
     this.generateRaw,
+    this.showButtons,
   });
 
   final String? chatId;
@@ -140,6 +141,9 @@ class SlashEnv {
 
   /// [P6-4] /genraw 静默生成:发一次请求回文本。
   final Future<String> Function(String prompt)? generateRaw;
+
+  /// [P6-5.1] /buttons 按钮选择弹窗:返回选中项,取消返回 null。
+  final Future<String?> Function(List<String> labels)? showButtons;
 }
 
 /// 全局命令注册表。key 全小写,查找不区分大小写。
