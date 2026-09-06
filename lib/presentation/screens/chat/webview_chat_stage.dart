@@ -844,7 +844,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     //   的"设置持久化/点击保存"全部失效（见 P5-9 报告第二部分）。
                     //   改为稳定 https 源后，主文档与 iframe 获得同源真实 localStorage。
                     //   合成源不会被网络解析(loadData 仅用 baseUrl 做资源/来源解析，不发起导航)。
-                    baseUrl: WebUri('https://kirakira.app/'),
+                    //   [P5-12] localhost 而非公网域名：渲染进程崩溃自愈 reload 会把该地址
+                    //   当真实导航重新请求，公网域名会 net::ERR_NAME_NOT_RESOLVED（P5-11 第五部分）。
+                    baseUrl: WebUri('https://localhost/'),
                   ),
                   initialSettings: InAppWebViewSettings(
                     transparentBackground: true,
