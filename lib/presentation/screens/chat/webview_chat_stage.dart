@@ -39,6 +39,9 @@ import 'package:kirakira/presentation/widgets/chat/chat_background_widget.dart';
 import 'package:kirakira/core/logger/logger.dart';
 import 'package:flutter/gestures.dart';
 import 'package:kirakira/domain/services/variables_service.dart';
+import 'package:kirakira/domain/services/slash_command/slash_command.dart';
+import 'package:kirakira/domain/services/slash_command/slash_runner.dart';
+import 'package:kirakira/domain/services/slash_command/commands/basic_commands.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:kirakira/data/models/world_info.dart' as models;
 import 'package:image_picker/image_picker.dart';
@@ -988,6 +991,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     // 酒馆助手 API：读取当前会话消息（请求-响应）
                     _bridge.onRequest('th_getMessages', _handleGetMessages);
                     _bridge.onRequest('th_triggerSlash', _handleTriggerSlash);
+                    // [P6-3] EJS execute() 的后端:执行并回传 pipe
+                    _bridge.onRequest('th_executeSlash', _handleExecuteSlash);
                     _bridge.onRequest('th_setInput', _handleSetInput);
                     _bridge.onRequest('th_setMessage', _handleSetMessage);
                     _bridge.onRequest('th_getVars', _handleGetVariables);
@@ -1237,141 +1242,130 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   ///   /trigger                    → 触发 AI 生成（若前面已发消息则跳过，避免重复）
   ///   /cut <id>                   → 稳妥起见做 noop（不删用户消息，保护数据）
   /// 其余命令忽略但不报错，保证卡片脚本不中断。
+  bool _slashCommandsRegistered = false;
+
+  /// [P6-3] 平台命令注册:send/gen/trigger 等桥接到宿主能力。
+  /// 回调不捕获 this 状态,一切经 args.env 注入;注册幂等(覆盖写)。
+  void _registerPlatformSlashCommands() {
+    registerBasicSlashCommands();
+    if (_slashCommandsRegistered) return;
+    _slashCommandsRegistered = true;
+
+    SlashCommandRegistry.register(SlashCommand(name: 'send',
+        callback: (args) async {
+      final t = args.unnamedAsString();
+      if (t.trim().isNotEmpty) await args.env?.sendMessage?.call(t);
+      return '';
+    }));
+    SlashCommandRegistry.register(SlashCommand(name: 'sys',
+        callback: (args) async {
+      // /sys 暂无独立系统消息通道,退化为普通发送
+      final t = args.unnamedAsString();
+      if (t.trim().isNotEmpty) await args.env?.sendMessage?.call(t);
+      return '';
+    }));
+    SlashCommandRegistry.register(SlashCommand(name: 'sendas',
+        callback: (args) async {
+      // 暂无"以指定身份发送"底层能力,退化为普通发送
+      final t = args.unnamedAsString();
+      if (t.trim().isNotEmpty) {
+        await args.env?.sendMessage?.call(t);
+      }
+      KiraLogger().info('助手API', '/sendas 暂按普通发送处理');
+      return '';
+    }));
+    SlashCommandRegistry.register(SlashCommand(name: 'trigger',
+        callback: (args) async {
+      await args.env?.triggerGeneration?.call();
+      return '';
+    }));
+    SlashCommandRegistry.register(SlashCommand(name: 'gen',
+        callback: (args) async {
+      await args.env?.triggerGeneration?.call();
+      return '';
+    }));
+    SlashCommandRegistry.register(SlashCommand(
+        name: 'regenerate',
+        aliases: ['regen'],
+        callback: (args) async {
+          await args.env?.regenerateLast?.call();
+          return '';
+        }));
+    SlashCommandRegistry.register(SlashCommand(name: 'continue',
+        callback: (args) async {
+      await args.env?.continueGeneration?.call();
+      return '';
+    }));
+    SlashCommandRegistry.register(SlashCommand(name: 'setinput',
+        callback: (args) async {
+      args.env?.setInput?.call(args.unnamedAsString());
+      return '';
+    }));
+    SlashCommandRegistry.register(SlashCommand(name: 'swipe',
+        callback: (args) async {
+      args.env?.onUnsupported?.call('swipe');
+      return '';
+    }));
+    SlashCommandRegistry.register(SlashCommand(name: 'cut',
+        callback: (args) async {
+      KiraLogger().info('助手API', '/cut 已忽略（保护数据）');
+      return '';
+    }));
+  }
+
+  /// [P6-3] th_triggerSlash:执行斜杠脚本,返回 {ok, pipe, isAborted, ...}。
   Future<dynamic> _handleTriggerSlash(Map<String, dynamic> payload) async {
     final command = (payload['command'] as String?) ?? '';
-    if (command.trim().isEmpty) return {'ok': true};
+    if (command.trim().isEmpty) {
+      return {'ok': true, 'pipe': ''};
+    }
     KiraLogger().info('助手API', 'th_triggerSlash 收到命令');
+    final result = await _runSlashScript(command);
+    return {'ok': !result.isError, ...result.toMap()};
+  }
 
+  /// [P6-3] EJS execute() 的后端:执行并回传完整 SlashResult(含 pipe)。
+  Future<dynamic> _handleExecuteSlash(Map<String, dynamic> payload) async {
+    final command = (payload['command'] as String?) ??
+        (payload['text'] as String?) ??
+        '';
+    final result = await _runSlashScript(command);
+    return result.toMap();
+  }
+
+  /// [P6-3] 统一执行入口:注册平台命令 → 构造 env → SlashRunner。
+  Future<SlashResult> _runSlashScript(String command) async {
+    _registerPlatformSlashCommands();
     final config = ref.read(llmConfigProvider);
     final notifier = ref.read(activeChatProvider.notifier);
-
-    // ── 管道分段(宽容三态，兼容 STscript 标准 + 社区裸写) ──────────────
-    //  1) 双引号 "..." 内的 | 不切分(ST标准)
-    //  2) 转义 \| 视为字面 |(ST标准，去掉反斜杠)
-    //  3) 裸 | :后跟已知命令才切，否则视为正文里的普通字符
-    final segments = <String>[];
-    final buf = StringBuffer();
-    var inQuote = false;
-    for (var i = 0; i < command.length; i++) {
-      final ch = command[i];
-      // 转义竖线 \| → 字面 |
-      if (ch == '\\' && i + 1 < command.length && command[i + 1] == '|') {
-        buf.write('|');
-        i++;
-        continue;
-      }
-      // 引号开关
-      if (ch == '"') {
-        inQuote = !inQuote;
-        buf.write(ch);
-        continue;
-      }
-      // 裸竖线：引号外才判断
-      if (ch == '|' && !inQuote) {
-        final rest = command.substring(i + 1).trimLeft();
-        final isCmd = rest.startsWith('/send') ||
-            rest.startsWith('/sys') ||
-            rest.startsWith('/trigger') ||
-            rest.startsWith('/gen') ||
-            rest.startsWith('/continue') ||
-            rest.startsWith('/regenerate') ||
-            rest.startsWith('/regen') ||
-            rest.startsWith('/swipe') ||
-            rest.startsWith('/setinput') ||
-            rest.startsWith('/cut');
-        if (isCmd) {
-          segments.add(buf.toString());
-          buf.clear();
-          continue;
-        }
-        // 不是命令 → 正文里的普通 |，保留
-        buf.write('|');
-        continue;
-      }
-      buf.write(ch);
-    }
-    if (buf.isNotEmpty || segments.isEmpty) segments.add(buf.toString());
-
-    // ── 命令执行 ────────────────────────────────────────────────────────
-    String? pendingText;
-    var wantTrigger = false;
-    var wantContinue = false;
-    var wantRegenerate = false;
-    final unsupported = <String>[];
-
-    for (final rawSeg in segments) {
-      final seg = rawSeg.trim();
-      if (seg.isEmpty) continue;
-
-      // 提取命令后正文的内联函数
-      String arg() {
-        final sp = seg.indexOf(' ');
-        return sp >= 0 ? seg.substring(sp + 1).trim() : '';
-      }
-
-      if (seg.startsWith('/send') || seg.startsWith('/sys')) {
-        // /sys 暂无独立系统消息通道，退化为普通发送
-        final text = arg();
-        if (text.isNotEmpty) {
-          pendingText = pendingText == null ? text : '$pendingText\n$text';
-        }
-      } else if (seg.startsWith('/sendas')) {
-        // 暂无"以指定身份发送"底层能力，退化为普通发送
-        final text = arg();
-        if (text.isNotEmpty) {
-          pendingText = pendingText == null ? text : '$pendingText\n$text';
-        }
-        KiraLogger().info('助手API', '/sendas 暂按普通发送处理（V2.1 补齐）');
-      } else if (seg.startsWith('/trigger') || seg.startsWith('/gen')) {
-        wantTrigger = true;
-      } else if (seg.startsWith('/regenerate') || seg.startsWith('/regen')) {
-        wantRegenerate = true;
-      } else if (seg.startsWith('/continue')) {
-        wantContinue = true;
-      } else if (seg.startsWith('/swipe')) {
-        // 需要目标消息 ID，卡片路径暂无上下文
-        unsupported.add('/swipe');
-      } else if (seg.startsWith('/setinput')) {
-        // 填入输入框(不发送)——卡片提供草稿，用户自己决定发不发
-        final text = arg();
-        if (text.isNotEmpty && mounted) {
-          _inputController.text = text;
-          _inputController.selection = TextSelection.fromPosition(
-            TextPosition(offset: _inputController.text.length),
-          );
-        }
-      } else if (seg.startsWith('/cut')) {
-        KiraLogger().info('助手API', '/cut 已忽略（保护数据）');
-      } else {
-        unsupported.add(seg.split(' ').first);
-      }
-    }
-
-    // ── 不支持的命令：友好提示，不静默 ──────────────────────────────────
-    if (unsupported.isNotEmpty && mounted) {
-      final cmds = unsupported.toSet().join('、');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('这张卡使用了暂不支持的命令（$cmds），部分功能可能无法使用'),
-        duration: const Duration(seconds: 3),
-      ));
-    }
-
-    // ── 执行顺序：发送 > continue > regenerate/trigger ────────────────
-    if (pendingText != null && pendingText.trim().isNotEmpty) {
-      await notifier.sendMessage(pendingText, config);
-      return {'ok': true, 'sent': true};
-    }
-    if (wantContinue) {
-      await notifier.continueGeneration(config);
-      return {'ok': true, 'continued': true};
-    }
-    if (wantRegenerate || wantTrigger) {
-      await notifier.regenerateLastMessage(config);
-      return {'ok': true, 'triggered': true};
-    }
-
-    return {'ok': true};
+    final env = SlashEnv(
+      chatId: widget.chatId,
+      sendMessage: (text) => notifier.sendMessage(text, config),
+      triggerGeneration: () => notifier.regenerateLastMessage(config),
+      continueGeneration: () => notifier.continueGeneration(config),
+      regenerateLast: () => notifier.regenerateLastMessage(config),
+      setInput: (text) {
+        if (!mounted || text.isEmpty) return;
+        _inputController.text = text;
+        _inputController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _inputController.text.length),
+        );
+      },
+      onUnsupported: (name) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('这张卡使用了暂不支持的命令（/$name），部分功能可能无法使用'),
+          duration: const Duration(seconds: 3),
+        ));
+      },
+    );
+    // 全局变量宏钩子({{getvar::}} 等) — 覆盖写,幂等
+    SlashRunner.globalMacroResolver = (input) =>
+        VariablesService.instance.processVariableMacrosSync(
+            input, chatId: widget.chatId);
+    return SlashRunner.execute(command, env: env);
   }
+
   /// 给 MVU 用的消息序列化：格式对齐 _handleGetMessages，
   /// message 用原文(不走 _serializeMessage 的显示美化，保住 _.set 指令)。
   List<Map<String, dynamic>> _serializeMessagesForMvu() {

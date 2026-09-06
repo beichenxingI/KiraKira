@@ -1276,6 +1276,9 @@ function injectBridge(html, id, floorIdx) {
     } else if (method === 'th_generate') {
       // [P5-9/P1] args[0]='normal'|'continue'|{user_input:'...'}
       payload = { arg: args[0] };
+    } else if (method === 'th_executeSlash') {
+      // [P6-3] EJS execute() 后端:args[0]=斜杠脚本
+      payload = { command: args[0] };
     } else if (method === 'th_stopGeneration') {
       payload = {};
     }

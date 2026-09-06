@@ -108,7 +108,22 @@ function __fkNode() {
 export const faker = __fkNode();
 
 // ── slash-commands 全家桶 ──
-export const executeSlashCommandsWithOptions = async()=>({}); // [STUB→第五章:Slash]
+// [P6-3] execute() 接真:走桥 th_executeSlash → Dart SlashRunner,pipe 回传
+export const executeSlashCommandsWithOptions = async (text) => {
+  try {
+    if (typeof __thCall !== 'function') return { pipe: String(text ?? ''), isAborted: false, isBreak: false, isError: true, errorMessage: 'bridge missing' };
+    var r = await __thCall('th_executeSlash', [String(text ?? '')]);
+    return {
+      pipe: (r && typeof r.pipe === 'string') ? r.pipe : '',
+      isAborted: !!(r && r.isAborted),
+      isBreak: !!(r && r.isBreak),
+      isError: !!(r && r.isError),
+      errorMessage: (r && r.errorMessage) || undefined,
+    };
+  } catch (e) {
+    return { pipe: '', isAborted: false, isBreak: false, isError: true, errorMessage: String(e) };
+  }
+};
 export class SlashCommand { static fromProps(){return new SlashCommand();} } // [STUB→第五章:Slash]
 export class SlashCommandArgument {              // [STUB→第五章:Slash] init期需 fromProps
   constructor(props){ Object.assign(this, props||{}); }
