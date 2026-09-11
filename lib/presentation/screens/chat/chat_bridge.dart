@@ -65,6 +65,7 @@ class BridgeType {
   static const String cardHeight = 'cardHeight'; // iframe 卡片高度上报
   static const String log = 'log'; // WebView 侧调试日志
   static const String action = 'action'; // 气泡操作按钮点击
+  static const String dialogResult = 'dialogResult'; // WebView回传: HTML弹窗结果(callbackId配对)
   static const String modelSelected = 'modelSelected'; // WebView回传:用户选中的模型
   static const String switchConfig = 'switchConfig'; // WebView回传:切换API方案
   static const String panelAction = 'panelAction'; // WebView回传:功能面板按钮点击
@@ -78,6 +79,10 @@ class BridgeType {
   static const String scrollToFloor = 'scrollToFloor'; // 跳转到指定楼层
   static const String scrollToBottom = 'scrollToBottom'; // 滚到最新消息(JS 侧 handler,亦供回底按钮备用)
   static const String keyboardInsets = 'keyboardInsets'; // 键盘显隐推送:JS 给 body 加/撤底部padding,让被键盘遮住的最新消息可滚出
+  // [弹窗] HTML弹窗体系:弹窗与消息同在 WebView 内渲染,无 Flutter 图层叠加 HC 合成开销
+  static const String showConfirm = 'showConfirm'; // Dart→JS: HTML确认框
+  static const String showPrompt = 'showPrompt'; // Dart→JS: HTML输入弹窗
+  static const String showBottomSheet = 'showBottomSheet'; // Dart→JS: HTML底部选择框
   static const String setImage = 'setImage'; // 单独推送图片base64，避免撑爆setMessages
   static const String setGenerating = 'setGenerating'; // 插入"生成中"占位(请求比例)
   static const String clearGenerating = 'clearGenerating'; // 移除"生成中"占位

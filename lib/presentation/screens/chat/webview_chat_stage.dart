@@ -66,7 +66,6 @@ import 'package:kirakira/domain/services/llm_service.dart';
 import 'package:kirakira/presentation/providers/mvu_settings_providers.dart';
 import 'package:kirakira/domain/services/debug_log_service.dart';
 import 'package:kirakira/presentation/widgets/snackbar_utils.dart';
-import 'package:kirakira/presentation/screens/chat/th_popup_dialog.dart';
 import 'package:kirakira/core/utils/file_utils.dart';
 
 /// compute 用的顶层函数：isolate 中只读图片头部拿宽高，不解码整图（内存安全）。
@@ -419,14 +418,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     var allowed = prefs.getBool(authKey);
     if (enabledScripts.isNotEmpty && allowed == null && mounted) {
       final names = enabledScripts.map((s) => '• ${s['name'] ?? '未命名脚本'}').join('\n');
-      allowed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-        title: Text('此内容包含 ${enabledScripts.length} 个脚本'),
-        content: Text('$names\n\n是否允许运行？'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('拒绝')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('允许')),
-        ],
-      )) ?? false;
+      // [弹窗] HTML确认框:注入阶段 WebView 已就绪,无需 Flutter 弹窗
+      allowed = await _showHtmlConfirm(
+        title: '此内容包含 ${enabledScripts.length} 个脚本',
+        message: '$names\n\n是否允许运行？',
+        confirmText: '允许',
+        cancelText: '拒绝',
+      );
       await prefs.setBool(authKey, allowed);
       if (!allowed) KiraLogger().info('预设脚本', '用户拒绝，脚本不执行');
     }
@@ -574,6 +572,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   bool _funcPanelOpen = false;
   bool _topBarVisible = true; // [顶栏] 滚动隐藏/显示,方向判定在 JS 侧,这里只收结果
   int _pushEpoch = 0; // [RC3] 推送代际计数器:新一次 _pushMessages 使在途的历史补发循环作废
+  // [弹窗] HTML弹窗等待表:callbackId → Completer,结果经 dialogResult 桥回传
+  final Map<String, Completer<dynamic>> _dialogCompleters = {};
 
    @override
   void initState() {
@@ -686,6 +686,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     // [RC3] 不再 delayed 补发 _pushMessages:loadData 成功必触发 onLoadStop,
     // 那里已 await _pushMessages;这里再补一发会形成双跑,两个历史补发循环
     // 交错 insertBefore → 楼层重复/乱序(消息丢失bug根因之一)。
+    // [弹窗] WebView 重建,页面上未决的 HTML 弹窗随之消失,按取消收场
+    for (final c in _dialogCompleters.values) {
+      if (!c.isCompleted) c.complete(false);
+    }
+    _dialogCompleters.clear();
   }
 
   @override
@@ -694,6 +699,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     try {
       ref.read(ejsRenderRegistryProvider).clear();
     } catch (_) {}
+    // [弹窗] 未决 HTML 弹窗全部按取消收场,防 Completer 永久挂起
+    for (final c in _dialogCompleters.values) {
+      if (!c.isCompleted) c.complete(false);
+    }
+    _dialogCompleters.clear();
     _controller?.evaluateJavascript(
         source: 'if(window.resetEngineRoom){var h=document.getElementById("__engineRoomHost");if(h)h.innerHTML="";}');
     WidgetsBinding.instance.removeObserver(this);
@@ -996,6 +1006,15 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.on(BridgeType.scroll, (payload) {
                       final dir = payload['dir'] as String?;
                       _setTopBarVisible(dir != 'down');
+                    });
+                    // [弹窗] HTML 弹窗结果回传:按 callbackId 找到等待中的 Completer
+                    _bridge.on(BridgeType.dialogResult, (payload) {
+                      final callbackId = payload['callbackId'] as String?;
+                      if (callbackId == null) return;
+                      final completer = _dialogCompleters.remove(callbackId);
+                      if (completer != null && !completer.isCompleted) {
+                        completer.complete(payload['value'] ?? payload['result']);
+                      }
                     });
                     // [P5-6阶段1.2] 卡片日志分级: error→toast+常驻缓冲, warn→常驻缓冲,
                     // info/debug→仅开发模式打印(由 DebugLogService 捕获开关门控)
@@ -1395,25 +1414,33 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     return {'ok': true};
   }
 
-  /// [P6-5.1] callGenericPopup 桥:TEXT/CONFIRM/INPUT/DISPLAY → Flutter Dialog。
-  /// payload: {text, type(1/2/3/4), inputValue}
-  /// 返回:CONFIRM → 1/0(取消 null);INPUT → 字符串(取消 null);TEXT/DISPLAY → 1。
+  /// [P6-5.1] callGenericPopup 桥:TEXT/CONFIRM/INPUT/DISPLAY → HTML 弹窗(WebView内渲染)。
+  /// 返回值对齐 POPUP_RESULT:CONFIRM → 1(null=取消);INPUT → 字符串(null=取消);
+  /// TEXT/DISPLAY → 1。[弹窗] 原 Flutter ThPopupDialog 迁入 WebView,免 pause/resume 合成开销。
   Future<dynamic> _handlePopup(Map<String, dynamic> payload) async {
     final text = payload['text']?.toString() ?? '';
     final type = (payload['type'] as num?)?.toInt() ?? 1;
     final inputValue = payload['inputValue']?.toString() ?? '';
     if (!mounted) return null;
     KiraLogger().info('卡片弹窗', 'type=$type text=${text.length}字');
-    final result = await showDialog<dynamic>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => ThPopupDialog(
-        text: text,
-        type: type,
-        inputValue: inputValue,
-      ),
-    );
-    return result;
+    switch (type) {
+      case 2: // CONFIRM
+        final ok = await _showHtmlConfirm(title: '确认', message: text);
+        if (!mounted) return null;
+        return ok ? 1 : null;
+      case 3: // INPUT
+        final value = await _showHtmlPrompt(
+            title: '输入', message: text, initial: inputValue);
+        if (!mounted) return null;
+        return value;
+      case 4: // DISPLAY(原 Flutter 实现无按钮且 barrierDismissible=false,弹窗无法关闭,此处补关闭钮)
+      case 1: // TEXT
+      default:
+        await _showHtmlConfirm(
+            title: '提示', message: text, confirmText: '关闭', cancelText: '');
+        if (!mounted) return null;
+        return 1;
+    }
   }
 
   /// [P6-3] th_triggerSlash:执行斜杠脚本,返回 {ok, pipe, isAborted, ...}。
@@ -1522,33 +1549,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         }
         return buffer.toString();
       },
-      // [P6-5.1] /buttons:按钮选择弹窗,选中项回管道
+      // [P6-5.1] /buttons:按钮选择弹窗,选中项回管道 → HTML底部选择框
       showButtons: (labels) async {
         if (!mounted) return null;
-        final result = await showDialog<String>(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final label in labels)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: SizedBox(
-                        width: double.maxFinite,
-                        child: FilledButton.tonal(
-                          onPressed: () => Navigator.of(ctx).pop(label),
-                          child: Text(label),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
+        final result = await _showHtmlBottomSheet([
+          for (final label in labels) {'text': '$label', 'value': '$label'},
+        ]);
         return result;
       },
       // [P6-5.3] 楼层操作:消息数 / 隐藏 / swipe
@@ -3452,57 +3458,94 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     await _controller?.resume();
   }
 
+  // ── [弹窗] HTML 弹窗辅助:确认框/输入框/底部选择框 ──────────────────────────
+  // 弹窗与消息同渲染在 WebView 内,无 Flutter 图层叠加的 HC 合成开销,
+  // 也免去 pause/resume(pause 会冻结卡片脚本)。结果经 dialogResult 按 callbackId 配对。
+
+  Future<dynamic> _waitForDialogResult(String callbackId) {
+    final completer = Completer<dynamic>();
+    _dialogCompleters[callbackId] = completer;
+    return completer.future;
+  }
+
+  /// HTML 确认框。[cancelText] 传空串 = 单按钮提示框。
+  Future<bool> _showHtmlConfirm({
+    required String title,
+    required String message,
+    String confirmText = '确认',
+    String cancelText = '取消',
+    bool danger = false,
+  }) async {
+    final callbackId = 'dlg_${DateTime.now().microsecondsSinceEpoch}';
+    _bridge.send(BridgeType.showConfirm, {
+      'title': title,
+      'message': message,
+      'confirmText': confirmText,
+      'cancelText': cancelText,
+      'callbackId': callbackId,
+      'danger': danger,
+    });
+    final result = await _waitForDialogResult(callbackId);
+    return result == true;
+  }
+
+  /// HTML 输入弹窗。取消返回 null。
+  Future<String?> _showHtmlPrompt({
+    required String title,
+    required String message,
+    String initial = '',
+  }) async {
+    final callbackId = 'dlg_${DateTime.now().microsecondsSinceEpoch}';
+    _bridge.send(BridgeType.showPrompt, {
+      'title': title,
+      'message': message,
+      'initial': initial,
+      'callbackId': callbackId,
+    });
+    final result = await _waitForDialogResult(callbackId);
+    return result is String ? result : null;
+  }
+
+  /// HTML 底部选择框。取消返回 null,选中返回 value。
+  Future<String?> _showHtmlBottomSheet(
+    List<Map<String, dynamic>> items, {
+    String? title,
+  }) async {
+    final callbackId = 'dlg_${DateTime.now().microsecondsSinceEpoch}';
+    _bridge.send(BridgeType.showBottomSheet, {
+      'items': items,
+      'title': title,
+      'callbackId': callbackId,
+    });
+    final result = await _waitForDialogResult(callbackId);
+    return result is String ? result : null;
+  }
+
   Future<void> _confirmClearChat() async {
-    await _controller?.pause();
-    bool? ok;
-    try {
-      ok = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('清空聊天'),
-          content: const Text('将删除本对话的全部消息，且不可恢复。确定吗？'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('取消')),
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('清空', style: TextStyle(color: Colors.red))),
-          ],
-        ),
-      );
-    } finally {
-      await _controller?.resume();
-    }
-    if (ok == true) {
+    // [弹窗] HTML确认框,无需 pause/resume(弹窗与消息同在 WebView 内)
+    final ok = await _showHtmlConfirm(
+      title: '清空聊天',
+      message: '将删除本对话的全部消息，且不可恢复。确定吗？',
+      confirmText: '清空',
+      cancelText: '取消',
+      danger: true,
+    );
+    if (!mounted) return;
+    if (ok) {
       ref.read(activeChatProvider.notifier).clearChat();
       await _pushMessages();
     }
   }
 
   Future<void> _confirmManualSummarize() async {
-    await _controller?.pause();
-    bool? ok;
-    try {
-      ok = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('手动总结上下文'),
-          content: const Text('将基于当前全部历史重新生成一份总结，覆盖已有总结。适合自动总结失败或效果不佳时使用。可能耗时并消耗较多 token，确定吗？'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('取消')),
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('开始总结')),
-          ],
-        ),
-      );
-    } finally {
-      await _controller?.resume();
-    }
-    if (ok == true) {
+    // [弹窗] HTML确认框,无需 pause/resume
+    final ok = await _showHtmlConfirm(
+      title: '手动总结上下文',
+      message:
+          '将基于当前全部历史重新生成一份总结，覆盖已有总结。适合自动总结失败或效果不佳时使用。可能耗时并消耗较多 token，确定吗？',
+    );
+    if (!mounted) return;
+    if (ok) {
       _snack('正在总结上下文…');
       final err = await ref.read(activeChatProvider.notifier).manualSummarize();
       _snack(err ?? '总结完成');
@@ -3519,27 +3562,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         ref.read(activePersonaProvider).valueOrNull?.name ?? 'User';
 
     // 先让用户选：分享，还是保存到文件
-    await _controller?.pause();
-    String? mode;
-    try {
-      mode = await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('导出聊天'),
-          content: const Text('选择导出方式（SillyTavern 兼容 JSONL）'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, 'share'),
-                child: const Text('分享')),
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, 'file'),
-                child: const Text('保存到文件')),
-          ],
-        ),
-      );
-    } finally {
-      await _controller?.resume();
-    }
+    // [弹窗] HTML底部选择框,无需 pause/resume
+    final mode = await _showHtmlBottomSheet(const [
+      {'text': '分享', 'value': 'share'},
+      {'text': '保存到文件', 'value': 'file'},
+    ], title: '导出聊天（SillyTavern 兼容 JSONL）');
+    if (!mounted) return;
     if (mode == null) return;
 
     final service = ChatExportService();
@@ -3577,51 +3605,32 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     try {
       final exportService = ref.read(chatExportServiceProvider);
       final result = await exportService.importFromFile();
+      // [弹窗] 系统文件选择器结束即恢复 WebView:后续确认框改为 HTML,需要 WebView 存活
+      await _controller?.resume();
       if (result == null) {
         _snack('未选择文件');
-        await _controller?.resume();
         return;
       }
 
       if (!mounted) return;
 
-      // 确认弹窗：展示导入详情
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l10n.importConfirmation),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('${l10n.character}: ${result.characterName}'),
-              Text('${l10n.user}: ${result.userName}'),
-              Text('${l10n.messages}: ${result.messages.length}'),
-              Text('${l10n.date}: ${result.createDate.toString().split('.')[0]}'),
-              if (result.authorNote != null && result.authorNote!.isNotEmpty)
-                Text('${l10n.hasAuthorsNote}: ${l10n.yes}'),
-              const SizedBox(height: 16),
-              Text(
-                l10n.importMessagesToCurrentChat,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.cancel),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(l10n.import),
-            ),
-          ],
-        ),
+      // 确认弹窗：展示导入详情(HTML确认框,详情拼为多行文本)
+      final details = [
+        '${l10n.character}: ${result.characterName}',
+        '${l10n.user}: ${result.userName}',
+        '${l10n.messages}: ${result.messages.length}',
+        '${l10n.date}: ${result.createDate.toString().split('.')[0]}',
+        if (result.authorNote != null && result.authorNote!.isNotEmpty)
+          '${l10n.hasAuthorsNote}: ${l10n.yes}',
+        '',
+        l10n.importMessagesToCurrentChat,
+      ].join('\n');
+      final confirmed = await _showHtmlConfirm(
+        title: l10n.importConfirmation,
+        message: details,
       );
 
-      if (confirmed != true) {
-        await _controller?.resume();
+      if (!confirmed) {
         return;
       }
 
@@ -4000,30 +4009,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     String body,
     VoidCallback action,
   ) async {
-    await _controller?.pause();
-    bool? ok;
-    try {
-      ok = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(title),
-          content: Text(body),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('确定'),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      await _controller?.resume();
-    }
-    if (ok == true) action();
+    // [弹窗] HTML确认框,无需 pause/resume
+    final ok = await _showHtmlConfirm(title: title, message: body);
+    if (!mounted) return;
+    if (ok) action();
   }
 
   // ── 编辑（全屏页，避免 HC 合成开销）───────────────────────────────────────
@@ -4086,27 +4075,18 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
   // ── 更多操作底部菜单 ───────────────────────────────────────────────────────
 
-  void _showMoreSheet(String id) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.delete_sweep),
-              title: const Text('删除此条及之后所有'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await ref
-                    .read(activeChatProvider.notifier)
-                    .deleteMessageAndAfter(id);
-                await _pushMessages();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+  Future<void> _showMoreSheet(String id) async {
+    // [弹窗] HTML底部选择框,无需 pause/resume
+    final result = await _showHtmlBottomSheet(const [
+      {'text': '删除此条及之后所有', 'value': 'delete_after', 'danger': true},
+    ]);
+    if (!mounted || result == null) return;
+    if (result == 'delete_after') {
+      await ref
+          .read(activeChatProvider.notifier)
+          .deleteMessageAndAfter(id);
+      await _pushMessages();
+    }
   }
 
   // ── 推送消息到 WebView ────────────────────────────────────────────────────

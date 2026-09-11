@@ -104,6 +104,55 @@ if (!String.prototype.at) {
   }
   #btn-scroll-bottom:active { background: rgba(0,0,0,0.8); }
   #btn-scroll-bottom.show { display: block; }
+  /* [弹窗] HTML弹窗体系:替代 Flutter AlertDialog/BottomSheet(避免HC跨引擎合成卡顿) */
+  .dialog-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    z-index: 10000; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity .18s ease;
+  }
+  .dialog-overlay.show { opacity: 1; }
+  .dialog-overlay.sheet { align-items: flex-end; }
+  .dialog-box {
+    background: #1B1E26; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 20px; min-width: 260px; max-width: 82vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+    transform: scale(0.94); transition: transform .18s ease;
+  }
+  .dialog-overlay.show .dialog-box { transform: scale(1); }
+  .dialog-title { font-size: 16px; font-weight: 600; margin-bottom: 10px; color: #FFFFFF; }
+  .dialog-message {
+    font-size: 14px; line-height: 1.55; margin-bottom: 18px; color: #C8CDD6;
+    white-space: pre-wrap; word-break: break-word; max-height: 46vh; overflow-y: auto;
+  }
+  .dialog-input {
+    width: 100%; box-sizing: border-box; background: #20242C; color: #F5F7FA;
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+    padding: 10px 12px; font-size: 14px; margin-bottom: 18px; outline: none;
+  }
+  .dialog-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+  .dialog-btn {
+    padding: 9px 18px; border-radius: 8px; border: none; font-size: 14px;
+    font-weight: 500; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .dialog-btn:active { opacity: 0.75; }
+  .dialog-btn-cancel { background: rgba(255,255,255,0.08); color: #E0E0E0; }
+  .dialog-btn-confirm { background: #7C4DFF; color: #FFFFFF; }
+  .dialog-btn-danger { background: #E5484D; color: #FFFFFF; }
+  .bottom-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: #12141C; border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px 14px 0 0; padding: 6px 0 10px;
+    z-index: 10000; transform: translateY(102%);
+    transition: transform .22s ease; max-height: 60vh; overflow-y: auto;
+  }
+  .dialog-overlay.show .bottom-sheet { transform: translateY(0); }
+  .bottom-sheet-title { font-size: 12px; color: #8A9099; padding: 12px 18px 4px; }
+  .bottom-sheet-item {
+    padding: 14px 18px; font-size: 15px; color: #E0E0E0; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bottom-sheet-item:active { background: rgba(255,255,255,0.08); }
+  .bottom-sheet-item.danger { color: #FF6B6E; }
   .msg.user {
     background: rgba(40,42,50,0.72);
     border: 1px solid rgba(255,255,255,0.10);
@@ -2226,7 +2275,120 @@ function injectBridge(html, id, floorIdx) {
   registerBridgeHandler('setMessages', function(p) { setMessages(p.data, {initial: p.initial, prepend: p.prepend, avatars: p.avatars}); });
   registerBridgeHandler('scrollToFloor', function(p) { scrollToFloor(p.floor); });
   registerBridgeHandler('scrollToBottom', function() { scrollToBottom(); });
-  // [键盘] 键盘显隐:body 底部 padding 补偿(WebView 几何恒定,不加 padding 时
+  // ── [弹窗] HTML弹窗体系(Dart→JS):showConfirm / showPrompt / showBottomSheet ──
+  // 结果统一 sendToFlutter('dialogResult', {callbackId, result, value}) 回传;
+  // 任何异常路径也必须回传一次,否则 Dart 侧 Completer 永久挂起。
+  function buildDialogOverlay(sheetMode) {
+    var overlay = document.createElement('div');
+    overlay.className = 'dialog-overlay' + (sheetMode ? ' sheet' : '');
+    document.body.appendChild(overlay);
+    requestAnimationFrame(function () { overlay.classList.add('show'); });
+    return overlay;
+  }
+  function closeDialogOverlay(overlay, afterMs) {
+    overlay.classList.remove('show');
+    setTimeout(function () {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }, afterMs || 200);
+  }
+  function dialogButtonsRow(specs, onPick) {
+    var row = document.createElement('div');
+    row.className = 'dialog-buttons';
+    specs.forEach(function (s) {
+      if (!s.text) return; // 空文本=不渲染该按钮(单按钮提示框)
+      var b = document.createElement('button');
+      b.className = 'dialog-btn ' + (s.cls || 'dialog-btn-cancel');
+      b.textContent = s.text;
+      b.onclick = function (e) { e.stopPropagation(); onPick(s.value); };
+      row.appendChild(b);
+    });
+    return row;
+  }
+  registerBridgeHandler('showConfirm', function (p) {
+    try {
+      var overlay = buildDialogOverlay(false);
+      var box = document.createElement('div');
+      box.className = 'dialog-box';
+      var t = document.createElement('div'); t.className = 'dialog-title'; t.textContent = (p && p.title) || '';
+      var m = document.createElement('div'); m.className = 'dialog-message'; m.textContent = (p && p.message) || '';
+      var done = false;
+      function finish(result) {
+        if (done) return; done = true;
+        closeDialogOverlay(overlay);
+        sendToFlutter('dialogResult', { callbackId: p.callbackId, result: result });
+      }
+      box.appendChild(t); box.appendChild(m);
+      box.appendChild(dialogButtonsRow([
+        { text: (p && p.cancelText) || '取消', value: false, cls: 'dialog-btn-cancel' },
+        { text: (p && p.confirmText) || '确认', value: true,
+          cls: (p && p.danger) ? 'dialog-btn-danger' : 'dialog-btn-confirm' },
+      ], finish));
+      overlay.onclick = function (e) { if (e.target === overlay) finish(false); };
+      overlay.appendChild(box);
+    } catch (e) {
+      sendToFlutter('dialogResult', { callbackId: p && p.callbackId, result: false });
+    }
+  });
+  registerBridgeHandler('showPrompt', function (p) {
+    try {
+      var overlay = buildDialogOverlay(false);
+      var box = document.createElement('div');
+      box.className = 'dialog-box';
+      var t = document.createElement('div'); t.className = 'dialog-title'; t.textContent = (p && p.title) || '';
+      var m = document.createElement('div'); m.className = 'dialog-message'; m.textContent = (p && p.message) || '';
+      var inp = document.createElement('input');
+      inp.className = 'dialog-input';
+      inp.value = (p && p.initial) || '';
+      var done = false;
+      function finish(result) {
+        if (done) return; done = true;
+        closeDialogOverlay(overlay);
+        sendToFlutter('dialogResult', { callbackId: p.callbackId, result: result !== null, value: result });
+      }
+      box.appendChild(t); box.appendChild(m); box.appendChild(inp);
+      box.appendChild(dialogButtonsRow([
+        { text: '取消', value: null, cls: 'dialog-btn-cancel' },
+        { text: '确定', value: '__submit__', cls: 'dialog-btn-confirm' },
+      ], function (v) { finish(v === '__submit__' ? inp.value : null); }));
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); finish(inp.value); }
+      });
+      overlay.onclick = function (e) { if (e.target === overlay) finish(null); };
+      overlay.appendChild(box);
+      setTimeout(function () { try { inp.focus(); } catch (_pe) {} }, 250);
+    } catch (e) {
+      sendToFlutter('dialogResult', { callbackId: p && p.callbackId, result: false });
+    }
+  });
+  registerBridgeHandler('showBottomSheet', function (p) {
+    try {
+      var overlay = buildDialogOverlay(true);
+      var sheet = document.createElement('div');
+      sheet.className = 'bottom-sheet';
+      var done = false;
+      function finish(value) {
+        if (done) return; done = true;
+        closeDialogOverlay(overlay, 240);
+        sendToFlutter('dialogResult', { callbackId: p.callbackId, result: value !== null && value !== undefined, value: value });
+      }
+      if (p && p.title) {
+        var tt = document.createElement('div');
+        tt.className = 'bottom-sheet-title'; tt.textContent = p.title;
+        sheet.appendChild(tt);
+      }
+      ((p && p.items) || []).forEach(function (item) {
+        var it = document.createElement('div');
+        it.className = 'bottom-sheet-item' + (item.danger ? ' danger' : '');
+        it.textContent = item.text || '';
+        it.onclick = function () { finish(item.value); };
+        sheet.appendChild(it);
+      });
+      overlay.onclick = function (e) { if (e.target === overlay) finish(null); };
+      overlay.appendChild(sheet);
+    } catch (e) {
+      sendToFlutter('dialogResult', { callbackId: p && p.callbackId, result: false });
+    }
+  });  // [键盘] 键盘显隐:body 底部 padding 补偿(WebView 几何恒定,不加 padding 时
   // 贴底用户的最新消息落在键盘后方且已到滚动上限,永远滚不出来)
   registerBridgeHandler('keyboardInsets', function (p) {
     var kb = (p && p.visible) ? (p.height || 0) : 0;
