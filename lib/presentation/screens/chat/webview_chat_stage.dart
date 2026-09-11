@@ -572,6 +572,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   double _keyboardHeight = 0;
   bool _keyboardVisible = false;
   bool _funcPanelOpen = false;
+  bool _topBarVisible = true; // [顶栏] 滚动隐藏/显示,方向判定在 JS 侧,这里只收结果
 
    @override
   void initState() {
@@ -645,6 +646,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     if (visible != _keyboardVisible) {
       setState(() => _keyboardVisible = visible); // 仅在显↔隐跳变时重建一次
     }
+  }
+
+  /// [顶栏] 显隐切换(仅状态跳变时 setState,滚动事件本身在 JS 侧已收敛)
+  void _setTopBarVisible(bool visible) {
+    if (!mounted || _topBarVisible == visible) return;
+    setState(() => _topBarVisible = visible);
   }
 
   /// [P1-A5] 崩溃自愈超限后,用户点「重新加载」:重置计数并重挂 webview 恢复。
@@ -830,6 +837,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         _controller?.evaluateJavascript(
             source: 'if(window.resetEngineRoom)window.resetEngineRoom();');
       }
+      // [顶栏] 切会话重置为显示,避免新会话开局顶栏消失
+      _setTopBarVisible(true);
     });
 
     // 自动生图占位符：msgId 变化 → 显示/移除"生成中"占位
@@ -887,7 +896,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       resizeToAvoidBottomInset: false,
       backgroundColor: activeGlassPalette.pageBackground,
       extendBodyBehindAppBar: true,
-      appBar: _buildGlassAppBar(character, activeLlmConfig),
+      appBar: _SlidingAppBar(
+        visible: _topBarVisible,
+        child: _buildGlassAppBar(character, activeLlmConfig),
+      ),
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -900,7 +912,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                 Positioned.fill(
                   child: Padding(
                   padding: EdgeInsets.only(
-                    top: 48 + MediaQuery.of(context).padding.top,
+                    top: 32 + MediaQuery.of(context).padding.top, // [顶栏] 48→32
                     // 底部留出输入栏基础高度：让最后一条消息的工具栏/楼层露在输入栏上方，
                     // 不被浮层遮住。固定值（不含面板/附件），避免动态变化触发 WebView resize。
                     bottom: 64 + MediaQuery.of(context).padding.bottom,
@@ -974,6 +986,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _controller = c;
                     _bridge.attach(c);
                     _bridge.on(BridgeType.action, _handleAction);
+                    // [顶栏] 滚动方向事件:down=隐藏,up/top=显示。
+                    // JS 侧已做 ±8px 迟滞+方向变化才上报,这里只做纯映射。
+                    _bridge.on(BridgeType.scroll, (payload) {
+                      final dir = payload['dir'] as String?;
+                      _setTopBarVisible(dir != 'down');
+                    });
                     // [P5-6阶段1.2] 卡片日志分级: error→toast+常驻缓冲, warn→常驻缓冲,
                     // info/debug→仅开发模式打印(由 DebugLogService 捕获开关门控)
                     _bridge.on(BridgeType.log, (payload) {
@@ -1043,6 +1061,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest(BridgeType.stopGeneration, _handleStopGeneration);
                   },
                   onLoadStop: (c, url) async {
+                    // [顶栏] 页面(重)载完成(含崩溃自愈 loadData 重建)重置为显示
+                    _setTopBarVisible(true);
                     await _injectCompatLibs(c); // 注入第三方库到外层window
                     await _injectMacroValues(c); // 注入宏替换用的角色名/用户名
                     await _injectRegexRules(c); // [P6-5.2] 正则规则快照(引擎房烘焙用)
@@ -1159,9 +1179,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                 ),
               // 底部浮层：功能面板 + 输入栏，bottom 锚定。
               // 面板展开往上盖住 WebView 内容，WebView 尺寸恒定、永不 resize —— 彻底消除展开/收起顿卡。
+              // [A1] AnimatedPadding 顺滑化:键盘弹/收不再硬跳
               Align(
                 alignment: Alignment.bottomCenter,
-                child: Padding(
+                child: AnimatedPadding(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
                   padding: EdgeInsets.only(
                     bottom: _keyboardVisible ? _keyboardHeight : 0,
                   ),
@@ -1173,14 +1196,22 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       ),
           // 顶栏毛玻璃层:blur 磨砂壁纸 + 灰黑半透明底(让白字显眼)。
           // 后面只有壁纸,blur 安全不卡。文字由 AppBar 浮在其上。
-          Positioned(
-            top: 0, left: 0, right: 0,
+          // [顶栏] 滚动隐藏:与 AppBar 的 AnimatedSlide 同参数联动,滑出后露出壁纸条。
+          // WebView 几何不动(不 resize),守住 HC 合成性能红线。
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            top: _topBarVisible
+                ? 0
+                : -(32 + MediaQuery.of(context).padding.top),
+            left: 0,
+            right: 0,
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(
                 bottom: Radius.circular(20),
               ),
               child: Container(
-                height: 48 + MediaQuery.of(context).padding.top,
+                height: 32 + MediaQuery.of(context).padding.top, // [顶栏] 48→32
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.82),
                   borderRadius: const BorderRadius.vertical(
@@ -3087,18 +3118,19 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final avatarPath = character?.assets?.avatarPath;
     final avatarUrl = character?.assets?.avatarUrl;
 
+    // [顶栏] 头像 32→24:适配 32dp 矮顶栏
     Widget fallback = const CircleAvatar(
-      radius: 16,
+      radius: 12,
       backgroundColor: Colors.white12,
-      child: Icon(Icons.person, size: 18, color: Colors.white54),
+      child: Icon(Icons.person, size: 14, color: Colors.white54),
     );
 
     if (avatarPath != null && avatarPath.isNotEmpty) {
       // 走统一组件：内部处理相对→绝对路径转换 + 缓存,修复顶栏头像不显示
       return ClipOval(
         child: SizedBox(
-          width: 32,
-          height: 32,
+          width: 24,
+          height: 24,
           child: CharacterAvatarImage(
             imagePath: avatarPath,
             fit: BoxFit.cover,
@@ -3108,7 +3140,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       );
     } else if (avatarUrl != null && avatarUrl.isNotEmpty) {
       return CircleAvatar(
-        radius: 16,
+        radius: 12,
         backgroundColor: Colors.white12,
         backgroundImage: NetworkImage(avatarUrl),
       );
@@ -3119,7 +3151,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   PreferredSizeWidget _buildGlassAppBar(
       Character? character, dynamic activeLlmConfig) {
     return AppBar(
-      toolbarHeight: 48,
+      toolbarHeight: 32, // [顶栏] 48→32:缩小1/3
       elevation: 0,
       scrolledUnderElevation: 0,
       shadowColor: Colors.transparent,
@@ -3134,37 +3166,19 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           children: [
             _buildAvatar(character),
             const SizedBox(width: 10),
+            // [顶栏] 单行标题:32dp 放不下双行,模型信息改由点击标题弹模型层查看
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _truncateName(character?.name ?? '未知角色'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: activeGlassPalette.primaryText,
-                      fontSize: DesignTokens.fontSizeBodyLarge,
-                      height: 1.15,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.15,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    ref.watch(llmConfigProvider).model.isNotEmpty
-                        ? ref.watch(llmConfigProvider).model
-                        : (activeLlmConfig?.name?.toString() ?? '未选择模型'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: activeGlassPalette.secondaryText,
-                      fontSize: 10.5,
-                      height: 1.1,
-                    ),
-                  ),
-                ],
+              child: Text(
+                _truncateName(character?.name ?? '未知角色'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: activeGlassPalette.primaryText,
+                  fontSize: DesignTokens.fontSizeBodyLarge,
+                  height: 1.15,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.15,
+                ),
               ),
             ),
             const SizedBox(width: 6),
@@ -3183,9 +3197,31 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         ),
       ),
       actions: [
+        // 回到顶部：滚到第一条消息(楼层1,复用跳楼层桥)
         Container(
-          width: 36,
-          height: 36,
+          width: 28,
+          height: 28,
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: GlassDesign.controlFill,
+            shape: BoxShape.circle,
+            border: Border.all(color: GlassDesign.highlightBorder),
+          ),
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            tooltip: '回到顶部',
+            iconSize: 16,
+            color: activeGlassPalette.primaryText,
+            icon: const Icon(Icons.arrow_upward_rounded),
+            onPressed: () {
+              _bridge.send(BridgeType.scrollToFloor, {'floor': 1});
+            },
+          ),
+        ),
+        Container(
+          width: 28,
+          height: 28,
           margin: const EdgeInsets.only(right: 10),
           decoration: BoxDecoration(
             color: GlassDesign.controlFill,
@@ -3194,8 +3230,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           ),
           child: IconButton(
             padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             tooltip: '会话图片',
-            iconSize: 18,
+            iconSize: 16,
             color: activeGlassPalette.primaryText,
             icon: const Icon(Icons.photo_library_outlined),
             onPressed: () {
@@ -3289,7 +3326,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             decoration: BoxDecoration(
               color: activeGlassPalette.glassTint.withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(20), // [A1] 输入框圆角:20px(比气泡14px更圆润,接近iOS Messages)
               border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
             child: Row(
@@ -3323,29 +3360,40 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
                   color: activeGlassPalette.secondaryText,
                 ),
                 Expanded(
-                  child: TextField(
-                    controller: _inputController,
-                    enabled: !isGenerating,
-                    focusNode: _inputFocus,
-                    maxLines: 5,
-                    minLines: 1,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                    style: TextStyle(color: activeGlassPalette.primaryText),
-                    cursorColor: activeGlassPalette.accent,
-                    decoration: InputDecoration(
-                      hintText: '输入消息…',
-                      hintStyle: TextStyle(
-                        color: activeGlassPalette.secondaryText
-                            .withValues(alpha: 0.7),
-                      ),
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 10,
+                  // [A1] Shift+Enter=发送,Enter=换行(硬件键盘;手机软键盘回车即换行,发送走右侧按钮)。
+                  // CallbackShortcuts 挂在焦点链上,无需额外 FocusNode。
+                  child: CallbackShortcuts(
+                    bindings: <ShortcutActivator, VoidCallback>{
+                      const SingleActivator(LogicalKeyboardKey.enter, shift: true):
+                          _sendMessage,
+                    },
+                    child: TextField(
+                      controller: _inputController,
+                      enabled: !isGenerating,
+                      focusNode: _inputFocus,
+                      maxLines: 5,
+                      minLines: 1,
+                      // [A1] send→newline:回车不再发送,改为插入换行
+                      textInputAction: TextInputAction.newline,
+                      onEditingComplete: () {
+                        // 吞掉默认"完成编辑"行为(防意外失焦),换行交给 newline action
+                      },
+                      style: TextStyle(color: activeGlassPalette.primaryText),
+                      cursorColor: activeGlassPalette.accent,
+                      decoration: InputDecoration(
+                        hintText: '输入消息…（Enter 换行，Shift+Enter 发送）',
+                        hintStyle: TextStyle(
+                          color: activeGlassPalette.secondaryText
+                              .withValues(alpha: 0.7),
+                        ),
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 10,
+                        ),
                       ),
                     ),
                   ),
@@ -4745,4 +4793,27 @@ String normalizeCodeQuotes(String html) {
   }
   buf.write(norm(html.substring(last)));
   return buf.toString();
+}
+
+/// [顶栏] 滑动显隐包装:Scaffold 布局位不变(extendBodyBehindAppBar 下 body 全出血,
+/// WebView 几何零变化),仅视觉平移出屏;FractionalTranslation 的命中测试跟随位移,
+/// 滑走后按钮不可误触。
+class _SlidingAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final bool visible;
+  final PreferredSizeWidget child;
+
+  const _SlidingAppBar({required this.visible, required this.child});
+
+  @override
+  Size get preferredSize => child.preferredSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSlide(
+      offset: visible ? Offset.zero : const Offset(0, -1),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      child: child,
+    );
+  }
 }

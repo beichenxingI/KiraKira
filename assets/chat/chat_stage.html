@@ -77,20 +77,33 @@ if (!String.prototype.at) {
   .msg.has-frames { display: block; max-width: 100%; width: 100%; padding: 0; background: none; border: none; box-shadow: none; }
   .msg {
     display: inline-block; max-width: 78%;
-    margin: 14px 0; padding: 16px 18px; border-radius: 22px;
+    margin: 14px 0; padding: 16px 18px; border-radius: 14px;
     word-wrap: break-word; overflow-wrap: break-word;
     box-shadow: 0 2px 12px rgba(0,0,0,0.15);
   }
   .msg {
     display: inline-block; max-width: 78%;
-    margin: 14px 0; padding: 16px 18px; border-radius: 22px;
+    margin: 14px 0; padding: 16px 18px; border-radius: 14px;
     word-wrap: break-word; overflow-wrap: break-word;
     box-shadow: 0 2px 12px rgba(0,0,0,0.15);
     color: #EAEAEA;
   }
-   .msg-group.user { text-align: right; }
+    .msg-group.user { text-align: right; }
    .msg-group.user .msg { text-align: left; }
    .msg-group.assistant { text-align: left; }
+  /* 回到底部悬浮按钮：离开底部时显示,贴底自动隐藏(显隐在 scroll 监听里控制) */
+  #btn-scroll-bottom {
+    position: fixed; right: 16px; bottom: 96px;
+    width: 40px; height: 40px; border-radius: 20px;
+    background: rgba(0,0,0,0.6); color: #FFFFFF;
+    border: 1px solid rgba(255,255,255,0.12);
+    font-size: 20px; line-height: 1;
+    cursor: pointer; display: none; z-index: 999;
+    -webkit-tap-highlight-color: transparent;
+    transition: background .15s ease;
+  }
+  #btn-scroll-bottom:active { background: rgba(0,0,0,0.8); }
+  #btn-scroll-bottom.show { display: block; }
   .msg.user {
     background: rgba(40,42,50,0.72);
     border: 1px solid rgba(255,255,255,0.10);
@@ -134,17 +147,17 @@ if (!String.prototype.at) {
     font-size: 13px; opacity: .55; border-left: 2px solid rgba(124,77,255,0.6);
     padding-left: 10px; margin-bottom: 8px;
   }
-  img { max-width: 100%; height: auto; border-radius: 14px; }
+  img { max-width: 100%; height: auto; border-radius: 8px; }
   .att-wrap { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
   .att-img {
     max-width: 200px; width: 100%; height: auto;
-    border-radius: 14px; display: block; cursor: pointer;
+    border-radius: 8px; display: block; cursor: pointer;
     background: rgba(255,255,255,.06);
     object-fit: cover;
   }
   .att-generating {
     max-width: 200px; width: 100%;
-    border-radius: 14px;
+    border-radius: 8px;
     background: rgba(255,255,255,.06);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 10px;
@@ -160,7 +173,7 @@ if (!String.prototype.at) {
   .att-gen-label { font-size: 13px; color: #9A9A9A; }
   iframe.card-frame {
     width: 100%; border: none; display: block;
-    background: transparent; height: 300px; border-radius: 18px;
+    background: transparent; height: 300px; border-radius: 12px;
   }
   /* 消息组：气泡 + 挂在外面下方的工具条 */
   .msg-group { margin: 14px 0; }
@@ -1829,7 +1842,7 @@ function injectBridge(html, id, floorIdx) {
               segFrame.style.width = '100%';
               segFrame.style.height = '300px';
               segFrame.style.background = 'rgba(255,255,255,0.06)';
-              segFrame.style.borderRadius = '18px';
+              segFrame.style.borderRadius = '12px';
               segFrame.setAttribute('data-frame-id', segId);
               segFrame.setAttribute('data-floor', m.floor || 0);
               segFrame.setAttribute('scrolling', 'no');
@@ -1865,7 +1878,7 @@ function injectBridge(html, id, floorIdx) {
           frame.style.width = '100%';
           frame.style.height = '300px';
           frame.style.background = 'rgba(255,255,255,0.06)';
-          frame.style.borderRadius = '18px';
+          frame.style.borderRadius = '12px';
           frame.setAttribute('data-frame-id', m.id);
           frame.setAttribute('data-floor', m.floor || 0);
           frame.setAttribute('scrolling', 'no');
@@ -1976,6 +1989,19 @@ function injectBridge(html, id, floorIdx) {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  // 滚动到底部(最新消息)：右下角按钮与 Dart 桥共用。
+  // [顶栏] 平滑滚动期间加闸门:不打扰贴底跟随与顶栏显隐(跳底不隐藏顶栏);
+  // 500ms 后关闸并同步一次按钮显隐。
+  function scrollToBottom() {
+    __programScroll++;
+    __stickBottom = true;
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    setTimeout(function () {
+      if (__programScroll > 0) __programScroll--;
+      syncBottomButton();
+    }, 500);
+  }
+
   // 版本切换条：‹ 当前/总数 ›
   function buildSwipeBar(id, index, count) {
     var bar = document.createElement('div');
@@ -2017,6 +2043,7 @@ function injectBridge(html, id, floorIdx) {
       // 下一帧关闸，容忍这次程序滚动引发的 scroll 事件
       requestAnimationFrame(function () {
         if (__programScroll > 0) __programScroll--;
+        syncBottomButton(); // 闸门吞了滚动事件,显式同步一次按钮显隐
       });
     }
 
@@ -2041,11 +2068,42 @@ function injectBridge(html, id, floorIdx) {
   // 智能滚动跟随：记录用户是否贴在底部
   var __stickBottom = true;
   var __programScroll = 0; // 程序滚动闸门：>0 时忽略 scroll 事件，避免程序滚动把自己判成"离底"
-  window.addEventListener('scroll', function () {
-    if (__programScroll > 0) return; // 程序触发的滚动，不更新 stickBottom
+  // [顶栏] 滚动方向状态机:±8px 迟滞,方向变化(或回到顶部)才上报 → 桥流量≈顶栏切换次数
+  var __lastScrollY = 0;
+  var __lastSentDir = null;
+  var SCROLL_THRESHOLD = 8;
+  // 回底按钮显隐统一入口(用户滚动/程序滚动关闸后都调一次,防闸门吞事件导致状态滞留)
+  function syncBottomButton() {
+    var b = document.getElementById('btn-scroll-bottom');
+    if (!b) return;
     var nearBottom = (window.innerHeight + window.scrollY) >=
         (document.body.scrollHeight - 40);
+    if (nearBottom) b.classList.remove('show');
+    else b.classList.add('show');
+  }
+  window.addEventListener('scroll', function () {
+    var y = window.scrollY || document.documentElement.scrollTop || 0;
+    var lastY = __lastScrollY;
+    __lastScrollY = y; // 程序滚动也校准基准:否则跳层后用户轻滚会拿 stale 值误判方向
+    if (__programScroll > 0) return; // 程序触发的滚动，不更新 stickBottom/按钮/顶栏
+    var nearBottom = (window.innerHeight + y) >=
+        (document.body.scrollHeight - 40);
     __stickBottom = nearBottom; // 只有真·用户滚动才更新
+    // 回到底部按钮显隐：离底显示,贴底隐藏
+    syncBottomButton();
+    // [顶栏] 方向检测:y<=0 强制报 top(顶栏必显),其余按迟滞阈值判方向
+    var dir = null;
+    if (y <= 0) {
+      dir = 'top';
+    } else if (y - lastY > SCROLL_THRESHOLD) {
+      dir = 'down';
+    } else if (lastY - y > SCROLL_THRESHOLD) {
+      dir = 'up';
+    }
+    if (dir && dir !== __lastSentDir) {
+      __lastSentDir = dir;
+      sendToFlutter('scroll', { dir: dir });
+    }
   });
 
   // 流式增量追加：只往这条消息的文本节点末尾加字，不重排整页
@@ -2072,6 +2130,12 @@ function injectBridge(html, id, floorIdx) {
   document.addEventListener('click', function(e) {
     var tgt = e.target;
     if (!tgt || !tgt.closest) return;
+
+    // 回到底部悬浮按钮(document 级委托:按钮 DOM 在本脚本之后才解析,不能就地 getElementById)
+    if (tgt.closest('#btn-scroll-bottom')) {
+      scrollToBottom();
+      return;
+    }
 
     // 气泡图片：点击全屏查看（缩放/关闭在 Flutter 侧）
     var att = tgt.closest('.att-img');
@@ -2112,6 +2176,7 @@ function injectBridge(html, id, floorIdx) {
 
   registerBridgeHandler('setMessages', function(p) { setMessages(p.data, {initial: p.initial, prepend: p.prepend, avatars: p.avatars}); });
   registerBridgeHandler('scrollToFloor', function(p) { scrollToFloor(p.floor); });
+  registerBridgeHandler('scrollToBottom', function() { scrollToBottom(); });
   registerBridgeHandler('setImage', function(p) {
     try {
       var sel = '[data-att-path="' + p.path + '"]';
@@ -2512,6 +2577,8 @@ function injectBridge(html, id, floorIdx) {
 
 </script>
 
+<!-- 回到底部悬浮按钮:离开底部时显示(显隐由 scroll 监听控制) -->
+<button id="btn-scroll-bottom" aria-label="回到底部">↓</button>
 <!-- [P5-9/P1] ST 输入 DOM 锚点:狐神等脚本依赖 #send_textarea/#send_but/#send_form
      进行"写入文本→.click()发送"与 ft-timeline 挂载(找 send_textarea 的父节点)。
      隐藏但真实存在于主文档;点击桥到 Dart sendFromStage → chat_providers.sendMessage。 -->

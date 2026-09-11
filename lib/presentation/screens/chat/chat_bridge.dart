@@ -76,6 +76,7 @@ class BridgeType {
   static const String updateMessage = 'updateMessage';
   static const String removeMessage = 'removeMessage';
   static const String scrollToFloor = 'scrollToFloor'; // 跳转到指定楼层
+  static const String scrollToBottom = 'scrollToBottom'; // 滚到最新消息(JS 侧 handler,亦供回底按钮备用)
   static const String setImage = 'setImage'; // 单独推送图片base64，避免撑爆setMessages
   static const String setGenerating = 'setGenerating'; // 插入"生成中"占位(请求比例)
   static const String clearGenerating = 'clearGenerating'; // 移除"生成中"占位
