@@ -1781,8 +1781,9 @@ function injectBridge(html, id, floorIdx) {
       // initial: 初始渲染，清空root
       if (options && options.initial) {
         // [锚点] 重建前记录视口中心所在楼层(仅用户已离开底部时),渲染+补发完成后恢复
+        // [加固A1] 已有pending锚点时不覆盖:连环重渲染沿用最初锚点,防位置漂移
         try {
-          if (!__stickBottom) {
+          if (!__stickBottom && __scrollAnchor === null) {
             var _midY = window.scrollY + window.innerHeight / 2;
             var _floorMsgs = document.querySelectorAll('.msg[data-floor]');
             for (var _fi2 = 0; _fi2 < _floorMsgs.length; _fi2++) {
@@ -2054,7 +2055,7 @@ function injectBridge(html, id, floorIdx) {
 
     // 立即滚到当前底部
     function snapBottom() {
-      if (!__stickBottom) return; // 用户翻历史时不打扰
+      if (!__stickBottom || __scrollAnchor !== null) return; // 用户翻历史时不打扰;锚点待恢复期间不拽底(加固A2)
       __programScroll++; // 开闸：标记接下来是程序触发的滚动
       var last = root.lastElementChild;
       if (last) {
@@ -2169,7 +2170,7 @@ function injectBridge(html, id, floorIdx) {
       wrap.appendChild(stream);
     }
     stream.textContent += token;
-    if (__stickBottom) window.scrollTo(0, document.body.scrollHeight);
+    if (__stickBottom && __scrollAnchor === null) window.scrollTo(0, document.body.scrollHeight); // [加固A3] 锚点待恢复期间不拽底
   }
   registerBridgeHandler('appendToken', function (p) {
     appendToken(p.id, p.token);
