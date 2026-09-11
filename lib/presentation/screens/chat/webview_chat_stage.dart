@@ -573,6 +573,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   bool _keyboardVisible = false;
   bool _funcPanelOpen = false;
   bool _topBarVisible = true; // [顶栏] 滚动隐藏/显示,方向判定在 JS 侧,这里只收结果
+  int _pushEpoch = 0; // [RC3] 推送代际计数器:新一次 _pushMessages 使在途的历史补发循环作废
 
    @override
   void initState() {
@@ -676,11 +677,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     } catch (e) {
       debugPrint('[WV-6] 自愈 loadData 失败: $e');
     }
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) {
-        _pushMessages();
-      }
-    });
+    // [RC3] 不再 delayed 补发 _pushMessages:loadData 成功必触发 onLoadStop,
+    // 那里已 await _pushMessages;这里再补一发会形成双跑,两个历史补发循环
+    // 交错 insertBefore → 楼层重复/乱序(消息丢失bug根因之一)。
   }
 
   @override
@@ -4336,10 +4335,20 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
     // 降级：逐条 encode 逐条发
     var anySent = false;
+    var firstSent = false;
     for (final m in list) {
       try {
         final b64 = base64Encode(utf8.encode(jsonEncode([m])));
-        _bridge.send(BridgeType.setMessages, {'data': b64, ...extra()});
+        // [RC4] 只有第一条携带 initial/avatars:若逐条都带 initial,JS 每收一条就
+        // root.innerHTML='' 清一次屏,降级跑完只剩最后一条。prepend 必须逐条保留
+        // (每条都要头插,批内反转补偿才成立)。
+        final flags = <String, dynamic>{
+          if (prepend) 'prepend': true,
+          if (initial && !firstSent) 'initial': true,
+          if (avatars != null && !firstSent) 'avatars': avatars!,
+        };
+        _bridge.send(BridgeType.setMessages, {'data': b64, ...flags});
+        firstSent = true;
         anySent = true;
       } catch (e2) {
         print('[WV-8] ITEM-ENCODE-FAIL id=${m['id']} err=$e2');
@@ -4424,7 +4433,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   }
 
   Future<void> _pushMessages() async {
-    debugPrint('[图片诊断] _pushMessages 开始执行');
+    // [RC3] 代际递增:本次推送期间若又发生新推送,旧的补发循环按 epoch 作废
+    _pushEpoch++;
+    final epoch = _pushEpoch;
+    debugPrint('[图片诊断] _pushMessages 开始执行 epoch=$epoch');
     final chatState = ref.read(activeChatProvider);
     final character = chatState.character;
     var persona = await ref.read(activePersonaProvider.future)
@@ -4469,6 +4481,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     } catch (e) {
       debugPrint('[卡点] 头像转换 超时/出错: $e');
     }
+    // [RC3] 序列化/头像期间可能已有更新的推送启动:过时的本轮直接让位,防双份 initial 清屏
+    if (epoch != _pushEpoch) {
+      debugPrint('[PUSH] epoch=$epoch 已过时(当前=$_pushEpoch),放弃本轮推送');
+      return;
+    }
     await _sendEncodedMessages(initialList, initial: true, avatars: {
       'char': charUri,
       'user': userUri,
@@ -4480,12 +4497,20 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (startIndex > 0) {
       Future.delayed(const Duration(milliseconds: 100), () async {
         const int historyBatchSize = 20;
-        for (var start = startIndex - historyBatchSize;
-            start >= 0;
-            start -= historyBatchSize) {
-          final end = start + historyBatchSize;
+        // [RC1] 游标法覆盖 [0, startIndex) 全部楼层:原 for(start=startIndex-20; start>=0; start-=20)
+        // 在 (total-30)%20≠0 时(如100条→startIndex=70)会漏掉最早的 (total-30)%20 条(floor 1-10),
+        // 造成"顶部楼层永久缺失、滑上去消息消失"。
+        var cursor = startIndex;
+        while (cursor > 0) {
+          // [RC3] 每批前检查代际:期间发生过新渲染,本循环立即作废(新推送自己会补发历史)
+          if (epoch != _pushEpoch) {
+            debugPrint('[PUSH] epoch=$epoch 补发作废(当前=$_pushEpoch),已补到index=$cursor');
+            return;
+          }
+          var batchStart = cursor - historyBatchSize;
+          if (batchStart < 0) batchStart = 0;
           final batch = <Map<String, dynamic>>[];
-          for (var i = start; i < end && i < startIndex; i++) {
+          for (var i = batchStart; i < cursor; i++) {
             batch.add(_safeSerializeMessage(messages[i], i, lastAiIndex, character, scripts));
           }
           if (batch.isNotEmpty) {
@@ -4496,6 +4521,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             await _sendEncodedMessages(batch.reversed.toList(), prepend: true);
             await Future.delayed(const Duration(milliseconds: 16));
           }
+          cursor = batchStart;
         }
       });
     }
