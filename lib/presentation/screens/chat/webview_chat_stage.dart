@@ -1385,10 +1385,26 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   /// [P6-BUG-1] 同文案 5 秒去重:脚本房/引擎房重复初始化或循环调用时不再连环弹。
   static final Map<String, DateTime> _toastLastShown = {};
 
+  /// [降噪] MVU 框架生命周期提示:每次会话初始化必弹,纯调试信息,降级为日志不弹 SnackBar
+  /// (toastr 标题 '[MVU]...' 在桥接层被丢弃,故按正文片段匹配)
+  static const List<String> _mvuNoiseSnippets = [
+    '需要开场白才能初始化变量',
+    '世界书初始化变量被加载',
+    '变量初始化失败',
+    '不存在任何一条消息',
+  ];
+
   Future<dynamic> _handleToast(Map<String, dynamic> payload) async {
     final level = payload['level']?.toString() ?? 'info';
     final message = payload['message']?.toString() ?? '';
     if (message.isEmpty || !mounted) return {'ok': true};
+    // [降噪] MVU 初始化生命周期提示 → 只进调试日志
+    for (final noise in _mvuNoiseSnippets) {
+      if (message.contains(noise)) {
+        DebugLogService().log('[MVU][$level] $message', level: 'INFO', source: 'MVU提示');
+        return {'ok': true, 'muted': true};
+      }
+    }
     final last = _toastLastShown[message];
     if (last != null && DateTime.now().difference(last) < const Duration(seconds: 5)) {
       KiraLogger().info('卡片toast', '[$level] 去重跳过: $message');
@@ -4117,8 +4133,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     // 旧 [WV-2] 的 afterRegex 打的是剥壳之后的值(afterRegex==afterUnwrap 恒成立)，等于没有观测。
     final afterRegexPrePeel = rawContent.length;
     final codeBlockMatch = RegExp(
-      r'^```[a-zA-Z]*\n([\s\S]*?)```\s*$',
+      // [MD修复] 仅剥 ```html 围栏。原 [a-zA-Z]* 匹配任意语言:整条消息是单个
+      // ```markdown/```text 围栏时(如AI讲解"脚本是什么"的全文)围栏被剥,
+      // 内容里出现 <style/<script 等字样就会被 isRichHtml 判成 HTML 卡片塞进
+      // iframe → 透明背景+黑字+空白折叠+markdown不渲染(排版全毁)。
+      // 非 html 围栏应保留 → markdown 库渲染成 <pre><code> 代码块。
+      r'^```html\s*\n([\s\S]*?)```\s*$',
       multiLine: false,
+      caseSensitive: false,
     ).firstMatch(rawContent.trim());
     // [P3-K1-3] 剥壳收窄:仅当全消息 ```html 围栏数 ≤1 时才剥。
     // 多围栏消息剥壳会破坏 segs 配对(P3-H §2 实测);单围栏消息剥与不剥,
@@ -4627,6 +4649,9 @@ class _EditMessagePageState extends State<_EditMessagePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // [键盘] 固定布局:键盘 inset 逐帧变化不再重排 expands 字段,
+      // 长按选择/复制工具栏不会被弹起的键盘打断(键盘鬼畜根因)
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('编辑消息'),
         leading: IconButton(
@@ -4640,8 +4665,14 @@ class _EditMessagePageState extends State<_EditMessagePage> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: AnimatedPadding(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: TextField(
           controller: _controller,
           maxLines: null,

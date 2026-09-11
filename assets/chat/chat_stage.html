@@ -108,10 +108,13 @@ if (!String.prototype.at) {
   .dialog-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.6);
     z-index: 10000; display: flex; align-items: center; justify-content: center;
+    /* [顶栏空隙] WebView 不含 Flutter 顶栏(上)且底部被输入栏浮层盖住(下),
+       内容居中需在可视带内:上方避开顶栏高度,下方避开输入栏 */
+    padding: 44px 12px 78px;
     opacity: 0; transition: opacity .18s ease;
   }
   .dialog-overlay.show { opacity: 1; }
-  .dialog-overlay.sheet { align-items: flex-end; }
+  .dialog-overlay.sheet { align-items: flex-end; padding: 44px 0 0; }
   .dialog-box {
     background: #1B1E26; border: 1px solid rgba(255,255,255,0.1);
     border-radius: 12px; padding: 20px; min-width: 260px; max-width: 82vw;
@@ -679,7 +682,9 @@ function injectBridge(html, id, floorIdx) {
       'if(document.readyState==="complete"){_arm();}else{window.addEventListener("load",_arm);}' +
       '})();<\/script>';
   var patch = _guardErr + _libScript + _guardEnv + '<style>' +
-      'html,body{overflow:visible !important;}' +
+      // [MD修复] 默认前景色:半成品HTML文档(无自带样式)不再黑字透明不可读;
+      // 卡片自带样式在 <head> 之后,同特异性下按级联顺序覆盖此默认值
+      'html,body{overflow:visible !important;color:#E0E0E0;}' +
       '</style>' +
       '<script>(function(){' +
       'var _s={};try{localStorage.getItem("__t");}catch(e){' +
@@ -1835,11 +1840,22 @@ function injectBridge(html, id, floorIdx) {
           if (!__stickBottom && __scrollAnchor === null) {
             var _midY = window.scrollY + window.innerHeight / 2;
             var _floorMsgs = document.querySelectorAll('.msg[data-floor]');
+            // [加固] 优先取"视口中点落在其内部"的那条消息:恢复 block:center 回到同一条,
+            // 编辑导致消息高度变化时漂移最小;取不到再退回"中点下方第一条"
             for (var _fi2 = 0; _fi2 < _floorMsgs.length; _fi2++) {
-              var _mTop = _floorMsgs[_fi2].getBoundingClientRect().top + window.scrollY;
-              if (_mTop > _midY) {
+              var _r2 = _floorMsgs[_fi2].getBoundingClientRect();
+              if ((_r2.top + window.scrollY) <= _midY && (_r2.bottom + window.scrollY) > _midY) {
                 __scrollAnchor = parseInt(_floorMsgs[_fi2].getAttribute('data-floor'), 10);
                 break;
+              }
+            }
+            if (__scrollAnchor === null) {
+              for (var _fi3 = 0; _fi3 < _floorMsgs.length; _fi3++) {
+                var _mTop = _floorMsgs[_fi3].getBoundingClientRect().top + window.scrollY;
+                if (_mTop > _midY) {
+                  __scrollAnchor = parseInt(_floorMsgs[_fi3].getAttribute('data-floor'), 10);
+                  break;
+                }
               }
             }
             if (__scrollAnchor === null && _floorMsgs.length > 0) {
