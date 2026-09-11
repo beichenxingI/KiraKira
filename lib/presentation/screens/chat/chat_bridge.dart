@@ -77,6 +77,7 @@ class BridgeType {
   static const String removeMessage = 'removeMessage';
   static const String scrollToFloor = 'scrollToFloor'; // 跳转到指定楼层
   static const String scrollToBottom = 'scrollToBottom'; // 滚到最新消息(JS 侧 handler,亦供回底按钮备用)
+  static const String keyboardInsets = 'keyboardInsets'; // 键盘显隐推送:JS 给 body 加/撤底部padding,让被键盘遮住的最新消息可滚出
   static const String setImage = 'setImage'; // 单独推送图片base64，避免撑爆setMessages
   static const String setGenerating = 'setGenerating'; // 插入"生成中"占位(请求比例)
   static const String clearGenerating = 'clearGenerating'; // 移除"生成中"占位

@@ -2226,6 +2226,22 @@ function injectBridge(html, id, floorIdx) {
   registerBridgeHandler('setMessages', function(p) { setMessages(p.data, {initial: p.initial, prepend: p.prepend, avatars: p.avatars}); });
   registerBridgeHandler('scrollToFloor', function(p) { scrollToFloor(p.floor); });
   registerBridgeHandler('scrollToBottom', function() { scrollToBottom(); });
+  // [键盘] 键盘显隐:body 底部 padding 补偿(WebView 几何恒定,不加 padding 时
+  // 贴底用户的最新消息落在键盘后方且已到滚动上限,永远滚不出来)
+  registerBridgeHandler('keyboardInsets', function (p) {
+    var kb = (p && p.visible) ? (p.height || 0) : 0;
+    document.body.style.paddingBottom = kb > 0 ? kb + 'px' : '';
+    try { sendToFlutter('log', { text: '[键盘] visible=' + (p && p.visible) + ' height=' + kb }); } catch (_ke0) {}
+    if (kb > 0 && __stickBottom) {
+      // 贴底用户:补滚一次让最新消息露出键盘上沿
+      __programScroll++;
+      window.scrollTo(0, document.body.scrollHeight);
+      requestAnimationFrame(function () {
+        if (__programScroll > 0) __programScroll--;
+        syncBottomButton();
+      });
+    }
+  });
   registerBridgeHandler('setImage', function(p) {
     try {
       var sel = '[data-att-path="' + p.path + '"]';

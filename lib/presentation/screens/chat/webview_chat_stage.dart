@@ -646,6 +646,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     if (visible && bottom > _keyboardHeight) _keyboardHeight = bottom; // 缓存键盘高度
     if (visible != _keyboardVisible) {
       setState(() => _keyboardVisible = visible); // 仅在显↔隐跳变时重建一次
+      // [键盘] 推送键盘状态给 WebView:body 底部 padding 补偿,否则贴底时
+      // 最新消息落在键盘后方且已在滚动上限,永远滚不出来
+      _bridge.send(BridgeType.keyboardInsets, {
+        'visible': visible,
+        'height': visible ? _keyboardHeight : 0,
+      });
     }
   }
 
