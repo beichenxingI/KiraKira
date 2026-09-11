@@ -1679,7 +1679,8 @@ function injectBridge(html, id, floorIdx) {
         }
       });
     }, {
-      rootMargin: '100% 0px 100% 0px',
+      // [Part6] 200%:屏外2倍viewport才卸载(原100%),快速滚动时卡片闪白更少
+      rootMargin: '200% 0px 200% 0px',
       threshold: 0
     });
 
@@ -1779,6 +1780,24 @@ function injectBridge(html, id, floorIdx) {
       } catch (_mfmE) {}
       // initial: 初始渲染，清空root
       if (options && options.initial) {
+        // [锚点] 重建前记录视口中心所在楼层(仅用户已离开底部时),渲染+补发完成后恢复
+        try {
+          if (!__stickBottom) {
+            var _midY = window.scrollY + window.innerHeight / 2;
+            var _floorMsgs = document.querySelectorAll('.msg[data-floor]');
+            for (var _fi2 = 0; _fi2 < _floorMsgs.length; _fi2++) {
+              var _mTop = _floorMsgs[_fi2].getBoundingClientRect().top + window.scrollY;
+              if (_mTop > _midY) {
+                __scrollAnchor = parseInt(_floorMsgs[_fi2].getAttribute('data-floor'), 10);
+                break;
+              }
+            }
+            if (__scrollAnchor === null && _floorMsgs.length > 0) {
+              __scrollAnchor = parseInt(_floorMsgs[0].getAttribute('data-floor'), 10);
+            }
+            try { sendToFlutter('log', { text: '[锚点] 记录 floor=' + __scrollAnchor + ' scrollY=' + window.scrollY }); } catch (_ae0) {}
+          }
+        } catch (_anchorE) {}
         root.innerHTML = '';
       }
 
@@ -1953,6 +1972,9 @@ function injectBridge(html, id, floorIdx) {
         sendToFlutter('log', { text: '[WV-4] dupIds=' + _dup + ' globalsDelta=' + (Object.keys(window).length - (window.__wvBaseGlobals || 0)) });
       } catch (_wv4e) {}
 
+      // [锚点] 每轮渲染后尝试恢复阅读位置:initial 清屏后锚点楼层可能尚未补发回来,
+      // tryRestoreAnchor 找不到就继续等(用户手势才取消);prepend/append 模式下幂等无害。
+      requestAnimationFrame(tryRestoreAnchor);
       if (options && !options.prepend) {
         scrollToBottomWhenStable();
       }
@@ -2105,6 +2127,32 @@ function injectBridge(html, id, floorIdx) {
       sendToFlutter('scroll', { dir: dir });
     }
   });
+
+  // ── [锚点] 全量重建的阅读位置恢复(消息丢失/窗口乱跳修复 Part 5) ──────────────
+  // 问题:后台重渲染(生成结束/MVU写回/卡片脚本)只回填最近30条,用户读在历史区时
+  // 正读的楼层被整段拆走 + 视口被钳到底部。方案:重建前记录视口中心楼层,
+  // 渲染+补发完成后滚回原位。
+  var __scrollAnchor = null;
+  // 锚点只被"真实用户手势"取消:清屏引发的 scrollY 钳制同样走 scroll 事件,
+  // 不能拿 scroll 判用户意图,否则锚点刚记录就被冲掉。
+  ['wheel', 'touchstart', 'keydown'].forEach(function (evt) {
+    window.addEventListener(evt, function () { __scrollAnchor = null; }, { passive: true });
+  });
+  function tryRestoreAnchor() {
+    if (__scrollAnchor === null) return;
+    var el = document.querySelector('[data-floor="' + __scrollAnchor + '"]');
+    if (!el) return; // 锚点楼层还没补发回来,继续等(setMessages 每轮都会再调)
+    var f = __scrollAnchor;
+    __scrollAnchor = null;
+    __programScroll++; // 恢复滚动不污染贴底判定/回底按钮/顶栏方向
+    el.scrollIntoView({ block: 'center', behavior: 'instant' });
+    __stickBottom = false; // 落点在历史区:关闭贴底跟随,防流式 appendToken/延时 snapBottom 拽底
+    requestAnimationFrame(function () {
+      if (__programScroll > 0) __programScroll--;
+      syncBottomButton();
+    });
+    try { sendToFlutter('log', { text: '[锚点] 恢复 floor=' + f }); } catch (_ae1) {}
+  }
 
   // 流式增量追加：只往这条消息的文本节点末尾加字，不重排整页
   function appendToken(id, token) {
