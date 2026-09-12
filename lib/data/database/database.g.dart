@@ -1062,6 +1062,16 @@ class $ChatsTable extends Chats with TableInfo<$ChatsTable, Chat> {
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("author_note_enabled" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _hasUserMessageMeta =
+      const VerificationMeta('hasUserMessage');
+  @override
+  late final GeneratedColumn<bool> hasUserMessage = GeneratedColumn<bool>(
+      'has_user_message', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("has_user_message" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -1084,6 +1094,7 @@ class $ChatsTable extends Chats with TableInfo<$ChatsTable, Chat> {
         authorNote,
         authorNoteDepth,
         authorNoteEnabled,
+        hasUserMessage,
         createdAt,
         updatedAt
       ];
@@ -1142,6 +1153,12 @@ class $ChatsTable extends Chats with TableInfo<$ChatsTable, Chat> {
           authorNoteEnabled.isAcceptableOrUnknown(
               data['author_note_enabled']!, _authorNoteEnabledMeta));
     }
+    if (data.containsKey('has_user_message')) {
+      context.handle(
+          _hasUserMessageMeta,
+          hasUserMessage.isAcceptableOrUnknown(
+              data['has_user_message']!, _hasUserMessageMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -1179,6 +1196,8 @@ class $ChatsTable extends Chats with TableInfo<$ChatsTable, Chat> {
           .read(DriftSqlType.int, data['${effectivePrefix}author_note_depth'])!,
       authorNoteEnabled: attachedDatabase.typeMapping.read(
           DriftSqlType.bool, data['${effectivePrefix}author_note_enabled'])!,
+      hasUserMessage: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}has_user_message'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -1201,6 +1220,11 @@ class Chat extends DataClass implements Insertable<Chat> {
   final String authorNote;
   final int authorNoteDepth;
   final bool authorNoteEnabled;
+
+  /// [空会话] 用户是否发过消息:一旦置位永不回退。
+  /// 退出聊天页时无标记 → 级联丢弃;启动清扫无标记遗留。
+  /// 用持久标记而非实时数 messages(user) 是为了覆盖"发了又删"的边界(发过就算)。
+  final bool hasUserMessage;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Chat(
@@ -1212,6 +1236,7 @@ class Chat extends DataClass implements Insertable<Chat> {
       required this.authorNote,
       required this.authorNoteDepth,
       required this.authorNoteEnabled,
+      required this.hasUserMessage,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -1227,6 +1252,7 @@ class Chat extends DataClass implements Insertable<Chat> {
     map['author_note'] = Variable<String>(authorNote);
     map['author_note_depth'] = Variable<int>(authorNoteDepth);
     map['author_note_enabled'] = Variable<bool>(authorNoteEnabled);
+    map['has_user_message'] = Variable<bool>(hasUserMessage);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -1244,6 +1270,7 @@ class Chat extends DataClass implements Insertable<Chat> {
       authorNote: Value(authorNote),
       authorNoteDepth: Value(authorNoteDepth),
       authorNoteEnabled: Value(authorNoteEnabled),
+      hasUserMessage: Value(hasUserMessage),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1261,6 +1288,7 @@ class Chat extends DataClass implements Insertable<Chat> {
       authorNote: serializer.fromJson<String>(json['authorNote']),
       authorNoteDepth: serializer.fromJson<int>(json['authorNoteDepth']),
       authorNoteEnabled: serializer.fromJson<bool>(json['authorNoteEnabled']),
+      hasUserMessage: serializer.fromJson<bool>(json['hasUserMessage']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -1277,6 +1305,7 @@ class Chat extends DataClass implements Insertable<Chat> {
       'authorNote': serializer.toJson<String>(authorNote),
       'authorNoteDepth': serializer.toJson<int>(authorNoteDepth),
       'authorNoteEnabled': serializer.toJson<bool>(authorNoteEnabled),
+      'hasUserMessage': serializer.toJson<bool>(hasUserMessage),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -1291,6 +1320,7 @@ class Chat extends DataClass implements Insertable<Chat> {
           String? authorNote,
           int? authorNoteDepth,
           bool? authorNoteEnabled,
+          bool? hasUserMessage,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       Chat(
@@ -1302,6 +1332,7 @@ class Chat extends DataClass implements Insertable<Chat> {
         authorNote: authorNote ?? this.authorNote,
         authorNoteDepth: authorNoteDepth ?? this.authorNoteDepth,
         authorNoteEnabled: authorNoteEnabled ?? this.authorNoteEnabled,
+        hasUserMessage: hasUserMessage ?? this.hasUserMessage,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -1323,6 +1354,9 @@ class Chat extends DataClass implements Insertable<Chat> {
       authorNoteEnabled: data.authorNoteEnabled.present
           ? data.authorNoteEnabled.value
           : this.authorNoteEnabled,
+      hasUserMessage: data.hasUserMessage.present
+          ? data.hasUserMessage.value
+          : this.hasUserMessage,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1339,6 +1373,7 @@ class Chat extends DataClass implements Insertable<Chat> {
           ..write('authorNote: $authorNote, ')
           ..write('authorNoteDepth: $authorNoteDepth, ')
           ..write('authorNoteEnabled: $authorNoteEnabled, ')
+          ..write('hasUserMessage: $hasUserMessage, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1346,8 +1381,18 @@ class Chat extends DataClass implements Insertable<Chat> {
   }
 
   @override
-  int get hashCode => Object.hash(id, characterId, groupId, title, settingsJson,
-      authorNote, authorNoteDepth, authorNoteEnabled, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      characterId,
+      groupId,
+      title,
+      settingsJson,
+      authorNote,
+      authorNoteDepth,
+      authorNoteEnabled,
+      hasUserMessage,
+      createdAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1360,6 +1405,7 @@ class Chat extends DataClass implements Insertable<Chat> {
           other.authorNote == this.authorNote &&
           other.authorNoteDepth == this.authorNoteDepth &&
           other.authorNoteEnabled == this.authorNoteEnabled &&
+          other.hasUserMessage == this.hasUserMessage &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1373,6 +1419,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
   final Value<String> authorNote;
   final Value<int> authorNoteDepth;
   final Value<bool> authorNoteEnabled;
+  final Value<bool> hasUserMessage;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -1385,6 +1432,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
     this.authorNote = const Value.absent(),
     this.authorNoteDepth = const Value.absent(),
     this.authorNoteEnabled = const Value.absent(),
+    this.hasUserMessage = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1398,6 +1446,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
     this.authorNote = const Value.absent(),
     this.authorNoteDepth = const Value.absent(),
     this.authorNoteEnabled = const Value.absent(),
+    this.hasUserMessage = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -1414,6 +1463,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
     Expression<String>? authorNote,
     Expression<int>? authorNoteDepth,
     Expression<bool>? authorNoteEnabled,
+    Expression<bool>? hasUserMessage,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -1427,6 +1477,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
       if (authorNote != null) 'author_note': authorNote,
       if (authorNoteDepth != null) 'author_note_depth': authorNoteDepth,
       if (authorNoteEnabled != null) 'author_note_enabled': authorNoteEnabled,
+      if (hasUserMessage != null) 'has_user_message': hasUserMessage,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -1442,6 +1493,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
       Value<String>? authorNote,
       Value<int>? authorNoteDepth,
       Value<bool>? authorNoteEnabled,
+      Value<bool>? hasUserMessage,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
@@ -1454,6 +1506,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
       authorNote: authorNote ?? this.authorNote,
       authorNoteDepth: authorNoteDepth ?? this.authorNoteDepth,
       authorNoteEnabled: authorNoteEnabled ?? this.authorNoteEnabled,
+      hasUserMessage: hasUserMessage ?? this.hasUserMessage,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -1487,6 +1540,9 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
     if (authorNoteEnabled.present) {
       map['author_note_enabled'] = Variable<bool>(authorNoteEnabled.value);
     }
+    if (hasUserMessage.present) {
+      map['has_user_message'] = Variable<bool>(hasUserMessage.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1510,6 +1566,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
           ..write('authorNote: $authorNote, ')
           ..write('authorNoteDepth: $authorNoteDepth, ')
           ..write('authorNoteEnabled: $authorNoteEnabled, ')
+          ..write('hasUserMessage: $hasUserMessage, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -7882,6 +7939,7 @@ typedef $$ChatsTableCreateCompanionBuilder = ChatsCompanion Function({
   Value<String> authorNote,
   Value<int> authorNoteDepth,
   Value<bool> authorNoteEnabled,
+  Value<bool> hasUserMessage,
   required DateTime createdAt,
   required DateTime updatedAt,
   Value<int> rowid,
@@ -7895,6 +7953,7 @@ typedef $$ChatsTableUpdateCompanionBuilder = ChatsCompanion Function({
   Value<String> authorNote,
   Value<int> authorNoteDepth,
   Value<bool> authorNoteEnabled,
+  Value<bool> hasUserMessage,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> rowid,
@@ -7977,6 +8036,10 @@ class $$ChatsTableFilterComposer extends Composer<_$AppDatabase, $ChatsTable> {
 
   ColumnFilters<bool> get authorNoteEnabled => $composableBuilder(
       column: $table.authorNoteEnabled,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get hasUserMessage => $composableBuilder(
+      column: $table.hasUserMessage,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
@@ -8081,6 +8144,10 @@ class $$ChatsTableOrderingComposer
       column: $table.authorNoteEnabled,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get hasUserMessage => $composableBuilder(
+      column: $table.hasUserMessage,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -8137,6 +8204,9 @@ class $$ChatsTableAnnotationComposer
 
   GeneratedColumn<bool> get authorNoteEnabled => $composableBuilder(
       column: $table.authorNoteEnabled, builder: (column) => column);
+
+  GeneratedColumn<bool> get hasUserMessage => $composableBuilder(
+      column: $table.hasUserMessage, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -8239,6 +8309,7 @@ class $$ChatsTableTableManager extends RootTableManager<
             Value<String> authorNote = const Value.absent(),
             Value<int> authorNoteDepth = const Value.absent(),
             Value<bool> authorNoteEnabled = const Value.absent(),
+            Value<bool> hasUserMessage = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -8252,6 +8323,7 @@ class $$ChatsTableTableManager extends RootTableManager<
             authorNote: authorNote,
             authorNoteDepth: authorNoteDepth,
             authorNoteEnabled: authorNoteEnabled,
+            hasUserMessage: hasUserMessage,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -8265,6 +8337,7 @@ class $$ChatsTableTableManager extends RootTableManager<
             Value<String> authorNote = const Value.absent(),
             Value<int> authorNoteDepth = const Value.absent(),
             Value<bool> authorNoteEnabled = const Value.absent(),
+            Value<bool> hasUserMessage = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -8278,6 +8351,7 @@ class $$ChatsTableTableManager extends RootTableManager<
             authorNote: authorNote,
             authorNoteDepth: authorNoteDepth,
             authorNoteEnabled: authorNoteEnabled,
+            hasUserMessage: hasUserMessage,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,

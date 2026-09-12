@@ -94,6 +94,34 @@ class _PromptSectionEditScreenState
     });
   }
 
+  /// [删除] 仅自定义提示词可删(内置段落只能开关)。破坏性操作 → CupertinoAlertDialog 确认。
+  void _deleteCustomSection() {
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogCtx) => CupertinoAlertDialog(
+        title: const Text('删除提示词'),
+        content: Text('确定删除「${_section.name}」吗?此操作无法恢复。'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(AppLocalizations.of(context).cancel),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              ref
+                  .read(promptManagerProvider.notifier)
+                  .deleteCustomSectionByIndex(widget.index);
+              Navigator.pop(dialogCtx); // 关弹窗
+              Navigator.pop(context); // 返回管理页
+            },
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -226,6 +254,22 @@ class _PromptSectionEditScreenState
                     icon: CupertinoIcons.arrow_counterclockwise,
                     title: '重置为默认',
                     onTap: _resetToDefault,
+                    trailing: const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            ),
+
+          // 自定义段落:删除(内置段落不提供,只能开关)
+          if (_section.isCustom)
+            SliverToBoxAdapter(
+              child: KiraSection(
+                title: '',
+                children: [
+                  KiraGroupedTile(
+                    icon: CupertinoIcons.delete,
+                    title: '删除此提示词',
+                    onTap: _deleteCustomSection,
                     trailing: const SizedBox.shrink(),
                   ),
                 ],

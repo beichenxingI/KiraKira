@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:kirakira/presentation/screens/chat/tavern_helper_facade.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
+import 'package:kirakira/data/repositories/chat_repository.dart';
 import 'package:kirakira/presentation/providers/ai_preset_providers.dart';
 import 'package:kirakira/data/models/ai_preset.dart';
 import 'package:kirakira/presentation/providers/regex_providers.dart';
@@ -32,7 +33,6 @@ import '../../providers/quote_color_providers.dart';
 import 'package:kirakira/presentation/providers/llm_configs_provider.dart';
 import 'dart:io';
 import 'package:kirakira/data/models/character.dart';
-import 'package:kirakira/data/database/database.dart' as db;
 import 'package:kirakira/data/models/prompt_manager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kirakira/presentation/widgets/chat/chat_background_widget.dart';
@@ -121,6 +121,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   static const String _kWebViewBaseUrl = 'https://localhost/';
   bool _webViewMounted = false; // 延迟挂载:入场后才创建WebView,避免动画期被重活饿死
   final TextEditingController _inputController = TextEditingController();
+  // [发送] 有无待发文字:驱动发送按钮 enabled/disabled 样式(有字亮色/无字灰)
+  final ValueNotifier<bool> _hasInput = ValueNotifier(false);
   final ImagePicker _imagePicker = ImagePicker();
   final List<ChatAttachment> _pendingAttachments = [];
   // 气泡头像 data URI 缓存：角色/用户各一份，只算一次
@@ -605,6 +607,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     );
     WidgetsBinding.instance.addObserver(this);
     _maskController.value = 1.0;
+    _inputController.addListener(_syncHasInput);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       await _loadChatStageAssets();
@@ -668,13 +671,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   }
 
   /// [顶栏] 把顶栏占位推给 JS:WebView 全出血,消息起始位置 = body padding-top。
-  /// 顶栏显示 → 让出 32+状态栏;收起 → 只留状态栏,那 32px 归消息区。
+  /// 顶栏显示 → 让出 44+状态栏;收起 → 只留状态栏,那 44px 归消息区。
   void _sendTopBarInsets() {
     if (!mounted) return;
-    final status = MediaQuery.of(context).padding.top;
+    final status = MediaQuery.viewPaddingOf(context).top;
     _bridge.send(BridgeType.topBarInsets, {
       'visible': _topBarVisible,
-      'barHeight': _topBarVisible ? 32.0 : 0.0,
+      'barHeight': _topBarVisible ? 44.0 : 0.0,
       'statusHeight': status,
     });
   }
@@ -727,6 +730,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     WidgetsBinding.instance.removeObserver(this);
     _maskController.dispose();
     _inputController.dispose();
+    _hasInput.dispose();
     _inputFocus.dispose();
     _pmSub?.close();
     _charSub?.close();
@@ -917,7 +921,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     });
 
     final character = ref.watch(activeChatProvider.select((s) => s.character));
-    final activeLlmConfig = ref.watch(llmConfigsProvider).active;
+    // [顶栏模型名] watch 生效配置 llmConfigProvider.model(而非 llmConfigsProvider):
+    // 切模型(updateModel)只写前者+直写DB,不刷新后者的内存列表 → watch 错源会不更新。
+    // 切方案(setActive→applyActiveMultiConfig)同样落 llmConfigProvider,两条路径都实时。
+    final activeModel = ref.watch(llmConfigProvider.select((s) => s.model));
     final isGenerating = ref.watch(
       activeChatProvider.select((s) => s.isGenerating),
     );
@@ -925,14 +932,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        await _controller?.pause();
-        // 遮罩瞬间盖满(不用 forward 淡入——半透明×WebView 合成会卡)
-        _maskController.value = 1.0;
-        // 先把 WebView 从树上卸载,消除 pop 切页时的残影闪烁
-        if (mounted) setState(() => _webViewMounted = false);
-        // 等一帧,确保 WebView 真正移除、遮罩已盖稳
-        await Future.delayed(const Duration(milliseconds: 32));
-        if (mounted) context.pop();
+        await _exitChat();
       },
       child: Stack(
       children: [
@@ -942,7 +942,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       extendBodyBehindAppBar: true,
       appBar: _SlidingAppBar(
         visible: _topBarVisible,
-        child: _buildGlassAppBar(character, activeLlmConfig),
+        child: _buildGlassAppBar(character, activeModel),
       ),
       body: Stack(
         fit: StackFit.expand,
@@ -963,7 +963,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     top: 0,
                     // 底部留出输入栏基础高度：让最后一条消息的工具栏/楼层露在输入栏上方，
                     // 不被浮层遮住。固定值（不含面板/附件），避免动态变化触发 WebView resize。
-                    bottom: 64 + MediaQuery.of(context).padding.bottom,
+                    bottom: 64 + MediaQuery.viewPaddingOf(context).bottom,
                   ),
                   child: _webViewMounted
                       ? InAppWebView(
@@ -1261,7 +1261,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
             curve: Curves.easeOutCubic,
             top: _topBarVisible
                 ? 0
-                : -(32 + MediaQuery.of(context).padding.top),
+                : -(44 + MediaQuery.viewPaddingOf(context).top),
             left: 0,
             right: 0,
             child: ClipRRect(
@@ -1269,7 +1269,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                 bottom: Radius.circular(20),
               ),
               child: Container(
-                height: 32 + MediaQuery.of(context).padding.top, // [顶栏] 48→32
+                height: 44 + MediaQuery.viewPaddingOf(context).top, // [顶栏] 双行标题 32→44
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.82),
                   borderRadius: const BorderRadius.vertical(
@@ -3218,15 +3218,25 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   }
   /// 深色磨砂玻璃顶栏：矮、半透明、通透
   PreferredSizeWidget _buildGlassAppBar(
-      Character? character, dynamic activeLlmConfig) {
+      Character? character, String? activeModel) {
     return AppBar(
-      toolbarHeight: 32, // [顶栏] 48→32:缩小1/3
+      // [顶栏] 44:双行标题(角色名+模型名);同高度需同步:
+      // bridge barHeight / 毛玻璃层 AnimatedPositioned / __KIRA_TOP_INSET__ 烘入
+      toolbarHeight: 44,
       elevation: 0,
       scrolledUnderElevation: 0,
       shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       backgroundColor: Colors.transparent, // 背景交给 body 里的毛玻璃层
       titleSpacing: 12,
+      // [返回] 简约尖括号 <,替代 AppBar 自动插入的 arrow_back(带横杠箭头);
+      // 走 _exitChat 与系统返回手势同一退出流程
+      leading: IconButton(
+        tooltip: '返回',
+        icon: const Icon(Icons.chevron_left, size: 28),
+        color: activeGlassPalette.primaryText,
+        onPressed: _exitChat,
+      ),
       // flexibleSpace 在此 AppBar 中不渲染,已放弃,毛玻璃改由 body 顶部独立层实现
       title: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -3235,19 +3245,42 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           children: [
             _buildAvatar(character),
             const SizedBox(width: 10),
-            // [顶栏] 单行标题:32dp 放不下双行,模型信息改由点击标题弹模型层查看
+            // [顶栏] 双行标题:上行角色名,下行模型名(小字灰),点击弹模型层
             Expanded(
-              child: Text(
-                _truncateName(character?.name ?? '未知角色'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: activeGlassPalette.primaryText,
-                  fontSize: DesignTokens.fontSizeBodyLarge,
-                  height: 1.15,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.15,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _truncateName(character?.name ?? '未知角色'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: activeGlassPalette.primaryText,
+                      fontSize: DesignTokens.fontSizeBodyLarge,
+                      height: 1.15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.15,
+                    ),
+                  ),
+                  Builder(builder: (_) {
+                    final modelName =
+                        (activeModel == null || activeModel.isEmpty)
+                            ? '未选择模型'
+                            : activeModel;
+                    return Text(
+                      _truncateName(modelName),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: activeGlassPalette.secondaryText,
+                        fontSize: 11,
+                        height: 1.1,
+                        letterSpacing: -0.1,
+                      ),
+                    );
+                  }),
+                ],
               ),
             ),
             const SizedBox(width: 6),
@@ -3399,7 +3432,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              // [发送] 垂直居中:此前 end 对齐导致按钮贴底"往下歪"
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 IconButton(
                   onPressed: () {
@@ -3425,7 +3459,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
                   },
                   icon: Icon(_funcPanelOpen
                       ? Icons.close_rounded
-                      : Icons.add_rounded),
+                      : Icons.auto_awesome),
                   color: activeGlassPalette.secondaryText,
                 ),
                 Expanded(
@@ -3450,7 +3484,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
                       style: TextStyle(color: activeGlassPalette.primaryText),
                       cursorColor: activeGlassPalette.accent,
                       decoration: InputDecoration(
-                        hintText: '输入消息…（Enter 换行，Shift+Enter 发送）',
+                        // [占位] 默认"输入消息";AI 生成中禁输并提示进度
+                        hintText: isGenerating ? 'AI回复中…' : '输入消息',
                         hintStyle: TextStyle(
                           color: activeGlassPalette.secondaryText
                               .withValues(alpha: 0.7),
@@ -3482,15 +3517,25 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
                     },
                   )
                 else
-                  _CircleActionButton(
-                    icon: Icons.arrow_upward_rounded,
-                    background: activeGlassPalette.accent,
-                    foreground: const Color(0xFF06111A),
-                    tooltip: '发送',
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      _sendMessage();
-                    },
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _hasInput,
+                    builder: (context, hasInput, _) => _CircleActionButton(
+                      // [发送] 纸飞机图标 + 状态样式:有字=主题亮色可点,无字=灰禁用
+                      icon: Icons.send_rounded,
+                      background: hasInput
+                          ? activeGlassPalette.accent
+                          : GlassDesign.controlFill,
+                      foreground: hasInput
+                          ? const Color(0xFF06111A)
+                          : activeGlassPalette.secondaryText,
+                      tooltip: '发送',
+                      onTap: hasInput
+                          ? () {
+                              HapticFeedback.lightImpact();
+                              _sendMessage();
+                            }
+                          : null,
+                    ),
                   ),
               ],
             ),
@@ -3498,6 +3543,47 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         ],
       ),
     );
+  }
+
+  // [发送] 同步"输入框是否有内容"到 _hasInput(ValueNotifier 值不变不通知,
+  // 只有 true↔false 跳变时重建按钮,不逐键重建整个 build)
+  void _syncHasInput() {
+    _hasInput.value = _inputController.text.trim().isNotEmpty;
+  }
+
+  /// 退出聊天页:pause → 遮罩瞬间盖满 → 卸载 WebView → 一帧后 pop。
+  /// 顶栏返回按钮与 PopScope(系统返回手势)共用此流程。
+  Future<void> _exitChat() async {
+    await _controller?.pause();
+    // 遮罩瞬间盖满(不用 forward 淡入——半透明×WebView 合成会卡)
+    _maskController.value = 1.0;
+    // 先把 WebView 从树上卸载,消除 pop 切页时的残影闪烁
+    if (mounted) setState(() => _webViewMounted = false);
+    // [空会话] 用户从没发过消息 → 丢弃(不进回忆/不占存储)。判定用持久标记
+    // hasUserMessage(发过即置位、删消息不回退),在 repository.addMessage 置位。
+    await _discardEmptyChatIfNeeded();
+    // 等一帧,确保 WebView 真正移除、遮罩已盖稳
+    await Future.delayed(const Duration(milliseconds: 32));
+    if (mounted) context.pop();
+  }
+
+  /// [空会话] 退出时若本会话从未有过用户消息(只有开场白/空白),级联删除之。
+  /// 有标记的会话零接触。删除后失效聊天列表 provider,回忆页立即可见。
+  Future<void> _discardEmptyChatIfNeeded() async {
+    final chatId = ref.read(activeChatProvider).chat?.id;
+    if (chatId == null) return;
+    try {
+      final repo = ref.read(chatRepositoryProvider);
+      if (!await repo.hasUserMessaged(chatId)) {
+        await repo.deleteChat(chatId);
+        ref.invalidate(allChatsProvider);
+        ref.invalidate(recentChatsProvider);
+        ref.invalidate(characterChatsProvider);
+        debugPrint('[空会话] 用户未发言,已丢弃 chat=$chatId');
+      }
+    } catch (e) {
+      debugPrint('[空会话] 丢弃失败(保留会话兜底): $e');
+    }
   }
 
   void _snack(String msg) {
@@ -4121,11 +4207,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       await ref.read(activeChatProvider.notifier).deleteMessage(id);
     }
   }
-    if (ok == true) {
-      await ref.read(activeChatProvider.notifier).deleteMessage(id);
-      await _pushMessages();
-    }
-  }
 
   // ── 更多操作底部菜单 ───────────────────────────────────────────────────────
 
@@ -4690,7 +4771,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         // [顶栏] 初始内容起始位置直接烘进 HTML:WebView 全出血后首帧就要避开顶栏,
         // 不能等桥消息到达(会闪一下)
         .replaceAll('__KIRA_TOP_INSET__',
-            (32 + MediaQuery.of(context).padding.top + 12).toStringAsFixed(1))
+            (44 + MediaQuery.viewPaddingOf(context).top + 12).toStringAsFixed(1))
         .replaceAll('__KIRA_CHAT_BRIDGE__', bridge);
   }
 }
@@ -4765,14 +4846,14 @@ class _CircleActionButton extends StatelessWidget {
   final Color background;
   final Color foreground;
   final String tooltip;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _CircleActionButton({
     required this.icon,
     required this.background,
     required this.foreground,
     required this.tooltip,
-    required this.onTap,
+    this.onTap,
   });
 
   @override

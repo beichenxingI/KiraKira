@@ -2,6 +2,7 @@
 /// 设置主页(返工条目3:只留 应用级设置——3 组一屏装完;高级功能全部移交 Core)
 library;
 
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -69,6 +70,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   List<Widget> _homeSlivers(
       BuildContext context, AppLocalizations l10n, Color iconBg) {
     return [
+      // ══ 用户信息卡(搜索框下方,首屏置顶)══
+      SliverToBoxAdapter(
+        child: KiraSection.plain(
+          title: '',
+          child: const _UserInfoCard(),
+        ),
+      ),
+
       // ══ 通用 ══
       SliverToBoxAdapter(
         child: KiraSection(
@@ -175,6 +184,91 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
     ];
+  }
+}
+
+/// 用户信息卡(设置页首屏置顶):显示当前人设头像+名字,点击进人设管理。
+/// 数据源 activePersonaProvider(手动选 > 默认),与"人设"行同源;
+/// 人设编辑保存后由 PersonaNotifier 失效该 provider,本卡自动刷新。
+class _UserInfoCard extends ConsumerWidget {
+  const _UserInfoCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final persona = ref.watch(activePersonaProvider).valueOrNull;
+
+    final name = persona?.name ?? l10n.default_;
+    final description = persona?.description ?? '';
+    final avatarPath = persona?.avatarPath;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => context.push(AppRoutes.personas),
+        child: Padding(
+          padding: const EdgeInsets.all(DesignTokens.spaceMd),
+          child: Row(
+            children: [
+              _buildAvatar(theme, name, avatarPath),
+              const SizedBox(width: DesignTokens.spaceMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      description.isNotEmpty ? description : '点击查看和编辑人设',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spaceXs),
+              Icon(
+                CupertinoIcons.chevron_right,
+                size: 18,
+                color: theme.textTheme.bodySmall?.color,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 头像:有文件用文件(personas_screen 同款 FileImage 范式),无文件用首字母
+  Widget _buildAvatar(ThemeData theme, String name, String? avatarPath) {
+    if (avatarPath != null && avatarPath.isNotEmpty) {
+      return CircleAvatar(
+        radius: 26,
+        backgroundImage: FileImage(File(avatarPath)),
+      );
+    }
+    final initial =
+        name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
+    return CircleAvatar(
+      radius: 26,
+      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+      child: Text(
+        initial,
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.primary,
+        ),
+      ),
+    );
   }
 }
 

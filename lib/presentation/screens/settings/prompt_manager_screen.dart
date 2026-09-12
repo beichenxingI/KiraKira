@@ -25,6 +25,12 @@ class PromptManagerScreen extends ConsumerWidget {
     final allPresets = ref.watch(allPresetsProvider);
 
     return Scaffold(
+      // [新建] 自定义提示词入口:FAB(名称+内容+角色+启用四字段表单见下方 Sheet)
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showCreatePromptSheet(context, ref),
+        icon: const Icon(Icons.add),
+        label: const Text('新建提示词'),
+      ),
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
@@ -194,6 +200,147 @@ class PromptManagerScreen extends ConsumerWidget {
         builder: (_) => PromptSectionEditScreen(section: section, index: index),
       ),
     );
+  }
+
+  /// [新建] 自定义提示词表单(D-T2:多字段 → 底部 Sheet,isScrollControlled + 键盘避让)
+  /// 表单字段沿用编辑子页惯例:名称 / 内容 / 角色(system|user|assistant) / 启用。
+  void _showCreatePromptSheet(BuildContext context, WidgetRef ref) {
+    final nameController = TextEditingController();
+    final contentController = TextEditingController();
+    String role = 'system';
+    bool enabled = true;
+
+    showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
+        ),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '新建提示词',
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeHeadline,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                CupertinoTextField(
+                  controller: nameController,
+                  autofocus: true,
+                  placeholder: '提示词名称(必填)',
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                    borderRadius:
+                        BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                CupertinoTextField(
+                  controller: contentController,
+                  placeholder: '提示词内容(必填,支持 {{user}} {{char}} 等宏)',
+                  minLines: 4,
+                  maxLines: null,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                    borderRadius:
+                        BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text('角色',
+                        style: Theme.of(sheetCtx).textTheme.bodyMedium),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: CupertinoSlidingSegmentedControl<String>(
+                        groupValue: role,
+                        children: const {
+                          'system': Padding(
+                            padding: EdgeInsets.symmetric(vertical: 6),
+                            child: Text('System'),
+                          ),
+                          'user': Padding(
+                            padding: EdgeInsets.symmetric(vertical: 6),
+                            child: Text('User'),
+                          ),
+                          'assistant': Padding(
+                            padding: EdgeInsets.symmetric(vertical: 6),
+                            child: Text('Assistant'),
+                          ),
+                        },
+                        onValueChanged: (v) =>
+                            setSheetState(() => role = v ?? 'system'),
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    const Expanded(child: Text('创建后启用')),
+                    CupertinoSwitch(
+                      value: enabled,
+                      onChanged: (v) => setSheetState(() => enabled = v),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      final name = nameController.text.trim();
+                      final content = contentController.text.trim();
+                      if (name.isEmpty || content.isEmpty) {
+                        ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                          const SnackBar(content: Text('名称和内容不能为空')),
+                        );
+                        return;
+                      }
+                      Navigator.pop(sheetCtx, {
+                        'name': name,
+                        'content': content,
+                        'role': role,
+                        'enabled': enabled,
+                      });
+                    },
+                    child: Text(AppLocalizations.of(sheetCtx).save),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).then((result) async {
+      if (result == null) return;
+      await ref.read(promptManagerProvider.notifier).addCustomSection(
+            result['name'] as String,
+            result['content'] as String,
+            result['role'] as String,
+            enabled: result['enabled'] as bool? ?? true,
+          );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已创建 ${result['name']}')),
+        );
+      }
+    });
   }
 
   void _showPresetsDialog(BuildContext context, WidgetRef ref, List<PromptManagerPreset> presets) {

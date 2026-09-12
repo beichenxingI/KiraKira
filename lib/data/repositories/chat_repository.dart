@@ -140,11 +140,39 @@ class ChatRepository {
       swipesDataJson: Value(jsonEncode(newMessage.swipesData)),
     ));
     
-    // Update chat's updatedAt
+    // [空会话] 更新 updatedAt;用户消息同步置位 hasUserMessage(永不回退)。
+    // 该标记是"退出丢弃/启动清扫"的判定依据:发过消息的会话即使删光消息也保留。
     await (_db.update(_db.chats)..where((t) => t.id.equals(message.chatId)))
-        .write(ChatsCompanion(updatedAt: Value(DateTime.now())));
-    
+        .write(ChatsCompanion(
+      updatedAt: Value(DateTime.now()),
+      hasUserMessage: message.role.name == 'user'
+          ? const Value(true)
+          : const Value.absent(),
+    ));
+
     return newMessage;
+  }
+
+  /// [空会话] 该会话是否有过用户消息(读持久标记,不数 messages 表)
+  Future<bool> hasUserMessaged(String chatId) async {
+    final row = await (_db.select(_db.chats)
+          ..where((t) => t.id.equals(chatId)))
+        .getSingleOrNull();
+    return row?.hasUserMessage ?? false;
+  }
+
+  /// [空会话] 启动清扫:删除所有从未有过用户消息的会话(级联消息/向量数据)。
+  /// 覆盖:旧版本遗留的空会话、进程被杀时没走退出丢弃的临时会话。
+  /// 返回删除的会话数。
+  Future<int> purgeEmptyChats() async {
+    final emptyIds = await (_db.select(_db.chats)
+          ..where((t) => t.hasUserMessage.equals(false)))
+        .map((row) => row.id)
+        .get();
+    for (final id in emptyIds) {
+      await deleteChat(id);
+    }
+    return emptyIds.length;
   }
 
   /// Update a message

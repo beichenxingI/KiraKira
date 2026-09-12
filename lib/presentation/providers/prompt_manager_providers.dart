@@ -84,6 +84,45 @@ class PromptManagerNotifier extends StateNotifier<PromptManagerConfig> {
     await _saveConfig();
   }
 
+  /// 新建自定义提示词:追加到列表末尾(order = 最大值+1,可拖拽调位),
+  /// identifier 用 uuid 对齐 SillyTavern 导入的自定义提示词风格。
+  Future<void> addCustomSection(
+    String name,
+    String content,
+    String role, {
+    bool enabled = true,
+  }) async {
+    final maxOrder = state.sections.fold<int>(
+      -1,
+      (m, s) => s.order > m ? s.order : m,
+    );
+    final section = PromptSection(
+      type: PromptSectionType.custom,
+      name: name,
+      enabled: enabled,
+      order: maxOrder + 1,
+      content: content,
+      identifier: const Uuid().v4(),
+      role: role,
+    );
+    state = state.copyWith(sections: [...state.sections, section]);
+    await _saveConfig();
+  }
+
+  /// 删除自定义提示词(仅 custom 可删,内置段落只能开关)。index 按 sortedSections。
+  Future<void> deleteCustomSectionByIndex(int index) async {
+    final sorted = state.sortedSections;
+    if (index < 0 || index >= sorted.length) return;
+    final section = sorted[index];
+    if (!section.isCustom) return;
+    final remaining = state.sections
+        .where((s) =>
+            !(s.identifier == section.identifier && s.type == section.type))
+        .toList();
+    state = state.copyWith(sections: remaining);
+    await _saveConfig();
+  }
+
   /// Reset to default configuration
   Future<void> resetToDefault() async {
     state = PromptManagerConfig.defaultConfig();

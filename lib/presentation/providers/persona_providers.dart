@@ -93,12 +93,15 @@ class PersonaNotifier extends StateNotifier<AsyncValue<List<Persona>>> {
 
     await _repository.createPersona(persona);
     await _loadPersonas();
+    _ref.invalidate(activePersonaProvider);
   }
 
   Future<void> updatePersona(Persona persona) async {
     final updated = persona.copyWith(updatedAt: DateTime.now());
     await _repository.updatePersona(updated);
     await _loadPersonas();
+    // [用户卡] 人设被编辑(改名/换头像)后,让设置页用户卡/人设行读取新数据
+    _ref.invalidate(activePersonaProvider);
   }
 
   Future<void> deletePersona(String id) async {
@@ -109,19 +112,22 @@ class PersonaNotifier extends StateNotifier<AsyncValue<List<Persona>>> {
     }
 
     await _repository.deletePersona(id);
-    
+
     // If the deleted persona was active, reset to default
     final activeId = _ref.read(activePersonaIdProvider);
     if (activeId == id) {
       _ref.read(activePersonaIdProvider.notifier).state = null;
     }
-    
+
     await _loadPersonas();
+    _ref.invalidate(activePersonaProvider);
   }
 
   Future<void> setDefaultPersona(String id) async {
     await _repository.setDefaultPersona(id);
     await _loadPersonas();
+    // 默认人设变了:无手动选择时 activePersonaProvider 回退读默认,需失效重建
+    _ref.invalidate(activePersonaProvider);
   }
 
   Future<void> setActivePersona(String id) async {

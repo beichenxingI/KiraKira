@@ -44,6 +44,10 @@ class Chats extends Table {
   TextColumn get authorNote => text().withDefault(const Constant(''))(); // Author's Note content
   IntColumn get authorNoteDepth => integer().withDefault(const Constant(4))(); // Depth for injection
   BoolColumn get authorNoteEnabled => boolean().withDefault(const Constant(false))(); // Whether enabled
+  /// [空会话] 用户是否发过消息:一旦置位永不回退。
+  /// 退出聊天页时无标记 → 级联丢弃;启动清扫无标记遗留。
+  /// 用持久标记而非实时数 messages(user) 是为了覆盖"发了又删"的边界(发过就算)。
+  BoolColumn get hasUserMessage => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -261,7 +265,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-     int get schemaVersion => 15;
+   int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration {
@@ -342,6 +346,15 @@ class AppDatabase extends _$AppDatabase {
         if (from < 15) {
           // per-swipe MVU variable data
           await m.addColumn(messages, messages.swipesDataJson);
+        }
+        if (from < 16) {
+          // [空会话] 用户发过消息的持久标记,用于退出丢弃与启动清扫
+          await m.addColumn(chats, chats.hasUserMessage);
+          // 回填:存量会话若已有用户消息,立即置位——否则旧有效会话会被误判为空而清除
+          await customStatement(
+            'UPDATE chats SET has_user_message = 1 WHERE id IN '
+            '(SELECT DISTINCT chat_id FROM messages WHERE role = \'user\')',
+          );
         }
       },
     );
