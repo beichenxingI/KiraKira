@@ -169,10 +169,10 @@ String buildTavernHelperFacadeJs({
       // ── [P6-5.1] UI 交互:toastr → Flutter SnackBar ──
       // 卡片在引擎房/主文档没有 ST toastr 弹层,35+ 次高频调用全走桥
       '_TH.toastr={'
-      'info:function(m){return __thCall("th_toast",["info",m==null?"":String(m)]).catch(function(){return"";});},'
-      'success:function(m){return __thCall("th_toast",["success",m==null?"":String(m)]).catch(function(){return"";});},'
-      'warning:function(m){return __thCall("th_toast",["warning",m==null?"":String(m)]).catch(function(){return"";});},'
-      'error:function(m){return __thCall("th_toast",["error",m==null?"":String(m)]).catch(function(){return"";});}'
+ 'info:function(m,t){return __thCall("th_toast",["info",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},'
+ 'success:function(m,t){return __thCall("th_toast",["success",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},'
+ 'warning:function(m,t){return __thCall("th_toast",["warning",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},'
+ 'error:function(m,t){return __thCall("th_toast",["error",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});}'
       '};'
       // ── [P6-5.1] 通用弹窗 → Flutter Dialog ──
       // 枚举真值对齐 ST popup.js:TEXT=1 CONFIRM=2 INPUT=3 DISPLAY=4 CROP=5;

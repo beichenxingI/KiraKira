@@ -70,7 +70,11 @@ if (!String.prototype.at) {
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: #E0E0E0; font-size: 15px; line-height: 1.5;
-    padding: 12px;}
+    /* [顶栏] WebView 全出血:padding-top 由壳烘入(32+状态栏+12),顶栏收起时由
+       topBarInsets 桥改小,把那 32px 让给消息区(改 CSS 而非 resize 平台视图)。
+       --top-inset 同时供弹窗/面板定位使用(它们 inset:0 从屏幕顶起算) */
+    padding: 12px; padding-top: __KIRA_TOP_INSET__px;}
+  :root { --top-inset: __KIRA_TOP_INSET__px; }
   img { max-width: 100%; height: auto; display: block; }
   .quote-q { color: var(--quote-q-color, #FFA726); font-weight: 500; }
   .quote-p { color: var(--quote-p-color, #29B6F6); font-weight: 500; }
@@ -108,13 +112,13 @@ if (!String.prototype.at) {
   .dialog-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.6);
     z-index: 10000; display: flex; align-items: center; justify-content: center;
-    /* [顶栏空隙] WebView 不含 Flutter 顶栏(上)且底部被输入栏浮层盖住(下),
-       内容居中需在可视带内:上方避开顶栏高度,下方避开输入栏 */
-    padding: 44px 12px 78px;
+    /* [顶栏空隙] WebView 全出血后 overlay 从屏幕顶起算,而 Flutter 顶栏浮在其上:
+       顶部留白必须跟随 --top-inset(顶栏收起时自动变小),否则弹窗标题会钻到顶栏后面 */
+    padding: calc(var(--top-inset, 56px) + 8px) 12px 78px;
     opacity: 0; transition: opacity .18s ease;
   }
   .dialog-overlay.show { opacity: 1; }
-  .dialog-overlay.sheet { align-items: flex-end; padding: 44px 0 0; }
+  .dialog-overlay.sheet { align-items: flex-end; padding: calc(var(--top-inset, 56px) + 8px) 0 0; }
   .dialog-box {
     background: #1B1E26; border: 1px solid rgba(255,255,255,0.1);
     border-radius: 12px; padding: 20px; min-width: 260px; max-width: 82vw;
@@ -803,10 +807,10 @@ function injectBridge(html, id, floorIdx) {
       '_TH.setInput=function(t){return __thCall("setInput",[t]);};' +
       // [P6-5.1] 卡片门面同享 toastr/弹窗桥(与引擎房门面同形)
       '_TH.toastr={' +
-      'info:function(m){return __thCall("th_toast",["info",m==null?"":String(m)]).catch(function(){return"";});},' +
-      'success:function(m){return __thCall("th_toast",["success",m==null?"":String(m)]).catch(function(){return"";});},' +
-      'warning:function(m){return __thCall("th_toast",["warning",m==null?"":String(m)]).catch(function(){return"";});},' +
-      'error:function(m){return __thCall("th_toast",["error",m==null?"":String(m)]).catch(function(){return"";});}' +
+      'info:function(m,t){return __thCall("th_toast",["info",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},' +
+      'success:function(m,t){return __thCall("th_toast",["success",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},' +
+      'warning:function(m,t){return __thCall("th_toast",["warning",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},' +
+      'error:function(m,t){return __thCall("th_toast",["error",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});}' +
       '};' +
       '_TH.POPUP_TYPE={TEXT:1,CONFIRM:2,INPUT:3,DISPLAY:4,CROP:5};' +
       '_TH.POPUP_RESULT={AFFIRMATIVE:1,NEGATIVE:0,CANCELLED:null};' +
@@ -1370,8 +1374,10 @@ function injectBridge(html, id, floorIdx) {
       // [P6-3] EJS execute() 后端:args[0]=斜杠脚本
       payload = { command: args[0] };
     } else if (method === 'th_toast') {
-      // [P6-5.1] toastr 桥:args=[level, message]
-      payload = { level: args[0] || 'info', message: args[1] == null ? '' : String(args[1]) };
+      // [P6-5.1] toastr 桥:args=[level, message, title]
+      // [降噪] title 必须透传:MVU 框架提示的 title 一律是 '[MVU]...',Dart 侧按前缀
+      // 统一降级为日志。此前 title 被丢弃,只能靠正文黑名单,漏一个字就失效。
+      payload = { level: args[0] || 'info', message: args[1] == null ? '' : String(args[1]), title: args[2] == null ? '' : String(args[2]) };
     } else if (method === 'th_popup') {
       // [P6-5.1] callGenericPopup 桥:args=[text, type, inputValue]
       payload = { text: args[0] == null ? '' : String(args[0]), type: args[1] == null ? 1 : args[1], inputValue: args[2] == null ? '' : String(args[2] || '') };
@@ -1460,10 +1466,10 @@ function injectBridge(html, id, floorIdx) {
 
     // ── [P6-5.1] UI 交互 API(主文档 TH 同样暴露 toastr/弹窗) ──
     TH.toastr = {
-      info: function (m) { return __thCall('th_toast', ['info', m == null ? '' : String(m)]).catch(function () { return ''; }); },
-      success: function (m) { return __thCall('th_toast', ['success', m == null ? '' : String(m)]).catch(function () { return ''; }); },
-      warning: function (m) { return __thCall('th_toast', ['warning', m == null ? '' : String(m)]).catch(function () { return ''; }); },
-      error: function (m) { return __thCall('th_toast', ['error', m == null ? '' : String(m)]).catch(function () { return ''; }); },
+      info: function (m, t) { return __thCall('th_toast', ['info', m == null ? '' : String(m), t == null ? '' : String(t)]).catch(function () { return ''; }); },
+      success: function (m, t) { return __thCall('th_toast', ['success', m == null ? '' : String(m), t == null ? '' : String(t)]).catch(function () { return ''; }); },
+      warning: function (m, t) { return __thCall('th_toast', ['warning', m == null ? '' : String(m), t == null ? '' : String(t)]).catch(function () { return ''; }); },
+      error: function (m, t) { return __thCall('th_toast', ['error', m == null ? '' : String(m), t == null ? '' : String(t)]).catch(function () { return ''; }); },
     };
     TH.POPUP_TYPE = { TEXT: 1, CONFIRM: 2, INPUT: 3, DISPLAY: 4, CROP: 5 };
     TH.POPUP_RESULT = { AFFIRMATIVE: 1, NEGATIVE: 0, CANCELLED: null };
@@ -1875,6 +1881,9 @@ function injectBridge(html, id, floorIdx) {
         try {
         var group = document.createElement('div');
         group.className = 'msg-group ' + m.role;
+        // [闪屏修复] group 级 id 锚点:纯 iframe 卡片消息没有 .msg[data-id] 节点,
+        // 定点删除必须能定位到 group
+        group.setAttribute('data-msg-id', m.id);
 
         // 气泡上方头像+名字（AI左/用户右），system 不加
         var av = window.__avatars;
@@ -2246,6 +2255,58 @@ function injectBridge(html, id, floorIdx) {
     appendToken(p.id, p.token);
   });
 
+  // ── [闪屏修复] 定点更新/删除:替代"任何变化都整页 initial 重建" ──────────────
+  // 全量重建 = root.innerHTML='' + 逐条重画,是重试/生成结束闪屏的直接原因。
+  // 定点更新只换一条气泡的内容;失败(节点缺失/卡片消息)回 needFullPush 由 Dart 兜底。
+  registerBridgeHandler('updateMessage', function (p) {
+    try {
+      var id = p && p.id;
+      if (!id) return;
+      if (p.rich === true) { // 卡片需 iframe,定点更新覆盖不了
+        sendToFlutter('action', { action: 'needFullPush', id: id });
+        return;
+      }
+      var wrap = document.querySelector('.msg[data-id="' + id + '"]');
+      if (!wrap) {
+        sendToFlutter('action', { action: 'needFullPush', id: id });
+        return;
+      }
+      wrap.innerHTML = '';
+      if (p.reasoning) {
+        var r = document.createElement('div');
+        r.className = 'reasoning';
+        r.innerHTML = p.reasoning;
+        wrap.appendChild(r);
+      }
+      var c = document.createElement('div');
+      c.innerHTML = (p.html && String(p.html).trim() !== '') ? p.html : '';
+      wrap.appendChild(c);
+      if (__stickBottom && __scrollAnchor === null) {
+        window.scrollTo(0, document.body.scrollHeight);
+      }
+      syncBottomButton();
+    } catch (e) {
+      try { sendToFlutter('log', { text: '[updateMessage] 失败: ' + e }); } catch (_e2) {}
+      sendToFlutter('action', { action: 'needFullPush', id: p && p.id });
+    }
+  });
+  registerBridgeHandler('removeMessage', function (p) {
+    try {
+      var ids = (p && p.ids) || ((p && p.id) ? [p.id] : []);
+      for (var i = 0; i < ids.length; i++) {
+        var g = document.querySelector('.msg-group[data-msg-id="' + ids[i] + '"]');
+        if (!g) {
+          var w = document.querySelector('.msg[data-id="' + ids[i] + '"]');
+          g = w ? w.closest('.msg-group') : null;
+        }
+        if (g && g.parentNode) g.parentNode.removeChild(g);
+      }
+      syncBottomButton();
+    } catch (e) {
+      try { sendToFlutter('log', { text: '[removeMessage] 失败: ' + e }); } catch (_e2) {}
+    }
+  });
+
   document.addEventListener('click', function(e) {
     var tgt = e.target;
     if (!tgt || !tgt.closest) return;
@@ -2296,6 +2357,29 @@ function injectBridge(html, id, floorIdx) {
   registerBridgeHandler('setMessages', function(p) { setMessages(p.data, {initial: p.initial, prepend: p.prepend, avatars: p.avatars}); });
   registerBridgeHandler('scrollToFloor', function(p) { scrollToFloor(p.floor); });
   registerBridgeHandler('scrollToBottom', function() { scrollToBottom(); });
+  // [顶栏] 顶栏显隐:改 body padding-top 把顶栏那条空间让给/还给消息区。
+  // WebView 几何恒定(全出血),不 resize 平台视图 → 不触发 HC 重合成顿卡。
+  registerBridgeHandler('topBarInsets', function (p) {
+    try {
+      var bar = (p && p.visible) ? (p.barHeight || 0) : 0;
+      var status = (p && p.statusHeight) || 0;
+      var next = Math.round(bar + status + 12);
+      var cur = parseFloat(getComputedStyle(document.body).paddingTop) || 0;
+      var delta = next - cur;
+      if (Math.abs(delta) < 0.5) return;
+      document.body.style.paddingTop = next + 'px';
+      // 弹窗/面板的顶部留白跟随同一变量(它们 inset:0 从屏幕顶起算)
+      try { document.documentElement.style.setProperty('--top-inset', next + 'px'); } catch (_cs0) {}
+      // padding-top 变化会整体平移内容:按差值补偿 scrollY,视觉位置保持不动
+      __programScroll++;
+      window.scrollTo(0, Math.max(0, (window.scrollY || 0) + delta));
+      requestAnimationFrame(function () {
+        if (__programScroll > 0) __programScroll--;
+        syncBottomButton();
+      });
+      try { sendToFlutter('log', { text: '[顶栏] inset ' + cur + '→' + next }); } catch (_te0) {}
+    } catch (e) {}
+  });
   // ── [弹窗] HTML弹窗体系(Dart→JS):showConfirm / showPrompt / showBottomSheet ──
   // 结果统一 sendToFlutter('dialogResult', {callbackId, result, value}) 回传;
   // 任何异常路径也必须回传一次,否则 Dart 侧 Completer 永久挂起。

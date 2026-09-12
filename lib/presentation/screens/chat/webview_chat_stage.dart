@@ -640,6 +640,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   void didChangeMetrics() {
     super.didChangeMetrics();
     if (!mounted) return;
+    // [鬼畜修复] 有其它路由盖在本页之上时(全屏编辑页/导航/Flutter弹窗)完全不处理键盘度量。
+    // 本页此时仍在树下存活:键盘每帧度量变化 → setState → 重建整个 build()(含已 pause 的
+    // InAppWebView) → HC 平台视图重排 → 系统 IME 重挂 → 再次 didChangeMetrics → 无限循环。
+    // 表现即"长按选择文字时手机狂震、键盘反复弹、屏幕鬼畜、松手仍不停"。
+    if (ModalRoute.of(context)?.isCurrent != true) return;
     final view = View.of(context);
     final bottom = view.viewInsets.bottom / view.devicePixelRatio;
     final visible = bottom > 0;
@@ -659,6 +664,19 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   void _setTopBarVisible(bool visible) {
     if (!mounted || _topBarVisible == visible) return;
     setState(() => _topBarVisible = visible);
+    _sendTopBarInsets();
+  }
+
+  /// [顶栏] 把顶栏占位推给 JS:WebView 全出血,消息起始位置 = body padding-top。
+  /// 顶栏显示 → 让出 32+状态栏;收起 → 只留状态栏,那 32px 归消息区。
+  void _sendTopBarInsets() {
+    if (!mounted) return;
+    final status = MediaQuery.of(context).padding.top;
+    _bridge.send(BridgeType.topBarInsets, {
+      'visible': _topBarVisible,
+      'barHeight': _topBarVisible ? 32.0 : 0.0,
+      'statusHeight': status,
+    });
   }
 
   /// [P1-A5] 崩溃自愈超限后,用户点「重新加载」:重置计数并重挂 webview 恢复。
@@ -753,12 +771,20 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           nextMsgs.length > prevMsgs.length &&
           _isPrefix(prevMsgs, nextMsgs);
 
+      // [闪屏修复] 纯尾部截断（retry 删后续 / 删除此条及之后）：next 是 prev 的前缀且更短
+      // → 只摘掉多出来的 DOM。retry 走的就是这条路,原先落进"结构变化→全量重建"= 闪屏
+      final isPureTruncate = prevMsgs.isNotEmpty &&
+          nextMsgs.length < prevMsgs.length &&
+          _isPrefix(nextMsgs, prevMsgs);
+
       // 结构变化（增删消息 / 换聊天）→ 全量重渲染
       final sameStructure = prevMsgs.length == nextMsgs.length &&
           (nextMsgs.isEmpty || prevMsgs.last.id == nextMsgs.last.id);
 
       if (isPureAppend) {
         _appendNewMessages(prevMsgs.length, nextMsgs);
+      } else if (isPureTruncate) {
+        _removeMessagesTail(prevMsgs, nextMsgs.length);
       } else if (!sameStructure) {
         _pushMessages();
       } else if (nextMsgs.isNotEmpty) {
@@ -796,7 +822,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
             source: 'if(window.__emitToEngine)window.__emitToEngine("generation_started",[],$msgsJson);');
       }
       if (_wasGenerating && !gen) {
-        _pushMessages();
+        // [闪屏修复] 生成结束只定点刷新最后一条(把流式纯文本渲染成 Markdown/HTML),
+        // 不再整页 initial 重建 —— 那是"每次回复完成都闪一下"的根因。
+        // JS 侧节点缺失或内容是卡片时回 needFullPush,Dart 兜底全量重推。
+        _updateLastMessage(nextMsgs);
         // 点火：AI 回复完成 → 通知引擎房 MVU 解析新回复、更新变量
         if (nextMsgs.isNotEmpty) {
           final lastIdx = nextMsgs.length - 1;
@@ -927,7 +956,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                 Positioned.fill(
                   child: Padding(
                   padding: EdgeInsets.only(
-                    top: 32 + MediaQuery.of(context).padding.top, // [顶栏] 48→32
+                    // [顶栏] 全出血:WebView 恒定铺满(top:0),消息起始位置由 body
+                    // padding-top 决定(桥 topBarInsets 驱动)。顶栏收起时改 CSS 让出
+                    // 那 32px,而不是 resize 平台视图 —— 守住 HC 合成性能红线,
+                    // 也修掉"顶栏收回去了但那块仍是壁纸、等于没收"的问题。
+                    top: 0,
                     // 底部留出输入栏基础高度：让最后一条消息的工具栏/楼层露在输入栏上方，
                     // 不被浮层遮住。固定值（不含面板/附件），避免动态变化触发 WebView resize。
                     bottom: 64 + MediaQuery.of(context).padding.bottom,
@@ -1087,6 +1120,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                   onLoadStop: (c, url) async {
                     // [顶栏] 页面(重)载完成(含崩溃自愈 loadData 重建)重置为显示
                     _setTopBarVisible(true);
+                    _sendTopBarInsets(); // 重建后重新同步内容起始位置
                     await _injectCompatLibs(c); // 注入第三方库到外层window
                     await _injectMacroValues(c); // 注入宏替换用的角色名/用户名
                     await _injectRegexRules(c); // [P6-5.2] 正则规则快照(引擎房烘焙用)
@@ -1385,10 +1419,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   /// [P6-BUG-1] 同文案 5 秒去重:脚本房/引擎房重复初始化或循环调用时不再连环弹。
   static final Map<String, DateTime> _toastLastShown = {};
 
-  /// [降噪] MVU 框架生命周期提示:每次会话初始化必弹,纯调试信息,降级为日志不弹 SnackBar
-  /// (toastr 标题 '[MVU]...' 在桥接层被丢弃,故按正文片段匹配)
+  /// [降噪] MVU 框架生命周期提示兜底黑名单(老 bundle / title 缺失时按正文匹配)。
+  /// 字符串取自 mvu_bundle.js 实际文案,注意"需要有开场白"含"有"字,漏字即永不匹配。
   static const List<String> _mvuNoiseSnippets = [
-    '需要开场白才能初始化变量',
+    '开场白才能初始化变量',
+    '构建信息',
     '世界书初始化变量被加载',
     '变量初始化失败',
     '不存在任何一条消息',
@@ -1397,8 +1432,15 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   Future<dynamic> _handleToast(Map<String, dynamic> payload) async {
     final level = payload['level']?.toString() ?? 'info';
     final message = payload['message']?.toString() ?? '';
+    final title = payload['title']?.toString() ?? '';
     if (message.isEmpty || !mounted) return {'ok': true};
-    // [降噪] MVU 初始化生命周期提示 → 只进调试日志
+    // [降噪] MVU 框架提示(构建信息/需要开场白/世界书加载…)每次会话初始化必弹,
+    // 属调试信息 → 只进调试日志。按 toastr title 前缀统一识别(根治),
+    // 正文黑名单仅作老 bundle 兜底。
+    if (title.startsWith('[MVU]')) {
+      DebugLogService().log('$title $message', level: 'INFO', source: 'MVU提示');
+      return {'ok': true, 'muted': true};
+    }
     for (final noise in _mvuNoiseSnippets) {
       if (message.contains(noise)) {
         DebugLogService().log('[MVU][$level] $message', level: 'INFO', source: 'MVU提示');
@@ -3848,6 +3890,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       if (attPath.isNotEmpty) _showFullImage(attPath);
       return;
     }
+    // [闪屏修复] JS 定点更新失败(节点缺失/卡片消息) → 兜底全量重推
+    if (action == 'needFullPush') {
+      _pushMessages();
+      return;
+    }
     // [P5-9/P1] 脚本经 #send_but 触发的发送(狐神等):等价于用户在输入框点发送。
     // 无气泡 id,须在 id 判空拦截之前处理。
     if (action == 'sendFromStage') {
@@ -4059,30 +4106,21 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   // ── 删除确认 ───────────────────────────────────────────────────────────────
 
   Future<void> _showDeleteConfirm(String id) async {
-    await _controller?.pause();
-    bool? ok;
-    try {
-      ok = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('删除消息'),
-          content: const Text('确定删除这条消息吗？此操作不可撤销。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('删除',
-                  style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      await _controller?.resume();
+    // [弹窗] HTML确认框(上一轮迁移遗漏,本轮补上),无需 pause/resume
+    final ok = await _showHtmlConfirm(
+      title: '删除消息',
+      message: '确定删除这条消息吗？此操作无法撤销。',
+      confirmText: '删除',
+      cancelText: '取消',
+      danger: true,
+    );
+    if (!mounted) return;
+    if (ok) {
+      // [闪屏修复] 不再显式全量 push:deleteMessage 改 state 后 ref.listen 会按变化类型
+      // 分流(中间删除→结构变化全量重排楼层;尾部截断→定点摘除),显式再推一次等于双重清屏
+      await ref.read(activeChatProvider.notifier).deleteMessage(id);
     }
+  }
     if (ok == true) {
       await ref.read(activeChatProvider.notifier).deleteMessage(id);
       await _pushMessages();
@@ -4098,10 +4136,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     ]);
     if (!mounted || result == null) return;
     if (result == 'delete_after') {
+      // [闪屏修复] 尾部截断由 ref.listen 走定点摘除(removeMessage),不再显式全量 push
       await ref
           .read(activeChatProvider.notifier)
           .deleteMessageAndAfter(id);
-      await _pushMessages();
     }
   }
 
@@ -4419,6 +4457,38 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     await _sendEncodedMessages(list);
   }
 
+  /// [闪屏修复] 尾部截断:把 prev 中已不存在的尾部消息从 DOM 摘掉,不整页重建。
+  /// retry(删除后续重新生成)/删除此条及之后 都走这里,原先会落进全量 initial 重建 = 闪屏。
+  void _removeMessagesTail(List<ChatMessage> prev, int keepCount) {
+    if (keepCount >= prev.length) return;
+    final ids = prev.sublist(keepCount).map((m) => m.id).toList();
+    if (ids.isEmpty) return;
+    _bridge.send(BridgeType.removeMessage, {'ids': ids});
+  }
+
+  /// [闪屏修复] 定点刷新最后一条消息:替代生成结束时的全量 _pushMessages。
+  /// 把流式累积的纯文本换成正式 Markdown/HTML 渲染,只动这一个气泡。
+  /// JS 侧节点缺失或内容是卡片(rich)时回 needFullPush,Dart 兜底全量重推。
+  void _updateLastMessage(List<ChatMessage> msgs) {
+    if (msgs.isEmpty) {
+      _pushMessages();
+      return;
+    }
+    final chatState = ref.read(activeChatProvider);
+    final character = chatState.character;
+    final scripts = ref.read(combinedRegexScriptsProvider(character?.id));
+    final lastIdx = msgs.length - 1;
+    int lastAiIndex = -1;
+    for (var i = 0; i < msgs.length; i++) {
+      if (msgs[i].role != MessageRole.user) lastAiIndex = i;
+    }
+    final m = _safeSerializeMessage(
+        msgs[lastIdx], lastIdx, lastAiIndex, character, scripts);
+    _bridge.send(BridgeType.updateMessage, m);
+    // 附件占位图走独立通道补图(html 里是 data-att-path 占位)
+    _pushImages([msgs[lastIdx]]);
+  }
+
   String _buildAttachmentsHtml(ChatMessage m) {
     if (m.attachments.isEmpty) return '';
     final buf = StringBuffer('<div class="att-wrap">');
@@ -4617,6 +4687,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return html
         .replaceAll('__KIRA_QUOTE_Q_COLOR__', _colorToCss(ref.watch(quoteColorStateProvider).primaryA))
         .replaceAll('__KIRA_QUOTE_P_COLOR__', _colorToCss(ref.watch(quoteColorStateProvider).primaryB))
+        // [顶栏] 初始内容起始位置直接烘进 HTML:WebView 全出血后首帧就要避开顶栏,
+        // 不能等桥消息到达(会闪一下)
+        .replaceAll('__KIRA_TOP_INSET__',
+            (32 + MediaQuery.of(context).padding.top + 12).toStringAsFixed(1))
         .replaceAll('__KIRA_CHAT_BRIDGE__', bridge);
   }
 }
@@ -4662,8 +4736,10 @@ class _EditMessagePageState extends State<_EditMessagePage> {
           ),
         ],
       ),
-      body: AnimatedPadding(
-        duration: const Duration(milliseconds: 200),
+      // [鬼畜修复] 普通 Padding 直接跟随系统 viewInsets:AnimatedPadding 的 200ms
+      // 动画会与系统键盘动画叠加,拖拽选择时每帧重排 expands 字段 → 选择手柄反复
+      // 重定位 → haptic 连发 + 视觉抖动。
+      body: Padding(
         padding: EdgeInsets.only(
           left: 16,
           right: 16,

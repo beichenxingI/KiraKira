@@ -79,6 +79,7 @@ class BridgeType {
   static const String scrollToFloor = 'scrollToFloor'; // 跳转到指定楼层
   static const String scrollToBottom = 'scrollToBottom'; // 滚到最新消息(JS 侧 handler,亦供回底按钮备用)
   static const String keyboardInsets = 'keyboardInsets'; // 键盘显隐推送:JS 给 body 加/撤底部padding,让被键盘遮住的最新消息可滚出
+  static const String topBarInsets = 'topBarInsets'; // 顶栏显隐推送:JS 改 body padding-top,把顶栏那条空间让给消息区(不resize平台视图)
   // [弹窗] HTML弹窗体系:弹窗与消息同在 WebView 内渲染,无 Flutter 图层叠加 HC 合成开销
   static const String showConfirm = 'showConfirm'; // Dart→JS: HTML确认框
   static const String showPrompt = 'showPrompt'; // Dart→JS: HTML输入弹窗
