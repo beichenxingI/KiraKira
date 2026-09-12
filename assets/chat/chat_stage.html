@@ -615,7 +615,10 @@ __KIRA_CHAT_BRIDGE__
 
   function isRichHtml(s) {
     if (!s) return false;
-    return /<style|<script|<!DOCTYPE|<html|<head|<body/i.test(s);
+    // [MD修复2] 文档级证据:以标签开头(<字母/<!)才算HTML卡片;
+    // 旧子串级判定把"正文提到 <script>/<body> 的纯文本"整条塞进iframe(排版全毁)
+    var t = String(s).replace(/^\s+/, '');
+    return /^<[a-zA-Z!]/.test(t);
   }
 
 function injectBridge(html, id, floorIdx) {
@@ -1957,7 +1960,9 @@ function injectBridge(html, id, floorIdx) {
           }
           // [P3-K1] hasSegs 分支补挂载 wrap：建完不挂,所有 seg frame/prose 游离(t3 实测 cardIframes=0)
           group.appendChild(wrap);
-        } else if (isRichHtml(m.html)) {
+        } else if (typeof m.rich === 'boolean' ? m.rich : isRichHtml(m.html)) {
+          // [MD修复2] 优先消费 Dart 序列化里的显式 rich 标记(文档级判定),
+          // isRichHtml 仅作旧载荷兜底
           var frame = document.createElement('iframe');
           frame.className = 'card-frame';
           frame.style.width = '100%';

@@ -4184,10 +4184,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         bodyForRender = processed.substring(docStart.start);
       }
     }
-    final looksLikeHtml = RegExp(
-      r'<style|<script|<!DOCTYPE|<html|<head|<body',
-      caseSensitive: false,
-    ).hasMatch(bodyForRender);
+    // [MD修复2] 文档级判定替代子串级:正文提到 <script>/<body> 等字样的纯文本
+    // 不再被误判为HTML卡片塞进iframe(排版全毁根因)
+    final looksLikeHtml = _looksLikeHtmlDoc(bodyForRender);
     final rendered = looksLikeHtml
         ? normalizeCodeQuotes(bodyForRender)
         : _highlightQuotes(md.markdownToHtml(
@@ -4214,10 +4213,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           });
         }
         final body = match.group(1) ?? '';
-        final rich = RegExp(
-          r'<style|<script|<!DOCTYPE|<html|<head|<body',
-          caseSensitive: false,
-        ).hasMatch(body);
+        final rich = _looksLikeHtmlDoc(body);
         segs.add({
           'type': rich ? 'frontend' : 'prose',
           'html': rich
@@ -4287,6 +4283,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       'id': m.id,
       'role': m.role.name,
       'prose': proseHtml, // 文档前的旁白文字，渲染层放在 iframe 之上
+      'rich': looksLikeHtml, // [MD修复2] 显式告知 JS 走 iframe 还是气泡,替代 JS 侧二次猜测
       'html': rendered + attachmentsHtml,
       if (segs != null) 'segs': segs,
       'reasoning': m.currentReasoning ?? '',
@@ -4802,6 +4799,18 @@ class _FullImageViewer extends StatelessWidget {
       ),
     );
   }
+}
+
+/// [MD修复2] HTML卡片判定(文档级证据):
+/// a) 首个非空白字符是标签开始(<字母 或 <!),或
+/// b) 内容以 <!DOCTYPE / <html 文档标记开头(docStart 分支裁剪后即如此)。
+/// 旧子串级判定(<style|<script|<body 提及即真)会把"正文中讲到HTML标签的纯文本"
+/// ——讲脚本教程的AI回复必然出现——整条塞进 iframe:透明bg+黑字+空白折叠+
+/// markdown不渲染 → 排版全毁。非围栏的"前导文字+卡片"会退化为可读文本,
+/// 属可接受代价;显式 ```html 围栏路径不受影响。
+bool _looksLikeHtmlDoc(String s) {
+  final t = s.trimLeft();
+  return t.isNotEmpty && RegExp(r'^<[a-zA-Z!]').hasMatch(t);
 }
 
 /// 把代码位置的弯引号(智能引号)归一化为直引号。仅用于进 iframe 的 HTML 卡片：
