@@ -204,11 +204,13 @@ const kSettingsIndex = <SettingsIndexEntry>[
     icon: CupertinoIcons.square_list,
     section: '工具链',
   ),
+  // [CHRONICLE UI整合] "向量存储 RAG"搜索索引已随入口删除一并移除。
   SettingsIndexEntry(
-    title: '向量存储 RAG',
-    keywords: '向量 检索 rag 知识库 embedding 语义搜索 vector storage',
-    route: AppRoutes.vectorStorageSettings,
-    icon: CupertinoIcons.square_stack_3d_up,
+    title: 'Chronicle 超级记忆',
+    keywords: '记忆 chronicle 总结 词条 召回 wiki 上下文压缩 超级记忆',
+    route: AppRoutes.aiConfig,
+    dialog: 'chronicle',
+    icon: CupertinoIcons.book,
     section: '工具链',
   ),
 

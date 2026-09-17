@@ -11,21 +11,21 @@ import 'package:kirakira/presentation/screens/import/import_screen.dart'
     show urlImportServiceProvider;
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 
-/// Chub.ai 全屏沉浸式浏览器
+/// AI Character Cards (aicharactercards.com) 全屏沉浸式浏览器
 ///
-/// 系统返回键先返回网页历史，到第一页才退出。
+/// 国际SFW角色卡社区。系统返回键先返回网页历史，到第一页才退出。
 /// 在角色详情页显示「导入到Kira」浮动按钮。
 /// 点击网站下载按钮时通过JS拦截自动导入角色卡。
-class ChubWebViewScreen extends ConsumerStatefulWidget {
+class AccWebViewScreen extends ConsumerStatefulWidget {
   final VoidCallback? onCharacterImported;
 
-  const ChubWebViewScreen({super.key, this.onCharacterImported});
+  const AccWebViewScreen({super.key, this.onCharacterImported});
 
   @override
-  ConsumerState<ChubWebViewScreen> createState() => _ChubWebViewScreenState();
+  ConsumerState<AccWebViewScreen> createState() => _AccWebViewScreenState();
 }
 
-class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
+class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
   InAppWebViewController? _controller;
   double _progress = 0.0;
   bool _isLoading = false;
@@ -38,7 +38,7 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
   bool _showControls = false;
   Timer? _hideControlsTimer;
 
-  static const _chubCharactersUrl = 'https://chub.ai/characters';
+  static const _accHomeUrl = 'https://aicharactercards.com/';
   static const _acceptLanguage = 'zh-CN,zh;q=0.9,en;q=0.8';
   static const _desktopUserAgent =
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
@@ -102,7 +102,7 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
                 onPointerDown: (_) => _toggleControls(),
                 child: InAppWebView(
                   initialUrlRequest: URLRequest(
-                    url: WebUri(_chubCharactersUrl),
+                    url: WebUri(_accHomeUrl),
                     headers: const {'Accept-Language': _acceptLanguage},
                   ),
                   initialSettings: InAppWebViewSettings(
@@ -134,7 +134,7 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
                     // 记录角色页面URL
                     if (_isCharacterPageUrl(urlStr)) {
                       _currentCharacterUrl = urlStr;
-                      debugPrint('[ChubWebView] On character page: $urlStr');
+                      debugPrint('[AccWebView] On character page: $urlStr');
                     }
                   },
                   onLoadStop: (c, url) async {
@@ -169,9 +169,9 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
                     final url = navigationAction.request.url;
                     if (url == null) return NavigationActionPolicy.ALLOW;
                     final urlStr = url.toString();
-                    debugPrint('[ChubWebView] Navigation: $urlStr');
+                    debugPrint('[AccWebView] Navigation: $urlStr');
                     if (_isCharacterCardUrl(urlStr)) {
-                      debugPrint('[ChubWebView] Intercepted card URL');
+                      debugPrint('[AccWebView] Intercepted card URL');
                       _handleDownload(urlStr);
                       return NavigationActionPolicy.CANCEL;
                     }
@@ -180,7 +180,7 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
                   onDownloadStartRequest: (c, request) async {
                     final urlStr = request.url.toString();
                     debugPrint(
-                        '[ChubWebView] Download: $urlStr '
+                        '[AccWebView] Download: $urlStr '
                         '(file: ${request.suggestedFilename}, '
                         'mime: ${request.mimeType})');
                     if (_isCharacterCardUrl(urlStr)) {
@@ -335,7 +335,7 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
             onPressed: () {
               _controller?.loadUrl(
                 urlRequest: URLRequest(
-                  url: WebUri(_chubCharactersUrl),
+                  url: WebUri(_accHomeUrl),
                   headers: const {'Accept-Language': _acceptLanguage},
                 ),
               );
@@ -359,11 +359,11 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.vpn_lock, color: Colors.white, size: 20),
+          const Icon(Icons.cloud_off, color: Colors.white, size: 20),
           const SizedBox(width: DesignTokens.spaceSm),
           const Expanded(
             child: Text(
-              '需要VPN访问 • 点击屏幕显示控制',
+              '如无法访问请检查网络 • 点击屏幕显示控制',
               style:
                   TextStyle(color: Colors.white, fontSize: DesignTokens.fontSizeSm),
             ),
@@ -383,25 +383,24 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
   // ─── Logic ───
 
   /// 判断URL是否是角色详情页
+  /// AI Character Cards 角色页格式: https://aicharactercards.com/character-cards/{slug}/
   bool _isCharacterPageUrl(String url) {
     if (url.isEmpty) return false;
     final uri = Uri.tryParse(url);
     if (uri == null) return false;
+    if (uri.host != 'aicharactercards.com' &&
+        !uri.host.endsWith('.aicharactercards.com')) {
+      return false;
+    }
     final segments = uri.pathSegments;
-    return segments.length >= 3 && segments[0] == 'characters';
+    return segments.length >= 2 && segments[0] == 'character-cards';
   }
 
   bool _isOnCharacterPage() => _isCharacterPageUrl(_currentUrl);
 
   bool _isCharacterCardUrl(String url) {
-    if (url.contains('avatars.charhub.io') &&
-        url.contains('chara_card_v2.png')) {
-      return true;
-    }
-    if (url.contains('chub.ai') && url.contains('/download')) {
-      return true;
-    }
-    if (url.contains('lfs.charhub.io') && url.endsWith('.png')) {
+    // AI Character Cards 官方PNG卡接口
+    if (url.contains('aicharactercards.com/wp-json/pngapi')) {
       return true;
     }
     if (url.endsWith('.png') &&
@@ -452,13 +451,13 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
         );
       }
     } catch (e) {
-      debugPrint('[ChubWebView] Import failed: $e');
+      debugPrint('[AccWebView] Import failed: $e');
       if (mounted) Navigator.of(context).pop();
       final msg = e.toString().replaceAll('Exception: ', '');
       if (mounted) {
         String friendly;
         if (msg.contains('403') || msg.contains('not available')) {
-          friendly = '无法访问 Chub.ai CDN。请检查网络或启用 VPN 后重试。';
+          friendly = '无法访问 AI Character Cards。请检查网络后重试。';
         } else if (msg.contains('404') || msg.contains('not found')) {
           friendly = '未找到该角色卡，可能已被作者删除。';
         } else if (msg.contains('No character data') || msg.contains('PNG')) {
@@ -499,7 +498,7 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
         })();
       ''');
     } catch (e) {
-      debugPrint('[ChubWebView] Language injection failed: $e');
+      debugPrint('[AccWebView] Language injection failed: $e');
     }
   }
 
@@ -512,11 +511,11 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
         if (args.isNotEmpty) {
           url = args[0]?.toString();
         }
-        debugPrint('[ChubWebView] JS handler called with: $url');
+        debugPrint('[AccWebView] JS handler called with: $url');
         // URL为空时使用当前角色页面URL
         if (url == null || url.isEmpty || url == 'null') {
           url = _currentCharacterUrl;
-          debugPrint('[ChubWebView] Fallback to current character URL: $url');
+          debugPrint('[AccWebView] Fallback to current character URL: $url');
         }
         if (url != null && url.isNotEmpty) {
           _handleDownload(url);
@@ -547,9 +546,8 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
               // 方法1: 检查 href 是否匹配下载链接
               var href = el.href || el.getAttribute && el.getAttribute('href') || '';
               if (href && (
-                href.includes('chara_card_v2.png') ||
-                href.includes('avatars.charhub.io') ||
-                href.includes('lfs.charhub.io') ||
+                href.includes('pngapi') ||
+                href.includes('chara_card') ||
                 href.includes('/download')
               )) {
                 isDownloadButton = true;
@@ -611,7 +609,7 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
           HTMLAnchorElement.prototype.click = function() {
             var href = this.href || '';
             var dl = this.getAttribute('download') || '';
-            if (href.includes('chara_card') || href.includes('avatars.charhub') ||
+            if (href.includes('pngapi') || href.includes('chara_card') ||
                 dl.includes('chara_card') || dl.includes('.png') ||
                 dl.includes('download')) {
               console.log('[Kira] Programmatic download click intercepted');
@@ -627,9 +625,9 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
           console.log('[Kira] Download interceptor installed');
         })();
       ''');
-      debugPrint('[ChubWebView] Download interceptor injected');
+      debugPrint('[AccWebView] Download interceptor injected');
     } catch (e) {
-      debugPrint('[ChubWebView] Failed to inject interceptor: $e');
+      debugPrint('[AccWebView] Failed to inject interceptor: $e');
     }
   }
 
@@ -751,14 +749,14 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
         ),
         title: const Row(
           children: [
-            Icon(Icons.vpn_lock, color: DesignTokens.statusWarning),
+            Icon(Icons.cloud_off, color: DesignTokens.statusWarning),
             SizedBox(width: DesignTokens.spaceSm),
-            Text('需要VPN'),
+            Text('无法访问'),
           ],
         ),
         content: const Text(
-          'Chub.ai 在当前网络环境下无法访问。\n\n'
-          '请启用 VPN 后点击「刷新」重新加载。',
+          'AI Character Cards 在当前网络环境下无法访问。\n\n'
+          '请检查网络（或启用 VPN）后点击「刷新」重新加载。',
           style: TextStyle(fontSize: DesignTokens.fontSizeSm),
         ),
         actions: [
@@ -823,10 +821,11 @@ class _ChubWebViewScreenState extends ConsumerState<ChubWebViewScreen> {
               Text('注意事项：'),
               SizedBox(height: DesignTokens.spaceXs),
               Text(
-                '• 访问 Chub.ai 需要 VPN\n'
-                '• 导入角色卡从 CDN 直连，无需 VPN\n'
-                '• 可连续导入多个角色\n'
-                '• 支持包含世界书自动导入',
+                '• 国际SFW角色卡社区，无需担心内容合规\n'
+                '• 在浏览器内直接浏览、搜索角色\n'
+                '• 点击下载自动导入到 Kira\n'
+                '• 支持包含世界书自动导入\n'
+                '• 如无法访问请检查网络（部分地区或需VPN）',
                 style: TextStyle(fontSize: DesignTokens.fontSizeSm),
               ),
             ],

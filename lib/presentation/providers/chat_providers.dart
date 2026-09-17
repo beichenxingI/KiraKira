@@ -36,12 +36,10 @@ import 'package:kirakira/data/repositories/chronicle_repository.dart';
 import 'package:kirakira/presentation/providers/chronicle_providers.dart';
 import 'package:kirakira/data/models/chronicle.dart'
     show
-        ChronicleSettings,
         MemoryEntity,
         MemoryEntry,
         MemoryRelationship,
-        EmotionNode,
-        MemoryEntityType;
+        EmotionNode;
 import 'package:kirakira/core/utils/file_utils.dart';
 
 // Note: Repository providers are defined in their respective repository files

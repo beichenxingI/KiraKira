@@ -335,6 +335,32 @@ class VectorStorageService {
     return collection.documents.any((d) => d.metadata['type'] == type);
   }
 
+  /// [CHRONICLE UI整合·迁移检测] 是否存在旧版RAG向量数据。
+  /// 旧数据定义：非 chronicle_entry 类型的文档（消息原文向量/手动上传的知识库向量）。
+  bool get hasLegacyVectors {
+    return collections
+        .any((c) => c.documents.any((d) => d.metadata['type'] != 'chronicle_entry'));
+  }
+
+  /// [CHRONICLE UI整合·迁移清理] 删除所有旧版RAG向量（保留chronicle词条向量）。
+  /// 用户选择"开启Chronicle，删除旧数据"时调用；消息原文向量后续仍会按需重建
+  /// （新消息照常入库，服务话题切换检测）。
+  Future<void> removeLegacyVectors() async {
+    for (final collection in _collections.values.toList()) {
+      final legacy = collection.documents
+          .where((d) => d.metadata['type'] != 'chronicle_entry')
+          .map((d) => d.id)
+          .toList();
+      if (legacy.isEmpty) continue;
+      final kept =
+          collection.documents.where((d) => d.metadata['type'] == 'chronicle_entry').toList();
+      _collections[collection.id] = collection.copyWith(documents: kept);
+      for (final id in legacy) {
+        _deleteDocumentRow(id);
+      }
+    }
+  }
+
   /// Chunk text into smaller pieces
   List<String> chunkText(String text, ChunkingOptions options) {
     switch (options.strategy) {

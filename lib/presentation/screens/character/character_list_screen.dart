@@ -26,7 +26,7 @@ import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
-import 'package:kirakira/presentation/screens/market/chub_webview_screen.dart';
+import 'package:kirakira/presentation/screens/market/acc_webview_screen.dart';
 
 /// Character list screen
 class CharacterListScreen extends ConsumerStatefulWidget {
@@ -1410,7 +1410,8 @@ class _ChubMarketTab extends StatelessWidget {
   void _openWebView(BuildContext context) {
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
-        builder: (_) => ChubWebViewScreen(
+        // chub_webview_screen.dart 已更名 acc_webview_screen.dart（AI Character Cards）
+        builder: (_) => AccWebViewScreen(
           onCharacterImported: onSwitchToMyCharacters,
         ),
         fullscreenDialog: true,

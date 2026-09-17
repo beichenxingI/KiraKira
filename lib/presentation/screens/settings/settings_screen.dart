@@ -32,6 +32,7 @@ import 'package:kirakira/presentation/dialogs/prompt_manager_dialog.dart';
 import 'package:kirakira/presentation/dialogs/cfg_scale_dialog.dart';
 import 'package:kirakira/presentation/dialogs/mvu_dialog.dart';
 import 'package:kirakira/presentation/dialogs/variables_dialog.dart';
+import 'package:kirakira/presentation/dialogs/chronicle_settings_dialog.dart';
 import 'package:kirakira/presentation/dialogs/global_worldbook_dialog.dart';
 import 'package:kirakira/presentation/dialogs/background_settings_dialog.dart';
 import 'package:kirakira/presentation/dialogs/appearance_settings_dialog.dart';
@@ -448,6 +449,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         showMvuDialog(context, ref);
       case 'variables':
         showVariablesDialog(context, ref);
+      case 'chronicle':
+        showChronicleSettingsDialog(context, ref);
       case 'globalWorldbook':
         showGlobalWorldbookDialog(context, ref);
       case 'background':

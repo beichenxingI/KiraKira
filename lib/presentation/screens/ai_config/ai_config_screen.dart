@@ -18,6 +18,7 @@ import '../../dialogs/regex_system_dialog.dart';
 import '../../dialogs/prompt_manager_dialog.dart';
 import '../../dialogs/global_worldbook_dialog.dart';
 import '../../dialogs/chronicle_settings_dialog.dart';
+import 'package:kirakira/presentation/providers/chronicle_providers.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../../data/database/database.dart';
 
@@ -99,6 +100,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
     final llmConfig = ref.watch(llmConfigProvider);
     final imageGenSettings = ref.watch(imageGenSettingsProvider);
     final testState = ref.watch(connectionTestProvider);
+    final chronicleEnabled = ref.watch(chronicleSettingsProvider).enabled;
 
     final llmStatus = llmConfig.apiUrl.isEmpty
         ? ApiStatus.notConfigured
@@ -111,6 +113,11 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
     final imageStatus = imageGenSettings.enabled
         ? ApiStatus.connected
         : ApiStatus.notConfigured;
+
+    // [CHRONICLE UI整合] 顶部第三个状态卡：旧"全局书"入口删除（保留下方快捷区的世界书），
+    // 替换为Chronicle超级记忆入口，直接弹全局设置浮窗，不依赖是否进入聊天。
+    final chronicleStatus =
+        chronicleEnabled ? ApiStatus.connected : ApiStatus.notConfigured;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -138,11 +145,12 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: _buildStatusCard(
-              icon: CupertinoIcons.book_fill,
-              iconColor: const Color(0xFF26A69A),
-              label: '全局书',
+              icon: Icons.auto_stories,
+              iconColor: const Color(0xFF9C6ADE),
+              label: chronicleEnabled ? '记忆已开启' : '记忆已关闭',
+              status: chronicleStatus,
               isDark: isDark,
-              onTap: () => showGlobalWorldbookDialog(context, ref),
+              onTap: () => showChronicleSettingsDialog(context, ref),
             ),
           ),
         ],
@@ -1878,17 +1886,8 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
               onTap: () => showPromptManagerDialog(context, ref),
             ),
           ),
-          const SizedBox(width: 8),
-          // [CHRONICLE Phase 4] 第5瓷砖：超级记忆入口
-          Expanded(
-            child: _buildQuickActionTile(
-              icon: CupertinoIcons.book,
-              iconColor: const Color(0xFFEC407A),
-              label: '记忆',
-              isDark: isDark,
-              onTap: () => showChronicleSettingsDialog(context, ref),
-            ),
-          ),
+          // [CHRONICLE UI整合] 快捷区'记忆'瓷砖已移除：
+          // 入口统一收口到顶部状态卡（全局书也仅保留本区'世界书'一个入口）。
         ],
       ),
     );
