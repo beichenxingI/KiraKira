@@ -512,8 +512,8 @@ class UpsertRelationshipInstruction {
   final String description;
 
   const UpsertRelationshipInstruction({
-    required this.fromName,
-    required this.toName,
+    this.fromName = '',
+    this.toName = '',
     this.relationType = 'trust',
     this.strength = 0,
     this.description = '',
@@ -528,7 +528,7 @@ class UpsertEmotionInstruction {
   final bool active;
 
   const UpsertEmotionInstruction({
-    required this.entityName,
+    this.entityName = '',
     required this.emotion,
     this.intensity = 5,
     this.trigger = '',

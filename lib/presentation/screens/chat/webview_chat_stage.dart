@@ -67,6 +67,7 @@ import 'package:kirakira/presentation/providers/variables_providers.dart';
 import 'package:kirakira/presentation/providers/tokenizer_providers.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 import 'package:kirakira/data/repositories/chronicle_repository.dart';
+import 'package:kirakira/presentation/providers/chronicle_providers.dart';
 import 'package:kirakira/presentation/providers/image_gen_providers.dart';
 import 'package:kirakira/data/models/chat_background.dart';
 import 'package:kirakira/data/models/vector_storage.dart';
@@ -2409,6 +2410,21 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       if (targetIndex != null) {
         final target = messages[targetIndex];
         final swipeId = target.currentSwipeIndex < 0 ? 0 : target.currentSwipeIndex;
+        // [CHRONICLE Phase 4] 捕获更新前的最后有效stat_data（MVU桥接比对用）
+        Map<String, dynamic>? chronicleOldStat;
+        for (var i = targetIndex; i >= 0; i--) {
+          final sd = messages[i].swipesData;
+          if (sd.isEmpty) continue;
+          final swIdx = messages[i].currentSwipeIndex >= 0 &&
+                  messages[i].currentSwipeIndex < sd.length
+              ? messages[i].currentSwipeIndex
+              : 0;
+          final stat = sd[swIdx]['stat_data'];
+          if (stat is Map && stat.isNotEmpty) {
+            chronicleOldStat = Map<String, dynamic>.from(stat);
+            break;
+          }
+        }
         final newSwipesData =
             List<Map<String, dynamic>>.from(target.swipesData);
         while (newSwipesData.length <= swipeId) {
@@ -2420,6 +2436,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         debugPrint('[setVars修复] 已写入 mid=$targetIndex swipe=$swipeId keys=${vars.keys.toList()}');
         debugPrint('[setVars落点] targetIndex=$targetIndex '
             '写入的stat_data=${jsonEncode(vars['stat_data'])}');
+        // [CHRONICLE Phase 4] MVU→Chronicle桥接：重大数值变化→记忆事件（异步，只读MVU不回写）
+        if (vars['stat_data'] is Map && (vars['stat_data'] as Map).isNotEmpty) {
+          unawaited(ref.read(chronicleOrchestratorProvider).onMvuVariableUpdated(
+                widget.chatId,
+                chronicleOldStat,
+                Map<String, dynamic>.from(vars['stat_data'] as Map),
+              ));
+        }
         // 同步引擎房镜像
         _syncVarsToEngine('message', vars, messageId: targetIndex, lastMsgId: targetIndex, swipeId: swipeId);
         return vars;

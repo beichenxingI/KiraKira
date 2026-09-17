@@ -431,6 +431,53 @@ class ChronicleOrchestrator {
     }
   }
 
+  /// [Phase 4] MVU桥接：数值型变量重大变化（|delta|≥20）→ 记忆事件词条。
+  /// 边界：Chronicle只读MVU数据作为上下文，**绝不回写MVU**（MVU引擎不碰记忆表）。
+  Future<void> onMvuVariableUpdated(
+    String chatId,
+    Map<String, dynamic>? oldStat,
+    Map<String, dynamic> newStat,
+  ) async {
+    try {
+      if (oldStat == null || oldStat.isEmpty) return;
+      final settings = await _repo.getSettings(chatId);
+      if (!settings.enabled || !settings.mvuBridgeEnabled) return;
+
+      final changes = <String>[];
+      for (final entry in newStat.entries) {
+        final nv = entry.value;
+        final ov = oldStat[entry.key];
+        if (nv is num && ov is num) {
+          final delta = (nv.toDouble() - ov.toDouble()).abs();
+          if (delta >= 20) {
+            changes.add('${entry.key}: $ov→$nv');
+          }
+        }
+      }
+      if (changes.isEmpty) return;
+
+      final now = DateTime.now();
+      final entry = models.MemoryEntry(
+        id: _uuid.v4(),
+        chatId: chatId,
+        type: models.MemoryEntryType.state,
+        title: '关系数值重大变化',
+        content: 'MVU状态重大变化：${changes.join('；')}。这标志着角色关系出现显著转折，'
+            '后续剧情应体现这一变化的影响。',
+        importance: 8,
+        alwaysInject: true,
+        tags: changes.map((c) => c.split(':')[0]).toList(),
+        createdAt: now,
+        updatedAt: now,
+      );
+      await _repo.upsertMemoryEntry(entry);
+      await _vectorizeEntry(entry);
+      debugPrint('[CHRONICLE] MVU桥接事件已记录：${changes.join('；')}');
+    } catch (e) {
+      debugPrint('[CHRONICLE] MVU桥接失败（不影响变量更新）: $e');
+    }
+  }
+
   // ═══════════════════ 旧摘要迁移（一次性） ═══════════════════
 
   /// 旧 ChatSummary → Chronicle 初始词条。幂等：已有词条的聊天跳过。

@@ -17,6 +17,7 @@ import '../../dialogs/ai_preset_dialog.dart';
 import '../../dialogs/regex_system_dialog.dart';
 import '../../dialogs/prompt_manager_dialog.dart';
 import '../../dialogs/global_worldbook_dialog.dart';
+import '../../dialogs/chronicle_settings_dialog.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../../data/database/database.dart';
 
@@ -1875,6 +1876,17 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
               label: '提示词',
               isDark: isDark,
               onTap: () => showPromptManagerDialog(context, ref),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // [CHRONICLE Phase 4] 第5瓷砖：超级记忆入口
+          Expanded(
+            child: _buildQuickActionTile(
+              icon: CupertinoIcons.book,
+              iconColor: const Color(0xFFEC407A),
+              label: '记忆',
+              isDark: isDark,
+              onTap: () => showChronicleSettingsDialog(context, ref),
             ),
           ),
         ],
