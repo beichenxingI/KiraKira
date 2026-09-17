@@ -1109,6 +1109,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest('th_wiSetLorebookSettings', _handleWiSetLorebookSettings);
                     _bridge.onRequest('th_generateRaw', _handleGenerateRaw);
                     _bridge.onRequest('th_renderEJS', _handleRenderEJS);
+                    _bridge.onRequest('th_mvuParseMessage', _handleMvuParseMessage);
                     // [P5-6阶段2.4] 酒馆正则只读桥(道渊第3条报警数据链)
                     _bridge.onRequest('th_getRegexes', _handleThGetRegexes);
                     // [P3-K2] 提示词管理 API
@@ -1751,7 +1752,51 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       }
     return result;
     }
-  
+
+  /// thMvuParseMessage: 把卡片 iframe 的 parseMessage 请求转发到引擎房 MVU bundle。
+  /// 引擎房的 window.Mvu.parseMessage 是本地 qG 函数,不走 RPC,直接调即可。
+  /// fail-open:引擎房未就绪或 Mvu 不存在时返回 old_data 原样,不阻断卡片流程。
+  Future<dynamic> _handleMvuParseMessage(Map<String, dynamic> payload) async {
+    final message = payload['message'] as String? ?? '';
+    final oldData = payload['old_data'] ?? <String, dynamic>{};
+    final controller = _controller;
+    if (controller == null) return oldData;
+
+    try {
+      final msgJson = jsonEncode(message);
+      final oldJson = jsonEncode(oldData);
+      final js = '''
+        (async function() {
+          try {
+            var host = document.getElementById('__engineRoomHost');
+            var f = host && host.querySelector('iframe[data-frame-id="engine-room"]');
+            var w = f && f.contentWindow;
+            if (!(w && w.Mvu && typeof w.Mvu.parseMessage === 'function')) {
+              return $oldJson;
+            }
+            var result = await w.Mvu.parseMessage($msgJson, $oldJson);
+            return JSON.stringify(result);
+          } catch(e) {
+            return $oldJson;
+          }
+        })()
+      ''';
+      final raw = await controller.evaluateJavascript(source: js);
+      if (raw == null) return oldData;
+      if (raw is String) {
+        try {
+          return jsonDecode(raw);
+        } catch (_) {
+          return oldData;
+        }
+      }
+      return raw;
+    } catch (e) {
+      debugPrint('[thMvuParseMessage] error: $e');
+      return oldData;
+    }
+  }
+
   /// EJS 渲染桥:接收文本,发进引擎房跑 ST-Prompt-Template 的 evalTemplate,返回渲染后的文本。
   ///
   /// 主案 kick+poll:kick 脚本同步返回 seq id(零 Promise 穿桥依赖,老 WebView 也稳),

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:intl/intl.dart';
 import 'package:kirakira/domain/services/variables_service.dart';
@@ -498,7 +499,132 @@ class MacroService {
       },
     );
 
+    // ── 路径变量宏（支持 JSON Pointer /a/b、点 a.b、括号 a[0] 路径）──
+
+    // {{get_message_variable::path}} - 读当前消息 stat_data 的嵌套路径
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{get_message_variable::([^}]+?)\}\}', caseSensitive: false),
+      (match) {
+        final path = match.group(1)!.trim();
+        final val = _getNestedValue(context.currentStatData, path);
+        return _valueToString(val);
+      },
+    );
+
+    // {{get_chat_variable::path}} - 读 chat 作用域变量（支持路径）
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{get_chat_variable::([^}]+?)\}\}', caseSensitive: false),
+      (match) {
+        final path = match.group(1)!.trim();
+        if (chatId.isEmpty) return '';
+        final val = _getNestedValue(vars.getAllLocalVariables(chatId), path);
+        return _valueToString(val);
+      },
+    );
+
+    // {{get_global_variable::path}} - 读全局变量（支持路径）
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{get_global_variable::([^}]+?)\}\}', caseSensitive: false),
+      (match) {
+        final path = match.group(1)!.trim();
+        final val = _getNestedValue(vars.getAllGlobalVariables(), path);
+        return _valueToString(val);
+      },
+    );
+
+    // {{format_message_variable::path}} / {{format_variable::path}} - YAML格式化输出
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{format_(?:message_)?variable::([^}]+?)\}\}', caseSensitive: false),
+      (match) {
+        final path = match.group(1)!.trim();
+        final source = path == '*'
+            ? context.currentStatData
+            : _getNestedValue(context.currentStatData, path);
+        return _formatAsYaml(source);
+      },
+    );
+
     return result;
+  }
+
+  /// 路径引擎：支持 JSON Pointer (/a/b)、点 (a.b)、括号 (a[0]/a["k"])
+  /// 原型链路径禁止（__proto__/constructor/prototype）
+  dynamic _getNestedValue(dynamic obj, String path) {
+    if (obj == null) return null;
+    if (path == '*') return obj;
+
+    if (path.contains('__proto__') ||
+        path.contains('constructor') ||
+        path.contains('prototype')) {
+      return null;
+    }
+
+    List<String> keys;
+    if (path.startsWith('/')) {
+      keys = path.substring(1).split('/').map((k) =>
+        k.replaceAll('~1', '/').replaceAll('~0', '~')).toList();
+    } else {
+      keys = path
+          .replaceAllMapped(RegExp(r'\[([^\]]+)\]'), (m) => '.${m.group(1)}')
+          .split('.')
+          .where((k) => k.isNotEmpty)
+          .toList();
+    }
+
+    dynamic cur = obj;
+    for (final key in keys) {
+      if (cur is Map) {
+        cur = cur[key];
+      } else if (cur is List) {
+        final idx = int.tryParse(key);
+        if (idx == null || idx < 0 || idx >= cur.length) return null;
+        cur = cur[idx];
+      } else {
+        return null;
+      }
+      if (cur == null) return null;
+    }
+    return cur;
+  }
+
+  /// 值转字符串：对象转 JSON，其余 toString
+  String _valueToString(dynamic val) {
+    if (val == null) return '';
+    if (val is String) return val;
+    if (val is num || val is bool) return val.toString();
+    try {
+      return jsonEncode(val);
+    } catch (_) {
+      return val.toString();
+    }
+  }
+
+  /// YAML 格式化输出（多行缩进对齐）
+  String _formatAsYaml(dynamic obj, {int indent = 0}) {
+    if (obj == null) return '';
+    final pad = '  ' * indent;
+    if (obj is Map) {
+      return obj.entries.map((e) {
+        final v = e.value;
+        if (v is Map || v is List) {
+          return '$pad${e.key}:\n${_formatAsYaml(v, indent: indent + 1)}';
+        }
+        return '$pad${e.key}: $v';
+      }).join('\n');
+    }
+    if (obj is List) {
+      return obj.map((v) {
+        if (v is Map || v is List) {
+          return '$pad- ${_formatAsYaml(v, indent: indent + 1)}';
+        }
+        return '$pad- $v';
+      }).join('\n');
+    }
+    return '$pad$obj';
   }
   
   /// Evaluate a simple condition
@@ -594,6 +720,9 @@ class MacroContext {
   // Group chat data (optional)
   final List<String> groupCharacterNames;
   
+  // MVU variable state (latest stat_data from swipesData)
+  final Map<String, dynamic>? currentStatData;
+  
   const MacroContext({
     this.userName = 'User',
     this.userDescription = '',
@@ -617,6 +746,7 @@ class MacroContext {
     this.providerName = '',
     this.idleDuration = 0,
     this.groupCharacterNames = const [],
+    this.currentStatData,
   });
   
   /// Create MacroContext from character, persona, and chat data
@@ -659,6 +789,25 @@ class MacroContext {
       idleDuration = DateTime.now().difference(lastMsgTime).inMinutes;
     }
     
+    // Extract latest stat_data from assistant messages' swipesData (MVU variable state)
+    Map<String, dynamic>? currentStatData;
+    if (messages != null) {
+      for (int i = messages.length - 1; i >= 0; i--) {
+        final msg = messages[i];
+        if (msg.role != MessageRole.assistant) continue;
+        final swipesData = msg.swipesData;
+        if (swipesData.isEmpty) continue;
+        final swIdx = msg.currentSwipeIndex >= 0 && msg.currentSwipeIndex < swipesData.length
+            ? msg.currentSwipeIndex : 0;
+        final data = swipesData[swIdx];
+        final stat = data['stat_data'];
+        if (stat is Map && stat.isNotEmpty) {
+          currentStatData = Map<String, dynamic>.from(stat);
+          break;
+        }
+      }
+    }
+    
     return MacroContext(
       userName: persona?.name ?? 'User',
       userDescription: persona?.description ?? '',
@@ -682,6 +831,7 @@ class MacroContext {
       providerName: providerName ?? '',
       idleDuration: idleDuration,
       groupCharacterNames: groupCharacters?.map((c) => c.name).toList() ?? [],
+      currentStatData: currentStatData,
     );
   }
   
@@ -708,6 +858,7 @@ class MacroContext {
     String? providerName,
     int? idleDuration,
     List<String>? groupCharacterNames,
+    Map<String, dynamic>? currentStatData,
   }) {
     return MacroContext(
       userName: userName ?? this.userName,
@@ -732,6 +883,7 @@ class MacroContext {
       providerName: providerName ?? this.providerName,
       idleDuration: idleDuration ?? this.idleDuration,
       groupCharacterNames: groupCharacterNames ?? this.groupCharacterNames,
+      currentStatData: currentStatData ?? this.currentStatData,
     );
   }
 }

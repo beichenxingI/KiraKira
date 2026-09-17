@@ -279,6 +279,9 @@ class LLMService {
   /// EJS 渲染器(可选,由 presentation 层注入)
   final EJSRenderer? _ejsRenderer;
 
+  /// EJS effectHash 去重缓存:同一 response 周期内相同 content+id 只渲染一次
+  final Set<String> _ejsEffectCache = {};
+
   LLMService({EJSRenderer? ejsRenderer}) : _ejsRenderer = ejsRenderer;
   
   /// Log a message to the console
@@ -446,6 +449,8 @@ class LLMService {
 
   /// Generate a response with reasoning/thinking support (non-streaming)
   /// EJS 渲染:遍历 messages,对每条 content 调引擎房 EJS 渲染,返回新数组。
+  /// effectHash 去重:同一 response 周期内相同 content+id 只渲染一次。
+  /// fail-open:渲染失败返回原文 + 标记 ejsError,不阻断发送。
   Future<List<Map<String, dynamic>>> _renderEJSInMessages(
     List<Map<String, dynamic>> messages,
   ) async {
@@ -468,11 +473,29 @@ class LLMService {
         final head = content.length > 80 ? content.substring(0, 80) : content;
         _log('[EJSD-2] i=$i role=$role len=${content.length} '
             'tags=$tagCount zis=$zis head=$head');
-        // 调用 EJS 渲染器渲染 content
-        final renderedContent = await _ejsRenderer!.render(content);
-        _log('[EJSD-2r] i=$i role=$role outLen=${renderedContent.length} '
-            'outTags=${'<%'.allMatches(renderedContent).length}');
-        rendered.add({'role': role, 'content': renderedContent});
+
+        // effectHash 去重:同一 response 周期内已渲染过的 content 跳过
+        final id = msg['id']?.toString() ?? '';
+        final hash = '${content.hashCode}_$id';
+        if (_ejsEffectCache.contains(hash)) {
+          _log('[EJSD-2d] i=$i role=$role DEDUP skip');
+          rendered.add(msg);
+          i++;
+          continue;
+        }
+
+        try {
+          final renderedContent = await _ejsRenderer!.render(content);
+          _ejsEffectCache.add(hash);
+          _log('[EJSD-2r] i=$i role=$role outLen=${renderedContent.length} '
+              'outTags=${'<%'.allMatches(renderedContent).length}');
+          rendered.add({'role': role, 'content': renderedContent});
+        } catch (e) {
+          // fail-open:返回原文,标记错误供 UI 展示
+          _ejsEffectCache.add(hash);
+          _log('[EJSD-2e] i=$i role=$role RENDER FAILED: $e');
+          rendered.add({'role': role, 'content': content, 'ejsError': e.toString()});
+        }
       } else {
         _log('[EJSD-2] i=$i role=$role SKIP(non-string or empty)');
         rendered.add(msg);
@@ -487,6 +510,7 @@ class LLMService {
     LLMConfig config,
   ) async {
     // EJS 渲染:发给 LLM 前先跑一遍 EJS
+    _ejsEffectCache.clear(); // 每个 response 周期清空去重缓存
     messages = await _renderEJSInMessages(messages);
 
     switch (config.provider) {

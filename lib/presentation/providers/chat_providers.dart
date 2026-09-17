@@ -1719,6 +1719,27 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       messages.addAll(sectionMessages);
     }
 
+    // 变量状态注入：从消息 swipesData 回溯取最后一条有效 stat_data，
+    // 与 MVU getLastValidVariable 的读取语义一致。
+    // 格式对齐 PiuPiu Pl() 的 [当前已持久化变量状态] 系统块。
+    final statData = _getLatestStatData(chatMessages);
+    if (statData != null && statData.isNotEmpty) {
+      const maxLen = 5000;
+      var json = jsonEncode(statData);
+      if (json.length > maxLen) {
+        json = '${json.substring(0, maxLen)}...（已截断，变量状态过长）';
+      }
+      messages.add({
+        'role': 'system',
+        'content': '[当前已持久化变量状态]\n'
+            '以下是从MVU变量更新中解析并持久化的最新状态。后续回复应基于这些状态继续推进，'
+            '并在需要变更状态时输出新的变量更新指令。\n'
+            '$json\n'
+            '[/当前已持久化变量状态]',
+      });
+      debugPrint('[MVU] 注入变量状态到提示词: ${statData.keys.length} keys');
+    }
+
     // Add summary message if we have summaries
     if (summaries.isNotEmpty) {
       final latestSummary = summaries.last;
@@ -1832,6 +1853,24 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   }
 
   /// Build messages for a single prompt section
+  /// 从消息列表回溯取最后一条有效 stat_data（与 MVU getLastValidVariable 同语义）
+  Map<String, dynamic>? _getLatestStatData(List<ChatMessage> messages) {
+    for (int i = messages.length - 1; i >= 0; i--) {
+      final msg = messages[i];
+      if (msg.role != MessageRole.assistant) continue;
+      final swipesData = msg.swipesData;
+      if (swipesData.isEmpty) continue;
+      final swIdx = msg.currentSwipeIndex >= 0 && msg.currentSwipeIndex < swipesData.length
+          ? msg.currentSwipeIndex : 0;
+      final data = swipesData[swIdx];
+      final stat = data['stat_data'];
+      if (stat is Map && stat.isNotEmpty) {
+        return Map<String, dynamic>.from(stat);
+      }
+    }
+    return null;
+  }
+
   /// A3-T1: 判定 section.content 是否仍是「预填默认文案」(非用户手改)。
   /// 空 或 与 getDefaultContent 相同 → 视为未动;不同 → 用户真改过。
   /// 用于实现优先级: 用户手改 > 角色卡字段 > 默认文案。
