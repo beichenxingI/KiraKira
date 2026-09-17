@@ -115,7 +115,7 @@ class VectorStorageService {
     required String id,
     required String name,
     String? description,
-    int dimensions = 512,
+    int dimensions = 384, // [CHRONICLE Phase 0] 512→384：本地bge-small-zh实际输出384维
   }) {
     final now = DateTime.now();
     final collection = VectorCollection(

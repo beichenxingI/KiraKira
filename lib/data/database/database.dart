@@ -237,7 +237,7 @@ class VectorCollections extends Table {
   TextColumn get id => text()(); // 用 chatId
   TextColumn get name => text()();
   TextColumn get description => text().nullable()();
-  IntColumn get dimensions => integer().withDefault(const Constant(512))(); // bge-small-zh 512维
+  IntColumn get dimensions => integer().withDefault(const Constant(384))(); // bge-small-zh 384维（[CHRONICLE Phase 0] 修正512笔误）
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override

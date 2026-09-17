@@ -16,6 +16,13 @@ enum PromptSectionType {
   custom, // For custom user-defined prompts
 }
 
+/// [CHRONICLE Phase 0] F/B/W 显式分桶语义：
+/// - front（F桶）：聊天历史之前，按 order 排序注入
+/// - before（B桶）：按 injectionDepth 插入聊天历史中间
+/// - absolute（W桶）：聊天历史之后（最末尾）
+/// bucket 为 null 时按现有规则自动推导，保持既有行为不变。
+enum PromptBucket { front, before, absolute }
+
 /// A single prompt section configuration
 class PromptSection {
   final PromptSectionType type;
@@ -32,6 +39,8 @@ class PromptSection {
   final int? injectionPosition;
   /// Injection depth (for depth-based injection)
   final int? injectionDepth;
+  /// [CHRONICLE Phase 0] 显式 F/B/W 桶标记；null = 按现有规则自动推导
+  final PromptBucket? bucket;
 
   const PromptSection({
     required this.type,
@@ -43,6 +52,7 @@ class PromptSection {
     this.role,
     this.injectionPosition,
     this.injectionDepth,
+    this.bucket,
   });
 
   PromptSection copyWith({
@@ -55,6 +65,7 @@ class PromptSection {
     String? role,
     int? injectionPosition,
     int? injectionDepth,
+    PromptBucket? bucket,
   }) {
     return PromptSection(
       type: type ?? this.type,
@@ -66,6 +77,7 @@ class PromptSection {
       role: role ?? this.role,
       injectionPosition: injectionPosition ?? this.injectionPosition,
       injectionDepth: injectionDepth ?? this.injectionDepth,
+      bucket: bucket ?? this.bucket,
     );
   }
 
@@ -116,6 +128,7 @@ class PromptSection {
         if (role != null) 'role': role,
         if (injectionPosition != null) 'injectionPosition': injectionPosition,
         if (injectionDepth != null) 'injectionDepth': injectionDepth,
+        if (bucket != null) 'bucket': bucket!.name,
       };
 
   factory PromptSection.fromJson(Map<String, dynamic> json) => PromptSection(
@@ -131,6 +144,12 @@ class PromptSection {
         role: json['role'] as String?,
         injectionPosition: json['injectionPosition'] as int?,
         injectionDepth: json['injectionDepth'] as int?,
+        bucket: json['bucket'] == null
+            ? null
+            : PromptBucket.values.firstWhere(
+                (b) => b.name == json['bucket'],
+                orElse: () => PromptBucket.front,
+              ),
       );
 
   /// Get display name for a section type

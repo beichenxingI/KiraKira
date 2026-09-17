@@ -6594,7 +6594,7 @@ class $VectorCollectionsTable extends VectorCollections
       'dimensions', aliasedName, false,
       type: DriftSqlType.int,
       requiredDuringInsert: false,
-      defaultValue: const Constant(512));
+      defaultValue: const Constant(384));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override

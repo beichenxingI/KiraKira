@@ -30,6 +30,8 @@ import 'package:uuid/uuid.dart';
 import 'package:kirakira/presentation/providers/image_gen_providers.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
+import 'package:kirakira/data/models/vector_storage.dart'
+    show EmbeddingProvider, EmbeddingProviderExtension;
 import 'package:kirakira/core/utils/file_utils.dart';
 
 // Note: Repository providers are defined in their respective repository files
@@ -233,10 +235,13 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       try {
         final vsService = _ref.read(vectorStorageServiceProvider);
         if (vsService.getCollection(chatId) == null) {
+          // [CHRONICLE Phase 0] 维度从当前 embedding provider 动态取（本地bge=384），
+          // 不再硬编码512（历史笔误，本地模型实际输出384维）
+          final vsSettings = _ref.read(vectorStorageSettingsProvider);
           vsService.createCollectionWithId(
             id: chatId,
             name: chat.title,
-            dimensions: 512,
+            dimensions: vsSettings.embeddingProvider.defaultDimensions,
           );
           _ref.read(vectorCollectionsProvider.notifier).refresh();
         }
@@ -1676,14 +1681,13 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
     }
 
-    // Separate sections into:
-    // 1. Pre-chat sections (before chatHistory)
-    // 2. Chat history
-    // 3. Post-chat sections (after chatHistory)
-    // 4. Depth-based injections
-    final preChatSections = <PromptSection>[];
-    final postChatSections = <PromptSection>[];
-    final depthBasedSections = <PromptSection>[];
+    // [CHRONICLE Phase 0] F/B/W 显式分桶：
+    //   F桶(front)=聊天历史之前；B桶(before)=按depth插入历史中间；W桶(absolute)=历史之后。
+    //   bucket 为 null 时按既有规则自动推导（depth-based 判定 + chatHistory 相对位置），
+    //   保证现有角色卡/世界书/jailbreak 注入行为完全不变。
+    final fSections = <PromptSection>[];
+    final bSections = <PromptSection>[];
+    final wSections = <PromptSection>[];
     bool foundChatHistory = false;
 
     for (final section in enabledSections) {
@@ -1692,21 +1696,34 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         continue;
       }
 
-      // Check if this section has depth-based injection
-      if (section.injectionPosition == 1 && section.injectionDepth != null) {
-        depthBasedSections.add(section);
+      final bucket = section.bucket;
+      // B桶：显式 before，或（自动推导时）既有 depth-based 判定
+      if (bucket == PromptBucket.before ||
+          (bucket == null &&
+              section.injectionPosition == 1 &&
+              section.injectionDepth != null)) {
+        bSections.add(section);
         continue;
       }
 
-      if (foundChatHistory) {
-        postChatSections.add(section);
+      final bool afterChat;
+      if (bucket == PromptBucket.absolute) {
+        afterChat = true;
+      } else if (bucket == PromptBucket.front) {
+        afterChat = false;
       } else {
-        preChatSections.add(section);
+        afterChat = foundChatHistory;
+      }
+
+      if (afterChat) {
+        wSections.add(section);
+      } else {
+        fSections.add(section);
       }
     }
 
     // Build pre-chat messages
-    for (final section in preChatSections) {
+    for (final section in fSections) {
       final sectionMessages = await _buildSectionMessages(
         section,
         character,
@@ -1755,6 +1772,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           '📌 Added summary to context: ${latestSummary.content.substring(0, min(100, latestSummary.content.length))}...');
     }
 
+    // [CHRONICLE-F6] Wiki固定层注入点 - Phase 2填充
+    // [CHRONICLE-F7] Wiki召回层注入点 - Phase 3填充
+
     // Add chat messages with depth-based injections
     final depthEntries = worldInfoEntries
         .where((e) => e.position == WorldInfoPosition.atDepth)
@@ -1783,7 +1803,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
 
       // Check if any depth-based prompt sections should be inserted
-      for (final section in depthBasedSections) {
+      for (final section in bSections) {
         if (section.injectionDepth == depthFromEnd) {
           final sectionMessages = await _buildSectionMessages(
             section,
@@ -1836,7 +1856,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
 
     // Build post-chat messages
-    for (final section in postChatSections) {
+    for (final section in wSections) {
       final sectionMessages = await _buildSectionMessages(
         section,
         character,
@@ -2229,10 +2249,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
     }
 
-    // Separate sections into pre-chat, post-chat, and depth-based
-    final preChatSections = <PromptSection>[];
-    final postChatSections = <PromptSection>[];
-    final depthBasedSections = <PromptSection>[];
+    // [CHRONICLE Phase 0] F/B/W 显式分桶（与 _buildContext 同规则，保持既有行为）
+    final fSections = <PromptSection>[];
+    final bSections = <PromptSection>[];
+    final wSections = <PromptSection>[];
     bool foundChatHistory = false;
 
     for (final section in enabledSections) {
@@ -2241,20 +2261,33 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         continue;
       }
 
-      if (section.injectionPosition == 1 && section.injectionDepth != null) {
-        depthBasedSections.add(section);
+      final bucket = section.bucket;
+      if (bucket == PromptBucket.before ||
+          (bucket == null &&
+              section.injectionPosition == 1 &&
+              section.injectionDepth != null)) {
+        bSections.add(section);
         continue;
       }
 
-      if (foundChatHistory) {
-        postChatSections.add(section);
+      final bool afterChat;
+      if (bucket == PromptBucket.absolute) {
+        afterChat = true;
+      } else if (bucket == PromptBucket.front) {
+        afterChat = false;
       } else {
-        preChatSections.add(section);
+        afterChat = foundChatHistory;
+      }
+
+      if (afterChat) {
+        wSections.add(section);
+      } else {
+        fSections.add(section);
       }
     }
 
     // Build pre-chat messages
-    for (final section in preChatSections) {
+    for (final section in fSections) {
       final sectionMessages = await _buildSectionMessages(
         section,
         character,
@@ -2311,7 +2344,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
 
       // Check if any depth-based prompt sections should be inserted
-      for (final section in depthBasedSections) {
+      for (final section in bSections) {
         if (section.injectionDepth == depthFromEnd) {
           final sectionMessages = await _buildSectionMessages(
             section,
@@ -2363,7 +2396,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
 
     // Build post-chat messages
-    for (final section in postChatSections) {
+    for (final section in wSections) {
       final sectionMessages = await _buildSectionMessages(
         section,
         character,
@@ -2475,10 +2508,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       final vsService = _ref.read(vectorStorageServiceProvider);
       // 集合应已由 loadChat 建好；保险起见没有就建
       if (vsService.getCollection(chatId) == null) {
+        // [CHRONICLE Phase 0] 维度动态取（本地bge=384），不硬编码512
         vsService.createCollectionWithId(
           id: chatId,
           name: state.chat?.title ?? 'Chat',
-          dimensions: 512,
+          dimensions: vsSettings.embeddingProvider.defaultDimensions,
         );
       }
 
