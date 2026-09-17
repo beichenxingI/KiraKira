@@ -143,7 +143,7 @@ class LLMConfig {
     this.seed = -1,
     // Auto-summarization defaults
     this.autoSummarizeEnabled = true,
-    this.autoSummarizeThreshold = 0.8,
+    this.autoSummarizeThreshold = 0.6, // [CHRONICLE Phase 1] 0.8→0.6 提前介入
     this.summaryModel = '',
     this.summaryPrompt = '',
   });
@@ -266,7 +266,7 @@ class LLMConfig {
         stopSequences: (json['stopSequences'] as List<dynamic>?)?.cast<String>() ?? const [],
         seed: json['seed'] as int? ?? -1,
         autoSummarizeEnabled: json['autoSummarizeEnabled'] as bool? ?? true,
-        autoSummarizeThreshold: (json['autoSummarizeThreshold'] as num?)?.toDouble() ?? 0.8,
+        autoSummarizeThreshold: (json['autoSummarizeThreshold'] as num?)?.toDouble() ?? 0.6, // [CHRONICLE Phase 1] 0.8→0.6
         summaryModel: json['summaryModel'] as String? ?? '',
         summaryPrompt: json['summaryPrompt'] as String? ?? '',
       );

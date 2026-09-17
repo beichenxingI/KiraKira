@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:kirakira/data/models/chat.dart';
+import 'package:kirakira/data/models/chronicle.dart';
 import 'package:kirakira/domain/services/llm_service.dart';
 import 'package:kirakira/domain/services/tokenizer_service.dart';
 import 'package:uuid/uuid.dart';
@@ -8,8 +9,11 @@ import 'package:uuid/uuid.dart';
 class ChatSummarizationService {
   final LLMService _llmService;
   final TokenizerService _tokenizerService;
-  
+
   ChatSummarizationService(this._llmService, this._tokenizerService);
+
+  /// [CHRONICLE Phase 1] 绝对token上限（H7修正：1M上下文时纯比例阈值几乎永不触发）
+  static const int absoluteTokenLimit = 50000;
 
   /// Check if summarization should be triggered based on current context usage
   Future<bool> shouldSummarize({
@@ -23,7 +27,7 @@ class ChatSummarizationService {
 
     // Calculate token usage based on what will actually be in context
     int contextTokens;
-    
+
     if (existingSummaries.isEmpty) {
       // No summaries yet - count all messages
       contextTokens = await _estimateTokenCount(messages, []);
@@ -35,21 +39,26 @@ class ChatSummarizationService {
         allMessages: messages,
         latestSummary: latestSummary,
       );
-      
+
       // Count: 1 summary + recent messages
       contextTokens = await _estimateTokenCount(recentMessages, [latestSummary]);
       debugPrint('📊 Have ${existingSummaries.length} summaries, counting 1 summary + ${recentMessages.length} recent messages');
     }
-    
+
     final maxContext = config.contextLength;
     final threshold = config.autoSummarizeThreshold;
-    
+
     final currentUsage = contextTokens / maxContext;
-    
+
+    // [CHRONICLE Phase 1] 比例阈值 + 绝对上限双触发（H7）
+    final shouldTrigger =
+        currentUsage >= threshold || contextTokens >= absoluteTokenLimit;
+
     debugPrint('📊 Context usage: $contextTokens / $maxContext tokens (${(currentUsage * 100).toStringAsFixed(1)}%)');
-    debugPrint('📊 Threshold: ${(threshold * 100).toStringAsFixed(1)}%');
-    
-    return currentUsage >= threshold;
+    debugPrint('📊 Threshold: ${(threshold * 100).toStringAsFixed(1)}% | absolute limit: $absoluteTokenLimit');
+    debugPrint('📊 Should trigger: $shouldTrigger');
+
+    return shouldTrigger;
   }
 
   /// Estimate total token count for messages and summaries
@@ -214,6 +223,44 @@ class ChatSummarizationService {
       return [];
     }
     return allMessages.sublist(startIndex);
+  }
+
+  /// [CHRONICLE Phase 1] 三窗口切分（替代"上次总结后全量注入"）。
+  ///
+  /// - 热区：最近 [windowSize] 条未归档消息（高注意力，注入末尾）
+  /// - 温区：最近 [windowSize] 条已归档消息（渐进淡出）
+  /// - 冷区：温区之前的 [windowSize] 条已归档（最低注意力，超出即彻底淡出）
+  ///
+  /// 注入顺序 冷→温→热，利用 Lost in the Middle：越新越靠末尾。
+  WindowedMessages getWindowedMessages({
+    required Set<String> archivedMessageIds,
+    required List<ChatMessage> allMessages,
+    int windowSize = 20,
+  }) {
+    final nonArchived =
+        allMessages.where((m) => !archivedMessageIds.contains(m.id)).toList();
+    final archived =
+        allMessages.where((m) => archivedMessageIds.contains(m.id)).toList();
+
+    // 热区：最近 windowSize 条未归档
+    final hot = nonArchived.length <= windowSize
+        ? nonArchived
+        : nonArchived.sublist(nonArchived.length - windowSize);
+
+    // 温区：最近 windowSize 条已归档
+    final warm = archived.length <= windowSize
+        ? archived
+        : archived.sublist(archived.length - windowSize);
+
+    // 冷区：温区之前的 windowSize 条已归档；再往前彻底淡出（不再注入）
+    final olderArchived = archived.length > windowSize
+        ? archived.sublist(0, archived.length - windowSize)
+        : <ChatMessage>[];
+    final cold = olderArchived.length <= windowSize
+        ? olderArchived
+        : olderArchived.sublist(olderArchived.length - windowSize);
+
+    return WindowedMessages(cold: cold, warm: warm, hot: hot);
   }
 
   /// Create a pseudo-message from summary for context building

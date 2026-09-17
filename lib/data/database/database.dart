@@ -244,6 +244,66 @@ class VectorCollections extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// [CHRONICLE Phase 1] 总结任务队列 · 异步消费，前台Timer轮询
+class SummaryTasks extends Table {
+  TextColumn get id => text()();
+  TextColumn get chatId => text()();
+  /// 待总结消息的 messageId 集合（调整A：不用index序号，删除/重排不漂移）
+  TextColumn get messageIds => text().withDefault(const Constant('[]'))(); // JSON数组
+  IntColumn get fromTurn => integer().withDefault(const Constant(0))();
+  IntColumn get toTurn => integer().withDefault(const Constant(0))();
+  /// pending / running / done / failed
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+  TextColumn get resultJson => text().nullable()(); // LLM输出原文（解析前）
+  TextColumn get error => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get finishedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// [CHRONICLE Phase 1] Wiki词条表 · 温层核心（Phase 2管线填充，Phase 1承接旧摘要迁移）
+class MemoryEntries extends Table {
+  TextColumn get id => text()();
+  TextColumn get chatId => text()();
+  /// event / state / knowledge
+  TextColumn get type => text().withDefault(const Constant('event'))();
+  TextColumn get title => text()();
+  TextColumn get content => text()();
+  IntColumn get importance => integer().withDefault(const Constant(5))(); // 1-10
+  BoolColumn get alwaysInject => boolean().withDefault(const Constant(false))();
+  BoolColumn get anchor => boolean().withDefault(const Constant(false))(); // 锚点：永久保留
+  BoolColumn get neverEvict => boolean().withDefault(const Constant(false))();
+  TextColumn get tags => text().withDefault(const Constant('[]'))(); // JSON数组
+  TextColumn get entityIds => text().withDefault(const Constant('[]'))(); // JSON数组
+  /// 词条来源消息（调整A：messageId集合）
+  TextColumn get sourceMessageIds => text().withDefault(const Constant('[]'))(); // JSON数组
+  IntColumn get turnIndex => integer().withDefault(const Constant(0))();
+  BoolColumn get deprecated => boolean().withDefault(const Constant(false))(); // 过时不删（保留历史）
+  /// 对应 VectorDocument.id（'chronicle_<entryId>'）
+  TextColumn get vectorId => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// [CHRONICLE Phase 1] 每聊天窗口状态 ·
+/// H1修正：Chat模型字段不经repo持久化，窗口状态走独立Drift表（不嵌入Chat.settingsJson）
+class ChronicleStates extends Table {
+  TextColumn get chatId => text()();
+  /// 已归档消息的 messageId 集合（JSON数组）
+  TextColumn get archivedMessageIds => text().withDefault(const Constant('[]'))();
+  /// ChronicleSettings 序列化JSON
+  TextColumn get settingsJson => text().withDefault(const Constant('{}'))();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {chatId};
+}
+
 /// App database
 @DriftDatabase(tables: [
   Characters,
@@ -260,12 +320,15 @@ class VectorCollections extends Table {
   GlobalStates,
   VectorCollections,
   VectorDocuments,
+  SummaryTasks,
+  MemoryEntries,
+  ChronicleStates,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-   int get schemaVersion => 16;
+   int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration {
@@ -355,6 +418,12 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE chats SET has_user_message = 1 WHERE id IN '
             '(SELECT DISTINCT chat_id FROM messages WHERE role = \'user\')',
           );
+        }
+        if (from < 17) {
+          // [CHRONICLE Phase 1] 超级记忆：总结任务队列 + Wiki词条 + 每聊天窗口状态
+          await m.createTable(summaryTasks);
+          await m.createTable(memoryEntries);
+          await m.createTable(chronicleStates);
         }
       },
     );

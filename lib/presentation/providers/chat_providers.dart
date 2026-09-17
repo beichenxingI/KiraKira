@@ -32,6 +32,8 @@ import 'package:kirakira/domain/services/image_generation_service.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 import 'package:kirakira/data/models/vector_storage.dart'
     show EmbeddingProvider, EmbeddingProviderExtension;
+import 'package:kirakira/data/repositories/chronicle_repository.dart';
+import 'package:kirakira/presentation/providers/chronicle_providers.dart';
 import 'package:kirakira/core/utils/file_utils.dart';
 
 // Note: Repository providers are defined in their respective repository files
@@ -250,6 +252,12 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
             .setActiveCollection(chatId);
       } catch (e) {
         // 集合准备失败不阻断聊天加载
+      }
+
+      // ═══ [CHRONICLE Phase 1] 旧摘要迁移（一次性，异步不阻塞加载） ═══
+      if (chat.summaries.isNotEmpty) {
+        final orchestrator = _ref.read(chronicleOrchestratorProvider);
+        unawaited(orchestrator.migrateOldSummaries(chat));
       }
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProvider error: $e\n$stackTrace');
@@ -472,7 +480,17 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       error: null,
     );
 
-    await _checkAndSummarize(config);
+    // [CHRONICLE Phase 1] Chronicle接管压缩（入队异步总结）；未开启/失败则回落旧总结路径
+    final chronicleHandled = await _ref
+        .read(chronicleOrchestratorProvider)
+        .checkAndEnqueue(
+          chatId: state.chat!.id,
+          messages: state.messages,
+          llmConfig: config,
+        );
+    if (!chronicleHandled) {
+      await _checkAndSummarize(config);
+    }
 
     final context = await _buildContext();
 
@@ -1574,6 +1592,31 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       chatMessages = recentMessages;
     }
 
+    // ═══ [CHRONICLE Phase 1] 三窗口滑动替换全量注入 ═══
+    // Chronicle开启时接管历史切分：热(未归档,末尾高注意力) / 温(近归档,淡出带) / 冷(旧归档,低注意力)。
+    // 隐藏楼层(isHidden)不进提示词。失败回落旧行为。
+    if (chat != null) {
+      try {
+        final chronicleRepo = _ref.read(chronicleRepositoryProvider);
+        final chronicleSettings = await chronicleRepo.getSettings(chat.id);
+        if (chronicleSettings.enabled) {
+          final archivedIds =
+              await chronicleRepo.getArchivedMessageIds(chat.id);
+          final windowed = _summarizationService.getWindowedMessages(
+            archivedMessageIds: archivedIds,
+            allMessages: chatMessages.where((m) => !m.isHidden).toList(),
+            windowSize: chronicleSettings.hotWindowSize,
+          );
+          chatMessages = windowed.injectionOrder;
+          debugPrint('[CHRONICLE] 三窗口注入：'
+              '冷${windowed.cold.length}/温${windowed.warm.length}/热${windowed.hot.length} '
+              '(归档${archivedIds.length}条)');
+        }
+      } catch (e) {
+        debugPrint('[CHRONICLE] 窗口切分失败，回落全量注入: $e');
+      }
+    }
+
     // Find matching World Info entries
     List<WorldInfoEntry> worldInfoEntries = [];
     if (character != null) {
@@ -2190,7 +2233,27 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final chat = state.chat;
 
     // Get chat messages up to (but not including) the specified index
-    final chatMessages = state.messages.sublist(0, messageIndex);
+    var chatMessages = state.messages.sublist(0, messageIndex);
+
+    // [CHRONICLE Phase 1] 三窗口滑动（重生成/编辑路径与主路径一致）
+    if (chat != null) {
+      try {
+        final chronicleRepo = _ref.read(chronicleRepositoryProvider);
+        final chronicleSettings = await chronicleRepo.getSettings(chat.id);
+        if (chronicleSettings.enabled) {
+          final archivedIds =
+              await chronicleRepo.getArchivedMessageIds(chat.id);
+          final windowed = _summarizationService.getWindowedMessages(
+            archivedMessageIds: archivedIds,
+            allMessages: chatMessages.where((m) => !m.isHidden).toList(),
+            windowSize: chronicleSettings.hotWindowSize,
+          );
+          chatMessages = windowed.injectionOrder;
+        }
+      } catch (_) {
+        // 失败回落旧行为
+      }
+    }
 
     // Find matching World Info entries
     List<WorldInfoEntry> worldInfoEntries = [];
