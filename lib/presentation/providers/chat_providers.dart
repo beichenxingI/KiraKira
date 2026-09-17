@@ -1582,6 +1582,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final character = state.character;
     final chat = state.chat;
 
+    // [CHRONICLE UI整合] 全局设置一次读取，后续窗口/固定层/召回层复用。
+    // Chronicle开启时旧RAG原文注入被接管关闭（F-7召回wiki摘要替代）。
+    final chronicleSettings = _ref.read(chronicleSettingsProvider);
+
     // Get chat messages - use summaries if available
     var chatMessages = state.messages;
     if (excludeLastAssistant &&
@@ -1606,24 +1610,19 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     // ═══ [CHRONICLE Phase 1] 三窗口滑动替换全量注入 ═══
     // Chronicle开启时接管历史切分：热(未归档,末尾高注意力) / 温(近归档,淡出带) / 冷(旧归档,低注意力)。
     // 隐藏楼层(isHidden)不进提示词。失败回落旧行为。
-    var chronicleSettings = const ChronicleSettings();
-    if (chat != null) {
+    if (chat != null && chronicleSettings.enabled) {
       try {
         final chronicleRepo = _ref.read(chronicleRepositoryProvider);
-        chronicleSettings = await chronicleRepo.getSettings(chat.id);
-        if (chronicleSettings.enabled) {
-          final archivedIds =
-              await chronicleRepo.getArchivedMessageIds(chat.id);
-          final windowed = _summarizationService.getWindowedMessages(
-            archivedMessageIds: archivedIds,
-            allMessages: chatMessages.where((m) => !m.isHidden).toList(),
-            windowSize: chronicleSettings.hotWindowSize,
-          );
-          chatMessages = windowed.injectionOrder;
-          debugPrint('[CHRONICLE] 三窗口注入：'
-              '冷${windowed.cold.length}/温${windowed.warm.length}/热${windowed.hot.length} '
-              '(归档${archivedIds.length}条)');
-        }
+        final archivedIds = await chronicleRepo.getArchivedMessageIds(chat.id);
+        final windowed = _summarizationService.getWindowedMessages(
+          archivedMessageIds: archivedIds,
+          allMessages: chatMessages.where((m) => !m.isHidden).toList(),
+          windowSize: chronicleSettings.hotWindowSize,
+        );
+        chatMessages = windowed.injectionOrder;
+        debugPrint('[CHRONICLE] 三窗口注入：'
+            '冷${windowed.cold.length}/温${windowed.warm.length}/热${windowed.hot.length} '
+            '(归档${archivedIds.length}条)');
       } catch (e) {
         debugPrint('[CHRONICLE] 窗口切分失败，回落全量注入: $e');
       }
@@ -1636,11 +1635,13 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           await _findMatchingWorldInfoEntries(character!, chatMessages);
     }
     // ═══ RAG 向量检索注入 ═══
-    // 把用户最新消息转向量 → 检索知识库 → 命中内容作为背景注入。
-    // 整段容错：embedding/检索任何失败都只跳过 RAG，绝不阻断对话发送。
+    // [CHRONICLE UI整合] Chronicle开启时此块被接管关闭：
+    // 旧RAG召回的是原文片段，Chronicle F-7召回精炼wiki词条摘要，功能重叠且更省token。
+    // Chronicle关闭时（迁移选择"保留旧数据"的用户）旧RAG行为保持可用。
     try {
       final vsSettings = _ref.read(vectorStorageSettingsProvider);
       if (vsSettings.enabled &&
+          !chronicleSettings.enabled && // Chronicle接管时跳过
           vsSettings.includeInPrompt &&
           vsSettings.activeCollectionId != null &&
           chatMessages.isNotEmpty) {
@@ -2407,9 +2408,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     // [CHRONICLE Phase 1] 三窗口滑动（重生成/编辑路径与主路径一致）
     if (chat != null) {
       try {
-        final chronicleRepo = _ref.read(chronicleRepositoryProvider);
-        final chronicleSettings = await chronicleRepo.getSettings(chat.id);
+        final chronicleSettings = _ref.read(chronicleSettingsProvider);
         if (chronicleSettings.enabled) {
+          final chronicleRepo = _ref.read(chronicleRepositoryProvider);
           final archivedIds =
               await chronicleRepo.getArchivedMessageIds(chat.id);
           final windowed = _summarizationService.getWindowedMessages(

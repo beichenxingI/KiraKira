@@ -158,14 +158,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: '全局变量与对话变量 CRUD',
                 onTap: () => showVariablesDialog(context, ref),
               ),
-              KiraGroupedTile(
-                icon: Icons.manage_search,
-                iconBg: Colors.transparent,
-                iconColor: const Color(0xFF06D6A0),
-                title: 'RAG 向量存储',
-                subtitle: 'TopK、相似度阈值与向量集合',
-                onTap: () => context.push(AppRoutes.vectorStorageSettings),
-              ),
+              // [CHRONICLE UI整合] "RAG 向量存储"入口已删除：
+              // 向量能力由Chronicle内部使用（wiki向量化/话题切换检测），
+              // 手动上传文档建知识库的入口不再暴露。
             ],
           ),
         ),

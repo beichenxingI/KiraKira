@@ -223,7 +223,9 @@ class ChronicleRepository {
     );
   }
 
-  // ═══════════════════ ChronicleStates（窗口状态+配置） ═══════════════════
+  // ═══════════════════ ChronicleStates（窗口归档状态） ═══════════════════
+  // 注：ChronicleSettings 已改为全局配置（SharedPreferences，chronicle_providers.dart）。
+  // 本表只维护 archivedMessageIds 窗口状态；settingsJson 列保留但不再读写。
 
   /// 已归档消息id集合
   Future<Set<String>> getArchivedMessageIds(String chatId) async {
@@ -254,54 +256,20 @@ class ChronicleRepository {
     await _saveState(chatId, archivedMessageIds: existing.toList());
   }
 
-  /// 读每聊天配置
-  Future<models.ChronicleSettings> getSettings(String chatId) async {
-    final row = await (_db.select(_db.chronicleStates)
-          ..where((t) => t.chatId.equals(chatId)))
-        .getSingleOrNull();
-    if (row == null || row.settingsJson.isEmpty) {
-      return const models.ChronicleSettings();
-    }
-    try {
-      return models.ChronicleSettings.fromJson(
-          jsonDecode(row.settingsJson) as Map<String, dynamic>);
-    } catch (_) {
-      return const models.ChronicleSettings();
-    }
-  }
-
-  /// 写每聊天配置
-  Future<void> saveSettings(
-      String chatId, models.ChronicleSettings settings) async {
-    final row = await (_db.select(_db.chronicleStates)
-          ..where((t) => t.chatId.equals(chatId)))
-        .getSingleOrNull();
-    await _saveState(
-      chatId,
-      archivedMessageIds: row == null
-          ? null
-          : _parseStringList(row.archivedMessageIds),
-      settingsJson: jsonEncode(settings.toJson()),
-    );
-  }
-
   Future<void> _saveState(
     String chatId, {
     List<String>? archivedMessageIds,
-    String? settingsJson,
   }) async {
     final row = await (_db.select(_db.chronicleStates)
           ..where((t) => t.chatId.equals(chatId)))
         .getSingleOrNull();
 
     if (row == null) {
-      await _db.into(_db.chronicleStates).insert(db.ChronicleStatesCompanion
-          .insert(
+      await _db.into(_db.chronicleStates).insert(
+          db.ChronicleStatesCompanion.insert(
         chatId: chatId,
         archivedMessageIds:
             Value(jsonEncode(archivedMessageIds ?? const <String>[])),
-        settingsJson:
-            Value(settingsJson ?? jsonEncode(const models.ChronicleSettings().toJson())),
         updatedAt: Value(DateTime.now()),
       ));
       return;
@@ -313,8 +281,6 @@ class ChronicleRepository {
       archivedMessageIds: archivedMessageIds != null
           ? Value(jsonEncode(archivedMessageIds))
           : const Value.absent(),
-      settingsJson:
-          settingsJson != null ? Value(settingsJson) : const Value.absent(),
       updatedAt: Value(DateTime.now()),
     ));
   }

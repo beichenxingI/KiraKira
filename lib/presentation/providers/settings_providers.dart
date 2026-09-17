@@ -974,8 +974,8 @@ final tokenizerServiceProvider = Provider<TokenizerService>((ref) {
 /// Provider for chat summarization service
 final chatSummarizationServiceProvider = Provider<ChatSummarizationService>((ref) {
   final llmService = ref.watch(llmServiceProvider);
-  final tokenizerService = ref.watch(tokenizerServiceProvider);
-  return ChatSummarizationService(llmService, tokenizerService);
+  // [CHRONICLE v1.0] tokenizer依赖已随旧自动总结停用一并移除
+  return ChatSummarizationService(llmService);
 });
 enum MetricsStatus { idle, measuring, success, error }
 

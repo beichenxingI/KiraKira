@@ -2,87 +2,35 @@ import 'package:flutter/foundation.dart';
 import 'package:kirakira/data/models/chat.dart';
 import 'package:kirakira/data/models/chronicle.dart';
 import 'package:kirakira/domain/services/llm_service.dart';
-import 'package:kirakira/domain/services/tokenizer_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Service for automatic chat history summarization
+///
+/// [CHRONICLE v1.0] 旧自动总结已停用（shouldSummarize 恒 false）。
+/// 本service仍保留 generateSummary（Chronicle Phase 1 降级路径复用）
+/// 与 getRecentMessages/createSummaryMessage（兼容读取）。
 class ChatSummarizationService {
   final LLMService _llmService;
-  final TokenizerService _tokenizerService;
 
-  ChatSummarizationService(this._llmService, this._tokenizerService);
+  ChatSummarizationService(this._llmService);
 
   /// [CHRONICLE Phase 1] 绝对token上限（H7修正：1M上下文时纯比例阈值几乎永不触发）
   static const int absoluteTokenLimit = 50000;
 
   /// Check if summarization should be triggered based on current context usage
+  ///
+  /// [CHRONICLE v1.0] 已强制停用：Chronicle超级记忆接管全部总结功能
+  /// （三窗口滑动 + 异步SummaryTask管线 + wiki词条）。
+  /// 旧自动总结（内存态ChatSummary，重启即失，H1）不再触发。
+  /// TODO: 待Chronicle稳定后删除此service
   Future<bool> shouldSummarize({
     required List<ChatMessage> messages,
     required List<ChatSummary> existingSummaries,
     required LLMConfig config,
   }) async {
-    if (!config.autoSummarizeEnabled) {
-      return false;
-    }
-
-    // Calculate token usage based on what will actually be in context
-    int contextTokens;
-
-    if (existingSummaries.isEmpty) {
-      // No summaries yet - count all messages
-      contextTokens = await _estimateTokenCount(messages, []);
-      debugPrint('📊 No summaries yet, counting all ${messages.length} messages');
-    } else {
-      // Have summaries - only count the latest summary + recent messages
-      final latestSummary = existingSummaries.last;
-      final recentMessages = getRecentMessages(
-        allMessages: messages,
-        latestSummary: latestSummary,
-      );
-
-      // Count: 1 summary + recent messages
-      contextTokens = await _estimateTokenCount(recentMessages, [latestSummary]);
-      debugPrint('📊 Have ${existingSummaries.length} summaries, counting 1 summary + ${recentMessages.length} recent messages');
-    }
-
-    final maxContext = config.contextLength;
-    final threshold = config.autoSummarizeThreshold;
-
-    final currentUsage = contextTokens / maxContext;
-
-    // [CHRONICLE Phase 1] 比例阈值 + 绝对上限双触发（H7）
-    final shouldTrigger =
-        currentUsage >= threshold || contextTokens >= absoluteTokenLimit;
-
-    debugPrint('📊 Context usage: $contextTokens / $maxContext tokens (${(currentUsage * 100).toStringAsFixed(1)}%)');
-    debugPrint('📊 Threshold: ${(threshold * 100).toStringAsFixed(1)}% | absolute limit: $absoluteTokenLimit');
-    debugPrint('📊 Should trigger: $shouldTrigger');
-
-    return shouldTrigger;
-  }
-
-  /// Estimate total token count for messages and summaries
-  Future<int> _estimateTokenCount(
-    List<ChatMessage> messages,
-    List<ChatSummary> summaries,
-  ) async {
-    int totalTokens = 0;
-    
-    // Count summary tokens
-    for (final summary in summaries) {
-      totalTokens += _tokenizerService.estimateTokenCount(summary.content);
-    }
-    
-    // Count message tokens
-    for (final message in messages) {
-      totalTokens += _tokenizerService.estimateTokenCount(message.content);
-      // Also count reasoning if present
-      if (message.reasoning != null) {
-        totalTokens += _tokenizerService.estimateTokenCount(message.reasoning!);
-      }
-    }
-    
-    return totalTokens;
+    // Chronicle v1.0已接管总结功能，旧自动总结已停用
+    // TODO: 待Chronicle稳定后删除此service
+    return false;
   }
 
   /// Generate a summary of chat history

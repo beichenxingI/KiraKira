@@ -366,12 +366,13 @@ enum SummaryTaskStatus {
   }
 }
 
-/// Chronicle 用户配置（存 ChronicleStates.settingsJson）
+/// Chronicle 用户配置（全局运行参数，SharedPreferences持久化）
 class ChronicleSettings {
   final bool enabled; // 总开关
   final int summaryInterval; // 轮次触发阈值 10-40
   final String summaryModel; // 空=沿用主模型
   final double summaryTemperature; // 默认0.2
+  final double tokenPressureThreshold; // token压力触发占比 0.4-0.8
   final int hotWindowSize; // 热区窗口 10-40
   final int ragTopK; // 召回数量 3-10
   final String customPromptSuffix; // 用户自定义追加指令
@@ -383,6 +384,7 @@ class ChronicleSettings {
     this.summaryInterval = 20,
     this.summaryModel = '',
     this.summaryTemperature = 0.2,
+    this.tokenPressureThreshold = 0.6,
     this.hotWindowSize = 20,
     this.ragTopK = 5,
     this.customPromptSuffix = '',
@@ -395,6 +397,7 @@ class ChronicleSettings {
         'summaryInterval': summaryInterval,
         'summaryModel': summaryModel,
         'summaryTemperature': summaryTemperature,
+        'tokenPressureThreshold': tokenPressureThreshold,
         'hotWindowSize': hotWindowSize,
         'ragTopK': ragTopK,
         'customPromptSuffix': customPromptSuffix,
@@ -409,6 +412,8 @@ class ChronicleSettings {
         summaryModel: json['summaryModel'] as String? ?? '',
         summaryTemperature:
             (json['summaryTemperature'] as num?)?.toDouble() ?? 0.2,
+        tokenPressureThreshold:
+            (json['tokenPressureThreshold'] as num?)?.toDouble() ?? 0.6,
         hotWindowSize: (json['hotWindowSize'] as num?)?.toInt() ?? 20,
         ragTopK: (json['ragTopK'] as num?)?.toInt() ?? 5,
         customPromptSuffix: json['customPromptSuffix'] as String? ?? '',
@@ -421,6 +426,7 @@ class ChronicleSettings {
     int? summaryInterval,
     String? summaryModel,
     double? summaryTemperature,
+    double? tokenPressureThreshold,
     int? hotWindowSize,
     int? ragTopK,
     String? customPromptSuffix,
@@ -432,6 +438,8 @@ class ChronicleSettings {
       summaryInterval: summaryInterval ?? this.summaryInterval,
       summaryModel: summaryModel ?? this.summaryModel,
       summaryTemperature: summaryTemperature ?? this.summaryTemperature,
+      tokenPressureThreshold:
+          tokenPressureThreshold ?? this.tokenPressureThreshold,
       hotWindowSize: hotWindowSize ?? this.hotWindowSize,
       ragTopK: ragTopK ?? this.ragTopK,
       customPromptSuffix: customPromptSuffix ?? this.customPromptSuffix,

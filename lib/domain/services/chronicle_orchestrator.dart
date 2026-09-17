@@ -28,6 +28,7 @@ class ChronicleOrchestrator {
   /// 运行时设置/LLM配置的只读getter（由Provider接线，避免orchestrator依赖Riverpod）
   final vs.VectorStorageSettings Function() vectorSettingsGetter;
   final LLMConfig Function() llmConfigGetter;
+  final models.ChronicleSettings Function() settingsGetter;
 
   Timer? _pollTimer;
   bool _processing = false; // 单飞守卫：Timer重入保护
@@ -41,6 +42,7 @@ class ChronicleOrchestrator {
     required VectorStorageService vectorStorage,
     required this.vectorSettingsGetter,
     required this.llmConfigGetter,
+    required this.settingsGetter,
   })  : _repo = repo,
         _summarizationService = summarizationService,
         _chronicleSummaryService = chronicleSummaryService,
@@ -73,7 +75,7 @@ class ChronicleOrchestrator {
     required LLMConfig llmConfig,
   }) async {
     try {
-      final settings = await _repo.getSettings(chatId);
+      final settings = settingsGetter();
       if (!settings.enabled) return false;
 
       final archivedIds = await _repo.getArchivedMessageIds(chatId);
@@ -98,7 +100,7 @@ class ChronicleOrchestrator {
         for (final m in hot) {
           hotTokens += (m.content.length / 3.35).ceil();
         }
-        triggerByTokens = hotTokens >= llmConfig.contextLength * 0.6 ||
+        triggerByTokens = hotTokens >= llmConfig.contextLength * settings.tokenPressureThreshold ||
             hotTokens >= ChatSummarizationService.absoluteTokenLimit;
       }
 
@@ -130,7 +132,7 @@ class ChronicleOrchestrator {
   Future<void> onTopicShift(
       String chatId, List<ChatMessage> messages) async {
     try {
-      final settings = await _repo.getSettings(chatId);
+      final settings = settingsGetter();
       if (!settings.enabled) return;
       if (await _repo.hasActiveTaskForChat(chatId)) return; // 已有任务，不重复入队
 
@@ -179,7 +181,7 @@ class ChronicleOrchestrator {
           return;
         }
 
-        final settings = await _repo.getSettings(task.chatId);
+        final settings = settingsGetter();
         final config = llmConfigGetter();
         final summaryConfig = config.copyWith(
           temperature: settings.summaryTemperature,
@@ -440,7 +442,7 @@ class ChronicleOrchestrator {
   ) async {
     try {
       if (oldStat == null || oldStat.isEmpty) return;
-      final settings = await _repo.getSettings(chatId);
+      final settings = settingsGetter();
       if (!settings.enabled || !settings.mvuBridgeEnabled) return;
 
       final changes = <String>[];
