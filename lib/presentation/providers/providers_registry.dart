@@ -367,10 +367,6 @@ export 'package:kirakira/presentation/screens/ai_config/ai_config_screen.dart' s
     isChinaRegionProvider;
 
 // 1 provider(s)
-export 'package:kirakira/presentation/screens/character/character_detail_screen.dart' show
-    characterDetailProvider;
-
-// 1 provider(s)
 export 'package:kirakira/presentation/screens/chat/chat_screen.dart' show
     chatExportServiceProvider;
 

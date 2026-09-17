@@ -1,7 +1,7 @@
 // lib/presentation/widgets/common/kira_pressable.dart
 /// KiraPressable · iOS 按压手感统一组件(宪法 §四.1)
 ///
-/// 行为锁定:按下 → scale 0.97(可关)+ opacity 0.6,120ms easeOut;
+/// 行为锁定:按下 → scale 0.97(可关)+ opacity 0.6,200ms easeOut;
 /// 松手即回。**全 App 数值统一,任何 Block 不得修改默认值**——
 /// 需要新档位请加命名参数,不动默认。
 ///
@@ -57,7 +57,7 @@ class _KiraPressableState extends State<KiraPressable> {
       onTapCancel: () => _setPressed(false),
       child: AnimatedScale(
         scale: (_pressed && widget.scaleEnabled) ? widget.pressScale : 1.0,
-        duration: const Duration(milliseconds: 120),
+        duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
         child: AnimatedOpacity(
           opacity: !enabled
@@ -65,7 +65,7 @@ class _KiraPressableState extends State<KiraPressable> {
               : _pressed
                   ? 0.6
                   : 1.0,
-          duration: const Duration(milliseconds: 120),
+          duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
           child: widget.borderRadius != null
               ? ClipRRect(borderRadius: widget.borderRadius!, child: widget.child)

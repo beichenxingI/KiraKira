@@ -1,5 +1,4 @@
-﻿import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/widgets/common/kira_grouped_tile.dart';
 import 'package:kirakira/presentation/widgets/common/kira_pressable.dart';
@@ -95,7 +94,7 @@ class KiraSection extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final labelColor = theme.textTheme.bodyMedium?.color;
 
-    final cardRadius = BorderRadius.circular(DesignTokens.radiusGroupedCard);
+    final cardRadius = BorderRadius.circular(DesignTokens.radiusMd);
 
     // 组内 items:plain 形态直接摆 child;默认形态行间插 0.5 separator
     final items = <Widget>[];
@@ -157,6 +156,7 @@ class KiraSection extends StatelessWidget {
               border: isDark
                   ? null
                   : Border.all(color: theme.dividerColor, width: 0.5),
+              boxShadow: isDark ? null : DesignTokens.shadowSoft,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -278,7 +278,6 @@ class KiraListTile extends StatelessWidget {
   }
 }
 
-/// 开关:CupertinoSwitch 薄封装(A-T4c),激活色 = 主题星海紫。
 class KiraSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -287,16 +286,59 @@ class KiraSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoSwitch(
-      value: value,
-      onChanged: onChanged,
-      activeTrackColor: Theme.of(context).colorScheme.primary,
+    final isEnabled = onChanged != null;
+
+    return GestureDetector(
+      onTap: isEnabled ? () => onChanged!(!value) : null,
+      child: AnimatedContainer(
+        duration: DesignTokens.durationQuick,
+        curve: Curves.ease,
+        width: 52,
+        height: 32,
+        decoration: BoxDecoration(
+          color: value
+              ? (isEnabled
+                  ? DesignTokens.primary
+                  : DesignTokens.primary.withValues(alpha: 0.5))
+              : const Color(0xFFE5E5EA),
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: value && isEnabled
+              ? [
+                  BoxShadow(
+                    color: DesignTokens.primary.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: AnimatedAlign(
+          duration: DesignTokens.durationSmooth,
+          curve: DesignTokens.curveBackEase,
+          alignment:
+              value ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            width: 26,
+            height: 26,
+            margin: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
-/// 带开关的列表项:整行可点切换(内部已是 CupertinoSwitch)。
-/// 在分组卡内使用请用 KiraGroupedTile(trailing: KiraSwitch(...))。
 class KiraSwitchTile extends StatelessWidget {
   final IconData? icon;
   final Color? iconBg;

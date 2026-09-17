@@ -217,18 +217,22 @@ class AppThemeConfig {
 
 /// Built-in themes
 class BuiltInThemes {
+  /// [极客Core迁移 P6] 星河入梦:深蓝色系(#0B0E1A/#12162A/#1A1F38/#252A45)
+  /// 已替换为与 API 服务界面浮窗一致的中性灰黑配色
+  /// (#0A0A0A 底 / #1C1C1C 卡 / #2C2C2C 分割线,对齐 DesignTokens);
+  /// 明暗切换逻辑不变,仅换色值;品牌粉(#F5AEB2)保留。
   static const defaultDark = AppThemeConfig(
     id: 'default_dark',
     name: '星河入梦',
     isDark: true,
     primaryColor: '#F5AEB2',
     accentColor: '#FECBB6',
-    backgroundColor: '#0B0E1A',
-    surfaceColor: '#12162A',
-    cardColor: '#1A1F38',
-    textPrimaryColor: '#E8E6F0',
-    textSecondaryColor: '#8B90AB',
-    dividerColor: '#252A45',
+    backgroundColor: '#0A0A0A',
+    surfaceColor: '#1C1C1C',
+    cardColor: '#1C1C1C',
+    textPrimaryColor: '#F0F0F0',
+    textSecondaryColor: '#8C8C8C',
+    dividerColor: '#2C2C2C',
     isBuiltIn: true,
   );
 

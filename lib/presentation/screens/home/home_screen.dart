@@ -6,15 +6,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kirakira/data/models/chat.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/data/repositories/chat_repository.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
 import 'package:kirakira/presentation/providers/chat_history_provider.dart';
+import 'package:kirakira/presentation/providers/persona_providers.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
+import 'package:kirakira/domain/services/chat_export_service.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
-import 'package:kirakira/presentation/widgets/common/kira_components.dart';
+import 'package:kirakira/presentation/widgets/common/kira_pressable.dart';
 
 /// Home screen showing recent chats
 class HomeScreen extends ConsumerStatefulWidget {
@@ -112,10 +115,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: RefreshIndicator(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? null
+              : const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFFFFF7FA),
+                    Color(0xFFF7F8FA),
+                  ],
+                ),
+          color: isDark ? DesignTokens.darkBackground : null,
+        ),
+        child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(allChatsProvider);
         },
@@ -126,22 +143,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             SliverToBoxAdapter(
               child: SafeArea(
                 bottom: false,
-                child: Row(
-                  children: [
-                    Expanded(child: _buildSearchBar(context)),
-                    // 返工条目6:每页条数档位(10/20/30/50)
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.square_grid_2x2, size: 22),
-                      tooltip: '每页条数',
-                      onPressed: () => _showPageSizeSheet(context),
-                    ),
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.square_pencil),
-                      tooltip: l10n.newChat,
-                      onPressed: () => context.push(AppRoutes.characters),
-                    ),
-                    const SizedBox(width: DesignTokens.spaceSm),
-                  ],
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Row(
+                    children: [
+                      _PageSizeChip(
+                        currentSize: ref.watch(chatHistoryPageSizeProvider),
+                        onTap: () => _showPageSizeSheet(context),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildSearchBar(context)),
+                      const SizedBox(width: 10),
+                      _CircleActionButton(
+                        icon: CupertinoIcons.square_pencil,
+                        onTap: () => context.push(AppRoutes.characters),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -151,6 +169,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             const SliverToBoxAdapter(child: SizedBox(height: 96)),
           ],
         ),
+      ),
       ),
     );
   }
@@ -234,7 +253,7 @@ class _ChatListSliverState extends ConsumerState<_ChatListSliver> {
                 child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.chat_bubble_outline,
                     size: 80,
                     color: AppTheme.darkTextTertiary,
@@ -273,22 +292,16 @@ class _ChatListSliverState extends ConsumerState<_ChatListSliver> {
         }
 
         return [
-          // 页码指示 `2/4`
+          // 分页控件 `《 ‹ 1/4 › 》`
           if (pageCount > 1)
             SliverToBoxAdapter(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: DesignTokens.spaceXs),
-                child: Text(
-                  '${_currentPage + 1}/$pageCount',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: DesignTokens.fontSizeSm,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                    color: Theme.of(context).textTheme.bodySmall?.color,
-                  ),
-                ),
+              child: _PaginationCard(
+                currentPage: _currentPage,
+                pageCount: pageCount,
+                onPageChange: (page) {
+                  setState(() => _currentPage = page);
+                  _pageController.jumpToPage(page);
+                },
               ),
             ),
           SliverFillRemaining(
@@ -328,15 +341,46 @@ class _ChatListTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context);
     final characterAsync = ref.watch(_characterForChatProvider(chat.characterId));
     final lastMessageAsync = ref.watch(_lastMessageProvider(chat.id));
 
-    return KiraCard(
+    final cardRadius = BorderRadius.circular(DesignTokens.radiusLg);
+
+    return Container(
       margin: DesignTokens.marginCard,
-      padding: EdgeInsets.zero,
-      onTap: () => context.push('/chat/${chat.id}'),
-      child: ListTile(
+      decoration: BoxDecoration(
+        color: isDark
+            ? DesignTokens.darkCard
+            : Colors.white.withValues(alpha: 0.92),
+        borderRadius: cardRadius,
+        border: isDark
+            ? Border(
+                top: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  width: 0.8,
+                ),
+              )
+            : Border.all(
+                color: Colors.white.withValues(alpha: 0.5),
+                width: 0.5,
+              ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: KiraPressable(
+        onTap: () => context.push('/chat/${chat.id}'),
+        borderRadius: cardRadius,
+        child: ListTile(
         contentPadding: const EdgeInsets.symmetric(
           horizontal: DesignTokens.spaceMd,
           vertical: DesignTokens.spaceXs,
@@ -377,9 +421,12 @@ class _ChatListTile extends ConsumerWidget {
           loading: () => const Text('...'),
           error: (_, __) => Text(l10n.noMessages),
           data: (message) => Text(
-            message?.content ?? l10n.noMessagesYet,
+            _cleanPreview(message?.content),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+            ),
           ),
         ),
         trailing: Row(
@@ -389,28 +436,27 @@ class _ChatListTile extends ConsumerWidget {
               _formatTime(context, chat.updatedAt),
               style: Theme.of(context).textTheme.bodySmall,
             ),
-            PopupMenuButton<String>(
+            IconButton(
               icon: const Icon(Icons.more_vert, size: 20),
               padding: EdgeInsets.zero,
-              onSelected: (value) => _handleMenuAction(context, ref, value),
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.delete, color: DesignTokens.statusError),
-                      const SizedBox(width: 8),
-                      Text(l10n.delete,
-                          style: const TextStyle(color: DesignTokens.statusError)),
-                    ],
-                  ),
-                ),
-              ],
+              onPressed: () => _showChatActionsSheet(context, ref),
             ),
           ],
         ),
       ),
+      ),
     );
+  }
+
+  String _cleanPreview(String? raw) {
+    if (raw == null || raw.isEmpty) return '(无内容)';
+    final text = raw
+        .replaceAll(RegExp(r'<[^>]+>'), '')
+        .replaceAll(RegExp(r'!\[[^\]]*\]\([^)]*\)'), '')
+        .replaceAll(RegExp(r'\[([^\]]*)\]\([^)]*\)'), r'$1')
+        .replaceAll(RegExp(r'[#*`>_~]'), '')
+        .trim();
+    return text.isEmpty ? '(无内容)' : text;
   }
 
   String _formatTime(BuildContext context, DateTime dateTime) {
@@ -433,12 +479,294 @@ class _ChatListTile extends ConsumerWidget {
     }
   }
 
-  void _handleMenuAction(BuildContext context, WidgetRef ref, String action) {
-    switch (action) {
-      case 'delete':
-        _showDeleteConfirmation(context, ref);
-        break;
+  void _showChatActionsSheet(BuildContext context, WidgetRef ref) {
+    final characterAsync = ref.read(_characterForChatProvider(chat.characterId));
+    final lastMessageAsync = ref.read(_lastMessageProvider(chat.id));
+    final character = characterAsync.asData?.value;
+    final lastMessage = lastMessageAsync.asData?.value;
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (dialogCtx) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: MediaQuery.of(dialogCtx).size.width - 48 < 400
+                ? MediaQuery.of(dialogCtx).size.width - 48
+                : 400.0,
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            decoration: BoxDecoration(
+              color: Theme.of(dialogCtx).brightness == Brightness.dark
+                  ? const Color(0xFF1C1C1C)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ① 顶部封面图
+                _buildCoverImage(context, character),
+                // ② 角色名
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: Text(
+                    character?.name ?? chat.title,
+                    style: Theme.of(dialogCtx).textTheme.titleLarge?.copyWith(
+                          fontWeight: DesignTokens.weightSemibold,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // ③ 消息预览
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    _cleanPreview(lastMessage?.content),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(dialogCtx).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(dialogCtx)
+                              .textTheme
+                              .bodySmall
+                              ?.color
+                              ?.withValues(alpha: 0.7),
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // ④ 继续聊天
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: CupertinoButton(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      color: DesignTokens.primary,
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
+                      onPressed: () {
+                        Navigator.pop(dialogCtx);
+                        context.push('/chat/${chat.id}');
+                      },
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(CupertinoIcons.chat_bubble_fill,
+                              size: 18, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text('继续聊天',
+                              style: TextStyle(color: Colors.white, fontSize: 15)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // ⑤ 操作按钮行
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _ActionIconButton(
+                        icon: CupertinoIcons.arrow_up_doc,
+                        label: '导出',
+                        color: const Color(0xFF66BB6A),
+                        onTap: () {
+                          Navigator.pop(dialogCtx);
+                          _exportChat(context, ref, character);
+                        },
+                      ),
+                      _ActionIconButton(
+                        icon: CupertinoIcons.arrow_down_doc,
+                        label: '导入',
+                        color: const Color(0xFF42A5F5),
+                        onTap: () {
+                          Navigator.pop(dialogCtx);
+                          _importChatMessages(context, ref);
+                        },
+                      ),
+                      _ActionIconButton(
+                        icon: CupertinoIcons.doc_on_doc,
+                        label: '复制',
+                        color: const Color(0xFF5C6BC0),
+                        onTap: () {
+                          Navigator.pop(dialogCtx);
+                          _duplicateChat(context, ref, character);
+                        },
+                      ),
+                      _ActionIconButton(
+                        icon: CupertinoIcons.trash,
+                        label: '删除',
+                        color: const Color(0xFFEF5350),
+                        onTap: () {
+                          Navigator.pop(dialogCtx);
+                          _showDeleteConfirmation(context, ref);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCoverImage(BuildContext context, Character? character) {
+    final coverPath = character?.assets?.coverPath ?? character?.assets?.avatarPath;
+    if (coverPath != null && coverPath.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: CharacterAvatarImage(
+            imagePath: coverPath,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildCoverPlaceholder(context),
+          ),
+        ),
+      );
     }
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      child: _buildCoverPlaceholder(context),
+    );
+  }
+
+  Widget _buildCoverPlaceholder(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Container(
+        color: accent.withValues(alpha: 0.15),
+        child: Center(
+          child: Icon(
+            CupertinoIcons.person_crop_circle,
+            size: 56,
+            color: accent.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _importChatMessages(BuildContext context, WidgetRef ref) async {
+    final exportService = ChatExportService();
+    final repo = ref.read(chatRepositoryProvider);
+    try {
+      final result = await exportService.importFromFile();
+      if (result == null) {
+        if (context.mounted) {
+          _showActionResultSnackBar(context, '未选择文件或格式不支持', isError: true);
+        }
+        return;
+      }
+      if (result.messages.isEmpty) {
+        if (context.mounted) {
+          _showActionResultSnackBar(context, '文件中没有消息', isError: true);
+        }
+        return;
+      }
+      // 追加到当前聊天
+      for (final msg in result.messages) {
+        await repo.addMessage(msg.toChatMessage(chat.id, ''));
+      }
+      ref.invalidate(allChatsProvider);
+      if (context.mounted) {
+        _showActionResultSnackBar(
+            context, '已导入 ${result.messages.length} 条消息');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showActionResultSnackBar(context, '导入失败: $e', isError: true);
+      }
+    }
+  }
+
+  Future<void> _exportChat(BuildContext context, WidgetRef ref, Character? character) async {
+    if (character == null) {
+      _showActionResultSnackBar(context, '角色信息缺失，无法导出', isError: true);
+      return;
+    }
+    final exportService = ChatExportService();
+    final userName =
+        ref.read(activePersonaProvider).valueOrNull?.name ?? 'User';
+    try {
+      final messages = await ref.read(chatRepositoryProvider).getMessages(chat.id);
+      if (context.mounted) {
+        _showActionResultSnackBar(context, '正在导出 ${messages.length} 条消息...');
+      }
+      await exportService.exportAndShare(
+        chat,
+        messages,
+        character,
+        userName: userName,
+        useJsonl: true,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        _showActionResultSnackBar(context, '导出失败: $e', isError: true);
+      }
+    }
+  }
+
+  Future<void> _duplicateChat(
+      BuildContext context, WidgetRef ref, Character? character) async {
+    final repo = ref.read(chatRepositoryProvider);
+    try {
+      final messages = await repo.getMessages(chat.id);
+      final newChat = await repo.createChat(Chat(
+        id: '',
+        characterId: chat.characterId,
+        groupId: chat.groupId,
+        title: '${chat.title} (副本)',
+        authorNote: chat.authorNote,
+        authorNoteDepth: chat.authorNoteDepth,
+        authorNoteEnabled: chat.authorNoteEnabled,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ));
+      for (final msg in messages) {
+        await repo.addMessage(msg.copyWith(
+          id: '',
+          chatId: newChat.id,
+        ));
+      }
+      ref.invalidate(allChatsProvider);
+      if (context.mounted) {
+        _showActionResultSnackBar(context, '已复制（${messages.length} 条消息）');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showActionResultSnackBar(context, '复制失败: $e', isError: true);
+      }
+    }
+  }
+
+  void _showActionResultSnackBar(BuildContext context, String message,
+      {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+            isError ? DesignTokens.statusError : DesignTokens.statusSuccess,
+        duration: Duration(seconds: isError ? 3 : 2),
+      ),
+    );
   }
 
   void _showDeleteConfirmation(BuildContext context, WidgetRef ref) {
@@ -508,15 +836,277 @@ class _StaggeredEntrance extends StatelessWidget {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: total),
-      curve: Interval(delay / total, 1, curve: DesignTokens.curveDecelerate),
+      curve: Interval(delay / total, 1, curve: DesignTokens.curveSpring),
       builder: (context, t, child) => Opacity(
-        opacity: t,
+        opacity: t.clamp(0.0, 1.0),
         child: Transform.translate(
-          offset: Offset(0, 12 * (1 - t)),
+          offset: Offset(0, 12 * (1 - t.clamp(0.0, 1.0))),
           child: child,
         ),
       ),
       child: child,
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// Phase 1: 独立分页控件 `《 ‹ 1/4 › 》`
+// ══════════════════════════════════════════════════════════
+class _PaginationCard extends StatelessWidget {
+  final int currentPage;
+  final int pageCount;
+  final ValueChanged<int> onPageChange;
+
+  const _PaginationCard({
+    required this.currentPage,
+    required this.pageCount,
+    required this.onPageChange,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(DesignTokens.radiusDialog),
+          border: isDark
+              ? null
+              : Border.all(color: theme.dividerColor, width: 0.5),
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _PaginationButton(
+              icon: CupertinoIcons.chevron_left_2,
+              enabled: currentPage > 0,
+              onTap: () => onPageChange(0),
+            ),
+            _PaginationButton(
+              icon: CupertinoIcons.chevron_left,
+              enabled: currentPage > 0,
+              onTap: () => onPageChange(currentPage - 1),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                '${currentPage + 1}/$pageCount',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeSm,
+                  fontWeight: DesignTokens.weightSemibold,
+                  color: theme.textTheme.bodyMedium?.color,
+                ),
+              ),
+            ),
+            _PaginationButton(
+              icon: CupertinoIcons.chevron_right,
+              enabled: currentPage < pageCount - 1,
+              onTap: () => onPageChange(currentPage + 1),
+            ),
+            _PaginationButton(
+              icon: CupertinoIcons.chevron_right_2,
+              enabled: currentPage < pageCount - 1,
+              onTap: () => onPageChange(pageCount - 1),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PaginationButton extends StatelessWidget {
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _PaginationButton({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return CupertinoButton(
+      padding: const EdgeInsets.all(8),
+      minSize: 32,
+      onPressed: enabled ? onTap : null,
+      child: Icon(
+        icon,
+        size: 18,
+        color: enabled
+            ? theme.textTheme.bodyMedium?.color
+            : theme.disabledColor,
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// Phase 3: 顶部栏组件
+// ══════════════════════════════════════════════════════════
+class _PageSizeChip extends StatelessWidget {
+  final int currentSize;
+  final VoidCallback onTap;
+
+  const _PageSizeChip({
+    required this.currentSize,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark ? DesignTokens.darkSurface : Colors.white,
+          borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+          border: isDark
+              ? null
+              : Border.all(color: theme.dividerColor, width: 0.5),
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '$currentSize条/页',
+              style: TextStyle(
+                fontSize: DesignTokens.fontSizeSm,
+                fontWeight: DesignTokens.weightMedium,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              CupertinoIcons.chevron_down,
+              size: 14,
+              color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CircleActionButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _CircleActionButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: isDark ? DesignTokens.darkSurface : Colors.white,
+          shape: BoxShape.circle,
+          border: isDark
+              ? null
+              : Border.all(color: theme.dividerColor, width: 0.5),
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: DesignTokens.primary,
+        ),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// 操作浮窗的圆形操作按钮
+// ══════════════════════════════════════════════════════════
+class _ActionIconButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionIconButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.textTheme.bodySmall?.color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

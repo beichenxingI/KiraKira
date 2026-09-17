@@ -48,26 +48,30 @@ class KiraGroupedTile extends StatelessWidget {
 
     Widget? leading;
     if (icon != null) {
-      if (iconBg != null) {
+      if (iconBg != null && iconBg != Colors.transparent) {
         leading = Container(
-          width: 28,
-          height: 28,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
             color: iconBg,
-            borderRadius: BorderRadius.circular(DesignTokens.radiusGroupedCard),
+            borderRadius: BorderRadius.circular(8),
           ),
           alignment: Alignment.center,
           child: Icon(
             icon,
-            size: 17,
+            size: 20,
             color: iconColor ?? theme.colorScheme.primary,
           ),
         );
       } else {
-        leading = Icon(
-          icon,
-          size: 22,
-          color: iconColor ?? textSecondary,
+        leading = SizedBox(
+          width: 32,
+          height: 32,
+          child: Icon(
+            icon,
+            size: 26,
+            color: iconColor ?? theme.colorScheme.primary,
+          ),
         );
       }
     }
@@ -82,6 +86,7 @@ class KiraGroupedTile extends StatelessWidget {
 
     return KiraPressable(
       onTap: onTap,
+      pressScale: 0.98,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 44),
         child: Padding(

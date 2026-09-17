@@ -230,7 +230,29 @@ if (!String.prototype.at) {
   iframe.card-frame {
     width: 100%; border: none; display: block;
     background: transparent; height: 300px; border-radius: 12px;
+    transition: height 0.22s ease;
   }
+  /* 前景卡包裹层：承载 iframe + 收起按钮 */
+  .card-frame-wrap { position: relative; width: 100%; }
+  .card-collapse-btn {
+    display: none; position: absolute; top: 8px; right: 8px; z-index: 10;
+    background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 12px;
+    padding: 4px 12px; font-size: 12px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; transition: background .15s ease;
+  }
+  .card-collapse-btn:active { background: rgba(0,0,0,0.85); }
+  /* wrap 处于展开态时才显示收起按钮 */
+  .card-frame-wrap.expanded .card-collapse-btn { display: block; }
+  /* 折叠态 iframe 不拦截点击，让点击穿透到 wrap 触发展开 */
+  iframe.card-frame[data-collapsed="1"] { pointer-events: none; }
+  /* 流式 Markdown 渲染样式（生成结束后被 Dart 渲染的最终 HTML 覆盖，仅作过渡预览） */
+  .stream-text { font-size: 15px; line-height: 1.6; word-break: break-word; }
+  .stream-text pre.stream-code { background: rgba(0,0,0,0.35); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
+  .stream-text pre.stream-code code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; white-space: pre; color: #E6E6E6; }
+  .stream-text code { font-family: ui-monospace, Menlo, Consolas, monospace; background: rgba(0,0,0,0.25); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .stream-text h1,.stream-text h2,.stream-text h3 { margin: 8px 0 4px; }
+  .stream-text ul,.stream-text ol { margin: 4px 0; padding-left: 22px; }
+  .stream-text blockquote { border-left: 3px solid rgba(124,77,255,0.5); margin: 4px 0; padding-left: 10px; color: #B8BEC8; }
   /* 消息组：气泡 + 挂在外面下方的工具条 */
   .msg-group { margin: 14px 0; }
   .msg-group .msg { margin: 0; }
@@ -353,6 +375,77 @@ if (!String.prototype.at) {
   .func-item:active{background:rgba(124,77,255,.22);}
   .func-icon{width:26px;height:26px;stroke:#5B9EF5;fill:none;stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round;}
+  /* [浮窗化] 设置面板容器:底部弹出,可滚动,z-index低于弹窗 */
+  .sp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;
+    z-index:9999;align-items:flex-end;opacity:0;transition:opacity .25s ease;
+    padding-top:calc(var(--top-inset,56px) + 8px);}
+  .sp-overlay.show{opacity:1;}
+  .sp-panel{width:100%;background:#12141C;border-radius:1rem 1rem 0 0;
+    display:flex;flex-direction:column;max-height:85vh;
+    transform:translateY(100%);transition:transform .32s cubic-bezier(0.4,0,0.2,1);}
+  .sp-overlay.show .sp-panel{transform:translateY(0);}
+  .sp-header{display:flex;align-items:center;justify-content:space-between;
+    padding:.75rem 1rem;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;}
+  .sp-close{width:2.25rem;height:2.25rem;border:none;background:rgba(255,255,255,.08);
+    color:rgba(255,255,255,.87);border-radius:50%;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    -webkit-tap-highlight-color:transparent;transition:background .15s;}
+  .sp-close:active{background:rgba(255,255,255,.18);}
+  .sp-title{font-size:1.05rem;font-weight:600;color:#F5F7FA;margin:0;flex:1;text-align:center;}
+  .sp-spacer{width:2.25rem;flex-shrink:0;}
+  .sp-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding-bottom:env(safe-area-inset-bottom);}
+  .sp-content::-webkit-scrollbar{width:3px;}
+  .sp-content::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px;}
+  .sp-content::-webkit-scrollbar-track{background:transparent;}
+  /* [浮窗化] HTML 组件库 */
+  .sp-section{padding:.75rem 1rem .25rem;font-size:.7rem;font-weight:600;
+    color:#7C4DFF;text-transform:uppercase;letter-spacing:.08em;}
+  .sp-desc{padding:0 1rem .75rem;font-size:.8rem;color:rgba(255,255,255,.5);line-height:1.5;}
+  .sp-row{display:flex;align-items:center;justify-content:space-between;
+    padding:.75rem 1rem;border-bottom:1px solid rgba(255,255,255,.06);
+    -webkit-tap-highlight-color:transparent;transition:background .15s;}
+  .sp-row:active{background:rgba(255,255,255,.04);}
+  .sp-row-label{font-size:.9rem;color:rgba(255,255,255,.87);flex:1;}
+  .sp-row-sub{font-size:.75rem;color:rgba(255,255,255,.45);margin-top:.15rem;}
+  .sp-toggle{position:relative;width:2.75rem;height:1.5rem;border-radius:.75rem;
+    background:rgba(255,255,255,.18);border:none;cursor:pointer;
+    transition:background .25s;flex-shrink:0;-webkit-appearance:none;}
+  .sp-toggle.on{background:#7C4DFF;}
+  .sp-toggle::after{content:'';position:absolute;top:.2rem;left:.2rem;
+    width:1.1rem;height:1.1rem;border-radius:50%;background:#fff;
+    transition:transform .25s;}
+  .sp-toggle.on::after{transform:translateX(1.25rem);}
+  .sp-slider-row{padding:.75rem 1rem;border-bottom:1px solid rgba(255,255,255,.06);}
+  .sp-slider-head{display:flex;justify-content:space-between;margin-bottom:.5rem;}
+  .sp-slider-label{font-size:.85rem;color:rgba(255,255,255,.87);}
+  .sp-slider-val{font-size:.85rem;color:#7C4DFF;font-weight:600;}
+  .sp-slider{width:100%;height:.2rem;border-radius:.1rem;background:rgba(255,255,255,.18);
+    -webkit-appearance:none;outline:none;margin:0;}
+  .sp-slider::-webkit-slider-thumb{-webkit-appearance:none;width:1.1rem;height:1.1rem;
+    border-radius:50%;background:#7C4DFF;cursor:pointer;}
+  .sp-select-wrap{padding:.75rem 1rem;border-bottom:1px solid rgba(255,255,255,.06);}
+  .sp-select-label{display:block;font-size:.85rem;color:rgba(255,255,255,.87);margin-bottom:.4rem;}
+  .sp-select{width:100%;box-sizing:border-box;padding:.55rem .75rem;
+    background:rgba(255,255,255,.08);color:#F5F7FA;border:1px solid rgba(255,255,255,.12);
+    border-radius:.5rem;font-size:.9rem;outline:none;-webkit-appearance:none;}
+  .sp-input-wrap{padding:.75rem 1rem;border-bottom:1px solid rgba(255,255,255,.06);}
+  .sp-input-label{display:block;font-size:.85rem;color:rgba(255,255,255,.87);margin-bottom:.4rem;}
+  .sp-input{width:100%;box-sizing:border-box;padding:.55rem .75rem;
+    background:rgba(255,255,255,.08);color:#F5F7FA;border:1px solid rgba(255,255,255,.12);
+    border-radius:.5rem;font-size:.9rem;outline:none;}
+  .sp-input:focus{border-color:#7C4DFF;}
+  .sp-btn{width:calc(100% - 2rem);margin:.75rem 1rem;padding:.7rem;
+    border:none;border-radius:.5rem;font-size:.9rem;font-weight:600;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;transition:opacity .15s;}
+  .sp-btn:active{opacity:.7;}
+  .sp-btn-primary{background:#7C4DFF;color:#fff;}
+  .sp-btn-danger{background:rgba(229,72,77,.15);color:#FF6B6E;}
+  .sp-empty{text-align:center;padding:2rem 1rem;font-size:.85rem;color:rgba(255,255,255,.35);}
+  .sp-icon-btn{width:1.75rem;height:1.75rem;border:none;background:transparent;
+    color:rgba(255,255,255,.5);font-size:.8rem;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;}
+  .sp-icon-btn:active{color:#fff;}
 </style>
 </head>
 <body>
@@ -397,14 +490,29 @@ if (!String.prototype.at) {
     </div>
     <div class="func-group-label">设置</div>
     <div class="func-grid">
-      <div class="func-item func-action" data-action="navigateTo" data-route="/image-gen-settings"><svg class="func-icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span>生图</span></div>
-      <div class="func-item func-action" data-action="navigateTo" data-route="/settings/tools/tts"><svg class="func-icon" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span>语音</span></div>
-      <div class="func-item func-action" data-action="navigateTo" data-route="/settings/tools/vector-storage"><svg class="func-icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg><span>记忆</span></div>
-      <div class="func-item func-action" data-action="navigateTo" data-route="/settings/tools/variables"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>变量</span></div>
-      <div class="func-item func-action" data-action="navigateToChar" data-route-tpl="/characters/{charId}/regex"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span>正则</span></div>
+      <div class="func-item func-action" data-action="openImageGenPanel"><svg class="func-icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span>生图</span></div>
+      <div class="func-item func-action" data-action="openTtsPanel"><svg class="func-icon" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span>语音</span></div>
+      <div class="func-item func-action" data-action="openVectorStoragePanel"><svg class="func-icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg><span>记忆</span></div>
+      <div class="func-item func-action" data-action="openVariablesPanel"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>变量</span></div>
+      <div class="func-item func-action" data-action="openRegexPanel"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span>正则</span></div>
       <!-- A3-T4: 世界书入口已随 NativeTavern 列表页删除 -->
-      <div class="func-item func-action" data-action="navigateTo" data-route="/settings/appearance/background"><svg class="func-icon" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg><span>气泡</span></div>
+      <div class="func-item func-action" data-action="openBackgroundPanel"><svg class="func-icon" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg><span>气泡</span></div>
     </div>
+  </div>
+</div>
+<!-- [浮窗化] 设置面板容器 -->
+<div id="sp-overlay" class="sp-overlay">
+  <div id="sp-panel" class="sp-panel">
+    <div class="sp-header">
+      <button class="sp-close" onclick="closeSettingsPanel()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+      <h2 id="sp-title" class="sp-title"></h2>
+      <div class="sp-spacer"></div>
+    </div>
+    <div id="sp-content" class="sp-content"></div>
   </div>
 </div>
 <script>
@@ -561,6 +669,14 @@ __KIRA_CHAT_BRIDGE__
       if(v){ sendToFlutter('panelAction', {action:'jumpFloor', floor:v}); }
       __closeFuncPanel(); return;
     }
+    if(action === 'openRegexPanel'){
+      if(!window.__funcCharId){
+        sendToFlutter('panelAction', {action:'noChar'});
+        __closeFuncPanel(); return;
+      }
+      sendToFlutter('panelAction', {action:'openRegexPanel', charId: window.__funcCharId});
+      __closeFuncPanel(); return;
+    }
     if(action === 'navigateToChar'){
       if(!window.__funcCharId){
         sendToFlutter('panelAction', {action:'noChar'});
@@ -609,6 +725,688 @@ __KIRA_CHAT_BRIDGE__
       });
   });
   registerBridgeHandler('closeFunctionPanel', function(){ __closeFuncPanel(); });
+
+  // ── [浮窗化] HTML 组件库 ──────────────────────────────────────────────
+  // 面板内通用 UI 组件工厂,所有设置面板复用。
+  // ES5 风格(兼容老 WebView),var + function 表达式。
+
+  function spSection(title) {
+    var h = document.createElement('div');
+    h.className = 'sp-section';
+    h.textContent = title;
+    return h;
+  }
+  function spDesc(text) {
+    var p = document.createElement('p');
+    p.className = 'sp-desc';
+    p.textContent = text;
+    return p;
+  }
+  function spToggle(id, label, subtitle, checked, onChange) {
+    var row = document.createElement('div');
+    row.className = 'sp-row';
+    var lab = document.createElement('div');
+    lab.style.flex = '1';
+    var l = document.createElement('div');
+    l.className = 'sp-row-label';
+    l.textContent = label;
+    lab.appendChild(l);
+    if (subtitle) {
+      var s = document.createElement('div');
+      s.className = 'sp-row-sub';
+      s.textContent = subtitle;
+      lab.appendChild(s);
+    }
+    row.appendChild(lab);
+    var btn = document.createElement('button');
+    btn.className = 'sp-toggle' + (checked ? ' on' : '');
+    btn.setAttribute('role', 'switch');
+    btn.setAttribute('aria-checked', checked ? 'true' : 'false');
+    btn.dataset.id = id || '';
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOn = btn.classList.toggle('on');
+      btn.setAttribute('aria-checked', isOn ? 'true' : 'false');
+      if (onChange) onChange(isOn);
+    });
+    row.appendChild(btn);
+    return row;
+  }
+  function spSlider(id, label, value, min, max, step, unit, onChange) {
+    var wrap = document.createElement('div');
+    wrap.className = 'sp-slider-row';
+    var head = document.createElement('div');
+    head.className = 'sp-slider-head';
+    var lab = document.createElement('span');
+    lab.className = 'sp-slider-label';
+    lab.textContent = label;
+    var val = document.createElement('span');
+    val.className = 'sp-slider-val';
+    val.textContent = value + (unit || '');
+    head.appendChild(lab);
+    head.appendChild(val);
+    wrap.appendChild(head);
+    var s = document.createElement('input');
+    s.type = 'range';
+    s.className = 'sp-slider';
+    s.min = min; s.max = max; s.step = step; s.value = value;
+    // [P0修复] input只更新显示值,不发bridge消息;change(松手)才发送
+    s.addEventListener('input', function(e) {
+      val.textContent = e.target.value + (unit || '');
+    });
+    s.addEventListener('change', function(e) {
+      if (onChange) onChange(parseFloat(e.target.value));
+    });
+    wrap.appendChild(s);
+    return wrap;
+  }
+  function spSelect(id, label, options, selected, onChange) {
+    var wrap = document.createElement('div');
+    wrap.className = 'sp-select-wrap';
+    var lab = document.createElement('span');
+    lab.className = 'sp-select-label';
+    lab.textContent = label;
+    wrap.appendChild(lab);
+    var sel = document.createElement('select');
+    sel.className = 'sp-select';
+    sel.dataset.id = id || '';
+    for (var i = 0; i < options.length; i++) {
+      var opt = document.createElement('option');
+      opt.value = options[i].value;
+      opt.textContent = options[i].label;
+      if (options[i].value === selected) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    sel.addEventListener('change', function(e) {
+      if (onChange) onChange(e.target.value);
+    });
+    wrap.appendChild(sel);
+    return wrap;
+  }
+  function spInput(id, label, value, placeholder, type, onChange) {
+    var wrap = document.createElement('div');
+    wrap.className = 'sp-input-wrap';
+    var lab = document.createElement('label');
+    lab.className = 'sp-input-label';
+    lab.textContent = label;
+    lab.htmlFor = id || '';
+    wrap.appendChild(lab);
+    var inp = document.createElement('input');
+    inp.className = 'sp-input';
+    inp.type = type || 'text';
+    inp.value = value || '';
+    inp.placeholder = placeholder || '';
+    inp.dataset.id = id || '';
+    inp.addEventListener('input', function(e) {
+      if (onChange) onChange(e.target.value);
+    });
+    wrap.appendChild(inp);
+    return wrap;
+  }
+  function spButton(text, cls, onClick) {
+    var b = document.createElement('button');
+    b.className = 'sp-btn ' + (cls || 'sp-btn-primary');
+    b.textContent = text;
+    b.addEventListener('click', function() { if (onClick) onClick(); });
+    return b;
+  }
+  function spEmpty(text) {
+    var p = document.createElement('div');
+    p.className = 'sp-empty';
+    p.textContent = text || '暂无数据';
+    return p;
+  }
+  function spIconButton(icon, onClick) {
+    var b = document.createElement('button');
+    b.className = 'sp-icon-btn';
+    b.innerHTML = icon || '';
+    b.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (onClick) onClick();
+    });
+    return b;
+  }
+
+  // ── [浮窗化] 设置面板管理 ─────────────────────────────────────────────
+  var __currentPanel = null;
+  var __panelData = null;
+
+  function openSettingsPanel(panel, title, data) {
+    __currentPanel = panel;
+    __panelData = data || {};
+    var ov = document.getElementById('sp-overlay');
+    var tEl = document.getElementById('sp-title');
+    var cEl = document.getElementById('sp-content');
+    if (!ov || !tEl || !cEl) return;
+    tEl.textContent = title || '';
+    cEl.innerHTML = '';
+    try {
+      __renderPanel(cEl, panel, data);
+    } catch (e) {
+      cEl.innerHTML = '';
+      cEl.appendChild(spEmpty('面板渲染失败: ' + e));
+    }
+    ov.style.display = 'flex';
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() { ov.classList.add('show'); });
+    });
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSettingsPanel() {
+    var ov = document.getElementById('sp-overlay');
+    if (!ov) return;
+    ov.classList.remove('show');
+    setTimeout(function() {
+      ov.style.display = 'none';
+      document.body.style.overflow = '';
+      sendToFlutter('settingsPanelClosed', { panel: __currentPanel || '' });
+      __currentPanel = null;
+      __panelData = null;
+    }, 300);
+  }
+  function spAction(action, data) {
+    sendToFlutter('settingsPanelAction', {
+      panel: __currentPanel || '',
+      action: action,
+      data: data || {}
+    });
+  }
+  registerBridgeHandler('openSettingsPanel', function(p) {
+    openSettingsPanel(p.panel, p.title, p.data);
+  });
+  registerBridgeHandler('closeSettingsPanel', function() {
+    closeSettingsPanel();
+  });
+  registerBridgeHandler('settingsPanelData', function(p) {
+    if (!p) return;
+    __panelData = p.data || __panelData;
+    // 异步操作完成后可推送新数据刷新面板
+    if (p.refresh && __currentPanel) {
+      var cEl = document.getElementById('sp-content');
+      if (cEl) {
+        cEl.innerHTML = '';
+        __renderPanel(cEl, __currentPanel, __panelData);
+      }
+    }
+  });
+
+  // ── [浮窗化] 正则面板渲染 ─────────────────────────────────────────────
+  function renderRegexPanel(container, data) {
+    var scripts = (data && data.regexScripts) || [];
+    var charName = (data && data.charName) || '';
+    // 说明区
+    container.appendChild(spSection('角色正则脚本'));
+    container.appendChild(spDesc(
+      '正则脚本可对 AI 输出/用户输入进行文本替换。' +
+      (charName ? '当前角色: ' + charName : '') +
+      '\n开关: 启用/禁用单条脚本。编辑/新建将跳转编辑器。'
+    ));
+    // 列表区
+    if (scripts.length === 0) {
+      container.appendChild(spEmpty('暂无正则脚本，点击下方按钮新建'));
+    } else {
+      for (var i = 0; i < scripts.length; i++) {
+        (function(script) {
+          var row = document.createElement('div');
+          row.className = 'sp-row';
+          // 开关
+          var toggleBtn = document.createElement('button');
+          toggleBtn.className = 'sp-toggle' + (script.disabled ? '' : ' on');
+          toggleBtn.setAttribute('role', 'switch');
+          toggleBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var isOn = toggleBtn.classList.toggle('on');
+            spAction('toggleScript', { id: script.id, enabled: isOn });
+          });
+          // 名称+描述
+          var lab = document.createElement('div');
+          lab.style.flex = '1';
+          lab.addEventListener('click', function() {
+            spAction('editScript', { id: script.id });
+          });
+          var nameEl = document.createElement('div');
+          nameEl.className = 'sp-row-label';
+          nameEl.textContent = script.name || script.scriptName || '未命名脚本';
+          lab.appendChild(nameEl);
+          if (script.description) {
+            var descEl = document.createElement('div');
+            descEl.className = 'sp-row-sub';
+            descEl.textContent = script.description;
+            lab.appendChild(descEl);
+          }
+          // 编辑按钮
+          var editBtn = spIconButton('✎', function() {
+            spAction('editScript', { id: script.id });
+          });
+          // 删除按钮 (确认走 Flutter HTML 弹窗,避免原生 confirm 卡顿)
+          var delBtn = spIconButton('✕', function() {
+            spAction('deleteScript', { id: script.id, name: script.name || script.scriptName || '此脚本' });
+          });
+          row.appendChild(toggleBtn);
+          row.appendChild(lab);
+          row.appendChild(editBtn);
+          row.appendChild(delBtn);
+          container.appendChild(row);
+        })(scripts[i]);
+      }
+    }
+    // 新建按钮
+    container.appendChild(spButton('+ 新建正则脚本', 'sp-btn-primary', function() {
+      spAction('createScript', {});
+    }));
+  }
+
+  // ── [浮窗化] 面板渲染调度器 ─────────────────────────────────────────
+  function __renderPanel(container, panel, data) {
+    switch (panel) {
+      case 'regex': renderRegexPanel(container, data); break;
+      case 'background': renderBackgroundPanel(container, data); break;
+      case 'tts': renderTtsPanel(container, data); break;
+      case 'variables': renderVariablesPanel(container, data); break;
+      case 'vectorStorage': renderVectorStoragePanel(container, data); break;
+      case 'imageGen': renderImageGenPanel(container, data); break;
+      default: container.appendChild(spEmpty('未知面板: ' + panel));
+    }
+  }
+
+  // ── [浮窗化] 气泡背景面板 ─────────────────────────────────────────────
+  function renderBackgroundPanel(container, data) {
+    // 图片背景设置
+    container.appendChild(spSection('图片背景设置'));
+    container.appendChild(spToggle('use-avatar-bg',
+      '使用角色卡图片作为背景',
+      '如果角色卡有头像图片，将自动作为聊天背景',
+      data.useCharacterAvatar, function(checked) {
+        spAction('toggleUseCharacterAvatar', { enabled: checked });
+      }));
+    container.appendChild(spToggle('enable-blur',
+      '背景模糊',
+      '为背景图片添加毛玻璃模糊效果',
+      data.enableBlur, function(checked) {
+        spAction('toggleBlur', { enabled: checked });
+      }));
+    container.appendChild(spSlider('bg-opacity',
+      '背景透明度', Math.round((data.backgroundOpacity || 1) * 100),
+      0, 100, 1, '%', function(v) {
+        spAction('setBackgroundOpacity', { opacity: v / 100 });
+      }));
+
+    // 气泡样式
+    container.appendChild(spSection('气泡样式'));
+    container.appendChild(spSlider('bubble-opacity',
+      '气泡不透明度', Math.round((data.bubbleOpacity || 0.8) * 100),
+      0, 100, 1, '%', function(v) {
+        spAction('setBubbleOpacity', { opacity: v / 100 });
+      }));
+
+    // 布局模式
+    container.appendChild(spSection('布局模式'));
+    container.appendChild(spSelect('layout-mode', '消息布局', [
+      { value: 'bubble', label: '气泡模式（标准）' },
+      { value: 'visualNovel', label: '视觉小说模式' }
+    ], data.chatLayoutMode || 'bubble', function(v) {
+      spAction('setLayoutMode', { mode: v });
+    }));
+    container.appendChild(spDesc('视觉小说模式需要设置背景图片后才生效'));
+
+    // 背景图片管理
+    container.appendChild(spSection('背景图片管理'));
+    if (data.imagePath) {
+      var pathRow = document.createElement('div');
+      pathRow.className = 'sp-row';
+      var pathLab = document.createElement('div');
+      pathLab.className = 'sp-row-label';
+      pathLab.textContent = '当前图片';
+      var pathVal = document.createElement('div');
+      pathVal.className = 'sp-row-sub';
+      var parts = (data.imagePath || '').split('/');
+      pathVal.textContent = parts[parts.length - 1] || data.imagePath;
+      pathLab.appendChild(pathVal);
+      pathRow.appendChild(pathLab);
+      container.appendChild(pathRow);
+      container.appendChild(spButton('清除背景图片', 'sp-btn-danger', function() {
+        spAction('clearBackground', {});
+      }));
+    } else {
+      container.appendChild(spDesc('未设置自定义背景图片'));
+    }
+    container.appendChild(spButton('选择背景图片', 'sp-btn-primary', function() {
+      spAction('pickBackgroundImage', {});
+    }));
+  }
+
+  // ── [浮窗化] TTS语音面板 ─────────────────────────────────────────────
+  function renderTtsPanel(container, data) {
+    container.appendChild(spSection('基础设置'));
+    container.appendChild(spToggle('tts-enable', '启用TTS',
+      '让 AI 语音朗读消息', data.enabled,
+      function(checked) { spAction('toggleTts', { enabled: checked }); }));
+
+    if (data.enabled === false) {
+      container.appendChild(spDesc('启用后可以让 AI 语音朗读消息（下方设置可先配置）'));
+    }
+    container.appendChild(spToggle('tts-autoplay', '自动播放',
+      '收到 AI 回复后自动朗读', data.autoPlay,
+      function(checked) { spAction('setAutoPlay', { enabled: checked }); }));
+    container.appendChild(spToggle('tts-queue', '消息队列',
+      '排队多条消息而非打断', data.queueMessages,
+      function(checked) { spAction('setQueueMode', { enabled: checked }); }));
+
+    // 语音引擎
+    container.appendChild(spSection('语音引擎'));
+    container.appendChild(spSelect('tts-provider', '引擎', [
+      { value: 'system', label: '系统 TTS' },
+      { value: 'elevenlabs', label: 'ElevenLabs' },
+      { value: 'azure', label: 'Azure TTS' }
+    ], data.provider || 'system', function(v) {
+      spAction('setProvider', { provider: v });
+    }));
+
+    // 语音选择
+    var voices = data.availableVoices || [];
+    if (voices.length > 0) {
+      container.appendChild(spSelect('tts-voice', '语音', voices,
+        data.voiceId || '', function(v) {
+          spAction('setVoice', { voiceId: v });
+        }));
+    }
+
+    // 参数调整
+    container.appendChild(spSection('参数调整'));
+    container.appendChild(spSlider('tts-rate', '语速',
+      data.rate || 1.0, 0.5, 2.0, 0.1, 'x',
+      function(v) { spAction('setRate', { rate: v }); }));
+    container.appendChild(spSlider('tts-pitch', '音调',
+      data.pitch || 1.0, 0.5, 2.0, 0.1, 'x',
+      function(v) { spAction('setPitch', { pitch: v }); }));
+    container.appendChild(spSlider('tts-volume', '音量',
+      Math.round((data.volume || 1.0) * 100), 0, 100, 1, '%',
+      function(v) { spAction('setVolume', { volume: v / 100 }); }));
+
+    // 试听
+    container.appendChild(spSection('试听'));
+    container.appendChild(spButton('播放试听', 'sp-btn-primary', function() {
+      spAction('testTts', {});
+    }));
+    container.appendChild(spDesc('试听文本：「你好，这是语音合成测试。」'));
+  }
+
+  // ── [浮窗化] 变量管理面板 ────────────────────────────────────────────
+  function renderVariablesPanel(container, data) {
+    var globalVars = data.globalVariables || [];
+    var localVars = data.localVariables || [];
+
+    // 全局变量
+    container.appendChild(spSection('全局变量 (' + globalVars.length + ')'));
+    container.appendChild(spDesc('全局变量在所有会话中共享。宏: {{getglobalvar::name}} {{setglobalvar::name::value}}'));
+    if (globalVars.length === 0) {
+      container.appendChild(spEmpty('暂无全局变量'));
+    } else {
+      for (var i = 0; i < globalVars.length; i++) {
+        container.appendChild(__createVariableItem(globalVars[i], 'global'));
+      }
+    }
+    container.appendChild(spButton('+ 新建全局变量', 'sp-btn-primary', function() {
+      spAction('createVariable', { scope: 'global' });
+    }));
+
+    // 会话变量
+    if (data.hasChat) {
+      container.appendChild(spSection('会话变量 (' + localVars.length + ')'));
+      container.appendChild(spDesc('会话变量仅在当前会话中有效。宏: {{getvar::name}} {{setvar::name::value}}'));
+      if (localVars.length === 0) {
+        container.appendChild(spEmpty('暂无会话变量'));
+      } else {
+        for (var j = 0; j < localVars.length; j++) {
+          container.appendChild(__createVariableItem(localVars[j], 'local'));
+        }
+      }
+      container.appendChild(spButton('+ 新建会话变量', 'sp-btn-primary', function() {
+        spAction('createVariable', { scope: 'local' });
+      }));
+
+      // 清空
+      if (globalVars.length > 0 || localVars.length > 0) {
+        container.appendChild(spButton('清空所有变量', 'sp-btn-danger', function() {
+          spAction('clearAllVariables', {});
+        }));
+      }
+    }
+  }
+  function __createVariableItem(variable, scope) {
+    var item = document.createElement('div');
+    item.className = 'sp-row';
+    var lab = document.createElement('div');
+    lab.style.flex = '1';
+    var nameEl = document.createElement('div');
+    nameEl.className = 'sp-row-label';
+    nameEl.textContent = variable.name;
+    lab.appendChild(nameEl);
+    var valEl = document.createElement('div');
+    valEl.className = 'sp-row-sub';
+    valEl.style.wordBreak = 'break-all';
+    valEl.textContent = String(variable.value);
+    lab.appendChild(valEl);
+    item.appendChild(lab);
+    item.appendChild(spIconButton('✎', function() {
+      spAction('updateVariable', { scope: scope, name: variable.name });
+    }));
+    item.appendChild(spIconButton('✕', function() {
+      spAction('deleteVariable', { scope: scope, name: variable.name });
+    }));
+    return item;
+  }
+
+  // ── [浮窗化] 向量记忆面板 ────────────────────────────────────────────
+  function renderVectorStoragePanel(container, data) {
+    container.appendChild(spSection('基础设置'));
+    container.appendChild(spToggle('vector-enable', '启用 RAG',
+      '检索增强生成，让 AI 记住长期对话内容', data.enabled,
+      function(checked) { spAction('toggleEnabled', { enabled: checked }); }));
+
+    if (data.enabled === false) {
+      container.appendChild(spDesc('启用后可以让 AI 记住长期对话内容（下方设置可先配置）'));
+    }
+
+    // 搜索设置
+    container.appendChild(spSection('搜索设置'));
+    container.appendChild(spSlider('vector-topk', 'Top K 结果数',
+      data.topK || 5, 1, 20, 1, ' 条',
+      function(v) { spAction('setTopK', { topK: v }); }));
+    container.appendChild(spSlider('vector-threshold', '相似度阈值',
+      Math.round((data.similarityThreshold || 0.7) * 100), 0, 100, 5, '%',
+      function(v) { spAction('setSimilarityThreshold', { threshold: v / 100 }); }));
+    container.appendChild(spDesc('相似度低于此阈值的文档不会被检索'));
+
+    // Embedding 配置
+    container.appendChild(spSection('Embedding 配置'));
+    container.appendChild(spSelect('embedding-provider', '提供者', [
+      { value: 'openai', label: 'OpenAI' },
+      { value: 'cohere', label: 'Cohere' },
+      { value: 'local', label: '本地模型（免费）' },
+      { value: 'custom', label: 'Custom API' }
+    ], data.embeddingProvider || 'local', function(v) {
+      spAction('setEmbeddingProvider', { provider: v });
+    }));
+    container.appendChild(spInput('embedding-model', '模型',
+      data.embeddingModel || '', 'text-embedding-3-small', 'text',
+      function(v) { spAction('setEmbeddingModel', { model: v }); }));
+
+    // API 配置（非 local 模式）
+    if (data.embeddingProvider && data.embeddingProvider !== 'local') {
+      container.appendChild(spInput('embedding-api-url', 'API 地址',
+        data.embeddingApiUrl || '', 'https://api.openai.com/v1', 'text',
+        function(v) { spAction('setEmbeddingApiUrl', { url: v }); }));
+      container.appendChild(spInput('embedding-api-key', 'API 密钥',
+        data.embeddingApiKey || '', 'sk-...', 'password',
+        function(v) { spAction('setEmbeddingApiKey', { key: v }); }));
+    } else if (data.embeddingProvider === 'local') {
+      container.appendChild(spDesc('使用设备本地的 bge-small-zh 模型生成向量，无需 API、不花费 token。'));
+    }
+
+    // 集合状态
+    var collections = data.collections || [];
+    if (collections.length > 0) {
+      container.appendChild(spSection('知识库集合'));
+      for (var i = 0; i < collections.length; i++) {
+        (function(col) {
+          var isActive = col.id === data.activeCollectionId;
+          var row = document.createElement('div');
+          row.className = 'sp-row';
+          var lab = document.createElement('div');
+          lab.style.flex = '1';
+          var nameEl = document.createElement('div');
+          nameEl.className = 'sp-row-label';
+          nameEl.textContent = col.name + (isActive ? ' ✓' : '');
+          lab.appendChild(nameEl);
+          var subEl = document.createElement('div');
+          subEl.className = 'sp-row-sub';
+          subEl.textContent = col.documentCount + ' 个文档';
+          lab.appendChild(subEl);
+          row.appendChild(lab);
+          if (!isActive) {
+            row.appendChild(spIconButton('◉', function() {
+              spAction('selectCollection', { id: col.id });
+            }));
+          }
+          container.appendChild(row);
+        })(collections[i]);
+      }
+    }
+  }
+
+  // ── [浮窗化] 生图设置面板 ────────────────────────────────────────────
+  function renderImageGenPanel(container, data) {
+    container.appendChild(spSection('基础设置'));
+    container.appendChild(spToggle('imagegen-enable', '启用生图功能',
+      '根据对话内容自动生成图片', data.enabled,
+      function(checked) { spAction('toggleEnabled', { enabled: checked }); }));
+
+    if (data.enabled === false) {
+      container.appendChild(spDesc('启用后可以根据对话内容自动生成图片（下方设置可先配置）'));
+    }
+
+    // 自动生图模式
+    container.appendChild(spSection('自动生图'));
+    container.appendChild(spSelect('auto-gen-mode', '自动生图模式', [
+      { value: 'off', label: '关闭 - 仅手动生图' },
+      { value: 'promptOnly', label: '仅写提示词 - AI 输出画面描述' },
+      { value: 'auto', label: '全自动生成 - 自动出图' }
+    ], data.autoImageMode || 'off', function(v) {
+      spAction('setAutoImageMode', { mode: v });
+    }));
+
+    // 提示词配置
+    container.appendChild(spSection('提示词配置'));
+    container.appendChild(spInput('negative-prompt', '固定负面提示词',
+      data.defaultNegativePrompt || '', 'low quality, blurry, bad anatomy, watermark', 'text',
+      function(v) { spAction('setDefaultNegativePrompt', { prompt: v }); }));
+    container.appendChild(spInput('positive-prefix', '正面提示词前缀',
+      data.positivePromptPrefix || '', 'masterpiece, best quality, ', 'text',
+      function(v) { spAction('setPositivePromptPrefix', { prefix: v }); }));
+    container.appendChild(spInput('image-tag-instruction', '告诉 AI 怎么写生图标签',
+      data.imageTagInstruction || '', '留空使用默认指令', 'text',
+      function(v) { spAction('setImageTagInstruction', { instruction: v }); }));
+
+    // 全自动生图提示词优化
+    container.appendChild(spSection('提示词优化'));
+    container.appendChild(spToggle('auto-prompt-gen', '额外调用 AI 优化提示词',
+      'AI 没写 <image> 标签时额外调一次 AI 提炼画面描述',
+      data.enableAutoPromptGeneration,
+      function(checked) { spAction('toggleAutoPromptGeneration', { enabled: checked }); }));
+
+    // 生图提供商
+    container.appendChild(spSection('生图提供商'));
+    var providers = data.availableProviders || [];
+    container.appendChild(spSelect('image-provider', '提供商', providers,
+      data.provider || '', function(v) {
+        spAction('setProvider', { provider: v });
+      }));
+
+    // 提供商信息卡片(显示当前方案的endpoint/ masked API key)
+    var providerInfo = document.createElement('div');
+    providerInfo.style.cssText = 'margin:0.5rem 1rem 1rem;padding:0.75rem;background:rgba(124,77,255,0.08);border:1px solid rgba(124,77,255,0.2);border-radius:0.5rem;';
+    var piName = document.createElement('div');
+    piName.style.cssText = 'font-size:0.8rem;font-weight:600;color:rgba(255,255,255,0.87);margin-bottom:0.25rem;';
+    piName.textContent = 'Endpoint: ' + (data.apiEndpoint || '(默认)');
+    providerInfo.appendChild(piName);
+    if (data.apiKey && data.apiKey.length > 0) {
+      var maskedKey = data.apiKey.length > 12
+        ? data.apiKey.substring(0, 8) + '...' + data.apiKey.substring(data.apiKey.length - 4)
+        : data.apiKey;
+      var piKey = document.createElement('div');
+      piKey.style.cssText = 'font-size:0.75rem;color:rgba(255,255,255,0.5);font-family:monospace;';
+      piKey.textContent = 'API Key: ' + maskedKey;
+      providerInfo.appendChild(piKey);
+    }
+    container.appendChild(providerInfo);
+
+    // 模型选择: 有可用模型时显示下拉,否则显示手动输入
+    var availableModels = data.availableModels || [];
+    if (availableModels.length > 0) {
+      container.appendChild(spSection('生图模型 (检测到 ' + availableModels.length + ' 个)'));
+      var modelOpts = availableModels.map(function(m) {
+        return { value: m, label: m };
+      });
+      container.appendChild(spSelect('image-model-select', '选择模型', modelOpts,
+        data.model || '', function(v) {
+          spAction('setModel', { model: v });
+        }));
+    } else {
+      container.appendChild(spSection('生图模型'));
+      var noModelWarn = document.createElement('div');
+      noModelWarn.style.cssText = 'margin:0 1rem 0.5rem;padding:0.75rem;background:rgba(255,152,0,0.1);border:1px solid rgba(255,152,0,0.3);border-radius:0.5rem;font-size:0.75rem;color:rgba(255,255,255,0.6);';
+      noModelWarn.textContent = '未检测到生图模型。可在下方手动输入模型名称（如 dall-e-3、flux-1-schnell 等）。';
+      container.appendChild(noModelWarn);
+      container.appendChild(spInput('image-model', '模型名称',
+        data.model || '', 'dall-e-3 / sdxl / flux...', 'text',
+        function(v) { spAction('setModel', { model: v }); }));
+    }
+
+    // API 配置(根据提供商类型显示不同字段)
+    if (data.requiresApiKey) {
+      container.appendChild(spInput('api-key', 'API 密钥',
+        data.apiKey || '', 'sk-...', 'password',
+        function(v) { spAction('setApiKey', { key: v }); }));
+    } else if (!data.isLocalProvider) {
+      container.appendChild(spInput('api-endpoint', 'API 地址',
+        data.apiEndpoint || '', 'http://localhost:7860', 'text',
+        function(v) { spAction('setApiEndpoint', { endpoint: v }); }));
+    }
+
+    // 图片参数 — 预设尺寸选择 + 自定义宽高
+    container.appendChild(spSection('图片参数'));
+    var currentSize = (data.defaultWidth || 1024) + 'x' + (data.defaultHeight || 1024);
+    var sizeOptions = [
+      { value: '512x512', label: '512×512 (正方形)' },
+      { value: '768x768', label: '768×768 (正方形)' },
+      { value: '1024x1024', label: '1024×1024 (正方形)' },
+      { value: '1024x1792', label: '1024×1792 (竖版)' },
+      { value: '1792x1024', label: '1792×1024 (横版)' },
+      { value: 'custom', label: '自定义尺寸' }
+    ];
+    var selectedSize = 'custom';
+    for (var si = 0; si < sizeOptions.length - 1; si++) {
+      if (sizeOptions[si].value === currentSize) { selectedSize = currentSize; break; }
+    }
+    container.appendChild(spSelect('image-size', '图片尺寸', sizeOptions, selectedSize, function(v) {
+      spAction('setImageSize', { size: v });
+    }));
+    // 自定义尺寸输入(只在选中custom时显示)
+    if (selectedSize === 'custom') {
+      var customDiv = document.createElement('div');
+      customDiv.style.cssText = 'display:flex;gap:1rem;padding:0 1rem;';
+      var wWrap = spInput('custom-width', '宽度', String(data.defaultWidth || 1024), '', 'number',
+        function(v) { spAction('setCustomWidth', { width: parseInt(v) || 1024 }); });
+      wWrap.style.flex = '1';
+      var hWrap = spInput('custom-height', '高度', String(data.defaultHeight || 1024), '', 'number',
+        function(v) { spAction('setCustomHeight', { height: parseInt(v) || 1024 }); });
+      hWrap.style.flex = '1';
+      customDiv.appendChild(wWrap);
+      customDiv.appendChild(hWrap);
+      container.appendChild(customDiv);
+    }
+  }
 
   function decodeB64Utf8(b64) {
     var binary = atob(b64);
@@ -761,7 +1559,7 @@ function injectBridge(html, id, floorIdx) {
       'var bodyOffset=b?(b.offsetHeight+(parseInt(getComputedStyle(b).marginTop,10)||0)+(parseInt(getComputedStyle(b).marginBottom,10)||0)):0;' +
       'var h=Math.ceil(Math.max(bodyOffset||document.documentElement.offsetHeight,_lowestBottom()))||0;' +
       'if(!h){h=document.documentElement.scrollHeight||0;}' +
-      'if(h>0&&Math.abs(h-_lastH)>4){_lastH=h;parent.postMessage({__cardHeight:true,id:_id,height:h},"*");}' +
+      'if(h>0&&Math.abs(h-_lastH)>4){_lastH=h;var _vh=(document.body&&document.body.scrollHeight>=window.innerHeight-2)?1:0;parent.postMessage({__cardHeight:true,id:_id,height:h,vh:_vh},"*");}' +
       '}' +
       'function scheduledReport(){' +
       'if(_debTimer)clearTimeout(_debTimer);' +
@@ -1166,18 +1964,26 @@ function injectBridge(html, id, floorIdx) {
       }
       return;
     }
-    if (d && d.__cardHeight) {
-      var f = document.querySelector('iframe[data-frame-id="' + d.id + '"]');
-      // [WV-7] 高度回传轨迹与异常值(0/负/找不到 frame)
-      if (!f || !(d.height > 0)) {
-        try { sendToFlutter('log', { text: '[WV-7] ABNORMAL cardHeight id=' + d.id + ' h=' + d.height + ' frameFound=' + (!!f) }); } catch (_wv7a) {}
-      }
-      try { sendToFlutter('log', { text: '[WV-7] cardHeight id=' + d.id + ' h=' + d.height }); } catch (_wv7b) {}
-      if (f && d.height > 0) {
-        // 整页 vh 卡(body:min-height:100vh + flex 居中)需要"视口高度"的舞台才能正确布局，
-        // 否则 flex 居中在被压缩的空间里错位(按钮偏移等)。给视口高度地板，内容更高则用内容高。
-        f.style.height = Math.max(d.height + 4, window.innerHeight) + 'px';
-        f.setAttribute('data-last-height', (d.height + 4) + 'px');
+    if (d && d.__cardHeight && d.id) {
+      var f = document.querySelector('iframe.card-frame[data-card-id="' + d.id + '"]');
+      if (!f) return;
+      // 折叠锁：手动折叠态忽略所有高度上报，杜绝弹回
+      if (f.getAttribute('data-collapsed') === '1') return;
+      if (d.height > 0) {
+        // 只有明确标记为 vh 卡时才夹视口下限，其他一律用内容高度（根治全屏爆炸）
+        var isVhCard = (d.vh === 1) || (d.vh === true);
+        var h = isVhCard ? Math.max(d.height + 4, window.innerHeight) : (d.height + 4);
+        f.style.height = h + 'px';
+        // 记录内容高（展开用）与 last-height（离屏卸载恢复用）
+        f.setAttribute('data-content-height', h + 'px');
+        f.setAttribute('data-last-height', h + 'px');
+        f.setAttribute('data-vh', isVhCard ? '1' : '0');
+        // 高度超过初始值(300+4)时进入展开态、显示收起按钮
+        var wrap = f.closest('.card-frame-wrap');
+        if (wrap) {
+          if (h > 304) { wrap.classList.add('expanded'); }
+          else { wrap.classList.remove('expanded'); }
+        }
       }
     }
   });
@@ -1927,6 +2733,8 @@ function injectBridge(html, id, floorIdx) {
         if (hasSegs) { wrap.className += ' has-frames'; }
         if (hasSegs) {
           var frontendIndex = 0;
+          var segsGroup = document.createElement('div');
+          segsGroup.className = 'segs-group';
           for (var si = 0; si < m.segs.length; si++) {
             var seg = m.segs[si] || {};
             var segType = seg.type || 'prose';
@@ -1958,15 +2766,16 @@ function injectBridge(html, id, floorIdx) {
                   f.srcdoc = injected;
                 }
               })(segFrame, segHtml, segId, m.floor || 0);
-              wrap.appendChild(segFrame);
+              segsGroup.appendChild(createCardFrameWrap(segFrame, segId));
               try { window.__kiraMsgFloorMap[segId] = (m.floor || 1) - 1; } catch (_segMapE) {}
             } else if (segHtml.trim() !== '') {
               var segProse = document.createElement('div');
               segProse.className = 'seg-prose';
               segProse.innerHTML = segHtml;
-              wrap.appendChild(segProse);
+              segsGroup.appendChild(segProse);
             }
           }
+          wrap.appendChild(segsGroup);
           // [P3-K1] hasSegs 分支补挂载 wrap：建完不挂,所有 seg frame/prose 游离(t3 实测 cardIframes=0)
           group.appendChild(wrap);
         } else if (typeof m.rich === 'boolean' ? m.rich : isRichHtml(m.html)) {
@@ -1996,7 +2805,7 @@ function injectBridge(html, id, floorIdx) {
               f.srcdoc = injected;
             }
           })(frame, m.html, m.id);
-          group.appendChild(frame);
+          group.appendChild(createCardFrameWrap(frame, m.id));
           // [P3-K1] isRichHtml 分支补挂载 wrap：reasoning 塞在 wrap 里，不挂出来 reasoning 必丢(t4 实测)
           if (wrap.children.length > 0) group.appendChild(wrap);
         } else {
@@ -2234,7 +3043,93 @@ function injectBridge(html, id, floorIdx) {
     try { sendToFlutter('log', { text: '[锚点] 恢复 floor=' + f }); } catch (_ae1) {}
   }
 
-  // 流式增量追加：只往这条消息的文本节点末尾加字，不重排整页
+  // 前景卡包裹层：iframe + 收起按钮。
+  // data-frame-id 供离屏卸载/MVU 用，data-card-id 供 cardHeight 接收与收起按钮定位用。
+  // 高度同步仍走 iframe 内 report() → postMessage __cardHeight → 父文档接收（折叠锁防棘轮）。
+  function createCardFrameWrap(frame, frameId) {
+    var w = document.createElement('div');
+    w.className = 'card-frame-wrap';
+    if (!frame.getAttribute('data-frame-id')) frame.setAttribute('data-frame-id', frameId);
+    frame.setAttribute('data-card-id', frameId);
+    w.appendChild(frame);
+    var btn = document.createElement('button');
+    btn.className = 'card-collapse-btn';
+    btn.type = 'button';
+    btn.setAttribute('data-collapse-card', frameId);
+    btn.textContent = '收起';
+    w.appendChild(btn);
+    return w;
+  }
+
+  // ── 流式 Markdown 渲染：补全未闭合代码块 + 轻量 Markdown（粗体/斜体/列表/代码/链接/标题）──
+  function __escHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  // 统计未闭合的 ``` 围栏（行级），奇数则补一个闭合围栏；等价于 PiuPiu 流式期间 ce() 的作用。
+  function completeCodeBlocks(text){
+    if(!text) return text;
+    var lines = String(text).split('\n');
+    var inFence = false, fenceMarker = null;
+    for(var i=0;i<lines.length;i++){
+      var m = lines[i].match(/^\s*(`{3,})(.*)$/);
+      if(m){
+        if(!inFence){ inFence=true; fenceMarker=m[1]; }
+        else if(m[1]===fenceMarker){ inFence=false; fenceMarker=null; }
+      }
+    }
+    return inFence ? (text + '\n' + (fenceMarker||'```')) : text;
+  }
+  function __streamInline(s){
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    s = s.replace(/\*\*([^]+?)\*\*/g,'<strong>$1</strong>');
+    s = s.replace(/__([^]+?)__/g,'<strong>$1</strong>');
+    s = s.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g,'$1<em>$2</em>');
+    s = s.replace(/(^|[^_])_([^_]+)_(?!_)/g,'$1<em>$2</em>');
+    s = s.replace(/~~([^~]+)~~/g,'<del>$1</del>');
+    s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,'<a href="$2">$1</a>');
+    return s;
+  }
+  function streamMarkdown(text){
+    if(!text) return '';
+    var src = completeCodeBlocks(text);
+    var blocks = [];
+    src = src.replace(/```(\w*)\n?([\s\S]*?)```/g, function(_, lang, code){
+      var body = code.replace(/\n$/,'');
+      blocks.push('<pre class="stream-code"><code>' + __escHtml(body) + '</code></pre>');
+      return '\u0000CB' + (blocks.length-1) + '\u0000';
+    });
+    src = __escHtml(src);   // 转义剩余文本（块内代码已在上面单独转义）
+    var lines = src.split('\n');
+    var html = [], para = [], bq = [];
+    var inUl=false, inOl=false;
+    function flushPara(){ if(para.length){ html.push(para.join('<br>')); para=[]; } }
+    function flushBq(){ if(bq.length){ html.push('<blockquote>' + bq.join('<br>') + '</blockquote>'); bq=[]; } }
+    function closeAll(){ flushPara(); flushBq(); if(inUl){html.push('</ul>');inUl=false;} if(inOl){html.push('</ol>');inOl=false;} }
+    for(var i=0;i<lines.length;i++){
+      var line = lines[i];
+      var cbm = line.match(/^\u0000CB(\d+)\u0000$/);
+      if(cbm){ closeAll(); html.push(blocks[parseInt(cbm[1],10)]); continue; }
+      if(/^\s*$/.test(line)){ closeAll(); continue; }
+      var hm = line.match(/^(#{1,6})\s+(.*)$/);
+      if(hm){ closeAll(); var lv=hm[1].length; html.push('<h'+lv+'>'+__streamInline(hm[2])+'</h'+lv+'>'); continue; }
+      // 引用：转义后 > 已变成 &gt;
+      var qm = line.match(/^&gt;\s?(.*)$/);
+      if(qm){ flushPara(); if(inUl){html.push('</ul>');inUl=false;} if(inOl){html.push('</ol>');inOl=false;} bq.push(__streamInline(qm[1])); continue; }
+      var um = line.match(/^[-*+]\s+(.*)$/);
+      if(um){ flushPara(); flushBq(); if(inOl){html.push('</ol>');inOl=false;} if(!inUl){html.push('<ul>');inUl=true;} html.push('<li>'+__streamInline(um[1])+'</li>'); continue; }
+      var om = line.match(/^\d+\.\s+(.*)$/);
+      if(om){ flushPara(); flushBq(); if(inUl){html.push('</ul>');inUl=false;} if(!inOl){html.push('<ol>');inOl=true;} html.push('<li>'+__streamInline(om[1])+'</li>'); continue; }
+      // 段落行：离开列表/引用，按 breaks:true 用 <br> 连接连续段落行
+      flushBq(); if(inUl){html.push('</ul>');inUl=false;} if(inOl){html.push('</ol>');inOl=false;}
+      para.push(__streamInline(line));
+    }
+    closeAll();
+    return html.join('');
+  }
+  window.__escHtml = __escHtml;
+  window.__renderStreamMd = streamMarkdown;
+
+  // 流式增量追加：原始文本累加为唯一真相，rAF 节流渲染成 Markdown（含未闭合代码块补全）
   function appendToken(id, token) {
     var wrap = document.querySelector('.msg[data-id="' + id + '"]');
     if (!wrap) return;
@@ -2245,11 +3140,25 @@ function injectBridge(html, id, floorIdx) {
       wrap.innerHTML = '';
       stream = document.createElement('div');
       stream.className = 'stream-text';
-      stream.style.whiteSpace = 'pre-wrap';
       wrap.appendChild(stream);
     }
-    stream.textContent += token;
-    if (__stickBottom && __scrollAnchor === null) window.scrollTo(0, document.body.scrollHeight); // [加固A3] 锚点待恢复期间不拽底
+    stream._raw = (stream._raw || '') + token;   // 原始文本：渲染的唯一真相（不被 innerHTML 抹掉）
+    if (stream._rafPending) return;
+    stream._rafPending = true;
+    requestAnimationFrame(function(){
+      stream._rafPending = false;
+      if (!stream.parentNode) return;   // 已被 updateMessage 清掉，不再渲染
+      var raw = stream._raw || '';
+      try {
+        stream.style.whiteSpace = '';
+        stream.innerHTML = (window.__renderStreamMd ? window.__renderStreamMd(raw) : (window.__escHtml ? window.__escHtml(raw) : raw));
+      } catch(e) {
+        // 渲染异常回退纯文本（pre-wrap 保换行），生成结束时仍会被 Dart 最终渲染覆盖
+        stream.style.whiteSpace = 'pre-wrap';
+        stream.textContent = raw;
+      }
+      if (__stickBottom && __scrollAnchor === null) window.scrollTo(0, document.body.scrollHeight); // [加固A3] 锚点待恢复期间不拽底
+    });
   }
   registerBridgeHandler('appendToken', function (p) {
     appendToken(p.id, p.token);
@@ -2326,6 +3235,45 @@ function injectBridge(html, id, floorIdx) {
         attPath: att.getAttribute('data-att-path') || ''
       });
       return;
+    }
+    // 前景卡收起按钮
+    var collapseTarget = tgt.closest('[data-collapse-card]');
+    if (collapseTarget) {
+      var cardId = collapseTarget.getAttribute('data-collapse-card');
+      var fr = document.querySelector('iframe.card-frame[data-card-id="' + cardId + '"]');
+      var wr = fr && fr.closest('.card-frame-wrap');
+      if (fr) {
+        // 先加锁再改高度——顺序不能反，防止解锁瞬间 iframe 重报高度又被夹/弹回
+        fr.setAttribute('data-collapsed', '1');
+        fr.style.height = '300px';
+        if (wr) wr.classList.remove('expanded');
+        // 同步隐藏同 segs-group 内的 prose 文字段
+        var sg = fr.closest('.segs-group');
+        if (sg) {
+          var proses = sg.querySelectorAll('.seg-prose');
+          for (var pi = 0; pi < proses.length; pi++) { proses[pi].style.display = 'none'; }
+        }
+      }
+      return;
+    }
+    // 点击已折叠的卡片展开（折叠态 iframe pointer-events:none，点击穿透落到 wrap）
+    var collapsedWrap = tgt.closest('.card-frame-wrap');
+    if (collapsedWrap) {
+      var cfr = collapsedWrap.querySelector('iframe.card-frame[data-collapsed="1"]');
+      if (cfr) {
+        var savedH = cfr.getAttribute('data-content-height') || (window.innerHeight + 'px');
+        // 先改高度、加展开态，下一帧再解锁——防止解锁瞬间 iframe 重报高度又被夹/弹回
+        cfr.style.height = savedH;
+        collapsedWrap.classList.add('expanded');
+        // 同步恢复同 segs-group 内的 prose 文字段
+        var sg2 = cfr.closest('.segs-group');
+        if (sg2) {
+          var proses2 = sg2.querySelectorAll('.seg-prose');
+          for (var pi2 = 0; pi2 < proses2.length; pi2++) { proses2[pi2].style.display = ''; }
+        }
+        requestAnimationFrame(function(){ cfr.removeAttribute('data-collapsed'); });
+        return;
+      }
     }
     // 展开
     var toggle = tgt.closest('.tools-toggle');

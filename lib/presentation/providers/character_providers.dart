@@ -18,14 +18,29 @@ class CharacterListNotifier extends AsyncNotifier<List<Character>> {
   @override
   Future<List<Character>> build() async {
     final repo = ref.watch(characterRepositoryProvider);
-    return repo.getAllCharacters();
+    final list = await repo.getAllCharacters();
+    _sortPinnedFirst(list);
+    return list;
   }
 
   Future<void> refresh() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final repo = ref.read(characterRepositoryProvider);
-      return repo.getAllCharacters();
+      final list = await repo.getAllCharacters();
+      _sortPinnedFirst(list);
+      return list;
+    });
+  }
+
+  /// 排序：置顶在前（pinnedAt 倒序）→ 其余按创建时间倒序
+  static void _sortPinnedFirst(List<Character> list) {
+    list.sort((a, b) {
+      if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
+      if (a.isPinned && b.isPinned) {
+        return (b.pinnedAt ?? DateTime(0)).compareTo(a.pinnedAt ?? DateTime(0));
+      }
+      return b.createdAt.compareTo(a.createdAt);
     });
   }
 

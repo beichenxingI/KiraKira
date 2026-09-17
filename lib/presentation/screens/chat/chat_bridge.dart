@@ -117,6 +117,13 @@ class BridgeType {
   // [P5-9/P1] 生成控制(狐神自动推进/停止)
   static const String generate = 'th_generate';
   static const String stopGeneration = 'th_stopGeneration';
+
+  // [浮窗化] 设置面板（Dart→JS 出站 + JS→Dart 入站）
+  static const String openSettingsPanel = 'openSettingsPanel';    // Dart→JS: 打开设置面板(带panel名+标题+初始数据)
+  static const String closeSettingsPanel = 'closeSettingsPanel';   // Dart→JS: 关闭设置面板
+  static const String settingsPanelAction = 'settingsPanelAction'; // JS→Dart: 面板内操作(保存/切换/选择/删除等)
+  static const String settingsPanelClosed = 'settingsPanelClosed'; // JS→Dart: 面板已关闭(同步状态)
+  static const String settingsPanelData = 'settingsPanelData';     // Dart→JS: 推送更新后的数据(如异步操作完成)
 }
 
 

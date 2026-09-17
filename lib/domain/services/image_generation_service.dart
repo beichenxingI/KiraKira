@@ -19,6 +19,61 @@ Uint8List _rawRgbToPng((Uint8List, int, int) args) {
   );
   return Uint8List.fromList(img.encodePng(image));
 }
+
+/// 解码 base64 图片数据,兼容各家 OpenAI 兼容接口的差异:
+/// - data URI 前缀(`data:image/png;base64,`)
+/// - 混入空白/换行
+/// - URL-safe base64(`-`/`_`)
+/// - 缺失 padding
+/// 任何无法解析的情况都抛出带原因的 FormatException
+Uint8List decodeBase64Image(String raw) {
+  var s = raw.trim();
+  if (s.isEmpty) {
+    throw const FormatException('Base64 image data is empty');
+  }
+  // 去掉 data URI 前缀(data:image/png;base64,xxx)
+  final commaIdx = s.indexOf(',');
+  if (commaIdx > 0 && s.substring(0, commaIdx).toLowerCase().contains('base64')) {
+    s = s.substring(commaIdx + 1).trim();
+  }
+  // 去掉所有空白(部分接口会在 base64 中混入换行)
+  s = s.replaceAll(RegExp(r'\s'), '');
+  // URL-safe base64 → 标准 base64
+  s = s.replaceAll('-', '+').replaceAll('_', '/');
+  // 补齐 padding
+  final rem = s.length % 4;
+  if (rem == 1) {
+    throw FormatException('Invalid base64 image data (length ${s.length}, rem 1)');
+  }
+  if (rem > 1) {
+    s = s.padRight(s.length + (4 - rem), '=');
+  }
+  try {
+    return base64Decode(s);
+  } on FormatException catch (e) {
+    throw FormatException('Invalid base64 image data: ${e.message}');
+  }
+}
+
+/// 判断响应内容是否明显不是图片(HTML 错误页 / JSON 错误体)。
+/// 用于在下载 URL 后提前识别垃圾数据,避免把 HTML/JSON 当图片传给 UI
+/// (UI 层会报 "Invalid image data")。
+bool _looksLikeNonImageData(Uint8List bytes) {
+  if (bytes.isEmpty) return true;
+  // 跳过前导空白
+  var i = 0;
+  while (i < bytes.length &&
+      (bytes[i] == 0x20 || bytes[i] == 0x09 || bytes[i] == 0x0A || bytes[i] == 0x0D)) {
+    i++;
+  }
+  if (i >= bytes.length) return true;
+  final head = utf8.decode(
+    bytes.sublist(i, math.min(i + 32, bytes.length)),
+    allowMalformed: true,
+  ).trimLeft().toLowerCase();
+  // 二进制图片格式(PNG/JPEG/GIF/WebP 等)不会以 < { [ 开头
+  return head.startsWith('<') || head.startsWith('{') || head.startsWith('[');
+}
 /// Image Generation Provider types (channels, not models)
 enum ImageGenProvider {
   // Cloud providers
@@ -193,7 +248,20 @@ class ImageGenSettings {
   final String defaultSampler;
   final String defaultScheduler;
   final String? defaultNegativePrompt;
-  
+
+  // [生图提示词自定义] 自动生图时控制 AI 提取的提示词
+  final String? positivePromptPrefix; // 正面提示词前缀(拼到最终 prompt 前)
+  final String? extractionInstruction; // _extractVisualTags 用:从对话正文提炼视觉标签的 LLM system 指令
+  final String? imageTagInstruction; // 注入对话 system prompt,教 AI 怎么写 <image> 标签
+  // [全自动生图] 额外调 LLM 优化提示词的开关 + 用哪个 API 服务(llmConfigsProvider 的 config id)
+  final bool enableAutoPromptGeneration;
+  final String? autoPromptConfigId;
+
+  // [提示词优化] 独立生图 API 配置(与主生图配置完全独立)
+  final String? promptOptBaseUrl;
+  final String? promptOptApiKey;
+  final String? promptOptModel;
+
   // NovelAI specific
   final bool novelaiAnlasGuard;
   final bool novelaiSm;
@@ -221,6 +289,14 @@ class ImageGenSettings {
     this.defaultSampler = 'euler_a',
     this.defaultScheduler = 'karras',
     this.defaultNegativePrompt,
+    this.positivePromptPrefix,
+    this.extractionInstruction,
+    this.imageTagInstruction,
+    this.enableAutoPromptGeneration = false,
+    this.autoPromptConfigId,
+    this.promptOptBaseUrl,
+    this.promptOptApiKey,
+    this.promptOptModel,
     // NovelAI
     this.novelaiAnlasGuard = true,
     this.novelaiSm = false,
@@ -255,6 +331,14 @@ class ImageGenSettings {
     String? defaultSampler,
     String? defaultScheduler,
     String? defaultNegativePrompt,
+    String? positivePromptPrefix,
+    String? extractionInstruction,
+    String? imageTagInstruction,
+    bool? enableAutoPromptGeneration,
+    String? autoPromptConfigId,
+    String? promptOptBaseUrl,
+    String? promptOptApiKey,
+    String? promptOptModel,
     bool? novelaiAnlasGuard,
     bool? novelaiSm,
     bool? novelaiSmDyn,
@@ -277,6 +361,14 @@ class ImageGenSettings {
       defaultSampler: defaultSampler ?? this.defaultSampler,
       defaultScheduler: defaultScheduler ?? this.defaultScheduler,
       defaultNegativePrompt: defaultNegativePrompt ?? this.defaultNegativePrompt,
+      positivePromptPrefix: positivePromptPrefix ?? this.positivePromptPrefix,
+      extractionInstruction: extractionInstruction ?? this.extractionInstruction,
+      imageTagInstruction: imageTagInstruction ?? this.imageTagInstruction,
+      enableAutoPromptGeneration: enableAutoPromptGeneration ?? this.enableAutoPromptGeneration,
+      autoPromptConfigId: autoPromptConfigId ?? this.autoPromptConfigId,
+      promptOptBaseUrl: promptOptBaseUrl ?? this.promptOptBaseUrl,
+      promptOptApiKey: promptOptApiKey ?? this.promptOptApiKey,
+      promptOptModel: promptOptModel ?? this.promptOptModel,
       novelaiAnlasGuard: novelaiAnlasGuard ?? this.novelaiAnlasGuard,
       novelaiSm: novelaiSm ?? this.novelaiSm,
       novelaiSmDyn: novelaiSmDyn ?? this.novelaiSmDyn,
@@ -330,6 +422,14 @@ class ImageGenSettings {
     'defaultSampler': defaultSampler,
     'defaultScheduler': defaultScheduler,
     'defaultNegativePrompt': defaultNegativePrompt,
+    'positivePromptPrefix': positivePromptPrefix,
+    'extractionInstruction': extractionInstruction,
+    'imageTagInstruction': imageTagInstruction,
+    'enableAutoPromptGeneration': enableAutoPromptGeneration,
+    'autoPromptConfigId': autoPromptConfigId,
+    'promptOptBaseUrl': promptOptBaseUrl,
+    'promptOptApiKey': promptOptApiKey,
+    'promptOptModel': promptOptModel,
     'novelaiAnlasGuard': novelaiAnlasGuard,
     'novelaiSm': novelaiSm,
     'novelaiSmDyn': novelaiSmDyn,
@@ -383,6 +483,14 @@ class ImageGenSettings {
       defaultSampler: json['defaultSampler'] as String? ?? 'euler_a',
       defaultScheduler: json['defaultScheduler'] as String? ?? 'karras',
       defaultNegativePrompt: json['defaultNegativePrompt'] as String?,
+      positivePromptPrefix: json['positivePromptPrefix'] as String?,
+      extractionInstruction: json['extractionInstruction'] as String? ?? json['imagePromptInstruction'] as String?,
+      imageTagInstruction: json['imageTagInstruction'] as String?,
+      enableAutoPromptGeneration: json['enableAutoPromptGeneration'] as bool? ?? false,
+      autoPromptConfigId: json['autoPromptConfigId'] as String?,
+      promptOptBaseUrl: json['promptOptBaseUrl'] as String?,
+      promptOptApiKey: json['promptOptApiKey'] as String?,
+      promptOptModel: json['promptOptModel'] as String?,
       novelaiAnlasGuard: json['novelaiAnlasGuard'] as bool? ?? true,
       novelaiSm: json['novelaiSm'] as bool? ?? false,
       novelaiSmDyn: json['novelaiSmDyn'] as bool? ?? false,
@@ -590,7 +698,7 @@ class ImageGenerationService {
     final endpoint = _settings.effectiveEndpoint;
     debugPrint('OpenAI: Fetching models from $endpoint/models');
     
-    final response = await _dio.get<Map<String, dynamic>>(
+    final response = await _dio.get<dynamic>(
       '$endpoint/models',
       options: Options(headers: {
         'Authorization': 'Bearer $apiKey',
@@ -604,15 +712,22 @@ class ImageGenerationService {
       return _settings.provider.defaultModels;
     }
     
-    final data = response.data!;
-    final models = <String>[];
-    
-    // Get all models and filter for image generation capable ones
-    final modelList = data['data'] as List? ?? [];
+    // [云端修复] 兼容 Map 和 List 两种响应格式(反代可能返回不同结构)
+    final data = response.data;
+    final List<dynamic> modelList;
+    if (data is Map<String, dynamic>) {
+      modelList = data['data'] as List? ?? [];
+    } else if (data is List) {
+      modelList = data;
+    } else {
+      debugPrint('OpenAI: Unexpected response type ${data.runtimeType}');
+      return _settings.provider.defaultModels;
+    }
     debugPrint('OpenAI: Found ${modelList.length} total models');
     
+    final models = <String>[];
     for (final model in modelList) {
-      final id = model['id'] as String?;
+      final id = model is Map<String, dynamic> ? model['id'] as String? : null;
       if (id != null) {
         // Include known image generation models
         if (id.contains('dall-e') || id.contains('gpt-image') || id.contains('image')) {
@@ -637,7 +752,7 @@ class ImageGenerationService {
     final endpoint = _settings.effectiveEndpoint;
     debugPrint('Gemini: Fetching models from $endpoint/models');
     
-    final response = await _dio.get<Map<String, dynamic>>(
+    final response = await _dio.get<dynamic>(
       '$endpoint/models?key=$apiKey',
     );
     
@@ -648,22 +763,31 @@ class ImageGenerationService {
       return _settings.provider.defaultModels;
     }
     
-    final data = response.data!;
-    final models = <String>[];
-    
-    // Get all models and filter for image generation capable ones
-    final modelList = data['models'] as List? ?? [];
+    // [云端修复] 兼容 Map 和 List 两种响应格式
+    final data = response.data;
+    final List<dynamic> modelList;
+    if (data is Map<String, dynamic>) {
+      modelList = data['models'] as List? ?? [];
+    } else if (data is List) {
+      modelList = data;
+    } else {
+      debugPrint('Gemini: Unexpected response type ${data.runtimeType}');
+      return _settings.provider.defaultModels;
+    }
     debugPrint('Gemini: Found ${modelList.length} total models');
     
+    final models = <String>[];
     for (final model in modelList) {
-      final name = model['name'] as String?;
+      final name = model is Map<String, dynamic> ? model['name'] as String? : null;
       // Model name format: models/gemini-xxx
       if (name != null) {
         final modelId = name.replaceFirst('models/', '');
         
         if (
             (modelId.contains('image') || 
-             modelId.contains('banana'))) {
+             modelId.contains('banana') ||
+             modelId.contains('flash-image') ||
+             modelId.contains('pro-image'))) {
           models.add(modelId);
           debugPrint('Gemini: Found model: $modelId');
         }
@@ -748,8 +872,7 @@ class ImageGenerationService {
                   responseData['base64'];
       if (b64 is String && b64.isNotEmpty) {
         try {
-          final base64Data = b64.replaceFirst(RegExp(r'^data:image/[^;]+;base64,'), '');
-          images.add(base64Decode(base64Data));
+          images.add(decodeBase64Image(b64));
           debugPrint('$debugPrefix Found inline base64 image');
         } catch (e) {
           debugPrint('$debugPrefix Failed to decode base64: $e');
@@ -772,7 +895,7 @@ class ImageGenerationService {
           if (url.startsWith('data:image')) {
             // Base64 data URL
             final base64Data = url.replaceFirst(RegExp(r'^data:image/[^;]+;base64,'), '');
-            images.add(base64Decode(base64Data));
+            images.add(decodeBase64Image(base64Data));
           } else {
             // Regular URL - download it
             final imgData = await downloadImage(url);
@@ -827,7 +950,15 @@ class ImageGenerationService {
       }
     } catch (e, stack) {
       debugPrint('Image generation error: $e\n$stack');
-      onError?.call('Image generation error: $e');
+      debugPrint('  Provider: ${_settings.provider.id} (${_settings.provider.displayName})');
+      debugPrint('  Base URL: ${_settings.effectiveEndpoint}');
+      debugPrint('  Model: $model');
+      final msg = e.toString();
+      if (msg.contains('Invalid image data')) {
+        onError?.call('图片格式不兼容,请检查API是否支持OpenAI格式');
+      } else {
+        onError?.call('Image generation error: $e');
+      }
       return null;
     }
   }
@@ -912,24 +1043,76 @@ class ImageGenerationService {
 
     final data = response.data as Map<String, dynamic>;
     final images = <Uint8List>[];
-    
-    for (final item in data['data'] as List? ?? []) {
-      if (item['b64_json'] != null) {
-        images.add(base64Decode(item['b64_json'] as String));
-      } else if (item['url'] != null) {
-        // Some responses return URL instead of base64
-        final imgData = await downloadImage(item['url'] as String);
-        if (imgData != null) {
-          images.add(imgData);
+
+    // OpenAI 兼容接口的 data 字段格式不统一:
+    // - 标准格式: data: [{url: ...} 或 {b64_json: ...}]
+    // - 某些兼容接口直接返回 data: "<base64 字符串>"
+    final rawData = data['data'];
+    final List<dynamic> dataList;
+    if (rawData is List) {
+      dataList = rawData;
+    } else if (rawData is String && rawData.isNotEmpty) {
+      debugPrint('OpenAI: data is a raw string, treating as base64 image');
+      dataList = [{'b64_json': rawData}];
+    } else {
+      dataList = [];
+    }
+
+    if (dataList.isEmpty) {
+      throw Exception(
+        'No image data in response. Response keys: ${data.keys.join(", ")}',
+      );
+    }
+
+    for (var i = 0; i < dataList.length; i++) {
+      final item = dataList[i];
+      if (item is! Map) continue;
+
+      final b64 = item['b64_json'];
+      final url = item['url'];
+
+      // 优先 Base64 (格式B: Agens、部分自建服务)
+      if (b64 is String && b64.isNotEmpty) {
+        try {
+          images.add(decodeBase64Image(b64));
+          debugPrint('OpenAI: item[$i] decoded from b64_json');
+          continue;
+        } catch (e) {
+          debugPrint('OpenAI: item[$i] b64_json decode failed: $e');
         }
       }
+
+      // Base64 缺失或解码失败时尝试 URL (格式A: GPT官方、OpenRouter)
+      if (url is String && url.isNotEmpty) {
+        debugPrint('OpenAI: item[$i] downloading image from URL: $url');
+        final imgData = await downloadImage(url);
+        if (imgData == null) {
+          throw Exception('Failed to download image from URL: $url');
+        }
+        images.add(imgData);
+        continue;
+      }
+
+      // 未知格式
+      throw Exception(
+        'Unsupported image format at data[$i]. Available keys: ${item.keys.join(", ")}',
+      );
     }
-    
+
     // Fallback: try to extract images from the raw response
     if (images.isEmpty) {
       debugPrint('OpenAI: No images in standard format, trying fallback extraction...');
       final fallbackImages = await _extractImagesFromResponse(data, debugPrefix: 'OpenAI: ');
       images.addAll(fallbackImages);
+    }
+
+    // 兜底失败时给出清晰错误(而不是返回空结果让 UI 报 Invalid image data)
+    if (images.isEmpty) {
+      final firstItem = dataList.first;
+      final itemKeys = firstItem is Map<String, dynamic> ? firstItem.keys.join(', ') : 'unknown';
+      throw Exception(
+        'No usable image data in response. Response keys: ${data.keys.join(", ")}, data[0] keys: $itemKeys',
+      );
     }
 
     onProgress?.call(1.0);
@@ -1010,10 +1193,12 @@ class ImageGenerationService {
               if (imageData is Map<String, dynamic>) {
                 final b64 = imageData['b64_json'] ?? imageData['data'];
                 if (b64 != null && b64 is String) {
-                  // Remove data URL prefix if present
-                  final base64Data = b64.replaceFirst(RegExp(r'^data:image/[^;]+;base64,'), '');
-                  images.add(base64Decode(base64Data));
-                  debugPrint('OpenAI-Chat: Found inline base64 image');
+                  try {
+                    images.add(decodeBase64Image(b64));
+                    debugPrint('OpenAI-Chat: Found inline base64 image');
+                  } catch (e) {
+                    debugPrint('OpenAI-Chat: inline base64 decode failed: $e');
+                  }
                 }
                 final url = imageData['url'];
                 if (url != null && url is String) {
@@ -1038,7 +1223,7 @@ class ImageGenerationService {
           if (url.startsWith('data:image')) {
             // Base64 data URL
             final base64Data = url.replaceFirst(RegExp(r'^data:image/[^;]+;base64,'), '');
-            images.add(base64Decode(base64Data));
+            images.add(decodeBase64Image(base64Data));
           } else {
             // Regular URL - download it
             final imgData = await downloadImage(url);
@@ -1145,7 +1330,7 @@ class ImageGenerationService {
             final mimeType = inlineData['mimeType'] as String?;
             final imgData = inlineData['data'] as String?;
             if (mimeType?.startsWith('image/') == true && imgData != null) {
-              images.add(base64Decode(imgData));
+              images.add(decodeBase64Image(imgData));
             }
           }
           // Also check for text content that may contain image URLs
@@ -1588,21 +1773,45 @@ class ImageGenerationService {
   }
 
   /// Download image from URL
+  /// 兼容:
+  /// - data URI (`data:image/...;base64,...`)
+  /// - 普通 URL (2xx, 带重定向)
+  /// 下载内容若为 HTML/JSON 错误页,记录日志并返回 null(避免把垃圾数据当图片)
   Future<Uint8List?> downloadImage(String url) async {
     try {
-      if (url.startsWith('data:image')) {
+      if (url.startsWith('data:')) {
         // Handle base64 data URL
-        final base64Data = url.split(',').last;
-        return base64Decode(base64Data);
+        return decodeBase64Image(url);
       }
-      
+
       final response = await _dio.get<List<int>>(
         url,
-        options: Options(responseType: ResponseType.bytes),
+        options: Options(
+          responseType: ResponseType.bytes,
+          followRedirects: true,
+          headers: {
+            'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'image/*,*/*',
+          },
+        ),
       );
-      if (response.statusCode == 200) {
-        return Uint8List.fromList(response.data as List<int>);
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
+        final bytes = Uint8List.fromList(response.data as List<int>);
+        if (_looksLikeNonImageData(bytes)) {
+          final head = utf8.decode(
+            bytes.sublist(0, math.min(120, bytes.length)),
+            allowMalformed: true,
+          );
+          debugPrint('downloadImage: non-image content from $url '
+              '(${bytes.length} bytes), head: $head');
+          return null;
+        }
+        return bytes;
       }
+      debugPrint('downloadImage: HTTP ${response.statusCode} for $url');
     } catch (e) {
       debugPrint('Failed to download image: $e');
     }

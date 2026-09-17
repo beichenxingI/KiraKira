@@ -19,6 +19,7 @@ import 'package:kirakira/domain/services/macro_service.dart';
 import 'package:kirakira/domain/services/variables_service.dart';
 import 'package:kirakira/domain/services/chat_summarization_service.dart';
 import 'package:kirakira/presentation/providers/group_providers.dart';
+import 'package:kirakira/presentation/providers/llm_configs_provider.dart';
 import 'package:kirakira/presentation/providers/persona_providers.dart';
 import 'package:kirakira/presentation/providers/prompt_manager_providers.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
@@ -653,8 +654,13 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         state = state.copyWith(imageGenProgress: p);
       };
       try {
+        // [生图提示词自定义] 在最终 prompt 前拼上用户配置的正面前缀(如 "masterpiece, best quality, ")
+        final prefix = settings.positivePromptPrefix;
+        final finalPrompt = (prefix != null && prefix.isNotEmpty)
+            ? '$prefix${prompt.trim()}'
+            : prompt;
         final result = await service.generate(ImageGenRequest(
-          prompt: prompt,
+          prompt: finalPrompt,
           width: settings.defaultWidth,
           height: settings.defaultHeight,
           steps: settings.defaultSteps,
@@ -699,22 +705,42 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
   /// 二次调用 LLM，把一段正文提炼成英文逗号分隔的视觉标签。
   /// 失败返回 null。注意：这会产生一次额外的 API 调用（额度消耗）。
+  /// [生图提示词自定义] 若 extractionInstruction 非空则替换硬编码默认指令。
+  /// [全自动生图] 若 enableAutoPromptGeneration + autoPromptConfigId 非空,
+  ///   用选中的 API 服务 config 而非默认 llmConfigProvider。
   Future<String?> _extractVisualTags(String body, LLMConfig config) async {
     try {
       final truncated = body.length > 600 ? body.substring(0, 600) : body;
-      final messages = <Map<String, dynamic>>[
-        {
-          'role': 'system',
-          'content':
-              'You are a prompt extractor for an image generator. '
+      final settings = _ref.read(imageGenSettingsProvider);
+      final instruction = (settings.extractionInstruction != null &&
+              settings.extractionInstruction!.isNotEmpty)
+          ? settings.extractionInstruction!
+          : 'You are a prompt extractor for an image generator. '
               'Read the text and output ONLY a comma-separated list of English '
               'visual tags describing the scene (characters, appearance, actions, '
               'environment, lighting). No sentences, no explanation, tags only. '
-              'If there is no visual scene, output: NONE',
-        },
+              'If there is no visual scene, output: NONE';
+      final messages = <Map<String, dynamic>>[
+        {'role': 'system', 'content': instruction},
         {'role': 'user', 'content': truncated},
       ];
-      final resp = await _llmService.generateWithReasoning(messages, config);
+      // [全自动生图] 优先用用户选中的 API 服务(覆盖 model/key/endpoint)
+      LLMConfig effectiveConfig = config;
+      if (settings.enableAutoPromptGeneration &&
+          settings.autoPromptConfigId != null) {
+        final configs = _ref.read(llmConfigsProvider);
+        final selected = configs.configs
+            .where((c) => c.id == settings.autoPromptConfigId)
+            .firstOrNull;
+        if (selected != null) {
+          effectiveConfig = config.copyWith(
+            model: selected.model ?? config.model,
+            apiKey: selected.apiKey ?? config.apiKey,
+            apiUrl: selected.endpoint,
+          );
+        }
+      }
+      final resp = await _llmService.generateWithReasoning(messages, effectiveConfig);
       final tags = resp.content.trim();
       if (tags.isEmpty || tags.toUpperCase().contains('NONE')) return null;
       return tags;
@@ -724,12 +750,27 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
   }
 
+  /// 重试/重生成熵注入：低温度时微抬 temperature（避免相同上下文产出近似内容），
+  /// 并把固定 seed 随机化（-1 表示不发送 seed，由服务端随机）。
+  LLMConfig _withRegenerateEntropy(LLMConfig config) {
+    final double bumped = config.temperature < 0.6
+        ? (config.temperature + 0.15).clamp(0.0, 2.0).toDouble()
+        : config.temperature;
+    final int seed = config.seed == -1
+        ? -1
+        : DateTime.now().millisecondsSinceEpoch % 100000;
+    return config.copyWith(temperature: bumped, seed: seed);
+  }
+
   /// Regenerate the last assistant message
   Future<void> regenerateLastMessage(LLMConfig config) async {
     if (state.messages.isEmpty) return;
 
     final lastMessage = state.messages.last;
     if (lastMessage.role != MessageRole.assistant) return;
+
+    // 熵注入：重生成与首次生成上下文相同，需注入熵避免低温度下产出近似内容
+    config = _withRegenerateEntropy(config);
 
     state = state.copyWith(isGenerating: true, error: null);
 
@@ -956,6 +997,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     final message = state.messages[messageIndex];
     if (message.role != MessageRole.assistant) return;
+
+    // 熵注入：重生成与首次生成上下文相同，需注入熵避免低温度下产出近似内容
+    config = _withRegenerateEntropy(config);
 
     // 先追加一条空占位 swipe，让用户看到"思考中"，知道 reroll 正在进行
     final placeholderSwipes = List<String>.from(message.swipes)..add('');
@@ -1412,8 +1456,13 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     try {
       // 1. 先生成到内存，旧图完全不动
+      // [生图提示词自定义] 拼正面前缀
+      final prefix = settings.positivePromptPrefix;
+      final finalPrompt = (prefix != null && prefix.isNotEmpty)
+          ? '$prefix${prompt.trim()}'
+          : prompt;
       final result = await service.generate(ImageGenRequest(
-        prompt: prompt,
+        prompt: finalPrompt,
         width: settings.defaultWidth,
         height: settings.defaultHeight,
         steps: settings.defaultSteps,
@@ -1485,15 +1534,16 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     // 自动生图：非关闭时，注入配图指令，教 AI 输出 <image> 视觉标签
     final imgSettings = _ref.read(imageGenSettingsProvider);
     if (imgSettings.autoImageMode != AutoImageMode.off && imgSettings.enabled) {
-      messages.add({
-        'role': 'system',
-        'content':
-            '【配图指令】当你的回复描绘了具体的视觉场景（人物、动作、环境）时，'
-            '在回复的最末尾追加一行图像描述，格式严格为：\n'
-            '<image>用英文逗号分隔的视觉标签，例如：1girl, silver hair, '
-            'white dress, garden, sunlight</image>\n'
-            '只写画面能看到的视觉元素，不要写心理、对话或剧情。',
-      });
+      // [生图提示词自定义] 用户自定义 <image> 标签指令优先;空则用硬编码默认
+      final tagInstruction = imgSettings.imageTagInstruction;
+      final content = (tagInstruction != null && tagInstruction.isNotEmpty)
+          ? tagInstruction
+          : '【配图指令】当你的回复描绘了具体的视觉场景（人物、动作、环境）时，'
+              '在回复的最末尾追加一行图像描述，格式严格为：\n'
+              '<image>用英文逗号分隔的视觉标签，例如：1girl, silver hair, '
+              'white dress, garden, sunlight</image>\n'
+              '只写画面能看到的视觉元素，不要写心理、对话或剧情。';
+      messages.add({'role': 'system', 'content': content});
     }
     final character = state.character;
     final chat = state.chat;
@@ -1677,8 +1727,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         chatId: state.chat!.id,
       );
       messages.add({
-        'role': 'assistant',
-        'content': summaryMessage.content,
+        'role': 'system',
+        'content': '[Conversation Summary]\n${summaryMessage.content}',
       });
       debugPrint(
           '📌 Added summary to context: ${latestSummary.content.substring(0, min(100, latestSummary.content.length))}...');
@@ -2187,8 +2237,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         chatId: state.chat!.id,
       );
       messages.add({
-        'role': 'assistant',
-        'content': summaryMessage.content,
+        'role': 'system',
+        'content': '[Conversation Summary]\n${summaryMessage.content}',
       });
       debugPrint(
           '📌 Added summary to context: ${latestSummary.content.substring(0, min(100, latestSummary.content.length))}...');

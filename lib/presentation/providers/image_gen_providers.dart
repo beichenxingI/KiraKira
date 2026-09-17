@@ -119,6 +119,49 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
     state = state.copyWith(defaultNegativePrompt: negativePrompt);
     _saveSettings();
   }
+
+  // [生图提示词自定义]
+  void setPositivePromptPrefix(String? prefix) {
+    state = state.copyWith(positivePromptPrefix: prefix);
+    _saveSettings();
+  }
+
+  void setExtractionInstruction(String? instruction) {
+    state = state.copyWith(extractionInstruction: instruction);
+    _saveSettings();
+  }
+
+  void setImageTagInstruction(String? instruction) {
+    state = state.copyWith(imageTagInstruction: instruction);
+    _saveSettings();
+  }
+
+  // [全自动生图] 额外调 LLM 优化提示词
+  void setEnableAutoPromptGeneration(bool value) {
+    state = state.copyWith(enableAutoPromptGeneration: value);
+    _saveSettings();
+  }
+
+  void setAutoPromptConfigId(String? configId) {
+    state = state.copyWith(autoPromptConfigId: configId);
+    _saveSettings();
+  }
+
+  // [提示词优化] 独立生图 API 配置
+  void setPromptOptBaseUrl(String? baseUrl) {
+    state = state.copyWith(promptOptBaseUrl: baseUrl?.isEmpty == true ? null : baseUrl);
+    _saveSettings();
+  }
+
+  void setPromptOptApiKey(String? apiKey) {
+    state = state.copyWith(promptOptApiKey: apiKey?.isEmpty == true ? null : apiKey);
+    _saveSettings();
+  }
+
+  void setPromptOptModel(String? model) {
+    state = state.copyWith(promptOptModel: model?.isEmpty == true ? null : model);
+    _saveSettings();
+  }
   
   // NovelAI specific setters
   void setNovelaiAnlasGuard(bool value) {
@@ -380,15 +423,17 @@ class FetchedModelsNotifier extends StateNotifier<FetchedModelsState> {
       if (models != null && models.isNotEmpty) {
         state = FetchedModelsState(models: models);
       } else {
-        // Fall back to default models
-        debugPrint('  No models returned, using defaults');
-        state = FetchedModelsState(models: _settings.provider.defaultModels);
+        // [硬编码修复] 不再把 defaultModels 塞进 state.models,
+        // 否则 UI 无法区分"真实拉取"和"硬编码回退" → 永远显示 DALL-E 3/2。
+        // null = 没拉到真实模型,UI 走手动输入分支。
+        debugPrint('  No models returned, state.models = null (UI shows manual input)');
+        state = const FetchedModelsState();
       }
     } catch (e) {
       debugPrint('  Error fetching models: $e');
       if (!mounted) return; // 同上
+      // [硬编码修复] error 时也不塞 defaultModels,只存错误信息
       state = FetchedModelsState(
-        models: _settings.provider.defaultModels,
         error: e.toString(),
       );
     }

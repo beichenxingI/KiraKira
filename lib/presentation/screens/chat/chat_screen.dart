@@ -22,6 +22,7 @@ import 'package:kirakira/presentation/providers/chat_providers.dart';
 import 'package:kirakira/presentation/providers/persona_providers.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/presentation/dialogs/persona_settings_dialog.dart';
 import 'package:kirakira/presentation/widgets/chat/author_note_dialog.dart';
 import 'package:kirakira/presentation/widgets/chat/bookmark_dialog.dart';
 import 'package:kirakira/presentation/widgets/chat/chat_background_widget.dart';
@@ -372,7 +373,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         break;
 
       case 'persona':
-        context.go('/personas');
+        showPersonaSettingsDialog(context, ref);
         break;
 
       case 'sys':

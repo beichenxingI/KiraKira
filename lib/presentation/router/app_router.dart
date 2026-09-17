@@ -1,50 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
-import 'radial_reveal_route.dart';
 import 'package:kirakira/core/logger/logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kirakira/presentation/screens/home/home_screen.dart';
 import 'package:kirakira/presentation/screens/splash/splash_screen.dart';
 import 'package:kirakira/presentation/screens/main_page/main_page.dart';
-import 'package:kirakira/presentation/screens/settings/home_appearance_screen.dart';
 import 'package:kirakira/presentation/screens/character/character_list_screen.dart';
-import 'package:kirakira/presentation/screens/character/character_detail_screen.dart';
-import 'package:kirakira/presentation/screens/character_editor/character_editor_screen.dart';
 import 'package:kirakira/presentation/screens/character/character_regex_screen.dart';
 import 'package:kirakira/presentation/screens/settings/settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/prompt_manager_screen.dart';
-import 'package:kirakira/presentation/screens/settings/advanced_settings_screen.dart';
 import 'package:kirakira/presentation/screens/ai_config/llm_test_screen.dart';
 import 'package:kirakira/presentation/screens/ai_config/llm_config_list_screen.dart';
-import 'package:kirakira/presentation/screens/settings/background_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/statistics_screen.dart';
-import 'package:kirakira/presentation/screens/settings/ai_presets_screen.dart';
 import 'package:kirakira/presentation/screens/settings/sprite_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/tts_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/stt_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/translation_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/image_gen_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/regex_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/variables_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/logit_bias_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/cfg_scale_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/tokenizer_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/vector_storage_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/log_view_screen.dart';
 import 'package:kirakira/presentation/widgets/chat/logprobs_panel.dart';
 import 'package:kirakira/presentation/screens/ai_config/ai_config_screen.dart';
 import 'package:kirakira/presentation/screens/import/import_screen.dart';
-import 'package:kirakira/presentation/screens/personas/personas_screen.dart';
 import 'package:kirakira/presentation/screens/world_info/world_info_screen.dart';
 import 'package:kirakira/presentation/screens/groups/groups_screen.dart';
 import 'package:kirakira/presentation/screens/groups/group_detail_screen.dart';
 import 'package:kirakira/presentation/screens/tags/tags_screen.dart';
 import 'package:kirakira/presentation/widgets/common/app_shell.dart';
 import 'package:kirakira/presentation/screens/chat/webview_chat_stage.dart';
-import 'package:kirakira/presentation/screens/settings/geek_dashboard_screen.dart';
-import 'package:kirakira/presentation/screens/settings/mvu_settings_screen.dart';
 import 'package:kirakira/presentation/screens/about/about_screen.dart';
 
 /// Route paths
@@ -54,45 +33,25 @@ abstract class AppRoutes {
   static const home = '/';
   static const splash = '/splash';
   static const characters = '/characters';
-  static const characterDetail = '/characters/:id';
-  static const characterCreate = '/characters/new';
-  static const characterEdit = '/characters/:id/edit';
   static const chats = '/chats';
   static const chat = '/chat/:id';
   static const settings = '/settings';
   static const aiConfig = '/ai-config';
-  // ===== 设置树二层化(B-T3,宪法 §五.5 层级 ≤3)=====
-  static const promptManager = '/settings/ai/prompt-manager';
-  static const advancedSettings = '/settings/ai/advanced';
-  static const backgroundSettings = '/settings/appearance/background';
-  static const homeAppearance = '/settings/appearance/home';
-
-  static const statistics = '/settings/data/statistics';
-  static const settingsLogs = '/settings/data/logs';
-  static const advanced = '/advanced'; // 极客 Core:独立仪表盘,不进 /settings 树
-  static const chatStatistics = '/chat/:id/statistics';
-  static const aiPresets = '/settings/ai/presets';
+  // [外观三项迁移 + 人设迁移] backgroundSettings/homeAppearance/
+  // spriteSettings/personas 常量与路由已删除(浮窗化)。
+  // [极客Core迁移 P1] ttsSettings/sttSettings/translationSettings/statistics/
+  // settingsLogs/chatStatistics 已浮窗化,常量与路由一并删除。
+  // [P7] /advanced(极客Core)及其常量删除,功能已全部分流至各浮窗。
   static const import_ = '/import';
-  static const personas = '/personas';
   // [P3-E/Z] '/world-info' 恢复, 但收窄为只支持全局模式(characterId 分支已砍)
   static const worldInfo = '/world-info';
   static const groups = '/groups';
   static const groupDetail = '/groups/:id';
   static const tags = '/tags';
-  static const spriteSettings = '/settings/appearance/sprites';
   static const characterSprites = '/characters/:id/sprites';
   static const characterRegex = '/characters/:id/regex';
-  static const ttsSettings = '/settings/tools/tts';
-  static const sttSettings = '/settings/tools/stt';
-  static const translationSettings = '/settings/tools/translation';
   static const imageGenSettings = '/settings/tools/image-gen';
-  static const regexSettings = '/settings/tools/regex';
-  static const variablesSettings = '/settings/tools/variables';
-  static const mvuSettings = '/settings/ai/mvu';
-  static const logitBiasSettings = '/settings/ai/logit-bias';
-  static const cfgScaleSettings = '/settings/ai/cfg-scale';
   static const logprobsSettings = '/logprobs-settings'; // 调试工具,保留原路径
-  static const tokenizerSettings = '/settings/ai/tokenizer';
   static const vectorStorageSettings = '/settings/tools/vector-storage';
   static const llmTest = '/llm-test'; // 调试页,保留原路径
   static const llmConfigList = '/llm-config-list'; // 工程页,保留原路径
@@ -236,45 +195,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               state.pageKey, CharacterRegexScreen(characterId: id));
         },
       ),
-      // Full-screen routes (outside shell)
-      // NOTE: More specific routes must come BEFORE wildcard routes
-      // /characters/new must come before /characters/:id
-      GoRoute(
-        path: AppRoutes.characterCreate,
-        name: 'characterCreate',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const CharacterEditorScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.characterEdit,
-        name: 'characterEdit',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return _buildIosPushPage(
-              state.pageKey, CharacterEditorScreen(characterId: id));
-        },
-      ),
-      GoRoute(
-        path: AppRoutes.characterDetail,
-        name: 'characterDetail',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) {
-          final id = state.pathParameters['id']!;
-          final child = CharacterDetailScreen(characterId: id);
-          // 条目2:列表卡带命中点 → 圆形炸开一体转场;其余入口保持 iOS 侧滑
-          final extra = state.extra;
-          if (extra is Offset) {
-            return RadialRevealPage<void>(
-              key: state.pageKey,
-              tapPosition: extra,
-              child: child,
-            );
-          }
-          return _buildIosPushPage(state.pageKey, child);
-        },
-      ),
+      // 角色卡浮窗化：/characters/:id（详情）、/characters/new、/characters/:id/edit
+      // 已由预览/编辑浮窗替代，路由删除；regex 路由保留（webview 引用）
       GoRoute(
         path: AppRoutes.webviewStage,
         name: 'webviewStage',
@@ -300,13 +222,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             _buildIosPushPage(state.pageKey, const ImportScreen()),
       ),
-      GoRoute(
-        path: AppRoutes.personas,
-        name: 'personas',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const PersonasScreen()),
-      ),
+      // [外观三项迁移 + 人设迁移] /personas、/settings/appearance/background|home|
+      // sprites 已浮窗化,路由删除(人设经 showPersonaSettingsDialog,
+      // 外观三项经各自设置浮窗)。
       // [P3-E/Z] 全局世界书列表页(仅全局模式; 不接受 characterId 分支,
       // 双模歧义是 A3-T4 删它的根因)。恒以 isGlobal=true 构造。
       GoRoute(
@@ -316,72 +234,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) {
           return _buildIosPushPage(
               state.pageKey, const WorldInfoScreen(isGlobal: true));
-        },
-      ),
-      GoRoute(
-        path: AppRoutes.promptManager,
-        name: 'promptManager',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const PromptManagerScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.advancedSettings,
-        name: 'advancedSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const AdvancedSettingsScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.homeAppearance,
-        name: 'homeAppearance',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const HomeAppearanceScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.backgroundSettings,
-        name: 'backgroundSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const BackgroundSettingsScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.advanced,
-        name: 'advanced',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const GeekDashboardScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.statistics,
-        name: 'statistics',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const StatisticsScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.mvuSettings,
-        name: 'mvuSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const MvuSettingsScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.aiPresets,
-        name: 'aiPresets',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const AIPresetsScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.chatStatistics,
-        name: 'chatStatistics',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return _buildIosPushPage(
-              state.pageKey, StatisticsScreen(chatId: id));
         },
       ),
       GoRoute(
@@ -409,13 +261,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             _buildIosPushPage(state.pageKey, const TagsScreen()),
       ),
       GoRoute(
-        path: AppRoutes.spriteSettings,
-        name: 'spriteSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const SpriteSettingsScreen()),
-      ),
-      GoRoute(
         path: AppRoutes.characterSprites,
         name: 'characterSprites',
         parentNavigatorKey: _rootNavigatorKey,
@@ -426,27 +271,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               CharacterSpritesScreen(characterId: id, characterName: name));
         },
       ),
-      GoRoute(
-        path: AppRoutes.ttsSettings,
-        name: 'ttsSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const TTSSettingsScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.sttSettings,
-        name: 'sttSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const STTSettingsScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.translationSettings,
-        name: 'translationSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const TranslationSettingsScreen()),
-      ),
+      // [极客Core迁移 P1-P5] /settings/tools/tts|stt|translation|regex|
+      // variables、/settings/data/statistics|logs、/settings/ai/advanced|
+      // logit-bias|presets|prompt-manager|cfg-scale|mvu|tokenizer
+      // 已浮窗化,路由删除。
       GoRoute(
         path: AppRoutes.imageGenSettings,
         name: 'imageGenSettings',
@@ -455,55 +283,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             _buildIosPushPage(state.pageKey, const ImageGenSettingsScreen()),
       ),
       GoRoute(
-        path: AppRoutes.regexSettings,
-        name: 'regexSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const RegexSettingsScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.variablesSettings,
-        name: 'variablesSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) {
-          final chatId = state.uri.queryParameters['chatId'];
-          return _buildIosPushPage(
-              state.pageKey, VariablesSettingsScreen(chatId: chatId));
-        },
-      ),
-      GoRoute(
-        path: AppRoutes.logitBiasSettings,
-        name: 'logitBiasSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const LogitBiasSettingsScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.cfgScaleSettings,
-        name: 'cfgScaleSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) {
-          final characterId = state.uri.queryParameters['characterId'];
-          final chatId = state.uri.queryParameters['chatId'];
-          return _buildIosPushPage(
-            state.pageKey,
-            CFGScaleSettingsScreen(characterId: characterId, chatId: chatId),
-          );
-        },
-      ),
-      GoRoute(
         path: AppRoutes.logprobsSettings,
         name: 'logprobsSettings',
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) =>
             _buildIosPushPage(state.pageKey, const LogprobsSettingsScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.tokenizerSettings,
-        name: 'tokenizerSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const TokenizerSettingsScreen()),
       ),
       GoRoute(
         path: AppRoutes.vectorStorageSettings,
@@ -525,13 +309,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) =>
             _buildIosPushPage(state.pageKey, const LlmConfigListScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.settingsLogs,
-        name: 'settingsLogs',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) =>
-            _buildIosPushPage(state.pageKey, const LogViewScreen()),
       ),
       // 遗留路径兜底(聊天域 push '/image-gen-settings' 指向这里;
       // 禁区文件禁改,redirect 保活旧跳转)

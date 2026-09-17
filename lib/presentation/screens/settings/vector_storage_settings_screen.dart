@@ -308,51 +308,67 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
 
   void _showHelpDialog(BuildContext context, VectorStorageService service) {
     // D-T2 规则 4:帮助 → 底部 Sheet(可滚)
-    showModalBottomSheet<void>(
+    showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(DesignTokens.radiusBottomSheet),
-        ),
-      ),
-      builder: (sheetCtx) => SafeArea(
-        child: DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.4,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (ctx, scrollCtrl) => Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(DesignTokens.spaceMd),
-                child: Text(
-                  '向量检索帮助',
-                  style: TextStyle(
-                    fontSize: DesignTokens.fontSizeHeadline,
-                    fontWeight: FontWeight.w600,
-                  ),
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (dialogCtx) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: MediaQuery.of(dialogCtx).size.width - 64 < 400 ? MediaQuery.of(dialogCtx).size.width - 64 : 400.0,
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            decoration: BoxDecoration(
+              color: Theme.of(dialogCtx).colorScheme.surface,
+              borderRadius: BorderRadius.circular(DesignTokens.radiusBottomSheet),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SafeArea(
+              child: DraggableScrollableSheet(
+                initialChildSize: 0.6,
+                minChildSize: 0.4,
+                maxChildSize: 0.9,
+                expand: false,
+                builder: (ctx, scrollCtrl) => Column(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(DesignTokens.spaceMd),
+                      child: Text(
+                        '向量检索帮助',
+                        style: TextStyle(
+                          fontSize: DesignTokens.fontSizeHeadline,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 0.5),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: scrollCtrl,
+                        padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                        child: Text(service.getHelpText()),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: () => Navigator.pop(dialogCtx),
+                          child: Text(AppLocalizations.of(context)!.close),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Divider(height: 0.5),
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollCtrl,
-                  padding: const EdgeInsets.all(DesignTokens.spaceMd),
-                  child: Text(service.getHelpText()),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(DesignTokens.spaceMd),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(sheetCtx),
-                    child: Text(AppLocalizations.of(context)!.close),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

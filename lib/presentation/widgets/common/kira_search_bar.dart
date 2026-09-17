@@ -36,8 +36,9 @@ class KiraSearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final fillColor =
-        isDark ? DesignTokens.darkCard : DesignTokens.lightFillTertiary;
+    final fillColor = isDark
+        ? DesignTokens.darkCard
+        : Colors.black.withValues(alpha: 0.04);
     final tertiary = theme.textTheme.bodySmall?.color;
 
     final field = SizedBox(
@@ -71,16 +72,16 @@ class KiraSearchBar extends StatelessWidget {
             horizontal: DesignTokens.spaceSm,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(DesignTokens.radiusGroupedCard),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(DesignTokens.radiusGroupedCard),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
             borderSide: BorderSide.none,
           ),
           // iOS 搜索聚焦无边框描边,光标即反馈
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(DesignTokens.radiusGroupedCard),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
             borderSide: BorderSide.none,
           ),
         ),

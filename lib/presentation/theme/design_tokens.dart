@@ -4,9 +4,8 @@
 /// 所有硬编码颜色、圆角、间距、字体、动画、阴影均从此文件引用。
 /// 严禁在业务代码中直接使用字面量,统一引用 [DesignTokens]。
 ///
-/// 色板 = 宪法 v2 §一「B 方案:iOS 骨架 + 星海皮肤」:
-/// 近黑带微蓝底(0B0B12)、三级灰差分层、半透明白文字(非实色灰)、
-/// 深色零阴影、单强调色星海紫 7C7BF0。
+/// 色板:中性灰深色系 + 珊瑚粉强调色。
+/// 深色三级灰差分层、文字白+透明度、零阴影。
 /// 字阶对齐 iOS Type Scale(HIG Typography)。
 library;
 
@@ -18,12 +17,11 @@ abstract class DesignTokens {
   // ===========================================================================
   // 圆角系统 · iOS 实测区间(宪法 v2 §三)
   // ===========================================================================
-  static const double radiusXs = 4; // 小标签、输入框内部
-  static const double radiusSm = 8; // 紧凑按钮、ListTile
+  static const double radiusXs = 6; // 小标签、输入框内部
+  static const double radiusSm = 10; // 紧凑按钮、ListTile
   static const double radiusMd = 12; // 标准按钮、输入框基准
   static const double radiusLg = 16; // 大弹层内衬
-  @Deprecated('旧主卡片值(20),iOS 化后勿再用,用 radiusCard(12)')
-  static const double radiusXl = 20; // 旧主卡片值,勿再用
+  static const double radiusXl = 24; // 大卡片、信息卡
   static const double radiusFull = 30; // 胶囊、底栏、FAB
 
   // 语义化别名(推荐使用)
@@ -98,6 +96,8 @@ abstract class DesignTokens {
       Curves.easeOut; // 页面滑动渐隐(iOS 转场)
   static const Curve curveFade =
       Curves.easeOut; // 渐隐过渡
+  static const Curve curveBackEase =
+      Cubic(0.34, 1.56, 0.64, 1.0); // 弹性回弹(开关拨片)
 
   // 时长 (ms)
   static const int durationXs = 100; // 微反馈
@@ -107,11 +107,40 @@ abstract class DesignTokens {
   static const int durationXl = 500; // 复杂动画(仅特殊场景)
   static const int durationDialog = 250; // 对话框
 
+  static const Duration durationQuick =
+      Duration(milliseconds: 200); // 快速交互反馈
+  static const Duration durationSmooth =
+      Duration(milliseconds: 300); // 平滑过渡
+
   // ===========================================================================
   // 阴影系统
   // ⚠️ 宪法 v2:深色模式一律零阴影(层次靠三级灰差+separator);
   //    shadowLevel1/2/3 仅浅色模式 modal/sheet 允许使用,所有卡片禁用。
   // ===========================================================================
+  static const List<BoxShadow> shadowSoft = [
+    BoxShadow(
+      color: Color(0x14000000),
+      blurRadius: 16,
+      offset: Offset(0, 4),
+    ),
+  ];
+
+  static const List<BoxShadow> shadowAccent = [
+    BoxShadow(
+      color: Color(0x80FFA58F),
+      blurRadius: 15,
+      offset: Offset(0, 4),
+    ),
+  ];
+
+  static const List<BoxShadow> shadowAccentLight = [
+    BoxShadow(
+      color: Color(0x47FFA58F),
+      blurRadius: 22,
+      offset: Offset(0, 12),
+    ),
+  ];
+
   static List<BoxShadow> get shadowLevel1 => [
         // 仅浅色小浮起
         BoxShadow(
@@ -172,34 +201,35 @@ abstract class DesignTokens {
   // 颜色系统 · 宪法 v2 §一(B 方案:iOS 骨架 + 星海皮肤)
   // iOS 原型 + 2-3% 蓝紫微调;深色文字 = 纯白 + 透明度分层(禁止实色灰)
   // ===========================================================================
-  // 深色主题(主战场)
-  static const Color darkBackground = Color(0xFF0B0B12); // 页面最底层(grouped 列表背景)
-  static const Color darkSurface = Color(0xFF17171E); // inset-grouped 分组卡/导航栏底
-  static const Color darkCard = Color(0xFF26262F); // 三级:输入框填充、控件容器、按压高亮
-  static const Color darkSeparator = Color(0x99545458); // 半透明分隔线(iOS 原型)
-  static const Color darkSeparatorOpaque = Color(0xFF3A3A44); // 不透明分隔线(极少用)
+  // 深色主题(主战场) - 完全中性灰，无蓝紫倾向
+  static const Color darkBackground = Color(0xFF0A0A0A); // 极深黑
+  static const Color darkSurface = Color(0xFF1C1C1C); // inset-grouped 分组卡/导航栏底
+  static const Color darkCard = Color(0xFF1C1C1C); // 同卡片
+  static const Color darkSeparator = Color(0xFF2C2C2C); // 分隔线灰
+  static const Color darkSeparatorOpaque = Color(0xFF38383A); // 不透明分隔线(极少用)
 
   // 浅色主题
-  static const Color lightBackground = Color(0xFFF2F2F7); // systemGroupedBackground
+  static const Color lightBackground = Color(0xFFF7F8FA); // systemGroupedBackground
   static const Color lightSurface = Color(0xFFFFFFFF); // secondarySystemGroupedBackground
   static const Color lightCard = Color(0xFFFFFFFF); // 分组卡=纯白,层级靠灰底反衬
   static const Color lightFillTertiary = Color(0x1F767680); // tertiarySystemFill(输入框/控件填充)
   static const Color lightSeparator = Color(0x493C3C43); // separator
 
-  // 深色文字 · 白 + 透明度(铁律:禁止实色灰)
-  static const Color darkTextPrimary = Color(0xFFFFFFFF); // label
-  static const Color darkTextSecondary = Color(0x99EBEBF5); // secondaryLabel 白60%
-  static const Color darkTextTertiary = Color(0x4DEBEBF5); // tertiaryLabel 白30%
-  static const Color darkTextDisabled = Color(0x29EBEBF5); // quaternaryLabel 白16%
+  // 深色文字 - 高对比度中性白
+  static const Color darkTextPrimary = Color(0xFFF0F0F0); // label
+  static const Color darkTextSecondary = Color(0xFF8C8C8C); // secondaryLabel
+  static const Color darkTextTertiary = Color(0x4DFFFFFF); // tertiaryLabel 白30%
+  static const Color darkTextDisabled = Color(0x29FFFFFF); // quaternaryLabel 白16%
 
   // 浅色文字 · 黑 + 透明度
-  static const Color lightTextPrimary = Color(0xFF000000); // label
-  static const Color lightTextSecondary = Color(0x993C3C43); // secondaryLabel 黑60%
+  static const Color lightTextPrimary = Color(0xFF4A4A4A); // label
+  static const Color lightTextSecondary = Color(0xFF8E8E93); // secondaryLabel
   static const Color lightTextTertiary = Color(0x4D3C3C43); // tertiaryLabel 黑30%
   static const Color lightTextDisabled = Color(0x2E3C3C43); // quaternaryLabel 黑18%
 
   // 品牌色(星海皮肤)
-  static const Color primary = Color(0xFF7C7BF0); // 星海紫 · 唯一交互强调色
+  static const Color primary = Color(0xFFFFA58F); // 珊瑚粉 · 唯一交互强调色
+  static const Color primaryLight = Color(0xFFFFC4B0); // 辅助色
   static const Color secondary = Color(0xFF6C8FF0); // 图表第二序列/渐变辅助
   static const Color accent = Color(0xFF56D4C8); // 青 · 仅状态正向/数据高亮
 
@@ -213,8 +243,8 @@ abstract class DesignTokens {
 
   // 聊天气泡(token 指认;聊天域渲染层禁改)
   static const Color userBubble = Color(0xFF5A58D4);
-  static const Color assistantBubble = darkSurface; // #17171E
-  static const Color systemBubble = darkCard; // #26262F
+  static const Color assistantBubble = darkSurface; // #1C1C1C
+  static const Color systemBubble = darkCard; // #1C1C1C
 
   // ===========================================================================
   // 断点 (响应式)

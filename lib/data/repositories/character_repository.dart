@@ -127,6 +127,15 @@ class CharacterRepository {
     return updatedCharacter;
   }
 
+  /// 置顶/取消置顶（isPinned/pinnedAt 存 extensions，无需 schema 迁移）
+  Future<models.Character?> togglePin(String characterId) async {
+    final char = await getCharacter(characterId);
+    if (char == null) return null;
+    final updated = char.withPinned(!char.isPinned);
+    await updateCharacter(updated);
+    return updated;
+  }
+
   /// Delete a character
   Future<void> deleteCharacter(String id) async {
     // Delete associated messages first (they reference chats)

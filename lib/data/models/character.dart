@@ -113,6 +113,27 @@ class Character {
         'modifiedAt': modifiedAt.toIso8601String(),
       };
 
+  // ── 置顶（isPinned/pinnedAt 存 extensions，免 Drift schema 迁移）──
+
+  bool get isPinned => extensions['isPinned'] as bool? ?? false;
+
+  DateTime? get pinnedAt {
+    final v = extensions['pinnedAt'];
+    return v is String ? DateTime.tryParse(v) : null;
+  }
+
+  /// 置顶/取消置顶，返回新实例
+  Character withPinned(bool pinned) {
+    final newExtensions = Map<String, dynamic>.from(extensions);
+    if (pinned) {
+      newExtensions['isPinned'] = true;
+      newExtensions['pinnedAt'] = DateTime.now().toIso8601String();
+    } else {
+      newExtensions..remove('isPinned')..remove('pinnedAt');
+    }
+    return copyWith(extensions: newExtensions);
+  }
+
   factory Character.fromJson(Map<String, dynamic> json) => Character(
         id: json['id'] as String,
         name: json['name'] as String,

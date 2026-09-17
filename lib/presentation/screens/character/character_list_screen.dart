@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kirakira/data/models/character.dart';
@@ -11,11 +12,13 @@ import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
 import 'package:kirakira/presentation/widgets/common/kira_search_bar.dart';
-import 'dart:typed_data';
+import 'package:kirakira/presentation/dialogs/character_preview_dialog.dart';
+import 'package:kirakira/presentation/dialogs/character_edit_dialog.dart';
 import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:kirakira/presentation/screens/import/import_screen.dart' show importServiceProvider;
+import 'package:kirakira/presentation/screens/import/import_screen.dart'
+    show importServiceProvider;
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
@@ -23,6 +26,7 @@ import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
+import 'package:kirakira/presentation/screens/market/chub_webview_screen.dart';
 
 /// Character list screen
 class CharacterListScreen extends ConsumerStatefulWidget {
@@ -96,10 +100,9 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('已删除 $count 个角色')),
-      );
-    }
+    );
   }
-
+}
   /// 批量打包为 ZIP：选格式 → 循环导出 → 打包 → 分享
   Future<void> _exportSelectedAsZip(List<Character> all) async {
     final selected = all.where((c) => _selectedIds.contains(c.id)).toList();
@@ -315,9 +318,6 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  // 条目2:最近一次点击的全局坐标(圆形炸开转场圆心)
-  Offset? _tapPosition;
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -377,7 +377,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                 ],
               ),
             // ── 搜索框接顶(SafeArea;选择态隐藏)──
-            if (!_selectionMode)
+            if (!_selectionMode && _tab == 0)
               SliverToBoxAdapter(
                 child: SafeArea(
                   bottom: false,
@@ -402,37 +402,48 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                 delegate: _SegmentedHeaderDelegate(
                   tab: _tab,
                   onChanged: (v) => setState(() => _tab = v),
-                  trailing: [
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.add, size: 22),
-                      tooltip: l10n.createCharacter,
-                      onPressed: () => _showAddActionSheet(context),
-                    ),
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.checkmark_circle, size: 22),
-                      tooltip: '选择',
-                      onPressed: () {
-                        final all = ref.read(characterListProvider).valueOrNull ?? [];
-                        if (all.isNotEmpty) {
-                          setState(() => _selectionMode = true);
-                        }
-                      },
-                    ),
-                    // C-T6:每页数量档位(4/8/12/16)
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.square_grid_2x2, size: 22),
-                      tooltip: '每页数量',
-                      onPressed: () => _showPageSizeSheet(context),
-                    ),
-                    const SizedBox(width: DesignTokens.spaceXs),
-                  ],
+                  trailing: _tab == 0
+                      ? [
+                          IconButton(
+                            icon: const Icon(CupertinoIcons.add, size: 22),
+                            tooltip: l10n.createCharacter,
+                            onPressed: () => _showAddActionSheet(context),
+                          ),
+                          IconButton(
+                            icon: const Icon(CupertinoIcons.checkmark_circle, size: 22),
+                            tooltip: '选择',
+                            onPressed: () {
+                              final all = ref.read(characterListProvider).valueOrNull ?? [];
+                              if (all.isNotEmpty) {
+                                setState(() => _selectionMode = true);
+                              }
+                            },
+                          ),
+                          // C-T6:每页数量档位(4/8/12/16)
+                          IconButton(
+                            icon: const Icon(CupertinoIcons.square_grid_2x2, size: 22),
+                            tooltip: '每页数量',
+                            onPressed: () => _showPageSizeSheet(context),
+                          ),
+                          const SizedBox(width: DesignTokens.spaceXs),
+                        ]
+                      : [
+                          IconButton(
+                            icon: const Icon(CupertinoIcons.add, size: 22),
+                            tooltip: l10n.createCharacter,
+                            onPressed: () => _showAddActionSheet(context),
+                          ),
+                          const SizedBox(width: DesignTokens.spaceXs),
+                        ],
                 ),
               ),
             const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceSm)),
-            // ── 内容区:tab0 我的角色网格;tab1 角色市场占位 ──
+            // ── 内容区:tab0 我的角色网格;tab1 角色市场 ──
             if (_tab == 1)
-              const SliverFillRemaining(
-                child: _MarketEmptyState(),
+              SliverFillRemaining(
+                child: _CharacterMarketView(
+                  onSwitchToMyCharacters: () => setState(() => _tab = 0),
+                ),
               )
             else
             ...charactersAsync.when(
@@ -534,15 +545,12 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                                 character: c,
                                 selectionMode: _selectionMode,
                                 isSelected: _selectedIds.contains(c.id),
-                                onTapDown: (d) =>
-                                    _tapPosition = d.globalPosition,
                                 onTap: () {
                                   if (_selectionMode) {
                                     _toggleSelect(c.id);
                                   } else {
-                                    // 条目2:带命中点 → 圆形炸开转场
-                                    context.push('/characters/${c.id}',
-                                        extra: _tapPosition);
+                                    // 浮窗化：点击卡片弹轻量预览浮窗
+                                    showCharacterPreviewDialog(context, ref, c);
                                   }
                                 },
                                 onLongPress: () {
@@ -620,7 +628,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
             CupertinoActionSheetAction(
               onPressed: () {
                 Navigator.pop(sheetCtx);
-                context.push(AppRoutes.characterCreate);
+                showCharacterEditDialog(context, ref);
               },
               child: Text(l10n.createCharacter),
             ),
@@ -786,11 +794,11 @@ class _BreathingBoxState extends State<_BreathingBox>
   }
 }
 
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends ConsumerWidget {
   const _EmptyState();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
 
     return Center(
@@ -834,7 +842,7 @@ class _EmptyState extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ElevatedButton.icon(
-                onPressed: () => context.push(AppRoutes.characterCreate),
+                onPressed: () => showCharacterEditDialog(context, ref),
                 icon: const Icon(Icons.add),
                 label: Text(l10n.createCharacter),
               ),
@@ -858,8 +866,6 @@ class _CharacterGridCard extends ConsumerWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
-  /// 条目2:捕获点击全局坐标,供圆形炸开转场定圆心
-  final GestureTapDownCallback? onTapDown;
 
   const _CharacterGridCard({
     required this.character,
@@ -867,7 +873,6 @@ class _CharacterGridCard extends ConsumerWidget {
     this.isSelected = false,
     required this.onTap,
     required this.onLongPress,
-    this.onTapDown,
   });
 
   @override
@@ -891,7 +896,6 @@ class _CharacterGridCard extends ConsumerWidget {
       child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
-          onTapDown: onTapDown,
           child: Stack(
             children: [
               Column(
@@ -942,6 +946,24 @@ class _CharacterGridCard extends ConsumerWidget {
                   ),
                 ],
               ),
+              // 置顶标记（左上角图钉）
+              if (character.isPinned)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.pin_fill,
+                      size: 16,
+                      color: Color(0xFFFFA726),
+                    ),
+                  ),
+                ),
               if (selectionMode)
                 Positioned(
                   top: 8,
@@ -1092,30 +1114,306 @@ class _SegmentedHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.tab != tab || oldDelegate.trailing != trailing;
 }
 
-/// 角色市场占位(C-T8.3):纯空态,绝无网络/数据逻辑
-class _MarketEmptyState extends StatelessWidget {
-  const _MarketEmptyState();
+/// 角色市场（双站架构：Kira官方站 + Chub国际站）
+class _CharacterMarketView extends ConsumerStatefulWidget {
+  final VoidCallback onSwitchToMyCharacters;
+
+  const _CharacterMarketView({required this.onSwitchToMyCharacters});
+
+  @override
+  ConsumerState<_CharacterMarketView> createState() =>
+      _CharacterMarketViewState();
+}
+
+class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tertiary = theme.textTheme.bodySmall?.color;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Column(
+      children: [
+        // ── 双站切换标签 ──
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? DesignTokens.darkSurface : theme.cardColor,
+            border: Border(
+              bottom: BorderSide(
+                color: isDark
+                    ? DesignTokens.darkSeparator
+                    : DesignTokens.lightSeparator,
+              ),
+            ),
+          ),
+          child: TabBar(
+            controller: _tabController,
+            indicatorColor: DesignTokens.primary,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelColor: DesignTokens.primary,
+            unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+            labelStyle: const TextStyle(
+              fontSize: DesignTokens.fontSizeBodyMedium,
+              fontWeight: DesignTokens.weightSemibold,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: DesignTokens.fontSizeBodyMedium,
+              fontWeight: DesignTokens.weightRegular,
+            ),
+            tabs: const [
+              Tab(
+                icon: Icon(Icons.home_outlined, size: 18),
+                text: 'Kira官方',
+              ),
+              Tab(
+                icon: Icon(Icons.public, size: 18),
+                text: 'Chub国际',
+              ),
+            ],
+          ),
+        ),
+        // ── 双站内容 ──
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              const _KiraMarketTab(),
+              _ChubMarketTab(
+                onSwitchToMyCharacters: widget.onSwitchToMyCharacters,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Kira官方站（暂时占位，未来接入自建/社区资源）
+class _KiraMarketTab extends StatelessWidget {
+  const _KiraMarketTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(CupertinoIcons.cloud_download, size: 56, color: tertiary),
-          const SizedBox(height: DesignTokens.spaceMd),
-          Text(
-            '敬请期待',
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: DesignTokens.spaceSm),
-          Text(
-            '角色市场建设中,未来可在线浏览与导入角色',
-            style: theme.textTheme.bodyMedium,
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(DesignTokens.spaceXl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.storefront,
+              size: 64,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: DesignTokens.spaceLg),
+            Text(
+              'Kira官方市场',
+              style: theme.textTheme.titleLarge,
+            ),
+            const SizedBox(height: DesignTokens.spaceXs),
+            Text(
+              '正在建设中',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: DesignTokens.spaceLg),
+            Container(
+              padding: DesignTokens.paddingCard,
+              decoration: BoxDecoration(
+                color: DesignTokens.primary.withValues(alpha: 0.08),
+                borderRadius:
+                    BorderRadius.circular(DesignTokens.radiusMd),
+                border: Border.all(
+                  color: DesignTokens.primary.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.info_outline,
+                          size: 18, color: DesignTokens.primary),
+                      SizedBox(width: DesignTokens.spaceXs),
+                      Text(
+                        '即将推出',
+                        style: TextStyle(
+                          fontSize: DesignTokens.fontSizeSm,
+                          fontWeight: DesignTokens.weightSemibold,
+                          color: DesignTokens.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: DesignTokens.spaceSm),
+                  Text(
+                    '• 精选高质量角色卡\n'
+                    '• 社区审核，内容可控\n'
+                    '• 国内直连，无需VPN\n'
+                    '• 支持社区投稿',
+                    style: TextStyle(
+                      fontSize: DesignTokens.fontSizeSm,
+                      height: 1.6,
+                      color: isDark
+                          ? DesignTokens.darkTextSecondary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: DesignTokens.spaceLg),
+            Text(
+              '暂时请使用 Chub国际站 浏览角色卡',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Chub国际站（WebView浏览器入口）
+class _ChubMarketTab extends StatelessWidget {
+  final VoidCallback onSwitchToMyCharacters;
+
+  const _ChubMarketTab({required this.onSwitchToMyCharacters});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(DesignTokens.spaceXl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.public,
+              size: 72,
+              color: DesignTokens.primary.withValues(alpha: 0.8),
+            ),
+            const SizedBox(height: DesignTokens.spaceLg),
+            Text(
+              'Chub.ai 角色市场',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: DesignTokens.weightBold,
+              ),
+            ),
+            const SizedBox(height: DesignTokens.spaceXs),
+            Text(
+              '数万个角色卡等你发现',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: DesignTokens.spaceXl),
+            ElevatedButton.icon(
+              onPressed: () => _openWebView(context),
+              icon: const Icon(Icons.open_in_browser, size: 24),
+              label: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: DesignTokens.spaceSm),
+                child: Text(
+                  '打开 Chub.ai 浏览器',
+                  style: TextStyle(fontSize: DesignTokens.fontSizeBodyLarge),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DesignTokens.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  vertical: DesignTokens.spaceMd,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusButton),
+                ),
+              ),
+            ),
+            const SizedBox(height: DesignTokens.spaceLg),
+            Container(
+              padding: DesignTokens.paddingCard,
+              decoration: BoxDecoration(
+                color: DesignTokens.statusWarning.withValues(alpha: 0.08),
+                borderRadius:
+                    BorderRadius.circular(DesignTokens.radiusMd),
+                border: Border.all(
+                  color: DesignTokens.statusWarning.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.vpn_lock,
+                          size: 18, color: DesignTokens.statusWarning),
+                      SizedBox(width: DesignTokens.spaceXs),
+                      Text(
+                        '需要VPN',
+                        style: TextStyle(
+                          fontSize: DesignTokens.fontSizeSm,
+                          fontWeight: DesignTokens.weightSemibold,
+                          color: DesignTokens.statusWarning,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: DesignTokens.spaceSm),
+                  Text(
+                    '• 访问 Chub.ai 需要启用 VPN\n'
+                    '• 在浏览器内直接浏览角色\n'
+                    '• 点击下载自动导入到 Kira\n'
+                    '• 支持包含世界书自动导入\n'
+                    '• Chub 包含大量 NSFW 内容，请遵守当地法律',
+                    style: TextStyle(
+                      fontSize: DesignTokens.fontSizeSm,
+                      height: 1.6,
+                      color: isDark
+                          ? DesignTokens.darkTextSecondary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openWebView(BuildContext context) {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChubWebViewScreen(
+          onCharacterImported: onSwitchToMyCharacters,
+        ),
+        fullscreenDialog: true,
       ),
     );
   }

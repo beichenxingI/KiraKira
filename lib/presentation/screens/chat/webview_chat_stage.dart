@@ -62,6 +62,14 @@ import 'package:kirakira/core/utils/path_utils.dart';
 import 'package:kirakira/presentation/providers/context_usage_providers.dart';
 import 'package:image/image.dart' as img;
 import 'package:kirakira/presentation/providers/tts_providers.dart';
+import 'package:kirakira/presentation/providers/background_providers.dart';
+import 'package:kirakira/presentation/providers/variables_providers.dart';
+import 'package:kirakira/presentation/providers/tokenizer_providers.dart';
+import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
+import 'package:kirakira/presentation/providers/image_gen_providers.dart';
+import 'package:kirakira/data/models/chat_background.dart';
+import 'package:kirakira/data/models/vector_storage.dart';
+import 'package:kirakira/domain/services/tts_service.dart';
 import 'package:kirakira/domain/services/llm_service.dart';
 import 'package:kirakira/presentation/providers/mvu_settings_providers.dart';
 import 'package:kirakira/domain/services/debug_log_service.dart';
@@ -1206,11 +1214,44 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                         case 'noChar':
                           _snack('当前聊天没有关联角色');
                           break;
+                        case 'openRegexPanel':
+                          final charId =
+                              payload['charId'] as String? ?? '';
+                          if (charId.isNotEmpty) {
+                            await _openRegexPanel(charId);
+                          }
+                          break;
+                        case 'openBackgroundPanel':
+                          await _openBackgroundPanel();
+                          break;
+                        case 'openTtsPanel':
+                          await _openTtsPanel();
+                          break;
+                        case 'openVariablesPanel':
+                          await _openVariablesPanel();
+                          break;
+                        case 'openVectorStoragePanel':
+                          await _openVectorStoragePanel();
+                          break;
+                        case 'openImageGenPanel':
+                          await _openImageGenPanel();
+                          break;
                         case 'navigateTo':
                           final route = payload['route'] as String? ?? '';
                           if (route.isNotEmpty) await _navigateTo(route);
                           break;
                       }
+                    });
+                    // [浮窗化] 设置面板操作回传
+                    _bridge.on(BridgeType.settingsPanelAction, (payload) async {
+                      await _handleSettingsPanelAction(
+                          (payload['panel'] as String?) ?? '',
+                          (payload['action'] as String?) ?? '',
+                          (payload['data'] as Map?)?.cast<String, dynamic>() ??
+                              const <String, dynamic>{});
+                    });
+                    _bridge.on(BridgeType.settingsPanelClosed, (payload) {
+                      debugPrint('[浮窗化] settings panel closed: ${payload['panel']}');
                     });
                     await Future.delayed(const Duration(milliseconds: 350));
                     if (!mounted) return;
@@ -3503,6 +3544,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
                   ),
                 ),
                 const SizedBox(width: 4),
+                // [极客Core迁移 P5.3] 分词器计数接线:showTokenCount 开启时
+                // 在输入框旁显示当前输入的 token 估算值(数据源 tokenCountEstimateProvider)
+                _TokenCountBadge(
+                  controller: _inputController,
+                  color: activeGlassPalette.secondaryText,
+                ),
                 if (isGenerating)
                   _CircleActionButton(
                     icon: Icons.stop_rounded,
@@ -3600,6 +3647,601 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (!mounted) return;
     _maskController.reverse();      // 返回后黑幕淡出
     await _controller?.resume();
+  }
+
+  // ── [浮窗化] 设置面板:Flutter 端处理 ──────────────────────────────────
+
+  Future<void> _handleSettingsPanelAction(
+      String panel, String action, Map<String, dynamic> data) async {
+    switch (panel) {
+      case 'regex':
+        await _handleRegexPanelAction(action, data);
+        break;
+      case 'background':
+        await _handleBackgroundPanelAction(action, data);
+        break;
+      case 'tts':
+        await _handleTtsPanelAction(action, data);
+        break;
+      case 'variables':
+        await _handleVariablesPanelAction(action, data);
+        break;
+      case 'vectorStorage':
+        await _handleVectorStoragePanelAction(action, data);
+        break;
+      case 'imageGen':
+        await _handleImageGenPanelAction(action, data);
+        break;
+    }
+  }
+
+  /// 打开角色正则浮窗面板:收集正则脚本数据推给 WebView。
+  Future<void> _openRegexPanel(String charId) async {
+    final notifier =
+        ref.read(characterRegexScriptsProvider(charId).notifier);
+    await notifier.ready;
+    if (!mounted) return;
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'regex',
+      'title': '正则脚本',
+      'data': _serializeRegexScripts(charId),
+    });
+  }
+
+  /// 把当前正则脚本列表序列化为 JSON map(打开/刷新复用)。
+  Map<String, dynamic> _serializeRegexScripts(String charId) {
+    final scripts = ref.read(characterRegexScriptsProvider(charId));
+    final character = ref.read(activeChatProvider).character;
+    final charName = character?.name ?? '';
+    return <String, dynamic>{
+      'regexScripts': scripts
+          .map((s) => <String, dynamic>{
+                'id': s.id,
+                'name': s.scriptName,
+                'scriptName': s.scriptName,
+                'description': s.description ?? '',
+                'disabled': s.disabled,
+                'findRegex': s.findRegex,
+                'replaceString': s.replaceString,
+              })
+          .toList(),
+      'charName': charName,
+    };
+  }
+
+  /// 正则面板操作处理:开关/删除/编辑/新建。
+  Future<void> _handleRegexPanelAction(
+      String action, Map<String, dynamic> data) async {
+    final characterId = ref.read(activeChatProvider).character?.id;
+    if (characterId == null) {
+      _snack('当前聊天没有关联角色');
+      return;
+    }
+    final notifier =
+        ref.read(characterRegexScriptsProvider(characterId).notifier);
+    switch (action) {
+      case 'toggleScript':
+        final id = data['id'] as String? ?? '';
+        final enabled = data['enabled'] as bool? ?? true;
+        if (id.isEmpty) return;
+        final scripts = ref.read(characterRegexScriptsProvider(characterId));
+        for (final s in scripts) {
+          if (s.id == id) {
+            await notifier.updateScript(
+              s.copyWith(disabled: !enabled, updatedAt: DateTime.now()),
+            );
+            break;
+          }
+        }
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeRegexScripts(characterId),
+          'refresh': true,
+        });
+        break;
+
+      case 'deleteScript':
+        final id = data['id'] as String? ?? '';
+        final name = data['name'] as String? ?? '此脚本';
+        if (id.isEmpty) return;
+        // [弹窗] HTML确认框,在WebView内渲染,无HC合成开销
+        final ok = await _showHtmlConfirm(
+          title: '删除正则脚本',
+          message: '删除「$name」？此操作不可撤销。',
+          confirmText: '删除',
+          cancelText: '取消',
+          danger: true,
+        );
+        if (!mounted || !ok) return;
+        await notifier.removeScript(id);
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeRegexScripts(characterId),
+          'refresh': true,
+        });
+        break;
+
+      case 'editScript':
+      case 'createScript':
+        // [fallback] 关闭浮窗 → 跳转 Flutter 编辑页
+        _bridge.send(BridgeType.closeSettingsPanel, {});
+        await Future.delayed(const Duration(milliseconds: 350));
+        await _navigateTo('/characters/$characterId/regex');
+        break;
+    }
+  }
+
+  // ── [浮窗化] 气泡背景面板 ─────────────────────────────────────────────
+
+  Future<void> _openBackgroundPanel() async {
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'background',
+      'title': '气泡背景',
+      'data': _serializeBackgroundData(),
+    });
+  }
+
+  Map<String, dynamic> _serializeBackgroundData() {
+    final appSettings = ref.read(appSettingsProvider);
+    final bg = ref.read(globalBackgroundProvider);
+    return <String, dynamic>{
+      'useCharacterAvatar': appSettings.useCharacterAvatarAsBackground,
+      'enableBlur': appSettings.enableBackgroundBlur,
+      'backgroundOpacity': appSettings.backgroundOpacity,
+      'chatLayoutMode': appSettings.chatLayoutMode,
+      'bgType': bg.type.name,
+      'bgOpacity': bg.opacity,
+      'bgBlur': bg.blur,
+      'bubbleOpacity': bg.bubbleOpacity,
+      'imagePath': bg.imagePath ?? '',
+    };
+  }
+
+  Future<void> _handleBackgroundPanelAction(
+      String action, Map<String, dynamic> data) async {
+    switch (action) {
+      case 'toggleUseCharacterAvatar':
+        ref.read(appSettingsProvider.notifier)
+            .updateUseCharacterAvatarAsBackground(data['enabled'] as bool);
+        break;
+      case 'toggleBlur':
+        ref.read(appSettingsProvider.notifier)
+            .updateEnableBackgroundBlur(data['enabled'] as bool);
+        break;
+      case 'setBackgroundOpacity':
+        ref.read(appSettingsProvider.notifier)
+            .updateBackgroundOpacity((data['opacity'] as num).toDouble());
+        break;
+      case 'setBubbleOpacity':
+        final bg = ref.read(globalBackgroundProvider);
+        await ref.read(globalBackgroundProvider.notifier)
+            .setBackground(bg.copyWith(bubbleOpacity: (data['opacity'] as num).toDouble()));
+        break;
+      case 'pickBackgroundImage':
+        try {
+          final file = await _imagePicker.pickImage(source: ImageSource.gallery);
+          if (file == null) break;
+          final bg = ref.read(globalBackgroundProvider);
+          await ref.read(globalBackgroundProvider.notifier)
+              .setBackground(bg.copyWith(type: BackgroundType.image, imagePath: file.path));
+        } catch (e) {
+          _snack('选择图片失败: $e');
+        }
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeBackgroundData(),
+          'refresh': true,
+        });
+        break;
+      case 'clearBackground':
+        await ref.read(globalBackgroundProvider.notifier).clearBackground();
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeBackgroundData(),
+          'refresh': true,
+        });
+        break;
+      case 'setLayoutMode':
+        ref.read(appSettingsProvider.notifier)
+            .updateChatLayoutMode(data['mode'] as String);
+        break;
+    }
+  }
+
+  // ── [浮窗化] TTS语音面板 ─────────────────────────────────────────────
+
+  Future<void> _openTtsPanel() async {
+    final settings = ref.read(ttsSettingsProvider);
+    // [P2修复] 正确await语音列表,而非whenData可能拿到空列表
+    List<Map<String, String>> voices = [];
+    try {
+      final voiceList = await ref
+          .read(availableVoicesProvider.future)
+          .timeout(const Duration(seconds: 3));
+      voices = voiceList
+          .map((v) => {'value': v.id, 'label': v.name})
+          .toList();
+    } catch (_) {}
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'tts',
+      'title': 'TTS 语音',
+      'data': <String, dynamic>{
+        'enabled': settings.enabled,
+        'autoPlay': settings.autoPlay,
+        'queueMessages': settings.queueMessages,
+        'provider': settings.provider.name,
+        'voiceId': settings.voiceId ?? '',
+        'rate': settings.rate,
+        'pitch': settings.pitch,
+        'volume': settings.volume,
+        'availableVoices': voices,
+      },
+    });
+  }
+
+  Future<void> _handleTtsPanelAction(
+      String action, Map<String, dynamic> data) async {
+    final notifier = ref.read(ttsSettingsProvider.notifier);
+    switch (action) {
+      case 'toggleTts':
+        notifier.setEnabled(data['enabled'] as bool);
+        break;
+      case 'setAutoPlay':
+        notifier.setAutoPlay(data['enabled'] as bool);
+        break;
+      case 'setQueueMode':
+        notifier.setQueueMessages(data['enabled'] as bool);
+        break;
+      case 'setProvider':
+        final providerStr = data['provider'] as String;
+        final provider = TTSProvider.values.firstWhere(
+          (p) => p.name == providerStr,
+          orElse: () => TTSProvider.system,
+        );
+        notifier.setProvider(provider);
+        // [P2修复] 切换引擎后强制刷新语音列表
+        ref.refresh(availableVoicesProvider);
+        try {
+          final voices = await ref
+              .read(availableVoicesProvider.future)
+              .timeout(const Duration(seconds: 3));
+          _bridge.send(BridgeType.settingsPanelData, {
+            'data': <String, dynamic>{
+              'availableVoices': voices
+                  .map((v) => {'value': v.id, 'label': v.name})
+                  .toList(),
+              'voiceId': '',
+            },
+            'refresh': true,
+          });
+        } catch (_) {}
+        break;
+      case 'setVoice':
+        notifier.setVoiceId(data['voiceId'] as String?);
+        break;
+      case 'setRate':
+        notifier.setRate((data['rate'] as num).toDouble());
+        break;
+      case 'setPitch':
+        notifier.setPitch((data['pitch'] as num).toDouble());
+        break;
+      case 'setVolume':
+        notifier.setVolume((data['volume'] as num).toDouble());
+        break;
+      case 'testTts':
+        final speak = ref.read(ttsSpeakProvider);
+        speak('你好，这是语音合成测试。');
+        break;
+    }
+  }
+
+  // ── [浮窗化] 变量管理面板 ────────────────────────────────────────────
+
+  Future<void> _openVariablesPanel() async {
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'variables',
+      'title': '变量管理',
+      'data': _serializeVariablesData(),
+    });
+  }
+
+  Map<String, dynamic> _serializeVariablesData() {
+    final globalVars = ref.read(globalVariablesProvider);
+    final chatId = widget.chatId;
+    final localVars = ref.read(localVariablesProvider(chatId));
+    return <String, dynamic>{
+      'globalVariables': globalVars.entries
+          .map((e) => {'name': e.key, 'value': e.value.toString()})
+          .toList(),
+      'localVariables': localVars.entries
+          .map((e) => {'name': e.key, 'value': e.value.toString()})
+          .toList(),
+      'hasChat': true,
+    };
+  }
+
+  Future<void> _handleVariablesPanelAction(
+      String action, Map<String, dynamic> data) async {
+    switch (action) {
+      case 'createVariable':
+        final scope = data['scope'] as String? ?? 'global';
+        final name = await _showHtmlPrompt(
+          title: '新建${scope == 'global' ? '全局' : '会话'}变量',
+          message: '请输入变量名',
+        );
+        if (name == null || name.trim().isEmpty || !mounted) return;
+        final value = await _showHtmlPrompt(
+          title: '设置变量值',
+          message: '变量 "${name.trim()}" 的值',
+        );
+        if (value == null || !mounted) return;
+        if (scope == 'global') {
+          await ref.read(globalVariablesProvider.notifier)
+              .setVariable(name.trim(), value);
+        } else {
+          ref.read(localVariablesProvider(widget.chatId).notifier)
+              .setVariable(name.trim(), value);
+        }
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeVariablesData(),
+          'refresh': true,
+        });
+        break;
+
+      case 'updateVariable':
+        final scope = data['scope'] as String? ?? 'global';
+        final name = data['name'] as String? ?? '';
+        if (name.isEmpty) return;
+        final newValue = await _showHtmlPrompt(
+          title: '编辑变量',
+          message: '修改变量 "$name" 的值',
+        );
+        if (newValue == null || !mounted) return;
+        if (scope == 'global') {
+          await ref.read(globalVariablesProvider.notifier)
+              .setVariable(name, newValue);
+        } else {
+          ref.read(localVariablesProvider(widget.chatId).notifier)
+              .setVariable(name, newValue);
+        }
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeVariablesData(),
+          'refresh': true,
+        });
+        break;
+
+      case 'deleteVariable':
+        final scope = data['scope'] as String? ?? 'global';
+        final name = data['name'] as String? ?? '';
+        if (name.isEmpty) return;
+        final ok = await _showHtmlConfirm(
+          title: '删除变量',
+          message: '删除变量 "$name"？此操作不可撤销。',
+          confirmText: '删除',
+          cancelText: '取消',
+          danger: true,
+        );
+        if (!mounted || !ok) return;
+        if (scope == 'global') {
+          await ref.read(globalVariablesProvider.notifier).deleteVariable(name);
+        } else {
+          ref.read(localVariablesProvider(widget.chatId).notifier).deleteVariable(name);
+        }
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeVariablesData(),
+          'refresh': true,
+        });
+        break;
+
+      case 'clearAllVariables':
+        final ok = await _showHtmlConfirm(
+          title: '清空变量',
+          message: '确定清空所有全局和会话变量吗？此操作不可撤销。',
+          confirmText: '清空',
+          cancelText: '取消',
+          danger: true,
+        );
+        if (!mounted || !ok) return;
+        await ref.read(globalVariablesProvider.notifier).clearAll();
+        ref.read(localVariablesProvider(widget.chatId).notifier).clearAll();
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeVariablesData(),
+          'refresh': true,
+        });
+        break;
+    }
+  }
+
+  // ── [浮窗化] 向量记忆面板 ────────────────────────────────────────────
+
+  Future<void> _openVectorStoragePanel() async {
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'vectorStorage',
+      'title': '向量记忆',
+      'data': _serializeVectorStorageData(),
+    });
+  }
+
+  Map<String, dynamic> _serializeVectorStorageData() {
+    final settings = ref.read(vectorStorageSettingsProvider);
+    final collections = ref.read(vectorCollectionsProvider);
+    return <String, dynamic>{
+      'enabled': settings.enabled,
+      'topK': settings.topK,
+      'similarityThreshold': settings.similarityThreshold,
+      'includeInPrompt': settings.includeInPrompt,
+      'embeddingProvider': settings.embeddingProvider.name,
+      'embeddingModel': settings.embeddingModel ?? settings.embeddingProvider.defaultModel,
+      'embeddingApiKey': settings.embeddingApiKey ?? '',
+      'embeddingApiUrl': settings.embeddingApiUrl ?? '',
+      'activeCollectionId': settings.activeCollectionId ?? '',
+      'collections': collections
+          .map((c) => {'id': c.id, 'name': c.name, 'documentCount': c.documentCount})
+          .toList(),
+    };
+  }
+
+  Future<void> _handleVectorStoragePanelAction(
+      String action, Map<String, dynamic> data) async {
+    final notifier = ref.read(vectorStorageSettingsProvider.notifier);
+    switch (action) {
+      case 'toggleEnabled':
+        notifier.setEnabled(data['enabled'] as bool);
+        break;
+      case 'setTopK':
+        notifier.setTopK((data['topK'] as num).toInt());
+        break;
+      case 'setSimilarityThreshold':
+        notifier.setSimilarityThreshold((data['threshold'] as num).toDouble());
+        break;
+      case 'setEmbeddingProvider':
+        final providerStr = data['provider'] as String;
+        final provider = EmbeddingProvider.values.firstWhere(
+          (p) => p.name == providerStr,
+          orElse: () => EmbeddingProvider.local,
+        );
+        notifier.setEmbeddingProvider(provider);
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeVectorStorageData(),
+          'refresh': true,
+        });
+        break;
+      case 'setEmbeddingModel':
+        notifier.setEmbeddingModel(data['model'] as String);
+        break;
+      case 'setEmbeddingApiKey':
+        notifier.setEmbeddingApiKey(data['key'] as String);
+        break;
+      case 'setEmbeddingApiUrl':
+        notifier.setEmbeddingApiUrl(data['url'] as String);
+        break;
+      case 'selectCollection':
+        notifier.setActiveCollection(data['id'] as String?);
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeVectorStorageData(),
+          'refresh': true,
+        });
+        break;
+    }
+  }
+
+  // ── [浮窗化] 生图设置面板 ────────────────────────────────────────────
+
+  Future<void> _openImageGenPanel() async {
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'imageGen',
+      'title': '生图设置',
+      'data': _serializeImageGenData(),
+    });
+  }
+
+  Map<String, dynamic> _serializeImageGenData() {
+    final settings = ref.read(imageGenSettingsProvider);
+    final models = ref.read(availableModelsProvider);
+    return <String, dynamic>{
+      'enabled': settings.enabled,
+      'autoImageMode': settings.autoImageMode.id,
+      'provider': settings.provider.id,
+      'model': settings.model,
+      'availableModels': models,
+      'apiKey': settings.apiKey ?? '',
+      'apiEndpoint': settings.effectiveEndpoint,
+      'requiresApiKey': settings.provider.requiresApiKey,
+      'isLocalProvider': settings.provider.isLocalProvider,
+      'defaultWidth': settings.defaultWidth,
+      'defaultHeight': settings.defaultHeight,
+      'defaultNegativePrompt': settings.defaultNegativePrompt ?? '',
+      'positivePromptPrefix': settings.positivePromptPrefix ?? '',
+      'imageTagInstruction': settings.imageTagInstruction ?? '',
+      'enableAutoPromptGeneration': settings.enableAutoPromptGeneration,
+      'availableProviders': ImageGenProvider.values
+          .map((p) => {'value': p.id, 'label': p.displayName})
+          .toList(),
+    };
+  }
+
+  Future<void> _handleImageGenPanelAction(
+      String action, Map<String, dynamic> data) async {
+    final notifier = ref.read(imageGenSettingsProvider.notifier);
+    switch (action) {
+      case 'toggleEnabled':
+        notifier.setEnabled(data['enabled'] as bool);
+        break;
+      case 'setAutoImageMode':
+        notifier.setAutoImageMode(AutoImageMode.fromId(data['mode'] as String?));
+        break;
+      case 'setProvider':
+        final provider = ImageGenProvider.fromId(data['provider'] as String);
+        if (provider != null) {
+          notifier.setProvider(provider);
+          // [P1修复] 切换提供商后刷新面板,显示新提供商的API配置和模型
+          _bridge.send(BridgeType.settingsPanelData, {
+            'data': _serializeImageGenData(),
+            'refresh': true,
+          });
+        }
+        break;
+      case 'setModel':
+        notifier.setModel(data['model'] as String);
+        break;
+      case 'setApiKey':
+        notifier.setApiKey(data['key'] as String?);
+        break;
+      case 'setApiEndpoint':
+        notifier.setApiEndpoint(data['endpoint'] as String?);
+        break;
+      case 'setDefaultWidth':
+        notifier.setDefaultWidth((data['width'] as num).toInt());
+        break;
+      case 'setDefaultHeight':
+        notifier.setDefaultHeight((data['height'] as num).toInt());
+        break;
+      case 'setImageSize':
+        // [P1修复] 预设尺寸选择:解析"宽x高"字符串,同时设置宽高
+        final size = data['size'] as String?;
+        if (size != null && size != 'custom') {
+          final parts = size.split('x');
+          if (parts.length == 2) {
+            final w = int.tryParse(parts[0]);
+            final h = int.tryParse(parts[1]);
+            if (w != null && h != null) {
+              notifier.setDefaultWidth(w);
+              notifier.setDefaultHeight(h);
+              _bridge.send(BridgeType.settingsPanelData, {
+                'data': _serializeImageGenData(),
+                'refresh': true,
+              });
+            }
+          }
+        }
+        break;
+      case 'setCustomWidth':
+        notifier.setDefaultWidth((data['width'] as num).toInt());
+        break;
+      case 'setCustomHeight':
+        notifier.setDefaultHeight((data['height'] as num).toInt());
+        break;
+      case 'setDefaultSteps':
+        notifier.setDefaultSteps((data['steps'] as num).toInt());
+        break;
+      case 'setDefaultCfgScale':
+        notifier.setDefaultCfgScale((data['cfgScale'] as num).toDouble());
+        break;
+      case 'setDefaultNegativePrompt':
+        notifier.setDefaultNegativePrompt(data['prompt'] as String?);
+        break;
+      case 'setPositivePromptPrefix':
+        notifier.setPositivePromptPrefix(data['prefix'] as String?);
+        break;
+      case 'setImageTagInstruction':
+        notifier.setImageTagInstruction(data['instruction'] as String?);
+        break;
+      case 'toggleAutoPromptGeneration':
+        notifier.setEnableAutoPromptGeneration(data['enabled'] as bool);
+        break;
+      case 'setOpenaiStyle':
+        notifier.setOpenaiStyle(data['style'] as String);
+        break;
+      case 'setOpenaiQuality':
+        notifier.setOpenaiQuality(data['quality'] as String);
+        break;
+    }
   }
 
   // ── [弹窗] HTML 弹窗辅助:确认框/输入框/底部选择框 ──────────────────────────
@@ -5023,6 +5665,57 @@ class _SlidingAppBar extends StatelessWidget implements PreferredSizeWidget {
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOutCubic,
       child: child,
+    );
+  }
+}
+/// [极客Core迁移 P5.3] 输入框旁的 token 计数徽标
+/// 消费 tokenizerSettingsProvider.showTokenCount(此前未接线);
+/// 监听输入框变化,仅重建自身,不逐键重建整个输入栏。
+class _TokenCountBadge extends ConsumerStatefulWidget {
+  const _TokenCountBadge({required this.controller, required this.color});
+
+  final TextEditingController controller;
+  final Color color;
+
+  @override
+  ConsumerState<_TokenCountBadge> createState() => _TokenCountBadgeState();
+}
+
+class _TokenCountBadgeState extends ConsumerState<_TokenCountBadge> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showTokenCount =
+        ref.watch(tokenizerSettingsProvider).showTokenCount;
+    if (!showTokenCount) return const SizedBox.shrink();
+    final text = widget.controller.text;
+    if (text.trim().isEmpty) return const SizedBox.shrink();
+    final estimate = ref.watch(tokenCountEstimateProvider(text));
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Text(
+        '~$estimate',
+        style: TextStyle(
+          fontSize: 11,
+          fontFeatures: const [FontFeature.tabularFigures()],
+          color: widget.color.withValues(alpha: 0.8),
+        ),
+      ),
     );
   }
 }

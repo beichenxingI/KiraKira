@@ -13,6 +13,31 @@ import 'package:kirakira/presentation/providers/locale_provider.dart';
 import 'package:kirakira/presentation/providers/persona_providers.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/providers/settings_providers.dart';
+import 'package:kirakira/presentation/providers/tokenizer_providers.dart';
+import 'package:kirakira/presentation/providers/translation_providers.dart';
+import 'package:kirakira/presentation/providers/tts_providers.dart';
+import 'package:kirakira/presentation/providers/stt_providers.dart';
+import 'package:kirakira/presentation/dialogs/tts_settings_dialog.dart';
+import 'package:kirakira/presentation/dialogs/stt_settings_dialog.dart';
+import 'package:kirakira/presentation/dialogs/translation_settings_dialog.dart';
+import 'package:kirakira/presentation/dialogs/statistics_dialog.dart';
+import 'package:kirakira/presentation/dialogs/log_viewer_dialog.dart';
+import 'package:kirakira/presentation/dialogs/tokenizer_dialog.dart';
+import 'package:kirakira/presentation/dialogs/advanced_sampling_dialog.dart';
+import 'package:kirakira/presentation/dialogs/logit_bias_dialog.dart';
+import 'package:kirakira/presentation/dialogs/ai_preset_dialog.dart';
+import 'package:kirakira/presentation/dialogs/regex_system_dialog.dart';
+import 'package:kirakira/presentation/dialogs/prompt_manager_dialog.dart';
+import 'package:kirakira/presentation/dialogs/cfg_scale_dialog.dart';
+import 'package:kirakira/presentation/dialogs/mvu_dialog.dart';
+import 'package:kirakira/presentation/dialogs/variables_dialog.dart';
+import 'package:kirakira/presentation/dialogs/global_worldbook_dialog.dart';
+import 'package:kirakira/presentation/dialogs/background_settings_dialog.dart';
+import 'package:kirakira/presentation/dialogs/appearance_settings_dialog.dart';
+import 'package:kirakira/presentation/dialogs/sprite_settings_dialog.dart';
+import 'package:kirakira/presentation/dialogs/persona_settings_dialog.dart';
+import 'package:kirakira/presentation/dialogs/core_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kirakira/presentation/providers/theme_providers.dart';
 import 'package:kirakira/data/models/app_theme_config.dart';
@@ -39,107 +64,288 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final iconBg = Theme.of(context).colorScheme.primary.withValues(alpha: 0.12);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // ── 返工条目2:砍顶部大标题,搜索框直接接顶 ──
-          SliverToBoxAdapter(
-            child: SafeArea(
-              bottom: false,
-              child: KiraSearchBar(
-                controller: _searchController,
-                hintText: '搜索设置',
-                onChanged: (q) => setState(() => _query = q.trim()),
-                onClear: () => setState(() => _query = ''),
+      body: Container(
+        decoration: isDark
+            ? const BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(-0.3, -0.5),
+                  radius: 1.0,
+                  colors: [
+                    Color(0xFF1A1A1A),
+                    Color(0xFF0D0D0D),
+                  ],
+                  stops: [0.0, 0.7],
+                ),
+              )
+            : const BoxDecoration(
+                color: Color(0xFFF7F8FA),
+              ),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: SafeArea(
+                bottom: false,
+                child: KiraSearchBar(
+                  controller: _searchController,
+                  hintText: '搜索设置',
+                  onChanged: (q) => setState(() => _query = q.trim()),
+                  onClear: () => setState(() => _query = ''),
+                ),
               ),
             ),
-          ),
-          ...(_query.isNotEmpty
-              ? _searchSlivers()
-              : _homeSlivers(context, l10n, iconBg)),
-          // 避让底栏
-          const SliverToBoxAdapter(child: SizedBox(height: 96)),
-        ],
+            ...(_query.isNotEmpty
+                ? _searchSlivers()
+                : _homeSlivers(context, l10n)),
+            const SliverToBoxAdapter(child: SizedBox(height: 96)),
+          ],
+        ),
       ),
     );
   }
 
-  /// 应用级 3 组(返工条目3:高级功能搬 Core)
   List<Widget> _homeSlivers(
-      BuildContext context, AppLocalizations l10n, Color iconBg) {
+      BuildContext context, AppLocalizations l10n) {
     return [
-      // ══ 用户信息卡(搜索框下方,首屏置顶)══
-      SliverToBoxAdapter(
-        child: KiraSection.plain(
-          title: '',
-          child: const _UserInfoCard(),
+      const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: _UserInfoCard(),
         ),
       ),
-
-      // ══ 通用 ══
       SliverToBoxAdapter(
-        child: KiraSection(
-          title: '通用',
-          children: const [
-            _DarkModeTile(),
-            _LanguageTile(),
-            _PersonaTile(),
-            _CoreTile(),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: _buildSettingCard(
+            icon: CupertinoIcons.gear_alt,
+            iconColor: const Color(0xFFAB47BC),
+            title: '通用',
+            subtitle: '主题、语言和人设',
+            children: const [
+              _DarkModeTile(),
+              _LanguageTile(),
+            ],
+          ),
         ),
       ),
-
-      // ══ 外观 ══
+      // ══ 聊天设置(极客Core迁移 P1)══
       SliverToBoxAdapter(
-        child: KiraSection(
-          title: '外观',
-          children: [
-            KiraGroupedTile(
-              icon: CupertinoIcons.photo, iconBg: iconBg,
-              title: l10n.backgrounds,
-              onTap: () => context.push(AppRoutes.backgroundSettings),
-            ),
-            KiraGroupedTile(
-              icon: CupertinoIcons.house, iconBg: iconBg,
-              title: '主页外观',
-              subtitle: '主页背景与音乐',
-              onTap: () => context.push(AppRoutes.homeAppearance),
-            ),
-            KiraGroupedTile(
-              icon: CupertinoIcons.smiley, iconBg: iconBg,
-              title: '精灵图', // TODO(i18n): 待补 l10n key
-              onTap: () => context.push(AppRoutes.spriteSettings),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: _buildSettingCard(
+            icon: CupertinoIcons.chat_bubble_2,
+            iconColor: const Color(0xFF42A5F5),
+            title: '聊天设置',
+            subtitle: '流式输出与分词器计数',
+            children: const [
+              _StreamOutputTile(),
+              _TokenizerCountTile(),
+            ],
+          ),
         ),
       ),
-
-      // ══ 关于 ══
+      // ══ 语音与翻译(极客Core迁移 P1)══
       SliverToBoxAdapter(
-        child: KiraSection(
-          title: l10n.about,
-          children: [
-            KiraGroupedTile(
-              icon: CupertinoIcons.info_circle, iconBg: iconBg,
-              title: '关于 KiraKira',
-              onTap: () => context.push(AppRoutes.about),
-            ),
-            KiraGroupedTile(
-              icon: CupertinoIcons.heart, iconBg: iconBg,
-              title: '支持 KiraKira',
-              subtitle: '免费开源,欢迎赞助支持开发',
-              onTap: () => launchUrl(
-                Uri.parse('https://ifdian.net/a/KiraKira-APP'),
-                mode: LaunchMode.externalApplication,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: _buildSettingCard(
+            icon: CupertinoIcons.speaker_2,
+            iconColor: const Color(0xFFFFA726),
+            title: '语音与翻译',
+            subtitle: 'TTS、STT 和翻译',
+            children: const [
+              _TtsTile(),
+              _SttTile(),
+              _TranslationTile(),
+            ],
+          ),
+        ),
+      ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: _buildSettingCard(
+            icon: CupertinoIcons.paintbrush,
+            iconColor: const Color(0xFF26A69A),
+            title: '外观',
+            subtitle: '背景、主页和精灵图',
+            children: [
+              KiraGroupedTile(
+                icon: CupertinoIcons.photo,
+                iconBg: Colors.transparent,
+                iconColor: const Color(0xFF26A69A),
+                title: l10n.backgrounds,
+                onTap: () => showBackgroundSettingsDialog(context, ref),
               ),
-            ),
-            const _VersionTile(),
-          ],
+              KiraGroupedTile(
+                icon: CupertinoIcons.house,
+                iconBg: Colors.transparent,
+                iconColor: DesignTokens.primary,
+                title: '主页外观',
+                subtitle: '主页背景与音乐',
+                onTap: () => showAppearanceSettingsDialog(context, ref),
+              ),
+              KiraGroupedTile(
+                icon: CupertinoIcons.sparkles,
+                iconBg: Colors.transparent,
+                iconColor: const Color(0xFFFFCA28),
+                title: '精灵图',
+                onTap: () => showSpriteSettingsDialog(context, ref),
+              ),
+            ],
+          ),
+        ),
+      ),
+      // ══ 数据与诊断(极客Core迁移 P1)══
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: _buildSettingCard(
+            icon: CupertinoIcons.chart_bar,
+            iconColor: const Color(0xFF26A69A),
+            title: '数据与诊断',
+            subtitle: '用量统计与日志',
+            children: [
+              KiraGroupedTile(
+                icon: CupertinoIcons.chart_bar,
+                iconBg: Colors.transparent,
+                iconColor: const Color(0xFF26A69A),
+                title: '用量统计',
+                subtitle: '消息、Token 用量与生成性能',
+                onTap: () => showStatisticsDialog(context, ref),
+              ),
+              KiraGroupedTile(
+                icon: CupertinoIcons.doc_text,
+                iconBg: Colors.transparent,
+                iconColor: const Color(0xFF8E8E93),
+                title: '日志查看器',
+                subtitle: '调试日志导出与清空',
+                onTap: () => showLogViewerDialog(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: _buildSettingCard(
+            icon: CupertinoIcons.info_circle,
+            iconColor: const Color(0xFF8E8E93),
+            title: l10n.about,
+            children: [
+              KiraGroupedTile(
+                icon: CupertinoIcons.info_circle,
+                iconBg: Colors.transparent,
+                iconColor: const Color(0xFF42A5F5),
+                title: '关于 KiraKira',
+                onTap: () => context.push(AppRoutes.about),
+              ),
+              KiraGroupedTile(
+                icon: CupertinoIcons.heart,
+                iconBg: Colors.transparent,
+                iconColor: const Color(0xFFEC407A),
+                title: '支持 KiraKira',
+                subtitle: '免费开源,欢迎赞助支持开发',
+                onTap: () => launchUrl(
+                  Uri.parse('https://ifdian.net/a/KiraKira-APP'),
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
+              const _VersionTile(),
+            ],
+          ),
         ),
       ),
     ];
+  }
+
+  Widget _buildSettingCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    String? subtitle,
+    required List<Widget> children,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final items = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      if (i > 0) {
+        items.add(const Divider(height: 1, thickness: 0.5, indent: 56));
+      }
+      items.add(children[i]);
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1C) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: isDark
+            ? null
+            : Border.all(
+                color: Colors.black.withValues(alpha: 0.05),
+                width: 0.5,
+              ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: iconColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? const Color(0xFFF0F0F0)
+                              : const Color(0xFF2C2C2C),
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? const Color(0xFF8C8C8C)
+                                : const Color(0xFF8E8E93),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 0.5),
+          ...items,
+        ],
+      ),
+    );
   }
 
   /// E-T2 搜索态:过滤索引出结果列表
@@ -172,18 +378,70 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             for (final e in hits)
               KiraGroupedTile(
                 icon: e.icon,
-                iconBg: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.12),
+                iconBg: Colors.transparent,
+                iconColor: DesignTokens.primary,
                 title: e.title,
                 subtitle: e.section,
-                onTap: () => context.push(e.route),
+                onTap: () {
+                  if (e.dialog != null) {
+                    _openSearchDialog(context, ref, e.dialog!);
+                  } else {
+                    context.push(e.route);
+                  }
+                },
               ),
           ],
         ),
       ),
     ];
+  }
+
+  /// 搜索索引浮窗分发表:dialog key → 迁移后的浮窗(极客Core迁移)
+  /// 原子页面路由已删,搜索直达浮窗。
+  void _openSearchDialog(
+      BuildContext context, WidgetRef ref, String dialog) {
+    switch (dialog) {
+      case 'tts':
+        showTtsSettingsDialog(context, ref);
+      case 'stt':
+        showSttSettingsDialog(context, ref);
+      case 'translation':
+        showTranslationSettingsDialog(context, ref);
+      case 'statistics':
+        showStatisticsDialog(context, ref);
+      case 'logs':
+        showLogViewerDialog(context);
+      case 'tokenizer':
+        showTokenizerDialog(context, ref);
+      case 'advancedSampling':
+        showAdvancedSamplingDialog(context, ref);
+      case 'logitBias':
+        showLogitBiasDialog(context, ref);
+      case 'aiPresets':
+        showAIPresetDialog(context, ref);
+      case 'regex':
+        showRegexSystemDialog(context, ref);
+      case 'promptManager':
+        showPromptManagerDialog(context, ref);
+      case 'cfgScale':
+        showCfgScaleDialog(context, ref);
+      case 'mvu':
+        showMvuDialog(context, ref);
+      case 'variables':
+        showVariablesDialog(context, ref);
+      case 'globalWorldbook':
+        showGlobalWorldbookDialog(context, ref);
+      case 'background':
+        showBackgroundSettingsDialog(context, ref);
+      case 'appearance':
+        showAppearanceSettingsDialog(context, ref);
+      case 'sprite':
+        showSpriteSettingsDialog(context, ref);
+      case 'persona':
+        showPersonaSettingsDialog(context, ref);
+      default:
+        coreToast(context, '该设置项暂未开放');
+    }
   }
 }
 
@@ -197,75 +455,139 @@ class _UserInfoCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final persona = ref.watch(activePersonaProvider).valueOrNull;
 
     final name = persona?.name ?? l10n.default_;
     final description = persona?.description ?? '';
     final avatarPath = persona?.avatarPath;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => context.push(AppRoutes.personas),
-        child: Padding(
-          padding: const EdgeInsets.all(DesignTokens.spaceMd),
-          child: Row(
-            children: [
-              _buildAvatar(theme, name, avatarPath),
-              const SizedBox(width: DesignTokens.spaceMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      description.isNotEmpty ? description : '点击查看和编辑人设',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF1C1C1C).withValues(alpha: 0.95)
+            : Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.white.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
-              ),
-              const SizedBox(width: DesignTokens.spaceXs),
-              Icon(
-                CupertinoIcons.chevron_right,
-                size: 18,
-                color: theme.textTheme.bodySmall?.color,
-              ),
-            ],
+              ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => showPersonaSettingsDialog(context, ref),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                _buildAvatar(theme, name, avatarPath),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? DesignTokens.darkTextPrimary
+                              : DesignTokens.lightTextPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        description.isNotEmpty
+                            ? description
+                            : '点击查看和编辑人设',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark
+                              ? DesignTokens.darkTextSecondary
+                              : DesignTokens.lightTextSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  CupertinoIcons.chevron_right,
+                  size: 18,
+                  color: isDark
+                      ? DesignTokens.darkTextSecondary
+                      : DesignTokens.lightTextSecondary,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  /// 头像:有文件用文件(personas_screen 同款 FileImage 范式),无文件用首字母
   Widget _buildAvatar(ThemeData theme, String name, String? avatarPath) {
     if (avatarPath != null && avatarPath.isNotEmpty) {
-      return CircleAvatar(
-        radius: 26,
-        backgroundImage: FileImage(File(avatarPath)),
+      return Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: DesignTokens.primary,
+            width: 2.5,
+          ),
+        ),
+        child: CircleAvatar(
+          radius: 26,
+          backgroundImage: FileImage(File(avatarPath)),
+          backgroundColor: Colors.transparent,
+        ),
       );
     }
     final initial =
         name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
-    return CircleAvatar(
-      radius: 26,
-      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
-      child: Text(
-        initial,
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: theme.colorScheme.primary,
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: DesignTokens.primary,
+          width: 2.5,
+        ),
+      ),
+      child: CircleAvatar(
+        radius: 26,
+        backgroundColor: DesignTokens.primary.withValues(alpha: 0.12),
+        child: Text(
+          initial,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: DesignTokens.primary,
+          ),
         ),
       ),
     );
@@ -280,8 +602,9 @@ class _DarkModeTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(activeThemeConfigProvider).isDark;
     return KiraSwitchTile(
-      icon: CupertinoIcons.moon,
-      iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+      icon: CupertinoIcons.moon_stars,
+      iconBg: Colors.transparent,
+      iconColor: const Color(0xFFFFA726),
       title: '深色模式',
       subtitle: isDark ? '星河入梦' : '海天一色',
       value: isDark,
@@ -290,29 +613,6 @@ class _DarkModeTile extends ConsumerWidget {
               v ? BuiltInThemes.defaultDark.id : BuiltInThemes.defaultLight.id,
             );
       },
-    );
-  }
-}
-
-/// 用户画像(顶置顶高,push /personas)
-class _PersonaTile extends ConsumerWidget {
-  const _PersonaTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final activePersonaAsync = ref.watch(activePersonaProvider);
-
-    return KiraGroupedTile(
-      icon: CupertinoIcons.person,
-      iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-      title: l10n.personas,
-      subtitle: activePersonaAsync.when(
-        loading: () => l10n.loading,
-        error: (_, __) => l10n.error,
-        data: (persona) => persona?.name ?? l10n.default_,
-      ),
-      onTap: () => context.push(AppRoutes.personas),
     );
   }
 }
@@ -344,7 +644,8 @@ class _LanguageTile extends ConsumerWidget {
 
     return KiraGroupedTile(
       icon: CupertinoIcons.globe,
-      iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+      iconBg: Colors.transparent,
+      iconColor: const Color(0xFF42A5F5),
       title: l10n.language,
       subtitle: currentLanguage,
       onTap: () => _showLanguageSelector(context, ref),
@@ -450,7 +751,8 @@ class _VersionTile extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return KiraGroupedTile(
       icon: CupertinoIcons.number,
-      iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+      iconBg: Colors.transparent,
+      iconColor: const Color(0xFF8E8E93),
       title: l10n.version,
       subtitle: '1.0.0 (Build 1)',
       trailing: IconButton(
@@ -470,18 +772,179 @@ class _VersionTile extends StatelessWidget {
   }
 }
 
-/// 极客Core 入口(通用组尾;条目3 分工后设置→Core 唯一桥)
-class _CoreTile extends StatelessWidget {
-  const _CoreTile();
+// ═══════════════════════════════════════════════════════════════════════════
+// 极客Core迁移 P1:聊天设置 / 语音与翻译 新组行
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// 流式输出(聊天设置组,数据源 llmConfigProvider.streamEnabled,与API界面同源)
+class _StreamOutputTile extends ConsumerWidget {
+  const _StreamOutputTile();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final config = ref.watch(llmConfigProvider);
     return KiraGroupedTile(
-      icon: CupertinoIcons.command,
-      iconBg: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-      title: '极客Core',
-      subtitle: '高级功能集中地 · 仪表盘',
-      onTap: () => context.push(AppRoutes.advanced),
+      icon: CupertinoIcons.bolt,
+      iconBg: Colors.transparent,
+      iconColor: const Color(0xFF42A5F5),
+      title: '流式输出',
+      subtitle: config.streamEnabled ? '实时显示生成内容' : '整段返回后显示',
+      trailing: CupertinoSwitch(
+        value: config.streamEnabled,
+        onChanged: (v) => ref
+            .read(llmConfigProvider.notifier)
+            .updateStreamEnabled(v),
+        activeTrackColor: Theme.of(context).colorScheme.primary,
+      ),
+    );
+  }
+}
+
+/// 分词器计数(聊天设置组,数据源 tokenizerSettingsProvider.showTokenCount)
+class _TokenizerCountTile extends ConsumerWidget {
+  const _TokenizerCountTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final showTokenCount =
+        ref.watch(tokenizerSettingsProvider).showTokenCount;
+    return KiraGroupedTile(
+      icon: CupertinoIcons.textformat_abc,
+      iconBg: Colors.transparent,
+      iconColor: DesignTokens.primary,
+      title: '分词器计数',
+      subtitle: showTokenCount ? '输入框旁显示' : '已停用',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CupertinoSwitch(
+            value: showTokenCount,
+            onChanged: (v) => ref
+                .read(tokenizerSettingsProvider.notifier)
+                .setShowTokenCount(v),
+            activeTrackColor: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            CupertinoIcons.chevron_forward,
+            size: 16,
+            color: Theme.of(context).textTheme.bodySmall?.color,
+          ),
+        ],
+      ),
+      onTap: () => showTokenizerDialog(context, ref),
+    );
+  }
+}
+
+/// TTS 合成(语音与翻译组:就地开关 + 箭头弹完整配置浮窗)
+class _TtsTile extends ConsumerWidget {
+  const _TtsTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tts = ref.watch(ttsSettingsProvider);
+    return KiraGroupedTile(
+      icon: CupertinoIcons.speaker_2,
+      iconBg: Colors.transparent,
+      iconColor: const Color(0xFFFFA726),
+      title: 'TTS 合成',
+      subtitle: tts.enabled
+          ? '${tts.rate.toStringAsFixed(1)}× ${tts.voiceId ?? '默认'}'
+          : '已停用',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CupertinoSwitch(
+            value: tts.enabled,
+            onChanged: (v) =>
+                ref.read(ttsSettingsProvider.notifier).setEnabled(v),
+            activeTrackColor: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            CupertinoIcons.chevron_forward,
+            size: 16,
+            color: Theme.of(context).textTheme.bodySmall?.color,
+          ),
+        ],
+      ),
+      onTap: () => showTtsSettingsDialog(context, ref),
+    );
+  }
+}
+
+/// STT 识别(语音与翻译组)
+class _SttTile extends ConsumerWidget {
+  const _SttTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stt = ref.watch(sttSettingsProvider);
+    return KiraGroupedTile(
+      icon: CupertinoIcons.mic,
+      iconBg: Colors.transparent,
+      iconColor: const Color(0xFFEC407A),
+      title: 'STT 识别',
+      subtitle: stt.enabled
+          ? '${stt.language} · ${stt.autoSend ? '自动发送' : '手动'}'
+          : '已停用',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CupertinoSwitch(
+            value: stt.enabled,
+            onChanged: (v) =>
+                ref.read(sttSettingsProvider.notifier).setEnabled(v),
+            activeTrackColor: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            CupertinoIcons.chevron_forward,
+            size: 16,
+            color: Theme.of(context).textTheme.bodySmall?.color,
+          ),
+        ],
+      ),
+      onTap: () => showSttSettingsDialog(context, ref),
+    );
+  }
+}
+
+/// 翻译(语音与翻译组)
+class _TranslationTile extends ConsumerWidget {
+  const _TranslationTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trans = ref.watch(translationSettingsProvider);
+    return KiraGroupedTile(
+      icon: CupertinoIcons.globe,
+      iconBg: Colors.transparent,
+      iconColor: DesignTokens.primary,
+      title: '翻译',
+      subtitle: trans.enabled
+          ? '${trans.sourceLanguage}⇄${trans.targetLanguage}${trans.autoTranslateIncoming ? ' · 入站' : ''}'
+          : '已停用',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CupertinoSwitch(
+            value: trans.enabled,
+            onChanged: (v) => ref
+                .read(translationSettingsProvider.notifier)
+                .setEnabled(v),
+            activeTrackColor: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            CupertinoIcons.chevron_forward,
+            size: 16,
+            color: Theme.of(context).textTheme.bodySmall?.color,
+          ),
+        ],
+      ),
+      onTap: () => showTranslationSettingsDialog(context, ref),
     );
   }
 }
