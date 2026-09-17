@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:kirakira/data/models/chat.dart';
 import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/data/models/chronicle.dart' as models;
+import 'package:kirakira/data/repositories/chronicle_repository.dart';
+import 'package:kirakira/domain/services/vector_storage_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -10,6 +13,12 @@ import 'package:file_picker/file_picker.dart';
 /// Compatible with SillyTavern JSONL format
 class ChatExportService {
   static const List<String> _supportedImportExtensions = ['jsonl', 'json'];
+
+  /// [CHRONICLE Phase 2] 可选注入：开启聊天文件内嵌 kira_chronicle
+  final ChronicleRepository? chronicleRepo;
+  final VectorStorageService? vectorStorage;
+
+  ChatExportService({this.chronicleRepo, this.vectorStorage});
 
   /// Export chat to SillyTavern-compatible JSONL format
   ///
@@ -36,6 +45,11 @@ class ChatExportService {
         'note_position': 1,
       },
     };
+    // [CHRONICLE Phase 2] 内嵌超级记忆（仅KiraKira自有导出；ST导入时忽略未知字段）
+    final chronicleData = await _buildChronicleBundle(chat.id);
+    if (chronicleData != null) {
+      metadata['kira_chronicle'] = chronicleData;
+    }
     buffer.writeln(jsonEncode(metadata));
 
     // Message lines
@@ -225,6 +239,10 @@ class ChatExportService {
         authorNote: chatMetadata?['note_prompt'] as String?,
         authorNoteDepth: chatMetadata?['note_depth'] as int?,
         messages: messages,
+        // [CHRONICLE Phase 2] 携带记忆bundle（无则null，ST标准文件不影响）
+        chronicleData: metadata['kira_chronicle'] is Map
+            ? Map<String, dynamic>.from(metadata['kira_chronicle'] as Map)
+            : null,
       );
     } catch (e) {
       return null;
@@ -278,9 +296,175 @@ class ChatExportService {
     }
   }
 
+  // ═══════════════════ [CHRONICLE Phase 2] 聊天文件内嵌 ═══════════════════
+
+  /// 构建kira_chronicle bundle（词条/实体/关系/情感 + gzip向量 + 窗口状态）。
+  /// 向量只存wiki词条向量，不存消息原文向量（解决PiuPiu 20MB问题）。
+  /// 返回null = 无Chronicle数据或未注入repo。
+  Future<Map<String, dynamic>?> _buildChronicleBundle(String chatId) async {
+    final repo = chronicleRepo;
+    if (repo == null) return null;
+    try {
+      final entries = await repo.getAllEntries(chatId);
+      final entities = await repo.getAllEntities(chatId);
+      final relationships = await repo.getAllRelationships(chatId);
+      final emotions = await repo.getAllEmotions(chatId);
+      if (entries.isEmpty &&
+          entities.isEmpty &&
+          relationships.isEmpty &&
+          emotions.isEmpty) {
+        return null;
+      }
+
+      // 向量：只取 chronicle_* 文档（调整D：与RAG原文向量共存，导出只带走wiki向量）
+      final vectors = <Map<String, dynamic>>[];
+      if (vectorStorage != null) {
+        final collection = vectorStorage!.getCollection(chatId);
+        if (collection != null) {
+          for (final doc in collection.documents) {
+            if (doc.id.startsWith('chronicle_') && doc.embedding != null) {
+              vectors.add({
+                'id': doc.id,
+                'content': doc.content,
+                'embedding': doc.embedding,
+                'metadata': doc.metadata,
+              });
+            }
+          }
+        }
+      }
+
+      final archivedIds = await repo.getArchivedMessageIds(chatId);
+
+      return {
+        'version': 1,
+        'entries': entries.map((e) => e.toJson()).toList(),
+        'entities': entities.map((e) => e.toJson()).toList(),
+        'relationships': relationships.map((r) => r.toJson()).toList(),
+        'emotions': emotions.map((e) => e.toJson()).toList(),
+        // gzip压缩后base64（调整C：384维，~150条≈80KB）
+        'vectors': _gzipBase64(jsonEncode(vectors)),
+        'window_state': {
+          'archived_message_ids': archivedIds.toList(),
+        },
+      };
+    } catch (e) {
+      // Chronicle打包失败不影响聊天导出
+      return null;
+    }
+  }
+
+  /// 导入后恢复Chronicle到目标聊天。
+  /// 注意：导入的消息用新生成的messageId，window_state的归档id已失效，
+  /// 因此只恢复词条/实体/关系/情感/向量，窗口状态由新对话自然重建（H4同理）。
+  Future<void> restoreChronicleToChat(
+      String chatId, Map<String, dynamic> bundle) async {
+    final repo = chronicleRepo;
+    if (repo == null) return;
+    try {
+      for (final e in (bundle['entries'] as List? ?? const [])) {
+        if (e is! Map) continue;
+        final entry = models.MemoryEntry.fromJson(
+            Map<String, dynamic>.from(e as Map));
+        // 换绑到目标聊天
+        await repo.upsertMemoryEntry(entry.copyWith(
+          chatId: chatId,
+          updatedAt: DateTime.now(),
+        ));
+      }
+      for (final e in (bundle['entities'] as List? ?? const [])) {
+        if (e is! Map) continue;
+        final entity = models.MemoryEntity.fromJson(
+            Map<String, dynamic>.from(e as Map));
+        await repo.upsertEntity(entity.copyWith(
+          chatId: chatId,
+          updatedAt: DateTime.now(),
+        ));
+      }
+      for (final r in (bundle['relationships'] as List? ?? const [])) {
+        if (r is! Map) continue;
+        final rel = models.MemoryRelationship.fromJson(
+            Map<String, dynamic>.from(r as Map));
+        await repo.upsertRelationship(
+          chatId,
+          models.UpsertRelationshipInstruction(
+            fromName: '',
+            toName: '',
+            relationType: rel.relationType,
+            strength: rel.strength,
+            description: rel.description,
+          ),
+          fromEntityId: rel.fromEntityId,
+          toEntityId: rel.toEntityId,
+        );
+      }
+      for (final e in (bundle['emotions'] as List? ?? const [])) {
+        if (e is! Map) continue;
+        final emo = models.EmotionNode.fromJson(
+            Map<String, dynamic>.from(e as Map));
+        await repo.upsertEmotion(
+          chatId,
+          models.UpsertEmotionInstruction(
+            entityName: '',
+            emotion: emo.emotion,
+            intensity: emo.intensity,
+            trigger: emo.trigger,
+            active: emo.isActive,
+          ),
+          entityId: emo.entityId,
+          turnIndex: emo.turnIndex,
+        );
+      }
+
+      // 向量恢复（目标聊天集合不存在时跳过；loadChat/发消息时会自动建集合）
+      final vectorsRaw = bundle['vectors'] as String?;
+      if (vectorsRaw != null && vectorsRaw.isNotEmpty && vectorStorage != null) {
+        try {
+          final vectorsJson = _gunzipBase64(vectorsRaw);
+          final vectors = jsonDecode(vectorsJson) as List;
+          final collection = vectorStorage!.getCollection(chatId);
+          if (collection != null) {
+            for (final v in vectors) {
+              if (v is! Map) continue;
+              final id = v['id'] as String?;
+              final embedding = (v['embedding'] as List?)
+                  ?.map((e) => (e as num).toDouble())
+                  .toList();
+              if (id == null || embedding == null) continue;
+              vectorStorage!.addDocumentWithId(
+                collectionId: chatId,
+                documentId: id,
+                content: v['content'] as String? ?? '',
+                embedding: embedding,
+                metadata: v['metadata'] is Map
+                    ? Map<String, dynamic>.from(v['metadata'] as Map)
+                    : const {},
+              );
+            }
+          }
+        } catch (_) {
+          // 向量恢复失败不阻断词条恢复
+        }
+      }
+    } catch (_) {
+      // Chronicle恢复失败不影响消息导入
+    }
+  }
+
+  static String _gzipBase64(String json) {
+    final bytes = utf8.encode(json);
+    final compressed = GZipCodec().encode(bytes);
+    return base64Encode(compressed);
+  }
+
+  static String _gunzipBase64(String b64) {
+    final bytes = base64Decode(b64);
+    final decompressed = GZipCodec().decode(bytes);
+    return utf8.decode(decompressed);
+  }
+
   /// Import chat from file
-  Future<ChatImportResult?> importFromFile() async {
-    final result = await FilePicker.platform.pickFiles(
+  Future<ChatImportResult?> importFromFile() async {    final result = await FilePicker.platform.pickFiles(
       type: FileType.any,
       allowMultiple: false,
     );
@@ -413,6 +597,8 @@ class ChatImportResult {
   final int? authorNoteDepth;
   final bool? authorNoteEnabled;
   final List<ImportedMessage> messages;
+  /// [CHRONICLE Phase 2] kira_chronicle 原始bundle（导入后由调用方恢复）
+  final Map<String, dynamic>? chronicleData;
 
   ChatImportResult({
     required this.userName,
@@ -422,6 +608,7 @@ class ChatImportResult {
     this.authorNoteDepth,
     this.authorNoteEnabled,
     required this.messages,
+    this.chronicleData,
   });
 }
 

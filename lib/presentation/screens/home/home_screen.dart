@@ -13,6 +13,7 @@ import 'package:kirakira/presentation/providers/chat_providers.dart';
 import 'package:kirakira/presentation/providers/chat_history_provider.dart';
 import 'package:kirakira/presentation/providers/persona_providers.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
+import 'package:kirakira/data/repositories/chronicle_repository.dart';
 import 'package:kirakira/domain/services/chat_export_service.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
@@ -665,7 +666,11 @@ class _ChatListTile extends ConsumerWidget {
   }
 
   Future<void> _importChatMessages(BuildContext context, WidgetRef ref) async {
-    final exportService = ChatExportService();
+    // [CHRONICLE Phase 2] 注入Chronicle能力
+    final exportService = ChatExportService(
+      chronicleRepo: ref.read(chronicleRepositoryProvider),
+      vectorStorage: ref.read(vectorStorageServiceProvider),
+    );
     final repo = ref.read(chatRepositoryProvider);
     try {
       final result = await exportService.importFromFile();
@@ -685,6 +690,10 @@ class _ChatListTile extends ConsumerWidget {
       for (final msg in result.messages) {
         await repo.addMessage(msg.toChatMessage(chat.id, ''));
       }
+      // [CHRONICLE Phase 2] 恢复内嵌的超级记忆
+      if (result.chronicleData != null) {
+        await exportService.restoreChronicleToChat(chat.id, result.chronicleData!);
+      }
       ref.invalidate(allChatsProvider);
       if (context.mounted) {
         _showActionResultSnackBar(
@@ -702,7 +711,11 @@ class _ChatListTile extends ConsumerWidget {
       _showActionResultSnackBar(context, '角色信息缺失，无法导出', isError: true);
       return;
     }
-    final exportService = ChatExportService();
+    // [CHRONICLE Phase 2] 注入Chronicle能力，导出内嵌kira_chronicle
+    final exportService = ChatExportService(
+      chronicleRepo: ref.read(chronicleRepositoryProvider),
+      vectorStorage: ref.read(vectorStorageServiceProvider),
+    );
     final userName =
         ref.read(activePersonaProvider).valueOrNull?.name ?? 'User';
     try {

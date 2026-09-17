@@ -304,6 +304,57 @@ class ChronicleStates extends Table {
   Set<Column> get primaryKey => {chatId};
 }
 
+/// [CHRONICLE Phase 2] Wiki实体表（人物/地点/物品/概念）
+class MemoryEntities extends Table {
+  TextColumn get id => text()();
+  TextColumn get chatId => text()();
+  TextColumn get name => text()();
+  /// person / place / item / concept
+  TextColumn get type => text().withDefault(const Constant('person'))();
+  TextColumn get description => text().withDefault(const Constant(''))();
+  TextColumn get currentState => text().withDefault(const Constant(''))();
+  TextColumn get aliases => text().withDefault(const Constant('[]'))(); // JSON数组
+  TextColumn get attributes => text().withDefault(const Constant('{}'))(); // JSON
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// [CHRONICLE Phase 2] Wiki关系表（实体间）
+class MemoryRelationships extends Table {
+  TextColumn get id => text()();
+  TextColumn get chatId => text()();
+  TextColumn get fromEntityId => text()();
+  TextColumn get toEntityId => text()();
+  TextColumn get relationType => text().withDefault(const Constant('trust'))();
+  IntColumn get strength => integer().withDefault(const Constant(0))(); // -100~100
+  TextColumn get description => text().withDefault(const Constant(''))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// [CHRONICLE Phase 2] 情感节点表（roleplay专用）
+class EmotionNodes extends Table {
+  TextColumn get id => text()();
+  TextColumn get chatId => text()();
+  TextColumn get entityId => text()();
+  TextColumn get emotion => text().withDefault(const Constant(''))();
+  IntColumn get intensity => integer().withDefault(const Constant(5))(); // 1-10
+  TextColumn get trigger => text().withDefault(const Constant(''))();
+  IntColumn get turnIndex => integer().withDefault(const Constant(0))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// App database
 @DriftDatabase(tables: [
   Characters,
@@ -323,12 +374,15 @@ class ChronicleStates extends Table {
   SummaryTasks,
   MemoryEntries,
   ChronicleStates,
+  MemoryEntities,
+  MemoryRelationships,
+  EmotionNodes,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-   int get schemaVersion => 17;
+   int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration {
@@ -424,6 +478,12 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(summaryTasks);
           await m.createTable(memoryEntries);
           await m.createTable(chronicleStates);
+        }
+        if (from < 18) {
+          // [CHRONICLE Phase 2] Wiki系统：实体 + 关系 + 情感节点
+          await m.createTable(memoryEntities);
+          await m.createTable(memoryRelationships);
+          await m.createTable(emotionNodes);
         }
       },
     );

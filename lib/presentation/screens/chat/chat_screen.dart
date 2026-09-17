@@ -19,6 +19,8 @@ import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/providers/bookmark_providers.dart';
 import 'package:kirakira/presentation/providers/background_providers.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
+import 'package:kirakira/data/repositories/chronicle_repository.dart';
+import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 import 'package:kirakira/presentation/providers/persona_providers.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
@@ -59,7 +61,11 @@ import 'package:kirakira/presentation/widgets/common/glass_container.dart';
 
 /// Provider for chat export service
 final chatExportServiceProvider = Provider<ChatExportService>((ref) {
-  return ChatExportService();
+  // [CHRONICLE Phase 2] 注入Chronicle repo与向量服务，启用聊天文件内嵌
+  return ChatExportService(
+    chronicleRepo: ref.watch(chronicleRepositoryProvider),
+    vectorStorage: ref.watch(vectorStorageServiceProvider),
+  );
 });
 
 /// Chat screen for conversations
@@ -1877,6 +1883,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           return importedMsg.toChatMessage(chatState.chat!.id, uuid.v4());
         }).toList(),
       );
+
+      // [CHRONICLE Phase 2] 恢复内嵌的超级记忆（kira_chronicle存在时）
+      if (result.chronicleData != null) {
+        await exportService.restoreChronicleToChat(
+            chatState.chat!.id, result.chronicleData!);
+      }
 
       // Update author's note if present
       if (result.authorNote != null && result.authorNote!.isNotEmpty) {

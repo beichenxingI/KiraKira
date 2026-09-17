@@ -8829,6 +8829,1488 @@ class ChronicleStatesCompanion extends UpdateCompanion<ChronicleState> {
   }
 }
 
+class $MemoryEntitiesTable extends MemoryEntities
+    with TableInfo<$MemoryEntitiesTable, MemoryEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MemoryEntitiesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('person'));
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _currentStateMeta =
+      const VerificationMeta('currentState');
+  @override
+  late final GeneratedColumn<String> currentState = GeneratedColumn<String>(
+      'current_state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _aliasesMeta =
+      const VerificationMeta('aliases');
+  @override
+  late final GeneratedColumn<String> aliases = GeneratedColumn<String>(
+      'aliases', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _attributesMeta =
+      const VerificationMeta('attributes');
+  @override
+  late final GeneratedColumn<String> attributes = GeneratedColumn<String>(
+      'attributes', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        chatId,
+        name,
+        type,
+        description,
+        currentState,
+        aliases,
+        attributes,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'memory_entities';
+  @override
+  VerificationContext validateIntegrity(Insertable<MemoryEntity> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('current_state')) {
+      context.handle(
+          _currentStateMeta,
+          currentState.isAcceptableOrUnknown(
+              data['current_state']!, _currentStateMeta));
+    }
+    if (data.containsKey('aliases')) {
+      context.handle(_aliasesMeta,
+          aliases.isAcceptableOrUnknown(data['aliases']!, _aliasesMeta));
+    }
+    if (data.containsKey('attributes')) {
+      context.handle(
+          _attributesMeta,
+          attributes.isAcceptableOrUnknown(
+              data['attributes']!, _attributesMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MemoryEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MemoryEntity(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
+      currentState: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}current_state'])!,
+      aliases: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}aliases'])!,
+      attributes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}attributes'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $MemoryEntitiesTable createAlias(String alias) {
+    return $MemoryEntitiesTable(attachedDatabase, alias);
+  }
+}
+
+class MemoryEntity extends DataClass implements Insertable<MemoryEntity> {
+  final String id;
+  final String chatId;
+  final String name;
+
+  /// person / place / item / concept
+  final String type;
+  final String description;
+  final String currentState;
+  final String aliases;
+  final String attributes;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const MemoryEntity(
+      {required this.id,
+      required this.chatId,
+      required this.name,
+      required this.type,
+      required this.description,
+      required this.currentState,
+      required this.aliases,
+      required this.attributes,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['chat_id'] = Variable<String>(chatId);
+    map['name'] = Variable<String>(name);
+    map['type'] = Variable<String>(type);
+    map['description'] = Variable<String>(description);
+    map['current_state'] = Variable<String>(currentState);
+    map['aliases'] = Variable<String>(aliases);
+    map['attributes'] = Variable<String>(attributes);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  MemoryEntitiesCompanion toCompanion(bool nullToAbsent) {
+    return MemoryEntitiesCompanion(
+      id: Value(id),
+      chatId: Value(chatId),
+      name: Value(name),
+      type: Value(type),
+      description: Value(description),
+      currentState: Value(currentState),
+      aliases: Value(aliases),
+      attributes: Value(attributes),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MemoryEntity.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MemoryEntity(
+      id: serializer.fromJson<String>(json['id']),
+      chatId: serializer.fromJson<String>(json['chatId']),
+      name: serializer.fromJson<String>(json['name']),
+      type: serializer.fromJson<String>(json['type']),
+      description: serializer.fromJson<String>(json['description']),
+      currentState: serializer.fromJson<String>(json['currentState']),
+      aliases: serializer.fromJson<String>(json['aliases']),
+      attributes: serializer.fromJson<String>(json['attributes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'chatId': serializer.toJson<String>(chatId),
+      'name': serializer.toJson<String>(name),
+      'type': serializer.toJson<String>(type),
+      'description': serializer.toJson<String>(description),
+      'currentState': serializer.toJson<String>(currentState),
+      'aliases': serializer.toJson<String>(aliases),
+      'attributes': serializer.toJson<String>(attributes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  MemoryEntity copyWith(
+          {String? id,
+          String? chatId,
+          String? name,
+          String? type,
+          String? description,
+          String? currentState,
+          String? aliases,
+          String? attributes,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      MemoryEntity(
+        id: id ?? this.id,
+        chatId: chatId ?? this.chatId,
+        name: name ?? this.name,
+        type: type ?? this.type,
+        description: description ?? this.description,
+        currentState: currentState ?? this.currentState,
+        aliases: aliases ?? this.aliases,
+        attributes: attributes ?? this.attributes,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  MemoryEntity copyWithCompanion(MemoryEntitiesCompanion data) {
+    return MemoryEntity(
+      id: data.id.present ? data.id.value : this.id,
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
+      description:
+          data.description.present ? data.description.value : this.description,
+      currentState: data.currentState.present
+          ? data.currentState.value
+          : this.currentState,
+      aliases: data.aliases.present ? data.aliases.value : this.aliases,
+      attributes:
+          data.attributes.present ? data.attributes.value : this.attributes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryEntity(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('description: $description, ')
+          ..write('currentState: $currentState, ')
+          ..write('aliases: $aliases, ')
+          ..write('attributes: $attributes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, chatId, name, type, description,
+      currentState, aliases, attributes, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MemoryEntity &&
+          other.id == this.id &&
+          other.chatId == this.chatId &&
+          other.name == this.name &&
+          other.type == this.type &&
+          other.description == this.description &&
+          other.currentState == this.currentState &&
+          other.aliases == this.aliases &&
+          other.attributes == this.attributes &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MemoryEntitiesCompanion extends UpdateCompanion<MemoryEntity> {
+  final Value<String> id;
+  final Value<String> chatId;
+  final Value<String> name;
+  final Value<String> type;
+  final Value<String> description;
+  final Value<String> currentState;
+  final Value<String> aliases;
+  final Value<String> attributes;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const MemoryEntitiesCompanion({
+    this.id = const Value.absent(),
+    this.chatId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.type = const Value.absent(),
+    this.description = const Value.absent(),
+    this.currentState = const Value.absent(),
+    this.aliases = const Value.absent(),
+    this.attributes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MemoryEntitiesCompanion.insert({
+    required String id,
+    required String chatId,
+    required String name,
+    this.type = const Value.absent(),
+    this.description = const Value.absent(),
+    this.currentState = const Value.absent(),
+    this.aliases = const Value.absent(),
+    this.attributes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        chatId = Value(chatId),
+        name = Value(name);
+  static Insertable<MemoryEntity> custom({
+    Expression<String>? id,
+    Expression<String>? chatId,
+    Expression<String>? name,
+    Expression<String>? type,
+    Expression<String>? description,
+    Expression<String>? currentState,
+    Expression<String>? aliases,
+    Expression<String>? attributes,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (chatId != null) 'chat_id': chatId,
+      if (name != null) 'name': name,
+      if (type != null) 'type': type,
+      if (description != null) 'description': description,
+      if (currentState != null) 'current_state': currentState,
+      if (aliases != null) 'aliases': aliases,
+      if (attributes != null) 'attributes': attributes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MemoryEntitiesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? chatId,
+      Value<String>? name,
+      Value<String>? type,
+      Value<String>? description,
+      Value<String>? currentState,
+      Value<String>? aliases,
+      Value<String>? attributes,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return MemoryEntitiesCompanion(
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      description: description ?? this.description,
+      currentState: currentState ?? this.currentState,
+      aliases: aliases ?? this.aliases,
+      attributes: attributes ?? this.attributes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (currentState.present) {
+      map['current_state'] = Variable<String>(currentState.value);
+    }
+    if (aliases.present) {
+      map['aliases'] = Variable<String>(aliases.value);
+    }
+    if (attributes.present) {
+      map['attributes'] = Variable<String>(attributes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryEntitiesCompanion(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('description: $description, ')
+          ..write('currentState: $currentState, ')
+          ..write('aliases: $aliases, ')
+          ..write('attributes: $attributes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MemoryRelationshipsTable extends MemoryRelationships
+    with TableInfo<$MemoryRelationshipsTable, MemoryRelationship> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MemoryRelationshipsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _fromEntityIdMeta =
+      const VerificationMeta('fromEntityId');
+  @override
+  late final GeneratedColumn<String> fromEntityId = GeneratedColumn<String>(
+      'from_entity_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _toEntityIdMeta =
+      const VerificationMeta('toEntityId');
+  @override
+  late final GeneratedColumn<String> toEntityId = GeneratedColumn<String>(
+      'to_entity_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _relationTypeMeta =
+      const VerificationMeta('relationType');
+  @override
+  late final GeneratedColumn<String> relationType = GeneratedColumn<String>(
+      'relation_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('trust'));
+  static const VerificationMeta _strengthMeta =
+      const VerificationMeta('strength');
+  @override
+  late final GeneratedColumn<int> strength = GeneratedColumn<int>(
+      'strength', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        chatId,
+        fromEntityId,
+        toEntityId,
+        relationType,
+        strength,
+        description,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'memory_relationships';
+  @override
+  VerificationContext validateIntegrity(Insertable<MemoryRelationship> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('from_entity_id')) {
+      context.handle(
+          _fromEntityIdMeta,
+          fromEntityId.isAcceptableOrUnknown(
+              data['from_entity_id']!, _fromEntityIdMeta));
+    } else if (isInserting) {
+      context.missing(_fromEntityIdMeta);
+    }
+    if (data.containsKey('to_entity_id')) {
+      context.handle(
+          _toEntityIdMeta,
+          toEntityId.isAcceptableOrUnknown(
+              data['to_entity_id']!, _toEntityIdMeta));
+    } else if (isInserting) {
+      context.missing(_toEntityIdMeta);
+    }
+    if (data.containsKey('relation_type')) {
+      context.handle(
+          _relationTypeMeta,
+          relationType.isAcceptableOrUnknown(
+              data['relation_type']!, _relationTypeMeta));
+    }
+    if (data.containsKey('strength')) {
+      context.handle(_strengthMeta,
+          strength.isAcceptableOrUnknown(data['strength']!, _strengthMeta));
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MemoryRelationship map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MemoryRelationship(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      fromEntityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}from_entity_id'])!,
+      toEntityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}to_entity_id'])!,
+      relationType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}relation_type'])!,
+      strength: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}strength'])!,
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $MemoryRelationshipsTable createAlias(String alias) {
+    return $MemoryRelationshipsTable(attachedDatabase, alias);
+  }
+}
+
+class MemoryRelationship extends DataClass
+    implements Insertable<MemoryRelationship> {
+  final String id;
+  final String chatId;
+  final String fromEntityId;
+  final String toEntityId;
+  final String relationType;
+  final int strength;
+  final String description;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const MemoryRelationship(
+      {required this.id,
+      required this.chatId,
+      required this.fromEntityId,
+      required this.toEntityId,
+      required this.relationType,
+      required this.strength,
+      required this.description,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['chat_id'] = Variable<String>(chatId);
+    map['from_entity_id'] = Variable<String>(fromEntityId);
+    map['to_entity_id'] = Variable<String>(toEntityId);
+    map['relation_type'] = Variable<String>(relationType);
+    map['strength'] = Variable<int>(strength);
+    map['description'] = Variable<String>(description);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  MemoryRelationshipsCompanion toCompanion(bool nullToAbsent) {
+    return MemoryRelationshipsCompanion(
+      id: Value(id),
+      chatId: Value(chatId),
+      fromEntityId: Value(fromEntityId),
+      toEntityId: Value(toEntityId),
+      relationType: Value(relationType),
+      strength: Value(strength),
+      description: Value(description),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MemoryRelationship.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MemoryRelationship(
+      id: serializer.fromJson<String>(json['id']),
+      chatId: serializer.fromJson<String>(json['chatId']),
+      fromEntityId: serializer.fromJson<String>(json['fromEntityId']),
+      toEntityId: serializer.fromJson<String>(json['toEntityId']),
+      relationType: serializer.fromJson<String>(json['relationType']),
+      strength: serializer.fromJson<int>(json['strength']),
+      description: serializer.fromJson<String>(json['description']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'chatId': serializer.toJson<String>(chatId),
+      'fromEntityId': serializer.toJson<String>(fromEntityId),
+      'toEntityId': serializer.toJson<String>(toEntityId),
+      'relationType': serializer.toJson<String>(relationType),
+      'strength': serializer.toJson<int>(strength),
+      'description': serializer.toJson<String>(description),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  MemoryRelationship copyWith(
+          {String? id,
+          String? chatId,
+          String? fromEntityId,
+          String? toEntityId,
+          String? relationType,
+          int? strength,
+          String? description,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      MemoryRelationship(
+        id: id ?? this.id,
+        chatId: chatId ?? this.chatId,
+        fromEntityId: fromEntityId ?? this.fromEntityId,
+        toEntityId: toEntityId ?? this.toEntityId,
+        relationType: relationType ?? this.relationType,
+        strength: strength ?? this.strength,
+        description: description ?? this.description,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  MemoryRelationship copyWithCompanion(MemoryRelationshipsCompanion data) {
+    return MemoryRelationship(
+      id: data.id.present ? data.id.value : this.id,
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      fromEntityId: data.fromEntityId.present
+          ? data.fromEntityId.value
+          : this.fromEntityId,
+      toEntityId:
+          data.toEntityId.present ? data.toEntityId.value : this.toEntityId,
+      relationType: data.relationType.present
+          ? data.relationType.value
+          : this.relationType,
+      strength: data.strength.present ? data.strength.value : this.strength,
+      description:
+          data.description.present ? data.description.value : this.description,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryRelationship(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('fromEntityId: $fromEntityId, ')
+          ..write('toEntityId: $toEntityId, ')
+          ..write('relationType: $relationType, ')
+          ..write('strength: $strength, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, chatId, fromEntityId, toEntityId,
+      relationType, strength, description, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MemoryRelationship &&
+          other.id == this.id &&
+          other.chatId == this.chatId &&
+          other.fromEntityId == this.fromEntityId &&
+          other.toEntityId == this.toEntityId &&
+          other.relationType == this.relationType &&
+          other.strength == this.strength &&
+          other.description == this.description &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MemoryRelationshipsCompanion extends UpdateCompanion<MemoryRelationship> {
+  final Value<String> id;
+  final Value<String> chatId;
+  final Value<String> fromEntityId;
+  final Value<String> toEntityId;
+  final Value<String> relationType;
+  final Value<int> strength;
+  final Value<String> description;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const MemoryRelationshipsCompanion({
+    this.id = const Value.absent(),
+    this.chatId = const Value.absent(),
+    this.fromEntityId = const Value.absent(),
+    this.toEntityId = const Value.absent(),
+    this.relationType = const Value.absent(),
+    this.strength = const Value.absent(),
+    this.description = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MemoryRelationshipsCompanion.insert({
+    required String id,
+    required String chatId,
+    required String fromEntityId,
+    required String toEntityId,
+    this.relationType = const Value.absent(),
+    this.strength = const Value.absent(),
+    this.description = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        chatId = Value(chatId),
+        fromEntityId = Value(fromEntityId),
+        toEntityId = Value(toEntityId);
+  static Insertable<MemoryRelationship> custom({
+    Expression<String>? id,
+    Expression<String>? chatId,
+    Expression<String>? fromEntityId,
+    Expression<String>? toEntityId,
+    Expression<String>? relationType,
+    Expression<int>? strength,
+    Expression<String>? description,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (chatId != null) 'chat_id': chatId,
+      if (fromEntityId != null) 'from_entity_id': fromEntityId,
+      if (toEntityId != null) 'to_entity_id': toEntityId,
+      if (relationType != null) 'relation_type': relationType,
+      if (strength != null) 'strength': strength,
+      if (description != null) 'description': description,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MemoryRelationshipsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? chatId,
+      Value<String>? fromEntityId,
+      Value<String>? toEntityId,
+      Value<String>? relationType,
+      Value<int>? strength,
+      Value<String>? description,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return MemoryRelationshipsCompanion(
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      fromEntityId: fromEntityId ?? this.fromEntityId,
+      toEntityId: toEntityId ?? this.toEntityId,
+      relationType: relationType ?? this.relationType,
+      strength: strength ?? this.strength,
+      description: description ?? this.description,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (fromEntityId.present) {
+      map['from_entity_id'] = Variable<String>(fromEntityId.value);
+    }
+    if (toEntityId.present) {
+      map['to_entity_id'] = Variable<String>(toEntityId.value);
+    }
+    if (relationType.present) {
+      map['relation_type'] = Variable<String>(relationType.value);
+    }
+    if (strength.present) {
+      map['strength'] = Variable<int>(strength.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryRelationshipsCompanion(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('fromEntityId: $fromEntityId, ')
+          ..write('toEntityId: $toEntityId, ')
+          ..write('relationType: $relationType, ')
+          ..write('strength: $strength, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $EmotionNodesTable extends EmotionNodes
+    with TableInfo<$EmotionNodesTable, EmotionNode> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EmotionNodesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _entityIdMeta =
+      const VerificationMeta('entityId');
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+      'entity_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _emotionMeta =
+      const VerificationMeta('emotion');
+  @override
+  late final GeneratedColumn<String> emotion = GeneratedColumn<String>(
+      'emotion', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _intensityMeta =
+      const VerificationMeta('intensity');
+  @override
+  late final GeneratedColumn<int> intensity = GeneratedColumn<int>(
+      'intensity', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(5));
+  static const VerificationMeta _triggerMeta =
+      const VerificationMeta('trigger');
+  @override
+  late final GeneratedColumn<String> trigger = GeneratedColumn<String>(
+      'trigger', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _turnIndexMeta =
+      const VerificationMeta('turnIndex');
+  @override
+  late final GeneratedColumn<int> turnIndex = GeneratedColumn<int>(
+      'turn_index', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _isActiveMeta =
+      const VerificationMeta('isActive');
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+      'is_active', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_active" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        chatId,
+        entityId,
+        emotion,
+        intensity,
+        trigger,
+        turnIndex,
+        isActive,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'emotion_nodes';
+  @override
+  VerificationContext validateIntegrity(Insertable<EmotionNode> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(_entityIdMeta,
+          entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta));
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('emotion')) {
+      context.handle(_emotionMeta,
+          emotion.isAcceptableOrUnknown(data['emotion']!, _emotionMeta));
+    }
+    if (data.containsKey('intensity')) {
+      context.handle(_intensityMeta,
+          intensity.isAcceptableOrUnknown(data['intensity']!, _intensityMeta));
+    }
+    if (data.containsKey('trigger')) {
+      context.handle(_triggerMeta,
+          trigger.isAcceptableOrUnknown(data['trigger']!, _triggerMeta));
+    }
+    if (data.containsKey('turn_index')) {
+      context.handle(_turnIndexMeta,
+          turnIndex.isAcceptableOrUnknown(data['turn_index']!, _turnIndexMeta));
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(_isActiveMeta,
+          isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  EmotionNode map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EmotionNode(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      entityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}entity_id'])!,
+      emotion: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}emotion'])!,
+      intensity: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}intensity'])!,
+      trigger: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trigger'])!,
+      turnIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}turn_index'])!,
+      isActive: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_active'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $EmotionNodesTable createAlias(String alias) {
+    return $EmotionNodesTable(attachedDatabase, alias);
+  }
+}
+
+class EmotionNode extends DataClass implements Insertable<EmotionNode> {
+  final String id;
+  final String chatId;
+  final String entityId;
+  final String emotion;
+  final int intensity;
+  final String trigger;
+  final int turnIndex;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const EmotionNode(
+      {required this.id,
+      required this.chatId,
+      required this.entityId,
+      required this.emotion,
+      required this.intensity,
+      required this.trigger,
+      required this.turnIndex,
+      required this.isActive,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['chat_id'] = Variable<String>(chatId);
+    map['entity_id'] = Variable<String>(entityId);
+    map['emotion'] = Variable<String>(emotion);
+    map['intensity'] = Variable<int>(intensity);
+    map['trigger'] = Variable<String>(trigger);
+    map['turn_index'] = Variable<int>(turnIndex);
+    map['is_active'] = Variable<bool>(isActive);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  EmotionNodesCompanion toCompanion(bool nullToAbsent) {
+    return EmotionNodesCompanion(
+      id: Value(id),
+      chatId: Value(chatId),
+      entityId: Value(entityId),
+      emotion: Value(emotion),
+      intensity: Value(intensity),
+      trigger: Value(trigger),
+      turnIndex: Value(turnIndex),
+      isActive: Value(isActive),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory EmotionNode.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EmotionNode(
+      id: serializer.fromJson<String>(json['id']),
+      chatId: serializer.fromJson<String>(json['chatId']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      emotion: serializer.fromJson<String>(json['emotion']),
+      intensity: serializer.fromJson<int>(json['intensity']),
+      trigger: serializer.fromJson<String>(json['trigger']),
+      turnIndex: serializer.fromJson<int>(json['turnIndex']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'chatId': serializer.toJson<String>(chatId),
+      'entityId': serializer.toJson<String>(entityId),
+      'emotion': serializer.toJson<String>(emotion),
+      'intensity': serializer.toJson<int>(intensity),
+      'trigger': serializer.toJson<String>(trigger),
+      'turnIndex': serializer.toJson<int>(turnIndex),
+      'isActive': serializer.toJson<bool>(isActive),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  EmotionNode copyWith(
+          {String? id,
+          String? chatId,
+          String? entityId,
+          String? emotion,
+          int? intensity,
+          String? trigger,
+          int? turnIndex,
+          bool? isActive,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      EmotionNode(
+        id: id ?? this.id,
+        chatId: chatId ?? this.chatId,
+        entityId: entityId ?? this.entityId,
+        emotion: emotion ?? this.emotion,
+        intensity: intensity ?? this.intensity,
+        trigger: trigger ?? this.trigger,
+        turnIndex: turnIndex ?? this.turnIndex,
+        isActive: isActive ?? this.isActive,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  EmotionNode copyWithCompanion(EmotionNodesCompanion data) {
+    return EmotionNode(
+      id: data.id.present ? data.id.value : this.id,
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      emotion: data.emotion.present ? data.emotion.value : this.emotion,
+      intensity: data.intensity.present ? data.intensity.value : this.intensity,
+      trigger: data.trigger.present ? data.trigger.value : this.trigger,
+      turnIndex: data.turnIndex.present ? data.turnIndex.value : this.turnIndex,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EmotionNode(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('entityId: $entityId, ')
+          ..write('emotion: $emotion, ')
+          ..write('intensity: $intensity, ')
+          ..write('trigger: $trigger, ')
+          ..write('turnIndex: $turnIndex, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, chatId, entityId, emotion, intensity,
+      trigger, turnIndex, isActive, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EmotionNode &&
+          other.id == this.id &&
+          other.chatId == this.chatId &&
+          other.entityId == this.entityId &&
+          other.emotion == this.emotion &&
+          other.intensity == this.intensity &&
+          other.trigger == this.trigger &&
+          other.turnIndex == this.turnIndex &&
+          other.isActive == this.isActive &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class EmotionNodesCompanion extends UpdateCompanion<EmotionNode> {
+  final Value<String> id;
+  final Value<String> chatId;
+  final Value<String> entityId;
+  final Value<String> emotion;
+  final Value<int> intensity;
+  final Value<String> trigger;
+  final Value<int> turnIndex;
+  final Value<bool> isActive;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const EmotionNodesCompanion({
+    this.id = const Value.absent(),
+    this.chatId = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.emotion = const Value.absent(),
+    this.intensity = const Value.absent(),
+    this.trigger = const Value.absent(),
+    this.turnIndex = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  EmotionNodesCompanion.insert({
+    required String id,
+    required String chatId,
+    required String entityId,
+    this.emotion = const Value.absent(),
+    this.intensity = const Value.absent(),
+    this.trigger = const Value.absent(),
+    this.turnIndex = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        chatId = Value(chatId),
+        entityId = Value(entityId);
+  static Insertable<EmotionNode> custom({
+    Expression<String>? id,
+    Expression<String>? chatId,
+    Expression<String>? entityId,
+    Expression<String>? emotion,
+    Expression<int>? intensity,
+    Expression<String>? trigger,
+    Expression<int>? turnIndex,
+    Expression<bool>? isActive,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (chatId != null) 'chat_id': chatId,
+      if (entityId != null) 'entity_id': entityId,
+      if (emotion != null) 'emotion': emotion,
+      if (intensity != null) 'intensity': intensity,
+      if (trigger != null) 'trigger': trigger,
+      if (turnIndex != null) 'turn_index': turnIndex,
+      if (isActive != null) 'is_active': isActive,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  EmotionNodesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? chatId,
+      Value<String>? entityId,
+      Value<String>? emotion,
+      Value<int>? intensity,
+      Value<String>? trigger,
+      Value<int>? turnIndex,
+      Value<bool>? isActive,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return EmotionNodesCompanion(
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      entityId: entityId ?? this.entityId,
+      emotion: emotion ?? this.emotion,
+      intensity: intensity ?? this.intensity,
+      trigger: trigger ?? this.trigger,
+      turnIndex: turnIndex ?? this.turnIndex,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (emotion.present) {
+      map['emotion'] = Variable<String>(emotion.value);
+    }
+    if (intensity.present) {
+      map['intensity'] = Variable<int>(intensity.value);
+    }
+    if (trigger.present) {
+      map['trigger'] = Variable<String>(trigger.value);
+    }
+    if (turnIndex.present) {
+      map['turn_index'] = Variable<int>(turnIndex.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EmotionNodesCompanion(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('entityId: $entityId, ')
+          ..write('emotion: $emotion, ')
+          ..write('intensity: $intensity, ')
+          ..write('trigger: $trigger, ')
+          ..write('turnIndex: $turnIndex, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -8853,6 +10335,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MemoryEntriesTable memoryEntries = $MemoryEntriesTable(this);
   late final $ChronicleStatesTable chronicleStates =
       $ChronicleStatesTable(this);
+  late final $MemoryEntitiesTable memoryEntities = $MemoryEntitiesTable(this);
+  late final $MemoryRelationshipsTable memoryRelationships =
+      $MemoryRelationshipsTable(this);
+  late final $EmotionNodesTable emotionNodes = $EmotionNodesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -8874,7 +10360,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         vectorDocuments,
         summaryTasks,
         memoryEntries,
-        chronicleStates
+        chronicleStates,
+        memoryEntities,
+        memoryRelationships,
+        emotionNodes
       ];
 }
 
@@ -14310,6 +15799,744 @@ typedef $$ChronicleStatesTableProcessedTableManager = ProcessedTableManager<
     ),
     ChronicleState,
     PrefetchHooks Function()>;
+typedef $$MemoryEntitiesTableCreateCompanionBuilder = MemoryEntitiesCompanion
+    Function({
+  required String id,
+  required String chatId,
+  required String name,
+  Value<String> type,
+  Value<String> description,
+  Value<String> currentState,
+  Value<String> aliases,
+  Value<String> attributes,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$MemoryEntitiesTableUpdateCompanionBuilder = MemoryEntitiesCompanion
+    Function({
+  Value<String> id,
+  Value<String> chatId,
+  Value<String> name,
+  Value<String> type,
+  Value<String> description,
+  Value<String> currentState,
+  Value<String> aliases,
+  Value<String> attributes,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$MemoryEntitiesTableFilterComposer
+    extends Composer<_$AppDatabase, $MemoryEntitiesTable> {
+  $$MemoryEntitiesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get currentState => $composableBuilder(
+      column: $table.currentState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get aliases => $composableBuilder(
+      column: $table.aliases, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get attributes => $composableBuilder(
+      column: $table.attributes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$MemoryEntitiesTableOrderingComposer
+    extends Composer<_$AppDatabase, $MemoryEntitiesTable> {
+  $$MemoryEntitiesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get currentState => $composableBuilder(
+      column: $table.currentState,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get aliases => $composableBuilder(
+      column: $table.aliases, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get attributes => $composableBuilder(
+      column: $table.attributes, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$MemoryEntitiesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MemoryEntitiesTable> {
+  $$MemoryEntitiesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<String> get currentState => $composableBuilder(
+      column: $table.currentState, builder: (column) => column);
+
+  GeneratedColumn<String> get aliases =>
+      $composableBuilder(column: $table.aliases, builder: (column) => column);
+
+  GeneratedColumn<String> get attributes => $composableBuilder(
+      column: $table.attributes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MemoryEntitiesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MemoryEntitiesTable,
+    MemoryEntity,
+    $$MemoryEntitiesTableFilterComposer,
+    $$MemoryEntitiesTableOrderingComposer,
+    $$MemoryEntitiesTableAnnotationComposer,
+    $$MemoryEntitiesTableCreateCompanionBuilder,
+    $$MemoryEntitiesTableUpdateCompanionBuilder,
+    (
+      MemoryEntity,
+      BaseReferences<_$AppDatabase, $MemoryEntitiesTable, MemoryEntity>
+    ),
+    MemoryEntity,
+    PrefetchHooks Function()> {
+  $$MemoryEntitiesTableTableManager(
+      _$AppDatabase db, $MemoryEntitiesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MemoryEntitiesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MemoryEntitiesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MemoryEntitiesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> chatId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<String> description = const Value.absent(),
+            Value<String> currentState = const Value.absent(),
+            Value<String> aliases = const Value.absent(),
+            Value<String> attributes = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemoryEntitiesCompanion(
+            id: id,
+            chatId: chatId,
+            name: name,
+            type: type,
+            description: description,
+            currentState: currentState,
+            aliases: aliases,
+            attributes: attributes,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String chatId,
+            required String name,
+            Value<String> type = const Value.absent(),
+            Value<String> description = const Value.absent(),
+            Value<String> currentState = const Value.absent(),
+            Value<String> aliases = const Value.absent(),
+            Value<String> attributes = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemoryEntitiesCompanion.insert(
+            id: id,
+            chatId: chatId,
+            name: name,
+            type: type,
+            description: description,
+            currentState: currentState,
+            aliases: aliases,
+            attributes: attributes,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MemoryEntitiesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $MemoryEntitiesTable,
+    MemoryEntity,
+    $$MemoryEntitiesTableFilterComposer,
+    $$MemoryEntitiesTableOrderingComposer,
+    $$MemoryEntitiesTableAnnotationComposer,
+    $$MemoryEntitiesTableCreateCompanionBuilder,
+    $$MemoryEntitiesTableUpdateCompanionBuilder,
+    (
+      MemoryEntity,
+      BaseReferences<_$AppDatabase, $MemoryEntitiesTable, MemoryEntity>
+    ),
+    MemoryEntity,
+    PrefetchHooks Function()>;
+typedef $$MemoryRelationshipsTableCreateCompanionBuilder
+    = MemoryRelationshipsCompanion Function({
+  required String id,
+  required String chatId,
+  required String fromEntityId,
+  required String toEntityId,
+  Value<String> relationType,
+  Value<int> strength,
+  Value<String> description,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$MemoryRelationshipsTableUpdateCompanionBuilder
+    = MemoryRelationshipsCompanion Function({
+  Value<String> id,
+  Value<String> chatId,
+  Value<String> fromEntityId,
+  Value<String> toEntityId,
+  Value<String> relationType,
+  Value<int> strength,
+  Value<String> description,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$MemoryRelationshipsTableFilterComposer
+    extends Composer<_$AppDatabase, $MemoryRelationshipsTable> {
+  $$MemoryRelationshipsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fromEntityId => $composableBuilder(
+      column: $table.fromEntityId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get toEntityId => $composableBuilder(
+      column: $table.toEntityId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get relationType => $composableBuilder(
+      column: $table.relationType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get strength => $composableBuilder(
+      column: $table.strength, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$MemoryRelationshipsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MemoryRelationshipsTable> {
+  $$MemoryRelationshipsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fromEntityId => $composableBuilder(
+      column: $table.fromEntityId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get toEntityId => $composableBuilder(
+      column: $table.toEntityId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get relationType => $composableBuilder(
+      column: $table.relationType,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get strength => $composableBuilder(
+      column: $table.strength, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$MemoryRelationshipsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MemoryRelationshipsTable> {
+  $$MemoryRelationshipsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get fromEntityId => $composableBuilder(
+      column: $table.fromEntityId, builder: (column) => column);
+
+  GeneratedColumn<String> get toEntityId => $composableBuilder(
+      column: $table.toEntityId, builder: (column) => column);
+
+  GeneratedColumn<String> get relationType => $composableBuilder(
+      column: $table.relationType, builder: (column) => column);
+
+  GeneratedColumn<int> get strength =>
+      $composableBuilder(column: $table.strength, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MemoryRelationshipsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MemoryRelationshipsTable,
+    MemoryRelationship,
+    $$MemoryRelationshipsTableFilterComposer,
+    $$MemoryRelationshipsTableOrderingComposer,
+    $$MemoryRelationshipsTableAnnotationComposer,
+    $$MemoryRelationshipsTableCreateCompanionBuilder,
+    $$MemoryRelationshipsTableUpdateCompanionBuilder,
+    (
+      MemoryRelationship,
+      BaseReferences<_$AppDatabase, $MemoryRelationshipsTable,
+          MemoryRelationship>
+    ),
+    MemoryRelationship,
+    PrefetchHooks Function()> {
+  $$MemoryRelationshipsTableTableManager(
+      _$AppDatabase db, $MemoryRelationshipsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MemoryRelationshipsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MemoryRelationshipsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MemoryRelationshipsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> chatId = const Value.absent(),
+            Value<String> fromEntityId = const Value.absent(),
+            Value<String> toEntityId = const Value.absent(),
+            Value<String> relationType = const Value.absent(),
+            Value<int> strength = const Value.absent(),
+            Value<String> description = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemoryRelationshipsCompanion(
+            id: id,
+            chatId: chatId,
+            fromEntityId: fromEntityId,
+            toEntityId: toEntityId,
+            relationType: relationType,
+            strength: strength,
+            description: description,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String chatId,
+            required String fromEntityId,
+            required String toEntityId,
+            Value<String> relationType = const Value.absent(),
+            Value<int> strength = const Value.absent(),
+            Value<String> description = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemoryRelationshipsCompanion.insert(
+            id: id,
+            chatId: chatId,
+            fromEntityId: fromEntityId,
+            toEntityId: toEntityId,
+            relationType: relationType,
+            strength: strength,
+            description: description,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MemoryRelationshipsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $MemoryRelationshipsTable,
+    MemoryRelationship,
+    $$MemoryRelationshipsTableFilterComposer,
+    $$MemoryRelationshipsTableOrderingComposer,
+    $$MemoryRelationshipsTableAnnotationComposer,
+    $$MemoryRelationshipsTableCreateCompanionBuilder,
+    $$MemoryRelationshipsTableUpdateCompanionBuilder,
+    (
+      MemoryRelationship,
+      BaseReferences<_$AppDatabase, $MemoryRelationshipsTable,
+          MemoryRelationship>
+    ),
+    MemoryRelationship,
+    PrefetchHooks Function()>;
+typedef $$EmotionNodesTableCreateCompanionBuilder = EmotionNodesCompanion
+    Function({
+  required String id,
+  required String chatId,
+  required String entityId,
+  Value<String> emotion,
+  Value<int> intensity,
+  Value<String> trigger,
+  Value<int> turnIndex,
+  Value<bool> isActive,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$EmotionNodesTableUpdateCompanionBuilder = EmotionNodesCompanion
+    Function({
+  Value<String> id,
+  Value<String> chatId,
+  Value<String> entityId,
+  Value<String> emotion,
+  Value<int> intensity,
+  Value<String> trigger,
+  Value<int> turnIndex,
+  Value<bool> isActive,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$EmotionNodesTableFilterComposer
+    extends Composer<_$AppDatabase, $EmotionNodesTable> {
+  $$EmotionNodesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+      column: $table.entityId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get emotion => $composableBuilder(
+      column: $table.emotion, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get intensity => $composableBuilder(
+      column: $table.intensity, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get trigger => $composableBuilder(
+      column: $table.trigger, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get turnIndex => $composableBuilder(
+      column: $table.turnIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+      column: $table.isActive, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$EmotionNodesTableOrderingComposer
+    extends Composer<_$AppDatabase, $EmotionNodesTable> {
+  $$EmotionNodesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+      column: $table.entityId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get emotion => $composableBuilder(
+      column: $table.emotion, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get intensity => $composableBuilder(
+      column: $table.intensity, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get trigger => $composableBuilder(
+      column: $table.trigger, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get turnIndex => $composableBuilder(
+      column: $table.turnIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+      column: $table.isActive, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$EmotionNodesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EmotionNodesTable> {
+  $$EmotionNodesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get emotion =>
+      $composableBuilder(column: $table.emotion, builder: (column) => column);
+
+  GeneratedColumn<int> get intensity =>
+      $composableBuilder(column: $table.intensity, builder: (column) => column);
+
+  GeneratedColumn<String> get trigger =>
+      $composableBuilder(column: $table.trigger, builder: (column) => column);
+
+  GeneratedColumn<int> get turnIndex =>
+      $composableBuilder(column: $table.turnIndex, builder: (column) => column);
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$EmotionNodesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $EmotionNodesTable,
+    EmotionNode,
+    $$EmotionNodesTableFilterComposer,
+    $$EmotionNodesTableOrderingComposer,
+    $$EmotionNodesTableAnnotationComposer,
+    $$EmotionNodesTableCreateCompanionBuilder,
+    $$EmotionNodesTableUpdateCompanionBuilder,
+    (
+      EmotionNode,
+      BaseReferences<_$AppDatabase, $EmotionNodesTable, EmotionNode>
+    ),
+    EmotionNode,
+    PrefetchHooks Function()> {
+  $$EmotionNodesTableTableManager(_$AppDatabase db, $EmotionNodesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EmotionNodesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EmotionNodesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EmotionNodesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> chatId = const Value.absent(),
+            Value<String> entityId = const Value.absent(),
+            Value<String> emotion = const Value.absent(),
+            Value<int> intensity = const Value.absent(),
+            Value<String> trigger = const Value.absent(),
+            Value<int> turnIndex = const Value.absent(),
+            Value<bool> isActive = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              EmotionNodesCompanion(
+            id: id,
+            chatId: chatId,
+            entityId: entityId,
+            emotion: emotion,
+            intensity: intensity,
+            trigger: trigger,
+            turnIndex: turnIndex,
+            isActive: isActive,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String chatId,
+            required String entityId,
+            Value<String> emotion = const Value.absent(),
+            Value<int> intensity = const Value.absent(),
+            Value<String> trigger = const Value.absent(),
+            Value<int> turnIndex = const Value.absent(),
+            Value<bool> isActive = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              EmotionNodesCompanion.insert(
+            id: id,
+            chatId: chatId,
+            entityId: entityId,
+            emotion: emotion,
+            intensity: intensity,
+            trigger: trigger,
+            turnIndex: turnIndex,
+            isActive: isActive,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$EmotionNodesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $EmotionNodesTable,
+    EmotionNode,
+    $$EmotionNodesTableFilterComposer,
+    $$EmotionNodesTableOrderingComposer,
+    $$EmotionNodesTableAnnotationComposer,
+    $$EmotionNodesTableCreateCompanionBuilder,
+    $$EmotionNodesTableUpdateCompanionBuilder,
+    (
+      EmotionNode,
+      BaseReferences<_$AppDatabase, $EmotionNodesTable, EmotionNode>
+    ),
+    EmotionNode,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -14347,4 +16574,10 @@ class $AppDatabaseManager {
       $$MemoryEntriesTableTableManager(_db, _db.memoryEntries);
   $$ChronicleStatesTableTableManager get chronicleStates =>
       $$ChronicleStatesTableTableManager(_db, _db.chronicleStates);
+  $$MemoryEntitiesTableTableManager get memoryEntities =>
+      $$MemoryEntitiesTableTableManager(_db, _db.memoryEntities);
+  $$MemoryRelationshipsTableTableManager get memoryRelationships =>
+      $$MemoryRelationshipsTableTableManager(_db, _db.memoryRelationships);
+  $$EmotionNodesTableTableManager get emotionNodes =>
+      $$EmotionNodesTableTableManager(_db, _db.emotionNodes);
 }

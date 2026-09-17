@@ -34,6 +34,14 @@ import 'package:kirakira/data/models/vector_storage.dart'
     show EmbeddingProvider, EmbeddingProviderExtension;
 import 'package:kirakira/data/repositories/chronicle_repository.dart';
 import 'package:kirakira/presentation/providers/chronicle_providers.dart';
+import 'package:kirakira/data/models/chronicle.dart'
+    show
+        ChronicleSettings,
+        MemoryEntity,
+        MemoryEntry,
+        MemoryRelationship,
+        EmotionNode,
+        MemoryEntityType;
 import 'package:kirakira/core/utils/file_utils.dart';
 
 // Note: Repository providers are defined in their respective repository files
@@ -133,6 +141,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   // Track cancellation flag for stream processing
   bool _isCancelling = false;
   int _generationToken = 0;
+
+  // [CHRONICLE-F7] F-6已注入的词条id（召回层去重用，H6）
+  Set<String> _lastF6EntryIds = {};
 
   ActiveChatNotifier({
     required ChatRepository chatRepository,
@@ -1595,10 +1606,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     // ═══ [CHRONICLE Phase 1] 三窗口滑动替换全量注入 ═══
     // Chronicle开启时接管历史切分：热(未归档,末尾高注意力) / 温(近归档,淡出带) / 冷(旧归档,低注意力)。
     // 隐藏楼层(isHidden)不进提示词。失败回落旧行为。
+    var chronicleSettings = const ChronicleSettings();
     if (chat != null) {
       try {
         final chronicleRepo = _ref.read(chronicleRepositoryProvider);
-        final chronicleSettings = await chronicleRepo.getSettings(chat.id);
+        chronicleSettings = await chronicleRepo.getSettings(chat.id);
         if (chronicleSettings.enabled) {
           final archivedIds =
               await chronicleRepo.getArchivedMessageIds(chat.id);
@@ -1815,7 +1827,39 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           '📌 Added summary to context: ${latestSummary.content.substring(0, min(100, latestSummary.content.length))}...');
     }
 
-    // [CHRONICLE-F6] Wiki固定层注入点 - Phase 2填充
+    // ═══ [CHRONICLE-F6] Wiki固定层注入（Phase 2） ═══
+    // 内容：锚点/始终注入词条 + 主要实体状态 + 关键关系 + 活跃情感 + 高重要事件标题。
+    // 预算：650 token（调整E安全裕度，估算±30%），超预算按importance升序裁剪。
+    if (chat != null && chronicleSettings.enabled) {
+      try {
+        final chronicleRepo = _ref.read(chronicleRepositoryProvider);
+        final fixedEntries = await chronicleRepo.getFixedLayerEntries(chat.id);
+        final entities = await chronicleRepo.getMainEntities(chat.id);
+        final relationships = await chronicleRepo.getKeyRelationships(chat.id);
+        final emotions = await chronicleRepo.getActiveEmotions(chat.id);
+        // F-7去重用：记录已注入的词条id
+        _lastF6EntryIds = fixedEntries.map((e) => e.id).toSet();
+
+        final brief = _buildChronicleMemoryBrief(
+          fixedEntries: fixedEntries,
+          entities: entities,
+          relationships: relationships,
+          emotions: emotions,
+          tokenBudget: 650,
+        );
+        if (brief.isNotEmpty) {
+          messages.add({
+            'role': 'system',
+            'content': '[Chronicle Memory]\n$brief\n[/Chronicle Memory]',
+          });
+          debugPrint(
+              '[CHRONICLE] F-6固定层注入：约${(brief.length / 3.35).ceil()} tokens');
+        }
+      } catch (e) {
+        debugPrint('[CHRONICLE] F-6注入跳过（不影响对话）: $e');
+      }
+    }
+
     // [CHRONICLE-F7] Wiki召回层注入点 - Phase 3填充
 
     // Add chat messages with depth-based injections
@@ -1942,6 +1986,89 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     if (c == null || c.trim().isEmpty) return true;
     return c.trim() ==
         PromptSection.getDefaultContent(section.type).trim();
+  }
+
+  /// [CHRONICLE-F6] 构建固定层记忆摘要块。
+  /// 优先级：①锚点词条 ②主要实体状态 ③关键关系 ④活跃情感 ⑤高重要事件标题。
+  /// 预算控制（调整E）：token为±30%估算 → 字符预算=token*3.35，超限按词条importance升序裁剪。
+  String _buildChronicleMemoryBrief({
+    required List<MemoryEntry> fixedEntries,
+    required List<MemoryEntity> entities,
+    required List<MemoryRelationship> relationships,
+    required List<EmotionNode> emotions,
+    int tokenBudget = 650,
+  }) {
+    final budgetChars = (tokenBudget * 3.35).ceil();
+    final entityNameById = <String, String>{
+      for (final e in entities) e.id: e.name,
+    };
+
+    final sections = <String>[];
+
+    // ① 锚点/始终注入词条（importance降序，超预算尾部=低importance自动被裁）
+    if (fixedEntries.isNotEmpty) {
+      final sorted = [...fixedEntries]
+        ..sort((a, b) => b.importance.compareTo(a.importance));
+      final lines = <String>[];
+      for (final e in sorted) {
+        lines.add('· ${e.title}：${e.content}');
+      }
+      sections.add('【关键记忆】\n${lines.join('\n')}');
+    }
+
+    // ② 主要实体当前状态
+    if (entities.isNotEmpty) {
+      final lines = <String>[];
+      for (final e in entities) {
+        var line = '· ${e.name}';
+        if (e.description.isNotEmpty) line += '（${e.description}）';
+        if (e.currentState.isNotEmpty) line += '：${e.currentState}';
+        lines.add(line);
+      }
+      sections.add('【人物与实体】\n${lines.join('\n')}');
+    }
+
+    // ③ 关键关系
+    if (relationships.isNotEmpty) {
+      final lines = <String>[];
+      for (final r in relationships) {
+        final from = entityNameById[r.fromEntityId] ?? '？';
+        final to = entityNameById[r.toEntityId] ?? '？';
+        final line = '· $from 与 $to（${r.relationType} ${r.strength}）'
+            '${r.description.isNotEmpty ? '：${r.description}' : ''}';
+        lines.add(line);
+      }
+      sections.add('【关系】\n${lines.join('\n')}');
+    }
+
+    // ④ 活跃情感
+    if (emotions.isNotEmpty) {
+      final lines = <String>[];
+      for (final emo in emotions) {
+        final name = entityNameById[emo.entityId] ?? '？';
+        lines.add(
+            '· $name 对玩家感到${emo.emotion}（强度${emo.intensity}）${emo.trigger.isNotEmpty ? '，起因：${emo.trigger}' : ''}');
+      }
+      sections.add('【当前情感】\n${lines.join('\n')}');
+    }
+
+    // 组装 + 预算裁剪：从尾部（低优先级段）开始丢，词条段在①内部已按importance排序
+    final buffer = StringBuffer();
+    for (var i = 0; i < sections.length; i++) {
+      final section = sections[i];
+      if (buffer.length + section.length + 1 <= budgetChars) {
+        if (buffer.isNotEmpty) buffer.writeln();
+        buffer.write(section);
+      } else if (i == 0) {
+        // ①段自身超预算：保留头部（高importance已在最前）
+        buffer.write(section.substring(0, budgetChars));
+        break;
+      } else {
+        break; // 低优先级段放不下就丢弃
+      }
+    }
+
+    return buffer.toString();
   }
 
   Future<List<Map<String, dynamic>>> _buildSectionMessages(

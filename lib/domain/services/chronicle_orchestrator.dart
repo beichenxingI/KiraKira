@@ -6,6 +6,7 @@ import 'package:kirakira/data/models/chat.dart';
 import 'package:kirakira/data/models/chronicle.dart' as models;
 import 'package:kirakira/data/repositories/chronicle_repository.dart';
 import 'package:kirakira/domain/services/chat_summarization_service.dart';
+import 'package:kirakira/domain/services/chronicle_summary_service.dart';
 import 'package:kirakira/domain/services/embedding_service.dart';
 import 'package:kirakira/domain/services/llm_service.dart';
 import 'package:kirakira/domain/services/vector_storage_service.dart';
@@ -20,6 +21,7 @@ import 'package:uuid/uuid.dart';
 class ChronicleOrchestrator {
   final ChronicleRepository _repo;
   final ChatSummarizationService _summarizationService;
+  final ChronicleSummaryService _chronicleSummaryService;
   final EmbeddingService _embedder;
   final VectorStorageService _vectorStorage;
 
@@ -34,12 +36,14 @@ class ChronicleOrchestrator {
   ChronicleOrchestrator({
     required ChronicleRepository repo,
     required ChatSummarizationService summarizationService,
+    required ChronicleSummaryService chronicleSummaryService,
     required EmbeddingService embedder,
     required VectorStorageService vectorStorage,
     required this.vectorSettingsGetter,
     required this.llmConfigGetter,
   })  : _repo = repo,
         _summarizationService = summarizationService,
+        _chronicleSummaryService = chronicleSummaryService,
         _embedder = embedder,
         _vectorStorage = vectorStorage {
     start();
@@ -143,46 +147,47 @@ class ChronicleOrchestrator {
           return;
         }
 
-        // 1. 生成总结（Phase 1: 纯文本；Phase 2升级为结构化JSON抽取）
+        final settings = await _repo.getSettings(task.chatId);
         final config = llmConfigGetter();
         final summaryConfig = config.copyWith(
-          temperature: 0.2,
+          temperature: settings.summaryTemperature,
           maxTokens: 16384,
-          model: config.summaryModel.isNotEmpty
-              ? config.summaryModel
+          model: settings.summaryModel.isNotEmpty
+              ? settings.summaryModel
               : config.model,
         );
-        final summaryText = await _generatePlainTextSummary(
+
+        // 1. [Phase 2] 结构化JSON抽取（失败降级纯文本，H5）
+        final existingWiki = await _buildExistingWikiText(task.chatId);
+        final output = await _chronicleSummaryService.summarize(
           messages: messages,
+          existingWikiText: existingWiki,
+          settings: settings,
           config: summaryConfig,
+          fromTurn: task.fromTurn,
+          toTurn: task.toTurn,
         );
 
-        // 2. 写入Wiki词条
-        final entry = models.MemoryEntry(
-          id: _uuid.v4(),
-          chatId: task.chatId,
-          type: models.MemoryEntryType.event,
-          title: _deriveTitle(summaryText, messages),
-          content: summaryText,
-          importance: 5,
-          alwaysInject: true, // Phase 1纯文本总结：默认始终注入（Phase 2结构化后由LLM/用户决定）
-          tags: const [],
-          sourceMessageIds: messageIds,
-          turnIndex: task.toTurn,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-        await _repo.upsertMemoryEntry(entry);
+        // 2. 应用增量patch到Wiki
+        final touchedEntries =
+            await _applySummary(task.chatId, output, messageIds, task.toTurn);
 
-        // 3. 向量化入库（失败只跳过，不阻断）
-        await _vectorizeEntry(entry);
+        // 3. 向量化所有新建/更新词条
+        for (final entry in touchedEntries) {
+          await _vectorizeEntry(entry);
+        }
 
         // 4. 标记归档 + 任务完成
         await _repo.markMessagesArchived(task.chatId, messageIds);
-        await _repo.updateTaskStatus(task.id, 'done', resultJson: summaryText);
+        await _repo.updateTaskStatus(
+          task.id,
+          'done',
+          resultJson: output.fallbackText ?? '${touchedEntries.length}条词条更新',
+        );
 
         debugPrint('[CHRONICLE] 总结任务完成：${messageIds.length}条消息归档，'
-            '词条=${entry.title}');
+            '词条${touchedEntries.length}条，实体${output.entities.length}，'
+            '关系${output.relationships.length}，情感${output.emotions.length}');
       } catch (e, st) {
         debugPrint('[CHRONICLE] 总结任务失败: $e\n$st');
         await _repo.updateTaskStatus(task.id, 'failed', error: e.toString());
@@ -194,17 +199,171 @@ class ChronicleOrchestrator {
     }
   }
 
-  /// Phase 1 降级总结：复用现有总结服务（纯文本，与旧系统同等质量）
-  Future<String> _generatePlainTextSummary({
-    required List<ChatMessage> messages,
-    required LLMConfig config,
-  }) async {
-    final summary = await _summarizationService.generateSummary(
-      messages: messages,
-      existingSummaries: const [],
-      config: config,
+  /// 构建现有Wiki快照文本（喂给总结Prompt，供LLM判断增量）
+  Future<String> _buildExistingWikiText(String chatId) async {
+    final buffer = StringBuffer();
+    final activeEntries = (await _repo.getAllEntries(chatId))
+        .where((e) => !e.deprecated)
+        .toList();
+    // 最近30条即可（控制prompt体积）
+    final recent = activeEntries.length > 30
+        ? activeEntries.sublist(activeEntries.length - 30)
+        : activeEntries;
+    for (final e in recent) {
+      buffer.writeln('[${e.id}] ${e.title}（重要度${e.importance}${e.anchor ? ',锚点' : ''}）：${e.content}');
+    }
+    final entities = await _repo.getMainEntities(chatId, limit: 10);
+    for (final ent in entities) {
+      buffer.writeln('[实体:${ent.name}] ${ent.description} 当前:${ent.currentState}');
+    }
+    return buffer.toString();
+  }
+
+  /// 应用LLM输出的增量patch。返回被新建/更新的词条（待向量化）。
+  Future<List<models.MemoryEntry>> _applySummary(
+    String chatId,
+    models.ChronicleSummaryOutput output,
+    List<String> sourceMessageIds,
+    int turnIndex,
+  ) async {
+    final touched = <models.MemoryEntry>[];
+    final now = DateTime.now();
+
+    // ① 实体upsert → 名字→id映射
+    final entityIdByName = <String, String>{};
+    for (final inst in output.entities) {
+      if (inst.name.isEmpty) continue;
+      final entity = await _repo.upsertEntityByName(chatId, inst);
+      entityIdByName[inst.name] = entity.id;
+      entityIdByName.putIfAbsent(
+          entity.name, () => entity.id);
+    }
+
+    // ② 词条upsert
+    for (final inst in output.entries) {
+      if (inst.title.isEmpty && inst.content.isEmpty) continue;
+      final resolvedEntityIds = <String>[];
+      for (final name in inst.entityNames) {
+        final id = entityIdByName[name];
+        if (id != null) {
+          resolvedEntityIds.add(id);
+        } else {
+          // 引用但未在本轮定义的实体 → 尝试按名查找
+          final found = await _repo.getEntityByName(chatId, name);
+          if (found != null) {
+            entityIdByName[name] = found.id;
+            resolvedEntityIds.add(found.id);
+          }
+        }
+      }
+      // 有id且属于本聊天 → 更新；否则新建
+      models.MemoryEntry? existing;
+      if (inst.id != null && inst.id!.isNotEmpty) {
+        final candidates = await _repo.getEntriesByIds(chatId, [inst.id!]);
+        existing = candidates.isEmpty ? null : candidates.first;
+      }
+      final entry = existing?.copyWith(
+            type: inst.type,
+            title: inst.title.isNotEmpty ? inst.title : existing.title,
+            content: inst.content.isNotEmpty ? inst.content : existing.content,
+            importance: inst.importance,
+            alwaysInject: inst.alwaysInject || existing.alwaysInject,
+            anchor: inst.anchor || existing.anchor,
+            tags: inst.tags.isNotEmpty ? inst.tags : existing.tags,
+            entityIds: resolvedEntityIds.isNotEmpty ? resolvedEntityIds : existing.entityIds,
+            sourceMessageIds: [...existing.sourceMessageIds, ...sourceMessageIds],
+            turnIndex: turnIndex,
+            updatedAt: now,
+          ) ??
+          models.MemoryEntry(
+            id: _uuid.v4(),
+            chatId: chatId,
+            type: inst.type,
+            title: inst.title.isEmpty ? '未命名事件' : inst.title,
+            content: inst.content,
+            importance: inst.importance,
+            alwaysInject: inst.alwaysInject,
+            anchor: inst.anchor,
+            tags: inst.tags,
+            entityIds: resolvedEntityIds,
+            sourceMessageIds: sourceMessageIds,
+            turnIndex: turnIndex,
+            createdAt: now,
+            updatedAt: now,
+          );
+      await _repo.upsertMemoryEntry(entry);
+      touched.add(entry);
+    }
+
+    // ③ 关系upsert（名字→id解析，缺实体则自动建）
+    for (final inst in output.relationships) {
+      final fromId = await _resolveEntityId(chatId, inst.fromName, entityIdByName);
+      final toId = await _resolveEntityId(chatId, inst.toName, entityIdByName);
+      if (fromId == null || toId == null) continue;
+      await _repo.upsertRelationship(
+        chatId,
+        inst,
+        fromEntityId: fromId,
+        toEntityId: toId,
+      );
+    }
+
+    // ④ 情感upsert
+    for (final inst in output.emotions) {
+      final entityId =
+          await _resolveEntityId(chatId, inst.entityName, entityIdByName);
+      if (entityId == null) continue;
+      await _repo.upsertEmotion(chatId, inst,
+          entityId: entityId, turnIndex: turnIndex);
+    }
+
+    // ⑤ 过时词条标记
+    for (final id in output.deprecatedIds) {
+      await _repo.deprecateEntry(id);
+    }
+
+    // ⑥ H5降级：JSON解析失败 → 纯文本词条（与旧总结同等质量）
+    if (output.fallbackText != null && output.fallbackText!.isNotEmpty) {
+      final fallback = models.MemoryEntry(
+        id: _uuid.v4(),
+        chatId: chatId,
+        type: models.MemoryEntryType.event,
+        title: _deriveTitle(output.fallbackText!, const []),
+        content: output.fallbackText!,
+        importance: 5,
+        alwaysInject: true,
+        sourceMessageIds: sourceMessageIds,
+        turnIndex: turnIndex,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await _repo.upsertMemoryEntry(fallback);
+      touched.add(fallback);
+    }
+
+    return touched;
+  }
+
+  /// 名字→实体id；未注册则按名查库，再没有就自动建轻量实体
+  Future<String?> _resolveEntityId(
+    String chatId,
+    String name,
+    Map<String, String> entityIdByName,
+  ) async {
+    if (name.isEmpty) return null;
+    final cached = entityIdByName[name];
+    if (cached != null) return cached;
+    final found = await _repo.getEntityByName(chatId, name);
+    if (found != null) {
+      entityIdByName[name] = found.id;
+      return found.id;
+    }
+    final created = await _repo.upsertEntityByName(
+      chatId,
+      models.UpsertEntityInstruction(name: name),
     );
-    return summary.content;
+    entityIdByName[name] = created.id;
+    return created.id;
   }
 
   /// 词条向量化：embed后写入本聊天向量集合，documentId='chronicle_<entryId>'。

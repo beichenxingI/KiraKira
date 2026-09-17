@@ -319,6 +319,332 @@ class ChronicleRepository {
     ));
   }
 
+  // ═══════════════════ MemoryEntities / Relationships / Emotions（Phase 2 Wiki） ═══════════════════
+
+  /// 按名字找实体（name或alias命中）
+  Future<models.MemoryEntity?> getEntityByName(
+      String chatId, String name) async {
+    if (name.isEmpty) return null;
+    final rows = await (_db.select(_db.memoryEntities)
+          ..where((t) => t.chatId.equals(chatId) & t.name.equals(name)))
+        .get();
+    if (rows.isNotEmpty) return _entityFromRow(rows.first);
+    // alias兜底
+    final all = await getAllEntities(chatId);
+    for (final e in all) {
+      if (e.aliases.contains(name)) return e;
+    }
+    return null;
+  }
+
+  /// upsert实体
+  Future<models.MemoryEntity> upsertEntity(models.MemoryEntity entity) async {
+    await _db.into(_db.memoryEntities).insertOnConflictUpdate(
+          db.MemoryEntitiesCompanion.insert(
+            id: entity.id,
+            chatId: entity.chatId,
+            name: entity.name,
+            type: Value(entity.type.name),
+            description: Value(entity.description),
+            currentState: Value(entity.currentState),
+            aliases: Value(jsonEncode(entity.aliases)),
+            attributes: Value(jsonEncode(entity.attributes)),
+            createdAt: Value(entity.createdAt),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+    return entity;
+  }
+
+  /// 新建或按名更新实体，返回实体（含id）
+  Future<models.MemoryEntity> upsertEntityByName(
+      String chatId, models.UpsertEntityInstruction inst) async {
+    final existing = await getEntityByName(chatId, inst.name);
+    final now = DateTime.now();
+    if (existing != null) {
+      final mergedAliases = existing.aliases.toSet()..addAll(inst.aliases);
+      return upsertEntity(existing.copyWith(
+        type: inst.type,
+        description:
+            inst.description.isNotEmpty ? inst.description : existing.description,
+        currentState:
+            inst.currentState.isNotEmpty ? inst.currentState : existing.currentState,
+        aliases: mergedAliases.toList(),
+        updatedAt: now,
+      ));
+    }
+    return upsertEntity(models.MemoryEntity(
+      id: _uuid.v4(),
+      chatId: chatId,
+      name: inst.name,
+      type: inst.type,
+      description: inst.description,
+      currentState: inst.currentState,
+      aliases: inst.aliases,
+      createdAt: now,
+      updatedAt: now,
+    ));
+  }
+
+  /// 全部实体
+  Future<List<models.MemoryEntity>> getAllEntities(String chatId) async {
+    final rows = await (_db.select(_db.memoryEntities)
+          ..where((t) => t.chatId.equals(chatId))
+          ..orderBy([
+            (t) =>
+                OrderingTerm(expression: t.updatedAt, mode: OrderingMode.desc)
+          ]))
+        .get();
+    return rows.map(_entityFromRow).toList();
+  }
+
+  /// 主要实体（F-6固定层：人物优先，最近更新优先）
+  Future<List<models.MemoryEntity>> getMainEntities(String chatId,
+      {int limit = 8}) async {
+    final all = await getAllEntities(chatId);
+    final persons = all.where((e) => e.type == models.MemoryEntityType.person);
+    final others = all.where((e) => e.type != models.MemoryEntityType.person);
+    return [...persons, ...others].take(limit).toList();
+  }
+
+  /// 找关系（from+to+type）
+  Future<models.MemoryRelationship?> findRelationship(
+      String chatId, String fromId, String toId, String type) async {
+    final rows = await (_db.select(_db.memoryRelationships)
+          ..where((t) =>
+              t.chatId.equals(chatId) &
+              t.fromEntityId.equals(fromId) &
+              t.toEntityId.equals(toId) &
+              t.relationType.equals(type)))
+        .get();
+    return rows.isEmpty ? null : _relFromRow(rows.first);
+  }
+
+  /// upsert关系（存在则更新strength/description）
+  Future<models.MemoryRelationship> upsertRelationship(
+      String chatId, models.UpsertRelationshipInstruction inst,
+      {required String fromEntityId, required String toEntityId}) async {
+    final existing = await findRelationship(
+        chatId, fromEntityId, toEntityId, inst.relationType);
+    final now = DateTime.now();
+    if (existing != null) {
+      final updated = models.MemoryRelationship(
+        id: existing.id,
+        chatId: chatId,
+        fromEntityId: fromEntityId,
+        toEntityId: toEntityId,
+        relationType: inst.relationType,
+        strength: inst.strength,
+        description:
+            inst.description.isNotEmpty ? inst.description : existing.description,
+        createdAt: existing.createdAt,
+        updatedAt: now,
+      );
+      await _db.into(_db.memoryRelationships).insertOnConflictUpdate(
+            db.MemoryRelationshipsCompanion.insert(
+              id: updated.id,
+              chatId: updated.chatId,
+              fromEntityId: updated.fromEntityId,
+              toEntityId: updated.toEntityId,
+              relationType: Value(updated.relationType),
+              strength: Value(updated.strength),
+              description: Value(updated.description),
+              createdAt: Value(updated.createdAt),
+              updatedAt: Value(now),
+            ),
+          );
+      return updated;
+    }
+    final rel = models.MemoryRelationship(
+      id: _uuid.v4(),
+      chatId: chatId,
+      fromEntityId: fromEntityId,
+      toEntityId: toEntityId,
+      relationType: inst.relationType,
+      strength: inst.strength,
+      description: inst.description,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await _db.into(_db.memoryRelationships).insert(
+          db.MemoryRelationshipsCompanion.insert(
+            id: rel.id,
+            chatId: rel.chatId,
+            fromEntityId: rel.fromEntityId,
+            toEntityId: rel.toEntityId,
+            relationType: Value(rel.relationType),
+            strength: Value(rel.strength),
+            description: Value(rel.description),
+            createdAt: Value(rel.createdAt),
+            updatedAt: Value(now),
+          ),
+        );
+    return rel;
+  }
+
+  /// 全部关系（导出/管理用）
+  Future<List<models.MemoryRelationship>> getAllRelationships(
+      String chatId) async {
+    final rows = await (_db.select(_db.memoryRelationships)
+          ..where((t) => t.chatId.equals(chatId)))
+        .get();
+    return rows.map(_relFromRow).toList();
+  }
+
+  /// 关键关系（F-6固定层：|strength|高的在前）
+  Future<List<models.MemoryRelationship>> getKeyRelationships(String chatId,
+      {int limit = 6}) async {
+    final all = await getAllRelationships(chatId);
+    all.sort((a, b) => b.strength.abs().compareTo(a.strength.abs()));
+    return all.take(limit).toList();
+  }
+
+  /// 找情感节点（entityId+emotion）
+  Future<models.EmotionNode?> findEmotion(
+      String chatId, String entityId, String emotion) async {
+    final rows = await (_db.select(_db.emotionNodes)
+          ..where((t) =>
+              t.chatId.equals(chatId) &
+              t.entityId.equals(entityId) &
+              t.emotion.equals(emotion)))
+        .get();
+    return rows.isEmpty ? null : _emotionFromRow(rows.first);
+  }
+
+  /// upsert情感节点
+  Future<models.EmotionNode> upsertEmotion(
+      String chatId, models.UpsertEmotionInstruction inst,
+      {required String entityId, int turnIndex = 0}) async {
+    final existing = await findEmotion(chatId, entityId, inst.emotion);
+    final now = DateTime.now();
+    final node = models.EmotionNode(
+      id: existing?.id ?? _uuid.v4(),
+      chatId: chatId,
+      entityId: entityId,
+      emotion: inst.emotion,
+      intensity: inst.intensity,
+      trigger: inst.trigger.isNotEmpty ? inst.trigger : (existing?.trigger ?? ''),
+      turnIndex: turnIndex,
+      isActive: inst.active,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    );
+    await _db.into(_db.emotionNodes).insertOnConflictUpdate(
+          db.EmotionNodesCompanion.insert(
+            id: node.id,
+            chatId: node.chatId,
+            entityId: node.entityId,
+            emotion: Value(node.emotion),
+            intensity: Value(node.intensity),
+            trigger: Value(node.trigger),
+            turnIndex: Value(node.turnIndex),
+            isActive: Value(node.isActive),
+            createdAt: Value(node.createdAt),
+            updatedAt: Value(now),
+          ),
+        );
+    return node;
+  }
+
+  /// 活跃情感（F-6固定层）
+  Future<List<models.EmotionNode>> getActiveEmotions(String chatId,
+      {int limit = 8}) async {
+    final rows = await ((_db.select(_db.emotionNodes)
+          ..where((t) => t.chatId.equals(chatId) & t.isActive.equals(true))
+          ..orderBy([
+            (t) =>
+                OrderingTerm(expression: t.updatedAt, mode: OrderingMode.desc)
+          ]))
+        ..limit(limit))
+        .get();
+    return rows.map(_emotionFromRow).toList();
+  }
+
+  /// 活跃情感的实体id集合（召回加成用）
+  Future<Set<String>> getActiveEmotionEntityIds(String chatId) async {
+    final emotions = await getActiveEmotions(chatId, limit: 50);
+    return emotions.map((e) => e.entityId).toSet();
+  }
+
+  /// 全部情感（导出/管理用）
+  Future<List<models.EmotionNode>> getAllEmotions(String chatId) async {
+    final rows = await (_db.select(_db.emotionNodes)
+          ..where((t) => t.chatId.equals(chatId)))
+        .get();
+    return rows.map(_emotionFromRow).toList();
+  }
+
+  /// 删除实体（管理界面）
+  Future<void> deleteEntity(String id) async {
+    await (_db.delete(_db.memoryEntities)..where((t) => t.id.equals(id))).go();
+  }
+
+  /// 删除关系（管理界面）
+  Future<void> deleteRelationship(String id) async {
+    await (_db.delete(_db.memoryRelationships)..where((t) => t.id.equals(id)))
+        .go();
+  }
+
+  /// 删除情感（管理界面）
+  Future<void> deleteEmotion(String id) async {
+    await (_db.delete(_db.emotionNodes)..where((t) => t.id.equals(id))).go();
+  }
+
+  models.MemoryEntity _entityFromRow(db.MemoryEntity row) {
+    return models.MemoryEntity(
+      id: row.id,
+      chatId: row.chatId,
+      name: row.name,
+      type: models.MemoryEntityType.values.firstWhere(
+        (t) => t.name == row.type,
+        orElse: () => models.MemoryEntityType.person,
+      ),
+      description: row.description,
+      currentState: row.currentState,
+      aliases: _parseStringList(row.aliases),
+      attributes: _parseAttrs(row.attributes),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    );
+  }
+
+  Map<String, dynamic> _parseAttrs(String json) {
+    try {
+      return Map<String, dynamic>.from(jsonDecode(json) as Map);
+    } catch (_) {
+      return {};
+    }
+  }
+
+  models.MemoryRelationship _relFromRow(db.MemoryRelationship row) {
+    return models.MemoryRelationship(
+      id: row.id,
+      chatId: row.chatId,
+      fromEntityId: row.fromEntityId,
+      toEntityId: row.toEntityId,
+      relationType: row.relationType,
+      strength: row.strength,
+      description: row.description,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    );
+  }
+
+  models.EmotionNode _emotionFromRow(db.EmotionNode row) {
+    return models.EmotionNode(
+      id: row.id,
+      chatId: row.chatId,
+      entityId: row.entityId,
+      emotion: row.emotion,
+      intensity: row.intensity,
+      trigger: row.trigger,
+      turnIndex: row.turnIndex,
+      isActive: row.isActive,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    );
+  }
+
   // ═══════════════════ 级联清理 ═══════════════════
 
   /// 聊天删除时级联清理所有 Chronicle 数据
@@ -329,6 +655,13 @@ class ChronicleRepository {
         .go();
     await (_db.delete(_db.chronicleStates)
           ..where((t) => t.chatId.equals(chatId)))
+        .go();
+    await (_db.delete(_db.memoryEntities)..where((t) => t.chatId.equals(chatId)))
+        .go();
+    await (_db.delete(_db.memoryRelationships)
+          ..where((t) => t.chatId.equals(chatId)))
+        .go();
+    await (_db.delete(_db.emotionNodes)..where((t) => t.chatId.equals(chatId)))
         .go();
   }
 

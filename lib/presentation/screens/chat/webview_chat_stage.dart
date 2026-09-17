@@ -66,6 +66,7 @@ import 'package:kirakira/presentation/providers/background_providers.dart';
 import 'package:kirakira/presentation/providers/variables_providers.dart';
 import 'package:kirakira/presentation/providers/tokenizer_providers.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
+import 'package:kirakira/data/repositories/chronicle_repository.dart';
 import 'package:kirakira/presentation/providers/image_gen_providers.dart';
 import 'package:kirakira/data/models/chat_background.dart';
 import 'package:kirakira/data/models/vector_storage.dart';
@@ -4401,7 +4402,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (!mounted) return;
     if (mode == null) return;
 
-    final service = ChatExportService();
+    // [CHRONICLE Phase 2] 注入Chronicle能力，导出内嵌kira_chronicle
+    final service = ChatExportService(
+      chronicleRepo: ref.read(chronicleRepositoryProvider),
+      vectorStorage: ref.read(vectorStorageServiceProvider),
+    );
     try {
       if (mode == 'share') {
         await service.exportAndShare(
@@ -4472,6 +4477,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         result.messages.map((m) => m.toChatMessage(widget.chatId, uuid.v4())).toList(),
         chatId: widget.chatId,
       );
+
+      // [CHRONICLE Phase 2] 恢复内嵌的超级记忆
+      if (result.chronicleData != null) {
+        await exportService.restoreChronicleToChat(
+            widget.chatId, result.chronicleData!);
+      }
 
       // 更新作者注记
       if (result.authorNote != null && result.authorNote!.isNotEmpty) {
