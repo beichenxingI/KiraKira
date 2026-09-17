@@ -273,6 +273,8 @@ class VectorStorageService {
     required List<double> queryEmbedding,
     int topK = 5,
     double? similarityThreshold,
+    /// [CHRONICLE Phase 3] metadata精确匹配过滤（null=不过滤，搜全部）
+    Map<String, dynamic>? metadataFilter,
   }) {
     final collection = _collections[collectionId];
     if (collection == null) return [];
@@ -281,6 +283,18 @@ class VectorStorageService {
 
     for (final document in collection.documents) {
       if (document.embedding == null) continue;
+
+      // [CHRONICLE Phase 3] metadata过滤：所有键值都匹配才保留
+      if (metadataFilter != null) {
+        var matched = true;
+        for (final entry in metadataFilter.entries) {
+          if (document.metadata[entry.key] != entry.value) {
+            matched = false;
+            break;
+          }
+        }
+        if (!matched) continue;
+      }
 
       final similarity = VectorMath.cosineSimilarity(
         queryEmbedding,
@@ -302,6 +316,23 @@ class VectorStorageService {
     results.sort((a, b) => b.similarity.compareTo(a.similarity));
 
     return results.take(topK).toList();
+  }
+
+  /// [CHRONICLE Phase 3] 按文档id取单个文档（话题切换检测复用已入库的消息向量）
+  VectorDocument? getDocument(String collectionId, String documentId) {
+    final collection = _collections[collectionId];
+    if (collection == null) return null;
+    for (final d in collection.documents) {
+      if (d.id == documentId) return d;
+    }
+    return null;
+  }
+
+  /// [CHRONICLE Phase 3] 判断集合内是否存在指定metadata类型的文档
+  bool hasDocumentsWithType(String collectionId, String type) {
+    final collection = _collections[collectionId];
+    if (collection == null) return false;
+    return collection.documents.any((d) => d.metadata['type'] == type);
   }
 
   /// Chunk text into smaller pieces

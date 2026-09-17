@@ -125,8 +125,40 @@ class ChronicleOrchestrator {
     }
   }
 
-  // ═══════════════════ 队列消费 ═══════════════════
+  /// [Phase 3] 话题切换触发：提前压缩溢出热窗的消息（不管轮次阈值）。
+  /// 由召回服务检测到话题切换后异步调用，绝不阻塞对话。
+  Future<void> onTopicShift(
+      String chatId, List<ChatMessage> messages) async {
+    try {
+      final settings = await _repo.getSettings(chatId);
+      if (!settings.enabled) return;
+      if (await _repo.hasActiveTaskForChat(chatId)) return; // 已有任务，不重复入队
 
+      final archivedIds = await _repo.getArchivedMessageIds(chatId);
+      final unarchived = messages
+          .where((m) => !archivedIds.contains(m.id) && !m.isHidden)
+          .toList();
+      final overflowCount =
+          (unarchived.length - settings.hotWindowSize).clamp(0, unarchived.length);
+      if (overflowCount <= 0) return; // 热窗未满，无需压缩
+
+      final toArchive =
+          unarchived.sublist(0, overflowCount).map((m) => m.id).toList();
+      final ok = await _repo.enqueueSummaryTask(
+        chatId: chatId,
+        messageIds: toArchive,
+        fromTurn: 0,
+        toTurn: unarchived.length,
+      );
+      if (ok) {
+        debugPrint('[CHRONICLE] 话题切换触发提前总结：${toArchive.length}条消息');
+      }
+    } catch (e) {
+      debugPrint('[CHRONICLE] 话题切换处理失败（不影响对话）: $e');
+    }
+  }
+
+  // ═══════════════════ 队列消费 ═══════════════════
   Future<void> _processPendingTasks() async {
     if (_processing) return; // 单飞
     _processing = true;

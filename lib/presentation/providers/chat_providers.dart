@@ -1860,7 +1860,49 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
     }
 
-    // [CHRONICLE-F7] Wiki召回层注入点 - Phase 3填充
+    // ═══ [CHRONICLE-F7] Wiki召回层注入（Phase 3，调整D：与RAG并列不替换） ═══
+    // 混合打分召回wiki词条（向量0.5+关键词0.2+时间0.1+情感0.1+重要度0.1），
+    // 去重F-6已注入条目（H6），预算400 token（调整E），话题切换时异步触发提前总结。
+    if (chat != null && chronicleSettings.enabled && chatMessages.isNotEmpty) {
+      try {
+        ChatMessage? lastUserMsg;
+        for (var i = chatMessages.length - 1; i >= 0; i--) {
+          if (chatMessages[i].role == MessageRole.user) {
+            lastUserMsg = chatMessages[i];
+            break;
+          }
+        }
+        if (lastUserMsg != null && lastUserMsg.content.trim().isNotEmpty) {
+          final recall = _ref.read(chronicleRecallServiceProvider);
+          final recallResult = await recall.recallAndBuild(
+            chatId: chat.id,
+            query: lastUserMsg.content,
+            allMessages: state.messages,
+            topK: chronicleSettings.ragTopK,
+            excludeEntryIds: _lastF6EntryIds,
+            tokenBudget: 400,
+            emotionRecallEnabled: chronicleSettings.emotionRecallEnabled,
+          );
+          if (recallResult.blockText.isNotEmpty) {
+            messages.add({
+              'role': 'system',
+              'content':
+                  '[Chronicle Recalled]\n${recallResult.blockText}\n[/Chronicle Recalled]',
+            });
+            debugPrint(
+                '[CHRONICLE] F-7召回层注入：${recallResult.entryIds.length}条词条');
+          }
+          if (recallResult.topicShift) {
+            // 话题切换 → 异步提前总结，不阻塞本次发送
+            unawaited(_ref
+                .read(chronicleOrchestratorProvider)
+                .onTopicShift(chat.id, state.messages));
+          }
+        }
+      } catch (e) {
+        debugPrint('[CHRONICLE] F-7注入跳过（不影响对话）: $e');
+      }
+    }
 
     // Add chat messages with depth-based injections
     final depthEntries = worldInfoEntries
