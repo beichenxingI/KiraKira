@@ -26,7 +26,7 @@ import 'package:kirakira/presentation/providers/persona_providers.dart';
 import 'package:kirakira/domain/services/chat_export_service.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:uuid/uuid.dart';
-import 'package:kirakira/presentation/screens/chat/chat_screen.dart' show chatExportServiceProvider;
+import 'package:kirakira/presentation/providers/chat_export_provider.dart' show chatExportServiceProvider;
 import 'package:kirakira/presentation/providers/prompt_manager_providers.dart';
 import 'package:kirakira/presentation/widgets/chat/context_usage_indicator.dart';
 import '../../providers/quote_color_providers.dart';
@@ -51,7 +51,6 @@ import 'package:kirakira/domain/services/slash_command/commands/floor_commands.d
 import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:kirakira/data/models/world_info.dart' as models;
 import 'package:image_picker/image_picker.dart';
-import 'package:kirakira/presentation/screens/chat/image_picker_sheet.dart';
 import 'package:kirakira/presentation/widgets/chat/image_generation_dialog.dart';
 import 'package:kirakira/presentation/screens/chat/chat_images_screen.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
