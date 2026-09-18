@@ -487,8 +487,10 @@ if (!String.prototype.at) {
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     -webkit-tap-highlight-color: transparent;
   }
-  .chat-input-container .action-btn:active { transform: scale(0.9); }
-  /* +号菜单按钮 / 上传按钮(已移除,保留样式以防回滚):透明底,点击亮色 */
+  .chat-input-container .action-btn:active { transform: scale(0.92); }
+  .chat-input-container .send-btn:active { transform: scale(0.9); }
+  /* 图片按钮 / +号菜单按钮:透明底,点击亮色 */
+  .chat-input-container .btn-image:active,
   .chat-input-container .func-btn:active {
     background: rgba(255, 255, 255, 0.08);
     color: #E0E0E0;
@@ -3900,6 +3902,7 @@ function injectBridge(html, id, floorIdx) {
     var sendIconSend = sendBtn ? sendBtn.querySelector('.icon-send') : null;
     var sendIconStop = sendBtn ? sendBtn.querySelector('.icon-stop') : null;
     var funcBtn = document.getElementById('funcBtn');
+    var btnImage = document.getElementById('btnImage');
     var previewBar = document.getElementById('attachmentPreviewBar');
 
     // textarea 自适应高度:1~120px(与 CSS max-height 对齐)
@@ -3981,9 +3984,13 @@ function injectBridge(html, id, floorIdx) {
         if (_isVoiceMode) _exitVoiceMode();
       });
     }
-    // +号菜单按钮:桥到 Flutter inputFunc → Flutter _handleInputFunc →
-    // openFunctionPanel 桥 → JS 打开 HTML func-overlay(上下文/楼层/正则/角色/图片 等)
-    // 图片上传在 func-overlay 里的"图片"菜单项,不在输入栏单独占位
+    // 图片按钮:桥到 Flutter inputUpload → _pickImages(独立直达,不走 func-overlay)
+    if (btnImage) {
+      btnImage.addEventListener('click', function () {
+        try { sendToFlutter('inputUpload', {}); } catch (_ie) {}
+      });
+    }
+    // +号菜单按钮:桥到 Flutter inputFunc → _handleInputFunc → openFunctionPanel
     if (funcBtn) {
       funcBtn.addEventListener('click', function () {
         try { sendToFlutter('inputFunc', {}); } catch (_fe) {}
@@ -4495,7 +4502,16 @@ function injectBridge(html, id, floorIdx) {
   <!-- 待发图片预览条:Flutter 通过 inputBarState.attachments 推送 -->
   <div class="attachment-preview-bar" id="attachmentPreviewBar" style="display:none;"></div>
   <div class="input-wrapper">
-    <!-- 左:+号菜单按钮(打开 HTML func-overlay,连接上下文/楼层/正则/角色等) -->
+    <!-- 左:图片按钮(独立直达相册,不走 func-overlay) -->
+    <button class="action-btn btn-image" id="btnImage" type="button" aria-label="发送图片">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+    </button>
+    <!-- 功能菜单按钮(打开 HTML func-overlay) -->
     <button class="action-btn func-btn" id="funcBtn" type="button" aria-label="功能菜单">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
            stroke="currentColor" stroke-width="2.5" stroke-linecap="round">

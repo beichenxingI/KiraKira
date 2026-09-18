@@ -3613,7 +3613,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   // 图片上传现在走 +号菜单 → func-overlay "图片" 项 → panelAction.pickImages → _pickImages
   // 见 _bridge.on(BridgeType.panelAction) 的 case 'pickImages' 分支
   void _handleInputUpload() {
-    _pickImages();
+    _pickImages().then((_) {
+      if (!mounted) return;
+      _pushInputBarState();
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) _pushInputBarState();
+      });
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) _pushInputBarState();
+      });
+    });
   }
 
   // [聊天页大改] WebView 输入栏桥:移除某张待发图片
