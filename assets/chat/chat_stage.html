@@ -3020,16 +3020,20 @@ function injectBridge(html, id, floorIdx) {
               segFrame.setAttribute('data-html', segHtml);
               (function(f, html, id, floor){
                 var injected = injectBridge(html, id, floor > 0 ? floor - 1 : -1);
-                try {
-                  var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
-                  var url = URL.createObjectURL(blob);
-                  f.src = url;
-                  f.addEventListener('load', function onLoad(){
-                    f.removeEventListener('load', onLoad);
-                    URL.revokeObjectURL(url);
-                  });
-                } catch(e) {
+                if (injected.length <= 524288) {
                   f.srcdoc = injected;
+                } else {
+                  try {
+                    var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
+                    var url = URL.createObjectURL(blob);
+                    f.src = url;
+                    f.addEventListener('load', function onLoad(){
+                      f.removeEventListener('load', onLoad);
+                      URL.revokeObjectURL(url);
+                    });
+                  } catch(e) {
+                    f.srcdoc = injected;
+                  }
                 }
               })(segFrame, segHtml, segId, m.floor || 0);
               segsGroup.appendChild(createCardFrameWrap(segFrame, segId));
@@ -3059,16 +3063,20 @@ function injectBridge(html, id, floorIdx) {
           frame.setAttribute('data-html', m.html);
           (function(f, html, id){
             var injected = injectBridge(html, id, (m.floor ? (m.floor - 1) : -1));
-            try {
-              var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
-              var url = URL.createObjectURL(blob);
-              f.src = url;
-              f.addEventListener('load', function onLoad(){
-                f.removeEventListener('load', onLoad);
-                URL.revokeObjectURL(url);
-              });
-            } catch(e) {
+            if (injected.length <= 524288) {
               f.srcdoc = injected;
+            } else {
+              try {
+                var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
+                var url = URL.createObjectURL(blob);
+                f.src = url;
+                f.addEventListener('load', function onLoad(){
+                  f.removeEventListener('load', onLoad);
+                  URL.revokeObjectURL(url);
+                });
+              } catch(e) {
+                f.srcdoc = injected;
+              }
             }
           })(frame, m.html, m.id);
           group.appendChild(createCardFrameWrap(frame, m.id));
@@ -3352,6 +3360,31 @@ function injectBridge(html, id, floorIdx) {
     if (!frame.getAttribute('data-frame-id')) frame.setAttribute('data-frame-id', frameId);
     frame.setAttribute('data-card-id', frameId);
     w.appendChild(frame);
+    frame.addEventListener('load', function onLoad() {
+      frame.removeEventListener('load', onLoad);
+      try {
+        var doc = frame.contentDocument || frame.contentWindow.document;
+        if (!doc) return;
+        function syncHeight() {
+          if (frame.getAttribute('data-collapsed') === '1') return;
+          var h = (doc.documentElement.scrollHeight || doc.body.scrollHeight || 0);
+          if (h <= 0) return;
+          frame.style.height = (h + 4) + 'px';
+          frame.setAttribute('data-content-height', (h + 4) + 'px');
+          var wrap = frame.closest('.card-frame-wrap');
+          if (wrap) {
+            if (h + 4 > 304) { wrap.classList.add('expanded'); }
+            else { wrap.classList.remove('expanded'); }
+          }
+        }
+        syncHeight();
+        if (typeof ResizeObserver !== 'undefined') {
+          var ro = new ResizeObserver(syncHeight);
+          ro.observe(doc.documentElement);
+          frame.addEventListener('unload', function() { ro.disconnect(); }, { once: true });
+        }
+      } catch(e) {}
+    });
     var btn = document.createElement('button');
     btn.className = 'card-collapse-btn';
     btn.type = 'button';
