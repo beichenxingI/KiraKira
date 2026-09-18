@@ -125,6 +125,21 @@ class BridgeType {
   static const String settingsPanelAction = 'settingsPanelAction'; // JS→Dart: 面板内操作(保存/切换/选择/删除等)
   static const String settingsPanelClosed = 'settingsPanelClosed'; // JS→Dart: 面板已关闭(同步状态)
   static const String settingsPanelData = 'settingsPanelData';     // Dart→JS: 推送更新后的数据(如异步操作完成)
+
+  // [聊天页大改] 布局变量注入 + 动态岛通知 + 输入栏 + STT 桥接(全走 ChatBridge)
+  static const String layoutVars = 'layoutVars';       // Dart→JS: 注入 --keyboard-height / --status-bar-height / --nav-bar-height / --app-viewport-height / --safe-area-* 等 CSS 变量
+  static const String showToast = 'showToast';         // Dart→JS: 触发底部动态岛通知(icon+text)
+  static const String inputBarState = 'inputBarState'; // Dart→JS: 推送输入栏状态(generating/hasInput/attachments/sttEnabled 等),供 WebView 渲染按钮态
+  static const String sttResult = 'sttResult';         // Dart→JS: 推送 STT 识别结果(text),WebView 填入 textarea
+  static const String sendResult = 'sendResult';       // Dart→JS: 推送发送结果(成功/失败+原因),WebView 显示 toast
+  // JS→Dart 入站
+  static const String inputSend = 'inputSend';         // JS→Dart: WebView 输入栏点了发送(payload.text)
+  static const String inputStop = 'inputStop';         // JS→Dart: WebView 输入栏点了停止
+  static const String inputUpload = 'inputUpload';     // JS→Dart: WebView 点了图片上传按钮
+  static const String inputFunc = 'inputFunc';         // JS→Dart: WebView 点了功能菜单按钮
+  static const String sttStart = 'sttStart';           // JS→Dart: WebView 长按触发 STT 开始
+  static const String sttStop = 'sttStop';             // JS→Dart: WebView 松开触发 STT 停止
+  static const String inputRemoveAttachment = 'inputRemoveAttachment'; // JS→Dart: WebView 输入栏移除待发图片(index)
 }
 
 

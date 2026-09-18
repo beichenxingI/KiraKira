@@ -675,6 +675,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         'height': visible ? _keyboardHeight : 0,
       });
     }
+    // [聊天页大改] 同步布局 CSS 变量给 WebView(键盘高度/状态栏/导航栏/viewport 高度)
+    // 频率受 visible != _keyboardVisible 跳变门控,不会因每帧 metrics 抖动而刷爆桥
+    _injectLayoutVars();
   }
 
   /// [顶栏] 显隐切换(仅状态跳变时 setState,滚动事件本身在 JS 侧已收敛)
@@ -693,6 +696,31 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       'visible': _topBarVisible,
       'barHeight': _topBarVisible ? 44.0 : 0.0,
       'statusHeight': status,
+    });
+    _injectLayoutVars();
+  }
+
+  // ── [聊天页大改] 布局变量统一注入 ───────────────────────────────────────────
+  // 所有布局相关 CSS 变量(--keyboard-height / --status-bar-height / --nav-bar-height /
+  // --app-viewport-height / --safe-area-inset-top / --safe-area-inset-bottom)
+  // 集中在这一个函数里组装,经 ChatBridge.layoutVars 一次性下发。
+  // 触发时机:onLoadStop 初始注入 + didChangeMetrics(键盘/方向变化)+ _sendTopBarInsets(顶栏切换)。
+  // 不直接 evaluateJavascript:遵守 webview_chat_stage.dart:101 通信全部走 ChatBridge 的硬性规定。
+  void _injectLayoutVars() {
+    if (!mounted) return;
+    final mq = MediaQuery.of(context);
+    final statusBarHeight = mq.viewPadding.top;
+    final navBarHeight = mq.viewPadding.bottom;
+    final keyboardHeight = mq.viewInsets.bottom;
+    // visualViewport 在 WebView 里不一定可用,用实际可视高度(减去键盘)
+    final viewportHeight = mq.size.height - keyboardHeight;
+    _bridge.send(BridgeType.layoutVars, {
+      'keyboardHeight': keyboardHeight,
+      'statusBarHeight': statusBarHeight,
+      'navBarHeight': navBarHeight,
+      'viewportHeight': viewportHeight,
+      'topBarVisible': _topBarVisible,
+      'topBarHeight': _topBarVisible ? 44.0 : 0.0,
     });
   }
 
@@ -838,6 +866,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         final msgsJson = jsonEncode(_serializeMessagesForMvu());
         _controller?.evaluateJavascript(
             source: 'if(window.__emitToEngine)window.__emitToEngine("generation_started",[],$msgsJson);');
+        // [聊天页大改] 生成开始:通知 WebView 输入栏切到停止按钮态
+        _pushInputBarState();
       }
       if (_wasGenerating && !gen) {
         // [闪屏修复] 生成结束只定点刷新最后一条(把流式纯文本渲染成 Markdown/HTML),
@@ -854,6 +884,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         // [P5-9/P1] 生成结束(完成或取消)必发 GENERATION_ENDED(官方值 generation_ended),
         // 狐神"生成结束后恢复"等 listener 依赖;取消路径 cancelGeneration 也走这里,不再空转。
         _emitPresetEvent('generation_ended');
+        // [聊天页大改] 生成结束:通知 WebView 输入栏切回发送按钮态
+        _pushInputBarState();
       }
       _wasGenerating = gen;
       // 自动生图完成：消息 attachments 变化 → 刷新让新图显示。
@@ -891,6 +923,19 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         if (controller != null) {
                 _injectPresetScripts(controller);
         }
+      }
+    });
+
+    // [聊天页大改] STT 设置变化时刷新输入栏:WebView 长按 textarea 的语音条要跟随开关显隐
+    ref.listen(sttSettingsProvider, (prev, next) {
+      if (prev?.enabled != next.enabled && _webViewMounted) {
+        _pushInputBarState();
+      }
+    });
+    // [聊天页大改] STT 录音中状态变化时刷新输入栏(供 UI 状态展示,目前未加录音指示,留作后续)
+    ref.listen(sttListeningProvider, (prev, next) {
+      if (prev != next && _webViewMounted) {
+        _pushInputBarState();
       }
     });
 
@@ -975,9 +1020,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     // 那 32px,而不是 resize 平台视图 —— 守住 HC 合成性能红线,
                     // 也修掉"顶栏收回去了但那块仍是壁纸、等于没收"的问题。
                     top: 0,
-                    // 底部留出输入栏基础高度：让最后一条消息的工具栏/楼层露在输入栏上方，
-                    // 不被浮层遮住。固定值（不含面板/附件），避免动态变化触发 WebView resize。
-                    bottom: 64 + MediaQuery.viewPaddingOf(context).bottom,
+                    // [聊天页大改] WebView 铺满到底部:输入栏已迁入 WebView
+                    // (position:fixed; bottom:var(--keyboard-height)),不需要 Flutter
+                    // 侧再留 64px 占位。消息列表底部留白改由 body padding-bottom
+                    // 在 chat_stage.html 的 keyboardInsets handler 里动态计算
+                    // (input-bar 高度 + safe-area + keyboard-height),消息不再被
+                    // 输入栏遮住。
+                    bottom: 0,
                   ),
                   child: _webViewMounted
                       ? InAppWebView(
@@ -1136,6 +1185,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     // [顶栏] 页面(重)载完成(含崩溃自愈 loadData 重建)重置为显示
                     _setTopBarVisible(true);
                     _sendTopBarInsets(); // 重建后重新同步内容起始位置
+                    // [聊天页大改] 初始注入布局 CSS 变量(--keyboard-height 等)
+                    _injectLayoutVars();
                     await _injectCompatLibs(c); // 注入第三方库到外层window
                     await _injectMacroValues(c); // 注入宏替换用的角色名/用户名
                     await _injectRegexRules(c); // [P6-5.2] 正则规则快照(引擎房烘焙用)
@@ -1204,7 +1255,19 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                           _bridge.send(BridgeType.scrollToFloor, {'floor': f});
                           break;
                         case 'pickImages':
-                          _pickImages();
+                          // [聊天页大改] 选完图后多次推送 inputBarState,
+                          // 因 _addAttachmentFromXFile 的 base64 缓存是 fire-and-forget
+                          // 异步,立即推送拿不到,延迟 500/1500ms 再推让缓存就绪
+                          await _pickImages();
+                          if (mounted) {
+                            _pushInputBarState();
+                            Future.delayed(const Duration(milliseconds: 500), () {
+                              if (mounted) _pushInputBarState();
+                            });
+                            Future.delayed(const Duration(milliseconds: 1500), () {
+                              if (mounted) _pushInputBarState();
+                            });
+                          }
                           break;
                         case 'exportChat':
                           _exportChatRecord();
@@ -1260,9 +1323,41 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.on(BridgeType.settingsPanelClosed, (payload) {
                       debugPrint('[浮窗化] settings panel closed: ${payload['panel']}');
                     });
+                    // [聊天页大改] WebView 输入栏桥接入站(JS→Flutter)
+                    _bridge.on(BridgeType.inputSend, (payload) {
+                      final text = (payload['text'] as String?) ?? '';
+                      if (text.trim().isEmpty) return;
+                      if (ref.read(activeChatProvider).isGenerating) return;
+                      // 把 WebView textarea 的 text 同步到 _inputController,_sendMessage 读它
+                      _inputController.text = text;
+                      _sendMessage();
+                    });
+                    _bridge.on(BridgeType.inputStop, (payload) {
+                      HapticFeedback.mediumImpact();
+                      ref.read(activeChatProvider.notifier).cancelGeneration();
+                    });
+                    _bridge.on(BridgeType.inputUpload, (payload) {
+                      _handleInputUpload();
+                    });
+                    _bridge.on(BridgeType.inputFunc, (payload) {
+                      _handleInputFunc();
+                    });
+                    _bridge.on(BridgeType.inputRemoveAttachment, (payload) {
+                      final idx = (payload['index'] as num?)?.toInt() ?? -1;
+                      _handleInputRemoveAttachment(idx);
+                    });
+                    // [聊天页大改] STT 桥接入站(JS→Flutter,WebView 长按 textarea 触发)
+                    _bridge.on(BridgeType.sttStart, (payload) {
+                      _sttStart();
+                    });
+                    _bridge.on(BridgeType.sttStop, (payload) {
+                      _sttFinish();
+                    });
                     await Future.delayed(const Duration(milliseconds: 350));
                     if (!mounted) return;
                     await _pushMessages();
+                    // [聊天页大改] WebView 就绪后推送输入栏初始状态(generating/stt/attachments)
+                    _pushInputBarState();
                     // [P3-E3] 存量变量快照推送: setMessages 建 iframe → patch 索要快照(__thRequestSnap)
                     // 前先把已落库的 MvuData 逐条广播, card 门控(getMvuData/getAllVariables)才有数据。
                     await _pushInitialVarSnapshots();
@@ -1285,17 +1380,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                 ),
               // 底部浮层：功能面板 + 输入栏，bottom 锚定。
               // 面板展开往上盖住 WebView 内容，WebView 尺寸恒定、永不 resize —— 彻底消除展开/收起顿卡。
-              // [A1] AnimatedPadding 顺滑化:键盘弹/收不再硬跳
-              Align(
+              // [聊天页大改] 输入栏已迁入 WebView(chat_stage.html .chat-input-container),
+              // 通过 --keyboard-height CSS 变量自动跟随键盘(见 _injectLayoutVars)。
+              // 功能面板也早就在 WebView 内(见 openFunctionPanel 桥),
+              // Flutter 侧底部浮层不再需要任何 widget,这里用 SizedBox 占位避免布局变动。
+              const Align(
                 alignment: Alignment.bottomCenter,
-                child: AnimatedPadding(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.only(
-                    bottom: _keyboardVisible ? _keyboardHeight : 0,
-                  ),
-                  child: _buildInputBar(isGenerating),
-                ),
+                child: SizedBox.shrink(),
               ),
             ],
         ),
@@ -3485,196 +3576,83 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   }
 
   // ── 底部输入栏 ──────────────────────────────────────────────────────────────
+  // [聊天页大改] 输入栏已迁入 WebView(chat_stage.html .chat-input-container)
+  // 通过 --keyboard-height CSS 变量跟随键盘,所有交互走 ChatBridge:
+  //   inputSend / inputStop / inputUpload / inputFunc / inputRemoveAttachment
+  // Flutter 通过 inputBarState 推送状态(generating/attachments/tokenCount/stt 等)。
+  // 原 Flutter 输入栏 UI 不再渲染,相关状态(_inputController/_pendingAttachments/
+  // _hasInput/_TokenCountBadge/_SttMicButton 等)保留以便脚本 #send_but 等流程复用。
 
   Widget _buildInputBar(bool isGenerating) {
-    return SafeArea(
-      top: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 待发图片预览条：纯 Flutter，不碰 WebView
-          if (_pendingAttachments.isNotEmpty)
-            Container(
-              height: 76,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              alignment: Alignment.centerLeft,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _pendingAttachments.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, i) {
-                  final att = _pendingAttachments[i];
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
-                        child: Image.file(
-                          File(att.path),
-                          width: 64,
-                          height: 64,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Positioned(
-                        right: -6,
-                        top: -6,
-                        child: GestureDetector(
-                          onTap: () =>
-                              setState(() => _pendingAttachments.removeAt(i)),
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.close,
-                                size: 18, color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          // 输入行：半透明深色胶囊
-          Container(
-            margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            decoration: BoxDecoration(
-              color: activeGlassPalette.glassTint.withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(20), // [A1] 输入框圆角:20px(比气泡14px更圆润,接近iOS Messages)
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            child: Row(
-              // [发送] 垂直居中:此前 end 对齐导致按钮贴底"往下歪"
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                IconButton(
-                  onPressed: () {
-                    if (_funcPanelOpen) {
-                      _bridge.send(BridgeType.closeFunctionPanel, {});
-                      setState(() => _funcPanelOpen = false);
-                      return;
-                    }
-                    final usage = ref.read(contextUsageProvider);
-                    final charId =
-                        ref.read(activeChatProvider).character?.id ?? '';
-                    _bridge.send(BridgeType.openFunctionPanel, {
-                      'contextUsed': usage?.totalTokens ?? 0,
-                      'contextMax': usage?.maxContext ?? 0,
-                      'contextPct': usage?.usagePercentage ?? 0,
-                      'contextLevel': usage?.level.name ?? 'low',
-                      'charId': charId,
-                      'components': (usage?.components ?? [])
-                          .map((c) => {'name': c.name, 'tokens': c.tokenCount})
-                          .toList(),
-                    });
-                    setState(() => _funcPanelOpen = true);
-                  },
-                  icon: Icon(_funcPanelOpen
-                      ? Icons.close_rounded
-                      : Icons.auto_awesome),
-                  color: activeGlassPalette.secondaryText,
-                ),
-                Expanded(
-                  // [A1] Shift+Enter=发送,Enter=换行(硬件键盘;手机软键盘回车即换行,发送走右侧按钮)。
-                  // CallbackShortcuts 挂在焦点链上,无需额外 FocusNode。
-                  child: CallbackShortcuts(
-                    bindings: <ShortcutActivator, VoidCallback>{
-                      const SingleActivator(LogicalKeyboardKey.enter, shift: true):
-                          _sendMessage,
-                    },
-                    child: TextField(
-                      controller: _inputController,
-                      enabled: !isGenerating,
-                      focusNode: _inputFocus,
-                      maxLines: 5,
-                      minLines: 1,
-                      // [A1] send→newline:回车不再发送,改为插入换行
-                      textInputAction: TextInputAction.newline,
-                      onEditingComplete: () {
-                        // 吞掉默认"完成编辑"行为(防意外失焦),换行交给 newline action
-                      },
-                      style: TextStyle(color: activeGlassPalette.primaryText),
-                      cursorColor: activeGlassPalette.accent,
-                      decoration: InputDecoration(
-                        // [占位] 默认"输入消息";AI 生成中禁输并提示进度
-                        hintText: isGenerating ? 'AI回复中…' : '输入消息',
-                        hintStyle: TextStyle(
-                          color: activeGlassPalette.secondaryText
-                              .withValues(alpha: 0.7),
-                        ),
-                        filled: false,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 10,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                // [极客Core迁移 P5.3] 分词器计数接线:showTokenCount 开启时
-                // 在输入框旁显示当前输入的 token 估算值(数据源 tokenCountEstimateProvider)
-                _TokenCountBadge(
-                  controller: _inputController,
-                  color: activeGlassPalette.secondaryText,
-                ),
-                // [STT] 按住说话→松开识别→文字填入输入框(设置页 STT 开关控制显隐)
-                if (ref.watch(sttSettingsProvider.select((s) => s.enabled)) &&
-                    !isGenerating)
-                  _SttMicButton(
-                    color: activeGlassPalette.secondaryText,
-                    recording: ref.watch(sttListeningProvider),
-                    onStart: _sttStart,
-                    onFinish: _sttFinish,
-                    onCancel: _sttCancel,
-                  ),
-                if (isGenerating)
-                  _CircleActionButton(
-                    icon: Icons.stop_rounded,
-                    background: const Color(0xFFE5484D), // 生成中：红色停止
-                    foreground: Colors.white,
-                    tooltip: '停止生成',
-                    onTap: () {
-                      HapticFeedback.mediumImpact();
-                      ref
-                          .read(activeChatProvider.notifier)
-                          .cancelGeneration();
-                    },
-                  )
-                else
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _hasInput,
-                    builder: (context, hasInput, _) => _CircleActionButton(
-                      // [发送] 纸飞机图标 + 状态样式:有字=主题亮色可点,无字=灰禁用
-                      icon: Icons.send_rounded,
-                      background: hasInput
-                          ? activeGlassPalette.accent
-                          : GlassDesign.controlFill,
-                      foreground: hasInput
-                          ? const Color(0xFF06111A)
-                          : activeGlassPalette.secondaryText,
-                      tooltip: '发送',
-                      onTap: hasInput
-                          ? () {
-                              HapticFeedback.lightImpact();
-                              _sendMessage();
-                            }
-                          : null,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SizedBox.shrink();
   }
+
+  // [聊天页大改] WebView 输入栏桥:功能菜单按钮(原 Flutter IconButton 的 onPressed 逻辑)
+  // 现在由 WebView 的 #funcBtn 调 inputFunc 桥触发,这里实现原逻辑。
+  void _handleInputFunc() {
+    if (_funcPanelOpen) {
+      _bridge.send(BridgeType.closeFunctionPanel, {});
+      setState(() => _funcPanelOpen = false);
+      return;
+    }
+    final usage = ref.read(contextUsageProvider);
+    final charId = ref.read(activeChatProvider).character?.id ?? '';
+    _bridge.send(BridgeType.openFunctionPanel, {
+      'contextUsed': usage?.totalTokens ?? 0,
+      'contextMax': usage?.maxContext ?? 0,
+      'contextPct': usage?.usagePercentage ?? 0,
+      'contextLevel': usage?.level.name ?? 'low',
+      'charId': charId,
+      'components': (usage?.components ?? [])
+          .map((c) => {'name': c.name, 'tokens': c.tokenCount})
+          .toList(),
+    });
+    setState(() => _funcPanelOpen = true);
+  }
+
+  // [聊天页大改] WebView 输入栏桥:图片上传按钮(已移除,保留方法以防回滚)
+  // 图片上传现在走 +号菜单 → func-overlay "图片" 项 → panelAction.pickImages → _pickImages
+  // 见 _bridge.on(BridgeType.panelAction) 的 case 'pickImages' 分支
+  void _handleInputUpload() {
+    _pickImages();
+  }
+
+  // [聊天页大改] WebView 输入栏桥:移除某张待发图片
+  void _handleInputRemoveAttachment(int index) {
+    if (index < 0 || index >= _pendingAttachments.length) return;
+    setState(() => _pendingAttachments.removeAt(index));
+    _pushInputBarState();
+  }
+
+  // [聊天页大改] 把当前输入栏状态推给 WebView(generating / 附件 / token 计数 / STT 开关)
+  // 触发时机:isGenerating 变化 / 附件增删 / STT 开关变化 / STT 录音中变化
+  void _pushInputBarState() {
+    if (!mounted) return;
+    final isGenerating = ref.read(activeChatProvider).isGenerating;
+    final showTokenCount = ref.read(tokenizerSettingsProvider).showTokenCount;
+    final text = _inputController.text.trim();
+    String? tokenCount;
+    if (showTokenCount && text.isNotEmpty) {
+      // tokenCountEstimateProvider 是 Provider.family<int, String>,直接返回 int
+      final estimate = ref.read(tokenCountEstimateProvider(text));
+      tokenCount = '$estimate';
+    }
+    final atts = <Map<String, String>>[];
+    for (final a in _pendingAttachments) {
+      final b64 = _attachmentB64Cache[a.path];
+      if (b64 != null && b64.isNotEmpty) {
+        atts.add({'thumb': 'data:image/jpeg;base64,$b64'});
+      }
+    }
+    _bridge.send(BridgeType.inputBarState, {
+      'generating': isGenerating,
+      'tokenCount': tokenCount ?? '',
+      'attachments': atts,
+      'sttEnabled': ref.read(sttSettingsProvider).enabled,
+      'sttListening': ref.read(sttListeningProvider),
+    });
+  }
+
 
   // [发送] 同步"输入框是否有内容"到 _hasInput(ValueNotifier 值不变不通知,
   // 只有 true↔false 跳变时重建按钮,不逐键重建整个 build)
@@ -3710,11 +3688,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     ref.read(sttClearResultProvider)();
     final text = result?.text.trim() ?? '';
     if (text.isEmpty) return;
-    // 追加到现有输入内容之后
+    // [聊天页大改] 输入栏在 WebView 里,STT 结果要桥回 WebView 填到 textarea
+    // 同时仍同步到 _inputController,以便 #send_but 等脚本流程读 _inputController.text 时一致
     _inputController.text = '${_inputController.text}$text';
     _inputController.selection = TextSelection.fromPosition(
       TextPosition(offset: _inputController.text.length),
     );
+    _bridge.send(BridgeType.sttResult, {'text': text});
+    _pushInputBarState();
   }
 
   Future<void> _sttCancel() async {
@@ -4792,12 +4773,24 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         _confirmAndRun(
           '重试',
           '将删除这条之后的内容并重新生成，确定吗？',
-          () => notifier.retryMessage(id, config),
+          () async {
+            await notifier.retryMessage(id, config);
+            // [聊天页大改] 重试触发后:WebView 内动态岛提示
+            if (mounted) {
+              _bridge.send(BridgeType.showToast, {'icon': '🔄', 'text': '正在重试'});
+            }
+          },
         );
         break;
       case 'reroll':
         // 保留旧版本，生成一个新版本（新增 swipe）
-        notifier.regenerateMessage(id, config);
+        // [聊天页大改] 改 fire-and-forget 异步:regenerateMessage 是 Future,完成后提示
+        () async {
+          await notifier.regenerateMessage(id, config);
+          if (mounted) {
+            _bridge.send(BridgeType.showToast, {'icon': '✨', 'text': '重新生成中'});
+          }
+        }();
         break;
       case 'swipePrev':
         _switchSwipe(id, -1);
@@ -4968,6 +4961,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (result != null) {
       await ref.read(activeChatProvider.notifier).editMessage(id, result);
       await _pushMessages();
+      // [聊天页大改] 编辑保存:WebView 动态岛提示
+      if (mounted) {
+        _bridge.send(BridgeType.showToast, {'icon': '✏️', 'text': '消息已修改'});
+      }
     }
   }
 
@@ -4987,6 +4984,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       // [闪屏修复] 不再显式全量 push:deleteMessage 改 state 后 ref.listen 会按变化类型
       // 分流(中间删除→结构变化全量重排楼层;尾部截断→定点摘除),显式再推一次等于双重清屏
       await ref.read(activeChatProvider.notifier).deleteMessage(id);
+      // [聊天页大改] 删除完成:WebView 动态岛提示
+      if (mounted) {
+        _bridge.send(BridgeType.showToast, {'icon': '🗑️', 'text': '消息已删除'});
+      }
     }
   }
 

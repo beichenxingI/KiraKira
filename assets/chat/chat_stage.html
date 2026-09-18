@@ -79,22 +79,59 @@ if (!String.prototype.at) {
   .quote-q { color: var(--quote-q-color, #FFA726); font-weight: 500; }
   .quote-p { color: var(--quote-p-color, #29B6F6); font-weight: 500; }
   .msg.has-frames { display: block; max-width: 100%; width: 100%; padding: 0; background: none; border: none; box-shadow: none; }
+  /* [聊天页大改] 气泡 P0 样式升级:深阴影 + 大圆角 + 行高呼吸感
+     借鉴成熟聊天端的经验:大面积轻阴影(0 4px 16px .08)比小阴影更"浮",
+     配 1px 半透白边形成卡片层次感。气泡宽度仍 max-width:78%。 */
   .msg {
     display: inline-block; max-width: 78%;
-    margin: 14px 0; padding: 16px 18px; border-radius: 14px;
+    margin: 14px 0; padding: 12px 16px; border-radius: 18px;
     word-wrap: break-word; overflow-wrap: break-word;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-  }
-  .msg {
-    display: inline-block; max-width: 78%;
-    margin: 14px 0; padding: 16px 18px; border-radius: 14px;
-    word-wrap: break-word; overflow-wrap: break-word;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     color: #EAEAEA;
+    font-size: 15px; line-height: 1.6;
+    box-sizing: border-box;
+    border: 1px solid rgba(255,255,255,0.06);
   }
-    .msg-group.user { text-align: right; }
-   .msg-group.user .msg { text-align: left; }
-   .msg-group.assistant { text-align: left; }
+  .msg.user {
+    background: rgba(40,42,50,0.72);
+    border: 1px solid rgba(255,255,255,0.10);
+  }
+  .msg.assistant {
+    background: rgba(24,26,32,0.68);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+  .msg.system { background: rgba(24,26,32,0.45); font-style: italic; opacity: .8; }
+  .msg p { margin: 6px 0; }
+  .msg strong { font-weight: 600; color: #FFFFFF; }
+  .msg em { color: #D6C8FF; }
+  .msg code {
+    /* [聊天页大改] inline code 升级:渐变背景 + 主色文字 + 细边,质感比纯灰底更精致 */
+    background: linear-gradient(135deg, rgba(232,149,109,0.12), rgba(232,149,109,0.08));
+    color: #e8956d;
+    padding: 2px 8px;
+    border-radius: 6px; font-size: 13px;
+    border: 1px solid rgba(232,149,109,0.15);
+    font-family: 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+  }
+  .msg pre {
+    /* [聊天页大改] 代码块升级:深色渐变 + 14/16 padding + 12px 圆角 + 12px 阴影
+       替代原 rgba(0,0,0,.28) 纯色底,质感更"卡片" */
+    background: linear-gradient(145deg, rgba(45,45,60,0.95), rgba(35,35,50,0.98));
+    padding: 14px 16px; border-radius: 12px;
+    overflow-x: auto;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    margin: 0.75em 0;
+  }
+  .msg pre code {
+    background: none; padding: 0; border: none;
+    color: #E0E0E0; font-size: 0.85em; line-height: 1.5;
+  }
+  .msg ul, .msg ol { padding-left: 20px; margin: 6px 0; }
+  .msg blockquote {
+    border-left: 3px solid rgba(124,77,255,0.6);
+    margin: 6px 0; padding-left: 12px; opacity: .85;
+  }
   /* 回到底部悬浮按钮：离开底部时显示,贴底自动隐藏(显隐在 scroll 监听里控制) */
   #btn-scroll-bottom {
     position: fixed; right: 16px; bottom: 96px;
@@ -160,32 +197,10 @@ if (!String.prototype.at) {
   }
   .bottom-sheet-item:active { background: rgba(255,255,255,0.08); }
   .bottom-sheet-item.danger { color: #FF6B6E; }
-  .msg.user {
-    background: rgba(40,42,50,0.72);
-    border: 1px solid rgba(255,255,255,0.10);
-  }
-  .msg.assistant {
-    background: rgba(24,26,32,0.68);
-    border: 1px solid rgba(255,255,255,0.07);
-  }
-  .msg.system { background: rgba(24,26,32,0.45); font-style: italic; opacity: .8; }
-  .msg p { margin: 6px 0; }
-  .msg strong { font-weight: 600; color: #FFFFFF; }
-  .msg em { color: #D6C8FF; }
-  .msg code {
-    background: rgba(255,255,255,0.12); padding: 2px 6px;
-    border-radius: 6px; font-size: 13px;
-  }
-  .msg pre {
-    background: rgba(0,0,0,0.28); padding: 12px; border-radius: 12px;
-    overflow-x: auto;
-  }
-  .msg pre code { background: none; padding: 0; }
-  .msg ul, .msg ol { padding-left: 20px; margin: 6px 0; }
-  .msg blockquote {
-    border-left: 3px solid rgba(124,77,255,0.6);
-    margin: 6px 0; padding-left: 12px; opacity: .85;
-  }
+  /* [聊天页大改] 用户/助手气泡左右对齐:用户靠右(气泡本身仍左对齐文字,因外层右对齐) */
+  .msg-group.user { text-align: right; }
+  .msg-group.user .msg { text-align: left; }
+  .msg-group.assistant { text-align: left; }
   .msg-header {
     display: flex; align-items: center; gap: 8px;
     margin-bottom: 6px; padding: 0 2px;
@@ -340,6 +355,244 @@ if (!String.prototype.at) {
     100% { transform: rotate(360deg); }   /* 后 3/4 停住 → 转一下、停一下 */
   }
   .thinking .star { animation: think-spin 1.8s ease-in-out infinite; }
+
+  /* [聊天页大改] AI 思考三点动画:scale(0)↔scale(1),1.4s,错位 -0.32/-0.16s
+     替换原 star spinner,在 assistant 气泡空内容时显示,更接近成熟聊天端的打字指示 */
+  .typing-indicator {
+    display: flex; align-items: center; justify-content: center;
+    gap: 4px; padding: 4px 2px; height: 24px;
+  }
+  .typing-indicator span {
+    width: 6px; height: 6px;
+    background: rgba(255,255,255,0.55);
+    border-radius: 50%;
+    animation: typingBounce 1.4s infinite ease-in-out both;
+  }
+  .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+  .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0s; }
+  @keyframes typingBounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40%           { transform: scale(1); }
+  }
+
+  /* [聊天页大改] 消息操作按钮组入场:渐入 + 轻微上移
+     替代硬切换,避免按钮突然出现造成视觉跳变 */
+  .action-buttons { animation: fadeInActions 0.3s ease-out; }
+  @keyframes fadeInActions {
+    0% { opacity: 0; transform: translateY(-5px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  /* [聊天页大改] 消息操作按钮统一切缩放反馈 + 弹性回弹曲线
+     所有 .msg-action-btn 点击时 scale(.9),transition 用 back-overshoot 曲线
+     (cubic-bezier(.175,.885,.32,1.275))模拟物理弹簧,松开弹过一点再回弹 */
+  .msg-action-btn {
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .msg-action-btn:active { transform: scale(0.9); }
+
+  /* [聊天页大改] 模态统一出入场动画:进 0.24s/出 0.18s(进慢出快),easeOutQuint 曲线
+     from/to 状态:translateY(14px) scale(.97) + opacity 0
+     14px+0.97 组合是经验值,比 20px+0.95 自然,比 10px+0.98 又明显 */
+  .modal-fade-enter-active {
+    transition: opacity 0.24s cubic-bezier(0.25, 1, 0.5, 1),
+                transform 0.24s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .modal-fade-leave-active {
+    transition: opacity 0.18s cubic-bezier(0.25, 1, 0.5, 1),
+                transform 0.18s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .modal-fade-enter-from,
+  .modal-fade-leave-to {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+
+  /* [聊天页大改] 底部动态岛通知:替代 SnackBar
+     定位:bottom = 键盘高度 + 输入栏预留 80px + 安全区,跟随 --keyboard-height 上移
+     动画:opacity + translateY(20px→0) + scale(.9→1),0.22s easeOutQuint
+     暗底毛玻璃(rgba(30,30,30,.92) + blur 12px),不抢视觉 */
+  .dynamic-island-toast {
+    position: fixed;
+    bottom: calc(var(--keyboard-height, 0px) + 80px + var(--safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%) translateY(20px) scale(0.9);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    background: rgba(30, 30, 30, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s cubic-bezier(0.25, 1, 0.5, 1),
+                transform 0.22s cubic-bezier(0.25, 1, 0.5, 1),
+                bottom 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+  .dynamic-island-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  .dynamic-island-toast .toast-icon {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  /* [聊天页大改] 输入栏容器:fixed bottom 跟随 --keyboard-height
+     键盘收起秒收回的曲线 .165,.84,.44,1(easeOutQuart),0.2s
+     容器自身不加背景,只做位置控制;背景由 .input-wrapper 提供 */
+  .chat-input-container {
+    position: fixed;
+    bottom: var(--keyboard-height, 0px);
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    padding: 10px 12px;
+    padding-bottom: max(10px, var(--safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    background: transparent;
+    transition: bottom 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+  /* 输入栏内层:暗底胶囊,圆角 20px(与气泡 18px 协调)
+     align-items:flex-end 让 textarea 多行时按钮贴底,不飘 */
+  .chat-input-container .input-wrapper {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 8px 8px 8px 12px;
+    background: rgba(20, 22, 28, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.18);
+    box-sizing: border-box;
+  }
+  /* 统一按钮尺寸 40x40 + min-width 防压缩 + 弹性回弹曲线 */
+  .chat-input-container .action-btn {
+    width: 40px; height: 40px; min-width: 40px;
+    border: none; border-radius: 50%;
+    background: transparent;
+    color: #8A8A8A;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .chat-input-container .action-btn:active { transform: scale(0.9); }
+  /* +号菜单按钮 / 上传按钮(已移除,保留样式以防回滚):透明底,点击亮色 */
+  .chat-input-container .func-btn:active {
+    background: rgba(255, 255, 255, 0.08);
+    color: #E0E0E0;
+  }
+  /* 发送按钮:主色底 + 白字,无字时灰禁用 */
+  .chat-input-container .send-btn {
+    background: #e8956d;
+    color: #FFFFFF;
+  }
+  .chat-input-container .send-btn:disabled {
+    background: rgba(255, 255, 255, 0.06);
+    color: #5A5A5A;
+    cursor: not-allowed;
+    transform: none;
+  }
+  /* 生成中状态:停止按钮 = 红色底 */
+  .chat-input-container .send-btn.is-generating {
+    background: #E5484D;
+  }
+  .chat-input-container .send-btn.is-generating:disabled {
+    background: rgba(229, 72, 77, 0.5);
+  }
+  /* 中间输入区:textarea 自适应高度,最大 120px 后内部滚动 */
+  .chat-input-container .input-area-wrap {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+  }
+  .chat-input-container .chat-textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1.4;
+    color: #EAEAEA;
+    max-height: 120px;
+    overflow-y: auto;
+    padding: 8px 4px;
+    box-sizing: border-box;
+  }
+  .chat-input-container .chat-textarea::placeholder {
+    color: #5A5A5A;
+  }
+  /* 语音条(默认隐藏,长按 textarea 触发) */
+  .chat-input-container .voice-bar {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    animation: fadeInVoiceBar 0.18s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .chat-input-container .voice-wave {
+    display: flex; align-items: center; gap: 3px;
+  }
+  .chat-input-container .voice-wave span {
+    width: 3px; border-radius: 999px;
+    background: #e8956d;
+    animation: voiceWave 0.8s ease-in-out infinite alternate;
+  }
+  @keyframes voiceWave {
+    from { transform: scaleY(1); opacity: 0.7; }
+    to   { transform: scaleY(1.6); opacity: 1; }
+  }
+  @keyframes fadeInVoiceBar {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .chat-input-container .voice-hint {
+    font-size: 13px;
+    color: #8A8A8A;
+  }
+  /* 待发图片预览条:水平滚动 */
+  .chat-input-container .attachment-preview-bar {
+    display: flex; gap: 8px;
+    margin-bottom: 6px;
+    padding: 4px 4px 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chat-input-container .attachment-preview-bar::-webkit-scrollbar { display: none; }
+  .chat-input-container .att-thumb {
+    position: relative;
+    width: 64px; height: 64px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .chat-input-container .att-thumb img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .chat-input-container .att-thumb .att-remove {
+    position: absolute; top: -6px; right: -6px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    border: 2px solid rgba(255,255,255,0.86);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+  }
   .func-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;
     z-index:9998;align-items:flex-end;}
   .func-panel{width:100%;background:#12141C;border-radius:18px 18px 0 0;
@@ -2823,7 +3076,7 @@ function injectBridge(html, id, floorIdx) {
           var c = document.createElement('div');
           c.innerHTML = (m.html && m.html.trim() !== '')
             ? m.html
-            : '<div class="thinking"><span class="star">⭐</span>思考中……</div>';
+            : '<div class="typing-indicator"><span></span><span></span><span></span></div>';
           wrap.appendChild(c);
           // EJS 渲染失败标红
           if (m.ejsError) {
@@ -2964,17 +3217,25 @@ function injectBridge(html, id, floorIdx) {
   function scrollToBottomWhenStable() {
     var root = document.getElementById('__kira_root');
 
-    // 立即滚到当前底部
+    // [聊天页大改] 改为 RAF 循环直跳,直到高度稳定 2 帧或跑满 500ms 退出
+    // 原先用固定时点补滚(立即+120ms+400ms),流式输出时若内容持续增长,
+    // 补滚时点之间会"追着跑"产生视觉抖动;RAF 循环每帧直跳 scrollTop=scrollHeight
+    // 即使内容持续撑开也始终贴底,用户感觉"AI 在吐字,气泡不动"而非"画面追底"
+    var _stableFrames = 0;
+    var _lastScrollTop = -1;
+    var _startTime = Date.now();
+    var MAX_DURATION = 500; // 与成熟聊天端对齐:流式期间最多跑 500ms
+
     function snapBottom() {
-      if (!__stickBottom || __scrollAnchor !== null) return; // 用户翻历史时不打扰;锚点待恢复期间不拽底(加固A2)
-      __programScroll++; // 开闸：标记接下来是程序触发的滚动
+      if (!__stickBottom || __scrollAnchor !== null) return; // 用户翻历史时不打扰;锚点待恢复期间不拽底
+      __programScroll++; // 开闸:标记接下来是程序触发的滚动
       var last = root.lastElementChild;
       if (last) {
         last.scrollIntoView({behavior: 'instant', block: 'end'});
       } else {
         window.scrollTo(0, document.body.scrollHeight);
       }
-      // 下一帧关闸，容忍这次程序滚动引发的 scroll 事件
+      // 下一帧关闸,容忍这次程序滚动引发的 scroll 事件
       requestAnimationFrame(function () {
         if (__programScroll > 0) __programScroll--;
         syncBottomButton(); // 闸门吞了滚动事件,显式同步一次按钮显隐
@@ -2983,21 +3244,35 @@ function injectBridge(html, id, floorIdx) {
 
     snapBottom();
 
-    // 异步内容（iframe 卡片 / 图片）加载完会改变文档高度，
-    // 每个加载完成后补滚一次，避免撑开后视口相对上移（发送后"上跳"）
+    // 异步内容(iframe 卡片 / 图片)加载完会改变文档高度,
+    // 每个加载完成后补滚一次,避免撑开后视口相对上移(发送后"上跳")
     var media = root.querySelectorAll('iframe, img');
     for (var i = 0; i < media.length; i++) {
       var el = media[i];
-      // 已加载完的 img 直接跳过；未完成的挂 load 监听
+      // 已加载完的 img 直接跳过;未完成的挂 load 监听
       if (el.tagName === 'IMG' && el.complete) continue;
       el.addEventListener('load', snapBottom, {once: true});
       el.addEventListener('error', snapBottom, {once: true});
     }
 
-    // 兜底：布局稳定需要几帧，延迟再补滚两次（仍受 __stickBottom 约束）
-    requestAnimationFrame(snapBottom);
-    setTimeout(snapBottom, 120);
-    setTimeout(snapBottom, 400);
+    // RAF 循环:每帧检查 scrollTop 是否稳定,连续 2 帧稳定则退出
+    function rafLoop() {
+      snapBottom();
+      var cur = window.scrollY || 0;
+      var target = document.body.scrollHeight - window.innerHeight;
+      // 离目标 < 2px 且与上一帧相同 = 这帧没动 = 稳定一次
+      if (Math.abs(cur - target) < 2 && cur === _lastScrollTop) {
+        _stableFrames++;
+        if (_stableFrames >= 2) return; // 连续 2 帧稳定,退出
+      } else {
+        _stableFrames = 0;
+      }
+      _lastScrollTop = cur;
+      if (Date.now() - _startTime < MAX_DURATION) {
+        requestAnimationFrame(rafLoop);
+      }
+    }
+    requestAnimationFrame(rafLoop);
   }
   // 智能滚动跟随：记录用户是否贴在底部
   var __stickBottom = true;
@@ -3516,10 +3791,23 @@ function injectBridge(html, id, floorIdx) {
     }
   });  // [键盘] 键盘显隐:body 底部 padding 补偿(WebView 几何恒定,不加 padding 时
   // 贴底用户的最新消息落在键盘后方且已到滚动上限,永远滚不出来)
+  // [聊天页大改] 输入栏已迁入 WebView(position:fixed),body padding-bottom 必须
+  // 始终预留输入栏高度 + safe-area,否则最后一条消息的工具栏会被输入栏遮住。
+  // 键盘弹出时再额外加键盘高度,让被键盘遮住的最新消息可滚出。
+  // 估算:输入栏高度 ≈ 60px(40px 按钮 + 10px 上下 padding + 10px gap)
+  //      + safe-area-inset-bottom(由 layoutVars 桥注入)
   registerBridgeHandler('keyboardInsets', function (p) {
     var kb = (p && p.visible) ? (p.height || 0) : 0;
-    document.body.style.paddingBottom = kb > 0 ? kb + 'px' : '';
-    try { sendToFlutter('log', { text: '[键盘] visible=' + (p && p.visible) + ' height=' + kb }); } catch (_ke0) {}
+    var safeBottom = 0;
+    try {
+      safeBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom') || '0', 10) || 0;
+    } catch (_sb) {}
+    var inputBarReserve = 60; // 输入栏基础高度(含 padding)
+    // body padding-bottom = 输入栏高度 + safe-area + 键盘高度
+    // - 键盘未弹起:60 + safe-area,消息能滚过输入栏,工具栏露出
+    // - 键盘弹起:60 + safe-area + kb,消息能滚过键盘 + 输入栏
+    document.body.style.paddingBottom = (kb + inputBarReserve + safeBottom) + 'px';
+    try { sendToFlutter('log', { text: '[键盘] visible=' + (p && p.visible) + ' height=' + kb + ' bodyPad=' + (kb + inputBarReserve + safeBottom) }); } catch (_ke0) {}
     if (kb > 0 && __stickBottom) {
       // 贴底用户:补滚一次让最新消息露出键盘上沿
       __programScroll++;
@@ -3530,6 +3818,253 @@ function injectBridge(html, id, floorIdx) {
       });
     }
   });
+  // [聊天页大改] 布局 CSS 变量统一注入
+  // Flutter 侧 _injectLayoutVars 把所有几何值一次性下发,这里只负责落到 documentElement
+  // 变量: --keyboard-height / --status-bar-height / --nav-bar-height
+  //       --app-viewport-height / --safe-area-inset-top / --safe-area-inset-bottom
+  //       --top-bar-visible / --top-bar-height(供 input container / dynamic island / modal 定位用)
+  registerBridgeHandler('layoutVars', function (p) {
+    try {
+      var r = document.documentElement.style;
+      if (!p) return;
+      // 键盘高度(px,0=未弹起):输入栏 bottom 跟随,动态岛 bottom 跟随
+      r.setProperty('--keyboard-height', (p.keyboardHeight || 0) + 'px');
+      // 状态栏高度:顶部安全区
+      r.setProperty('--status-bar-height', (p.statusBarHeight || 0) + 'px');
+      // 导航栏高度:底部安全区(手势条/虚拟键)
+      r.setProperty('--nav-bar-height', (p.navBarHeight || 0) + 'px');
+      // WebView 实际可视高度(已减键盘):模态 max-height 用
+      r.setProperty('--app-viewport-height', (p.viewportHeight || window.innerHeight) + 'px');
+      // safe-area 别名(供 CSS env() fallback 链:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))
+      r.setProperty('--safe-area-inset-top', (p.statusBarHeight || 0) + 'px');
+      r.setProperty('--safe-area-inset-bottom', (p.navBarHeight || 0) + 'px');
+      // 顶栏显隐(供需要避让顶栏的浮层判断)
+      r.setProperty('--top-bar-visible', p.topBarVisible ? '1' : '0');
+      r.setProperty('--top-bar-height', (p.topBarHeight || 0) + 'px');
+      // [聊天页大改] 同步设置 body padding-bottom,保证首屏(键盘未弹起时)
+      // 最后一条消息的工具栏不被输入栏遮住。
+      // 公式与 keyboardInsets handler 一致:输入栏 60px + safe-area + 键盘高度
+      // 这里读不到 keyboard height 时取 0(layoutVars 比 keyboardInsets 更早下发)
+      var kb = (p.keyboardHeight || 0);
+      var safeBottom = (p.navBarHeight || 0);
+      document.body.style.paddingBottom = (kb + 60 + safeBottom) + 'px';
+    } catch (e) {
+      try { sendToFlutter('log', { text: '[布局变量] 注入失败: ' + e }); } catch (_lv0) {}
+    }
+  });
+
+  // [聊天页大改] 底部动态岛通知:Flutter 侧通过 showToast 桥下发 {icon, text, duration}
+  // 取代 SnackBar(避免 HC 跨引擎合成开销),完全在 WebView 内渲染
+  var _toastTimer = null;
+  function showDynamicToast(icon, text, duration) {
+    var el = document.getElementById('dynamicIslandToast');
+    if (!el) return;
+    // 清除上一个:立即移除 show 类,等下一帧再上新内容,触发重新入场动画
+    if (_toastTimer) {
+      clearTimeout(_toastTimer);
+      _toastTimer = null;
+      el.classList.remove('show');
+    }
+    var iconEl = document.getElementById('toastIcon');
+    var textEl = document.getElementById('toastText');
+    if (iconEl) iconEl.textContent = icon || '';
+    if (textEl) textEl.textContent = text || '';
+    el.setAttribute('aria-hidden', 'false');
+    // 双 RAF:第一帧让浏览器确认 remove 已应用,第二帧再加 show 触发 transition
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        el.classList.add('show');
+      });
+    });
+    _toastTimer = setTimeout(function () {
+      el.classList.remove('show');
+      el.setAttribute('aria-hidden', 'true');
+      _toastTimer = null;
+    }, duration || 2200);
+  }
+  registerBridgeHandler('showToast', function (p) {
+    try {
+      showDynamicToast(p && p.icon, p && p.text, p && p.duration);
+    } catch (e) {
+      try { sendToFlutter('log', { text: '[动态岛] 显示失败: ' + e }); } catch (_ti0) {}
+    }
+  });
+
+  // [聊天页大改] 输入栏:textarea 自适应高度 + 按钮事件 + inputBarState 桥处理
+  //   按钮:func(功能菜单) / upload(图片上传) / send-发送 / send-generating→stop
+  //   Flutter 通过 inputBarState 推送 {generating, text, tokenCount, attachments, sttEnabled, sttListening}
+  //   通过 sttResult 推送 {text} 填回 textarea
+  (function () {
+    var ta = document.getElementById('chatTextarea');
+    var sendBtn = document.getElementById('sendBtn');
+    var sendIconSend = sendBtn ? sendBtn.querySelector('.icon-send') : null;
+    var sendIconStop = sendBtn ? sendBtn.querySelector('.icon-stop') : null;
+    var funcBtn = document.getElementById('funcBtn');
+    var previewBar = document.getElementById('attachmentPreviewBar');
+
+    // textarea 自适应高度:1~120px(与 CSS max-height 对齐)
+    function autoResize() {
+      if (!ta) return;
+      ta.style.height = 'auto';
+      var newH = Math.min(120, ta.scrollHeight);
+      ta.style.height = newH + 'px';
+    }
+
+    // 发送消息:桥到 Flutter inputSend,清空 textarea + 重置高度
+    // 空内容时直接 return,不用 disabled 拦截(让按钮始终可点,符合移动端习惯)
+    function handleSend() {
+      if (!ta || !sendBtn) return;
+      // 生成中:sendBtn 当前是停止按钮
+      if (sendBtn.classList.contains('is-generating')) {
+        try { sendToFlutter('inputStop', {}); } catch (_se) {}
+        return;
+      }
+      var text = ta.value.trim();
+      if (!text) return; // 空内容不发送,但不拦截按钮
+      try { sendToFlutter('inputSend', { text: ta.value }); } catch (_se2) {}
+      ta.value = '';
+      autoResize();
+    }
+
+    if (ta) {
+      ta.addEventListener('input', function () {
+        autoResize();
+      });
+      // [聊天页大改 Part 6] STT:长按 textarea(键盘未弹起时)触发语音条
+      // 键盘已弹起(--keyboard-height > 100)时不拦截,交给系统正常输入
+      var _longPressTimer = null;
+      var _isVoiceMode = false;
+      var voiceBar = document.getElementById('voiceBar');
+      function _isKeyboardVisible() {
+        var kh = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--keyboard-height') || '0', 10);
+        return kh > 100;
+      }
+      function _enterVoiceMode() {
+        if (_isVoiceMode) return;
+        if (!_isSttEnabled()) return;
+        _isVoiceMode = true;
+        if (ta) ta.style.display = 'none';
+        if (voiceBar) voiceBar.style.display = 'flex';
+        try { sendToFlutter('sttStart', {}); } catch (_vs0) {}
+      }
+      function _exitVoiceMode() {
+        if (!_isVoiceMode) return;
+        _isVoiceMode = false;
+        if (ta) ta.style.display = '';
+        if (voiceBar) voiceBar.style.display = 'none';
+        try { sendToFlutter('sttStop', {}); } catch (_vs1) {}
+      }
+      function _isSttEnabled() {
+        // Flutter 通过 inputBarState.sttEnabled 推送当前 STT 开关
+        // 没收到时默认 false,避免误触发
+        return !!window.__KIRA_STT_ENABLED;
+      }
+      // touchstart/touchmove/touchend 三件套,400ms 长按阈值
+      ta.addEventListener('touchstart', function (e) {
+        if (_isKeyboardVisible()) return; // 键盘已弹起,不拦截
+        if (!_isSttEnabled()) return;     // STT 未开启,不触发
+        _longPressTimer = setTimeout(function () {
+          _enterVoiceMode();
+        }, 400);
+      }, { passive: true });
+      ta.addEventListener('touchmove', function () {
+        if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
+        // 移动中也算松开:如果正在录音,停止
+        if (_isVoiceMode) _exitVoiceMode();
+      }, { passive: true });
+      ta.addEventListener('touchend', function () {
+        if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
+        if (_isVoiceMode) _exitVoiceMode();
+      });
+      ta.addEventListener('touchcancel', function () {
+        if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
+        if (_isVoiceMode) _exitVoiceMode();
+      });
+    }
+    // +号菜单按钮:桥到 Flutter inputFunc → Flutter _handleInputFunc →
+    // openFunctionPanel 桥 → JS 打开 HTML func-overlay(上下文/楼层/正则/角色/图片 等)
+    // 图片上传在 func-overlay 里的"图片"菜单项,不在输入栏单独占位
+    if (funcBtn) {
+      funcBtn.addEventListener('click', function () {
+        try { sendToFlutter('inputFunc', {}); } catch (_fe) {}
+      });
+    }
+    // 发送按钮:统一走 handleSend(内部根据 is-generating 类分流)
+    if (sendBtn) {
+      sendBtn.addEventListener('click', function () {
+        handleSend();
+      });
+    }
+    // inputBarState:Flutter 推送状态变化(generating / attachments / stt)
+    // 不动 sendBtn.disabled — 按钮始终可点,空内容由 handleSend 内部 return 拦截
+    registerBridgeHandler('inputBarState', function (p) {
+      try {
+        if (!p) return;
+        // 1. 生成中状态:send-btn 切换图标 + 加 is-generating 类(不设 disabled)
+        if (sendBtn && sendIconSend && sendIconStop) {
+          var gen = !!p.generating;
+          if (gen) {
+            sendBtn.classList.add('is-generating');
+            sendIconSend.style.display = 'none';
+            sendIconStop.style.display = '';
+            ta && (ta.disabled = true, ta.placeholder = 'AI 回复中…');
+          } else {
+            sendBtn.classList.remove('is-generating');
+            sendIconSend.style.display = '';
+            sendIconStop.style.display = 'none';
+            if (ta) {
+              ta.disabled = false;
+              ta.placeholder = '发送消息...';
+            }
+          }
+        }
+        // [聊天页大改 Part 6] STT 开关:缓存到全局变量,供 textarea 长按检测读取
+        if (typeof p.sttEnabled === 'boolean') {
+          window.__KIRA_STT_ENABLED = p.sttEnabled;
+        }
+        // 2. 待发图片预览
+        if (previewBar) {
+          var atts = p.attachments;
+          if (Array.isArray(atts) && atts.length > 0) {
+            previewBar.innerHTML = '';
+            atts.forEach(function (att, i) {
+              var div = document.createElement('div');
+              div.className = 'att-thumb';
+              var img = document.createElement('img');
+              img.src = att.thumb || att.data || '';
+              div.appendChild(img);
+              var rm = document.createElement('div');
+              rm.className = 'att-remove';
+              rm.textContent = '×';
+              rm.addEventListener('click', function () {
+                try { sendToFlutter('inputRemoveAttachment', { index: i }); } catch (_re) {}
+              });
+              div.appendChild(rm);
+              previewBar.appendChild(div);
+            });
+            previewBar.style.display = 'flex';
+          } else {
+            previewBar.innerHTML = '';
+            previewBar.style.display = 'none';
+          }
+        }
+      } catch (e) {
+        try { sendToFlutter('log', { text: '[输入栏] 状态更新失败: ' + e }); } catch (_ibs0) {}
+      }
+    });
+    // sttResult:Flutter 推送 STT 识别结果,追加到 textarea
+    registerBridgeHandler('sttResult', function (p) {
+      try {
+        if (!ta || !p || !p.text) return;
+        ta.value += p.text;
+        autoResize();
+        // 不动 sendBtn.disabled — 按钮始终可点,空内容由 handleSend 内部 return 拦截
+        showDynamicToast('🎤', '识别完成');
+      } catch (e) {
+        try { sendToFlutter('log', { text: '[STT结果] 填入失败: ' + e }); } catch (_sr0) {}
+      }
+    });
+  })();
   registerBridgeHandler('setImage', function(p) {
     try {
       var sel = '[data-att-path="' + p.path + '"]';
@@ -3941,6 +4476,63 @@ function injectBridge(html, id, floorIdx) {
 </form>
 <!-- [P5-9/P1] 玄枢面板挂载容器:ST 扩展设置区锚点(隐藏,供脚本 document.getElementById 挂 Vue app)。 -->
 <div id="extensions_settings2" style="display:none;"></div>
+
+<!-- [聊天页大改] 底部动态岛通知:替代 SnackBar,在 WebView 内渲染避免 HC 合成开销
+     位置:贴输入栏上方,跟随 --keyboard-height 上移
+     触发:Flutter 侧通过 ChatBridge.showToast 下发 {icon, text, duration} -->
+<div class="dynamic-island-toast" id="dynamicIslandToast" aria-hidden="true">
+  <span class="toast-icon" id="toastIcon"></span>
+  <span class="toast-text" id="toastText"></span>
+</div>
+
+<!-- [聊天页大改] 输入栏:从 Flutter 迁入 WebView
+     容器 bottom 跟随 --keyboard-height,键盘收起秒收回(.2s easeOutQuart)
+     布局 3 元素:[+号菜单] [输入框/语音条] [发送按钮]
+     所有交互通过 ChatBridge 走 inputSend/inputStop/inputUpload/inputFunc/sttStart/sttStop
+     +号菜单走 inputFunc 桥 → Flutter _handleInputFunc → openFunctionPanel 桥 → HTML func-overlay
+     Flutter 通过 inputBarState 推送状态(generating/sttEnabled 等) -->
+<div class="chat-input-container" id="chatInputContainer">
+  <!-- 待发图片预览条:Flutter 通过 inputBarState.attachments 推送 -->
+  <div class="attachment-preview-bar" id="attachmentPreviewBar" style="display:none;"></div>
+  <div class="input-wrapper">
+    <!-- 左:+号菜单按钮(打开 HTML func-overlay,连接上下文/楼层/正则/角色等) -->
+    <button class="action-btn func-btn" id="funcBtn" type="button" aria-label="功能菜单">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+    <!-- 中:textarea / 语音条(互斥) -->
+    <div class="input-area-wrap">
+      <textarea
+        class="chat-textarea"
+        id="chatTextarea"
+        placeholder="发送消息..."
+        rows="1"></textarea>
+      <!-- 语音条(默认隐藏,长按 textarea 触发,见 Part 6) -->
+      <div class="voice-bar" id="voiceBar" style="display:none;">
+        <div class="voice-wave" id="voiceWave">
+          <span style="height:8px;animation-delay:0s;"></span>
+          <span style="height:14px;animation-delay:.1s;"></span>
+          <span style="height:20px;animation-delay:.2s;"></span>
+          <span style="height:14px;animation-delay:.3s;"></span>
+          <span style="height:8px;animation-delay:.4s;"></span>
+        </div>
+        <span class="voice-hint">松开停止录音</span>
+      </div>
+    </div>
+    <!-- 右:发送按钮 / 停止按钮(互斥) -->
+    <button class="action-btn send-btn" id="sendBtn" type="button" aria-label="发送">
+      <svg class="icon-send" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M2 21L23 12 2 3v7l15 2-15 2z"/>
+      </svg>
+      <svg class="icon-stop" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none;">
+        <rect x="6" y="6" width="12" height="12" rx="2"/>
+      </svg>
+    </button>
+  </div>
+</div>
 <script>
 (function () {
   var sendBtn = document.getElementById('send_but');
