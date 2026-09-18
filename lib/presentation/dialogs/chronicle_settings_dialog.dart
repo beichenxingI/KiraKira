@@ -18,6 +18,7 @@ import 'package:kirakira/domain/services/llm_service.dart';
 import 'package:kirakira/presentation/providers/chronicle_providers.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/utils/kira_dialog.dart';
 import 'core_dialog.dart';
 

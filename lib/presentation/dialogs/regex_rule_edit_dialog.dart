@@ -118,23 +118,32 @@ class _RegexRuleEditDialogState extends ConsumerState<_RegexRuleEditDialog> {
       return;
     }
     final cid = widget.script.characterId;
-    if (cid == null) return;
-    final notifier = ref.read(characterRegexScriptsProvider(cid).notifier);
-    await notifier.updateScript(widget.script.copyWith(
-      scriptName: _nameCtrl.text.trim(),
-      findRegex: _findCtrl.text,
-      replaceString: _replaceCtrl.text,
-      trimStrings: _trimStrings,
-      placement: _placements,
-      disabled: !_enabled,
-      markdownOnly: _markdownOnly,
-      promptOnly: _promptOnly,
-      runOnEdit: _runOnEdit,
-      updatedAt: DateTime.now(),
-    ));
-    if (mounted) {
-      KiraToast.show(context, '规则已保存', type: KiraToastType.success);
-      Navigator.of(context, rootNavigator: true).pop();
+    if (cid == null) {
+      KiraToast.show(context, '规则未绑定角色，无法保存', type: KiraToastType.error);
+      return;
+    }
+    try {
+      final notifier = ref.read(characterRegexScriptsProvider(cid).notifier);
+      await notifier.updateScript(widget.script.copyWith(
+        scriptName: _nameCtrl.text.trim(),
+        findRegex: _findCtrl.text,
+        replaceString: _replaceCtrl.text,
+        trimStrings: _trimStrings,
+        placement: _placements,
+        disabled: !_enabled,
+        markdownOnly: _markdownOnly,
+        promptOnly: _promptOnly,
+        runOnEdit: _runOnEdit,
+        updatedAt: DateTime.now(),
+      ));
+      if (mounted) {
+        KiraToast.show(context, '规则已保存', type: KiraToastType.success);
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        KiraToast.show(context, '保存失败: $e', type: KiraToastType.error);
+      }
     }
   }
 

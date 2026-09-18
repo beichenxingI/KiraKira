@@ -194,6 +194,12 @@ class CharacterRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
           state = rawList
               .map((e) => RegexScript.fromJson(e as Map<String, dynamic>))
               .toList();
+          // 确保 characterId 已正确绑定（兼容旧存档/SillyTavern 导入格式）
+          state = state
+              .map((s) => s.characterId == null
+                  ? s.copyWith(characterId: characterId)
+                  : s)
+              .toList();
           print('[IMP-7] charRegex parsed ok count=${state.length}');
         }
       } else {

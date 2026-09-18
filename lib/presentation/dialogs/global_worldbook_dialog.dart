@@ -125,6 +125,13 @@ class _GlobalWorldbookDialogState
     if (mounted) setState(() => _selectedBookId = book.id);
   }
 
+  Future<void> _toggleBookEnabled(WorldInfo book) async {
+    await ref
+        .read(worldInfoNotifierProvider.notifier)
+        .updateWorldInfo(book.copyWith(enabled: !book.enabled));
+    ref.invalidate(globalWorldInfosProvider);
+  }
+
   Future<void> _renameBook(WorldInfo book) async {
     final result = await _showBookMetaSheet(initial: book);
     if (result == null || result['name']!.isEmpty) return;
@@ -381,6 +388,7 @@ class _GlobalWorldbookDialogState
                                   selected: selected,
                                   onTap: () => setState(
                                       () => _selectedBookId = book.id),
+                                  onToggle: () => _toggleBookEnabled(book),
                                   onRename: () => _renameBook(book),
                                   onDelete: () => _deleteBook(book),
                                 );
@@ -599,13 +607,14 @@ class _GlobalWorldbookDialogState
   }
 }
 
-/// 书签标签页(名称 + 条目数 + 长按菜单:重命名/删除)
+/// 书签标签页(名称 + 条目数 + 启用开关 + 删除按钮; 长按重命名)
 class _BookTab extends StatelessWidget {
   const _BookTab({
     required this.palette,
     required this.book,
     required this.selected,
     required this.onTap,
+    required this.onToggle,
     required this.onRename,
     required this.onDelete,
   });
@@ -614,6 +623,7 @@ class _BookTab extends StatelessWidget {
   final WorldInfo book;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback onToggle;
   final VoidCallback onRename;
   final VoidCallback onDelete;
 
@@ -623,7 +633,7 @@ class _BookTab extends StatelessWidget {
       onTap: onTap,
       onLongPress: onRename,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
@@ -638,6 +648,19 @@ class _BookTab extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            SizedBox(
+              width: 28,
+              height: 24,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: CupertinoSwitch(
+                  value: book.enabled,
+                  onChanged: (_) => onToggle(),
+                  activeTrackColor: DesignTokens.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
             Text(
               book.name,
               maxLines: 1,
@@ -645,8 +668,11 @@ class _BookTab extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color:
-                    selected ? DesignTokens.primary : palette.textPrimary,
+                color: book.enabled
+                    ? (selected
+                        ? DesignTokens.primary
+                        : palette.textPrimary)
+                    : palette.textTertiary,
               ),
             ),
             const SizedBox(width: 4),
@@ -654,6 +680,16 @@ class _BookTab extends StatelessWidget {
               '${book.entries.length}',
               style: TextStyle(
                   fontSize: 11, color: palette.textSecondary),
+            ),
+            const SizedBox(width: 2),
+            GestureDetector(
+              onTap: onDelete,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Icon(CupertinoIcons.trash,
+                    size: 14, color: DesignTokens.statusError),
+              ),
             ),
           ],
         ),
