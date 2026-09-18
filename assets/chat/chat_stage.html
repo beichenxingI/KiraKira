@@ -289,7 +289,7 @@ if (!String.prototype.at) {
   .stream-text ul,.stream-text ol { margin: 4px 0; padding-left: 22px; }
   .stream-text blockquote { border-left: 3px solid rgba(124,77,255,0.5); margin: 4px 0; padding-left: 10px; color: #B8BEC8; }
   /* 消息组：气泡 + 挂在外面下方的工具条 */
-  .msg-group { margin: 14px 0; }
+  .msg-group { margin: 14px 0; content-visibility: auto; contain-intrinsic-size: 100px; }
   .msg-group .msg { margin: 0; }
   /* 工具条容器，挂在气泡外面下方，不占气泡内部空间 */
   .msg-tools {
@@ -3163,6 +3163,10 @@ function injectBridge(html, id, floorIdx) {
         sendToFlutter('log', { text: '[WV-4] dupIds=' + _dup + ' globalsDelta=' + (Object.keys(window).length - (window.__wvBaseGlobals || 0)) });
       } catch (_wv4e) {}
 
+      // 图片懒加载：给未加 loading 属性的 img 补上,滚到附近才加载
+      root.querySelectorAll('img:not([loading])').forEach(function(img) {
+        img.setAttribute('loading', 'lazy');
+      });
       // [锚点] 每轮渲染后尝试恢复阅读位置:initial 清屏后锚点楼层可能尚未补发回来,
       // tryRestoreAnchor 找不到就继续等(用户手势才取消);prepend/append 模式下幂等无害。
       requestAnimationFrame(tryRestoreAnchor);
