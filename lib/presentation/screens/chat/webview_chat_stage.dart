@@ -3549,6 +3549,25 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             },
           ),
         ),
+        Container(
+          width: 28,
+          height: 28,
+          margin: const EdgeInsets.only(right: 10),
+          decoration: BoxDecoration(
+            color: GlassDesign.controlFill,
+            shape: BoxShape.circle,
+            border: Border.all(color: GlassDesign.highlightBorder),
+          ),
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            tooltip: '菜单',
+            iconSize: 16,
+            color: activeGlassPalette.primaryText,
+            icon: const Icon(Icons.more_vert),
+            onPressed: _showTopMenuSheet,
+          ),
+        ),
       ],
     );
   }
@@ -4423,6 +4442,34 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return result is String ? result : null;
   }
 
+  Future<void> _showTopMenuSheet() async {
+    final result = await _showHtmlBottomSheet([
+      {'text': '导出聊天', 'value': 'exportChat'},
+      {'text': '导入聊天', 'value': 'importChat'},
+      {'text': '清空聊天', 'value': 'clearChat', 'danger': true},
+      {'text': '手动总结上下文', 'value': 'manualSummarize'},
+      {'text': '全局设置', 'value': 'globalSettings'},
+    ], title: '聊天选项');
+    if (!mounted || result == null) return;
+    switch (result) {
+      case 'exportChat':
+        await _exportChatRecord();
+        break;
+      case 'importChat':
+        await _importChatRecord();
+        break;
+      case 'clearChat':
+        await _confirmClearChat();
+        break;
+      case 'manualSummarize':
+        await _confirmManualSummarize();
+        break;
+      case 'globalSettings':
+        await _openBackgroundPanel();
+        break;
+    }
+  }
+
   Future<void> _confirmClearChat() async {
     // [弹窗] HTML确认框,无需 pause/resume(弹窗与消息同在 WebView 内)
     final ok = await _showHtmlConfirm(
@@ -5236,6 +5283,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return {
       'id': m.id,
       'role': m.role.name,
+      'createdAt': m.timestamp.millisecondsSinceEpoch,
       'prose': proseHtml, // 文档前的旁白文字，渲染层放在 iframe 之上
       'rich': looksLikeHtml, // [MD修复2] 显式告知 JS 走 iframe 还是气泡,替代 JS 侧二次猜测
       'html': rendered + attachmentsHtml,

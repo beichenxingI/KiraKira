@@ -224,6 +224,9 @@ if (!String.prototype.at) {
   .msg-name {
     font-size: 12px; color: #B8BEC8; font-weight: 500;
   }
+  .msg-timestamp {
+    font-size: 11px; color: rgba(255,255,255,0.4); margin-left: 8px;
+  }
   .reasoning {
     font-size: 13px; opacity: .55; border-left: 2px solid rgba(124,77,255,0.6);
     padding-left: 10px; margin-bottom: 8px;
@@ -292,7 +295,11 @@ if (!String.prototype.at) {
   .msg-tools {
     display: flex; align-items: center; flex-wrap: wrap;
     gap: 6px; padding: 6px 8px 2px;
+    opacity: 0;
+    transition: opacity 0.2s var(--ease-elastic);
   }
+  .msg-group:hover .msg-tools,
+  .msg-group.active .msg-tools { opacity: 1; }
   .msg-group.user .msg-tools { justify-content: flex-end; }
   /* 折叠态：一个极简小胶囊（三个点） */
   .tools-toggle {
@@ -751,14 +758,6 @@ if (!String.prototype.at) {
     <div class="func-floor-row">
       <input id="func-floor-input" class="func-floor-input" type="number" placeholder="输入楼层号跳转…"/>
       <div class="func-btn-jump func-action" data-action="jumpFloor">跳转</div>
-    </div>
-    <div class="func-group-label">对话</div>
-    <div class="func-grid">
-      <div class="func-item func-action" data-action="pickImages"><svg class="func-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><span>图片</span></div>
-      <div class="func-item func-action" data-action="exportChat"><svg class="func-icon" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg><span>导出</span></div>
-      <div class="func-item func-action" data-action="importChat"><svg class="func-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>导入</span></div>
-      <div class="func-item func-action" data-action="clearChat"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>清空</span></div>
-      <div class="func-item func-action" data-action="manualSummarize"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/><path d="M6 12h12"/></svg><span>总结</span></div>
     </div>
     <div class="func-group-label">设置</div>
     <div class="func-grid">
@@ -2984,6 +2983,13 @@ function injectBridge(html, id, floorIdx) {
           nameEl.className = 'msg-name';
           nameEl.textContent = nm || '';
           header.appendChild(nameEl);
+          if (m.createdAt) {
+            var tsEl = document.createElement('span');
+            tsEl.className = 'msg-timestamp';
+            var _d = new Date(m.createdAt);
+            tsEl.textContent = (_d.getHours() < 10 ? '0' : '') + _d.getHours() + ':' + (_d.getMinutes() < 10 ? '0' : '') + _d.getMinutes();
+            header.appendChild(tsEl);
+          }
           group.appendChild(header);
         }
         // 文档前的旁白文字，作为独立气泡渲染在 iframe 之上
@@ -3693,6 +3699,22 @@ function injectBridge(html, id, floorIdx) {
       id: b.getAttribute('data-id'),
       action: b.getAttribute('data-act')
     });
+  });
+
+  // 消息工具条 tap 显隐：点击气泡区域切换 .active，使 .msg-tools opacity:0→1
+  document.addEventListener('click', function(e) {
+    var tgt = e.target;
+    if (!tgt || !tgt.closest) return;
+    if (tgt.closest('.act-btn, .swipe-btn, .tools-toggle, [data-collapse], .att-img, #btn-scroll-bottom, .card-collapse-btn, .card-frame-wrap, a, button, input, textarea')) return;
+    var group = tgt.closest('.msg-group');
+    if (!group) {
+      document.querySelectorAll('.msg-group.active').forEach(function(el) { el.classList.remove('active'); });
+      return;
+    }
+    document.querySelectorAll('.msg-group.active').forEach(function(el) {
+      if (el !== group) el.classList.remove('active');
+    });
+    group.classList.toggle('active');
   });
 
   registerBridgeHandler('setMessages', function(p) { setMessages(p.data, {initial: p.initial, prepend: p.prepend, avatars: p.avatars}); });
