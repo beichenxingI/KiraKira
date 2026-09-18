@@ -35,6 +35,16 @@ if (!String.prototype.at) {
   :root {
     --quote-q-color: __KIRA_QUOTE_Q_COLOR__;
     --quote-p-color: __KIRA_QUOTE_P_COLOR__;
+    --ease-elastic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --ease-modal: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-keyboard: cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+  /* 按钮统一按压反馈 transition:弹性回弹 + 颜色/透明度过渡 */
+  .act-btn, .act-del, .tools-toggle, .swipe-btn, .card-collapse-btn,
+  .dialog-btn, .bottom-sheet-item, .func-item, .sp-close, .sp-icon-btn,
+  .sp-btn, .sp-row, #btn-scroll-bottom {
+    transition: transform 0.2s var(--ease-elastic),
+                background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
   }
   * { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
   .model-sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);
@@ -143,7 +153,7 @@ if (!String.prototype.at) {
     -webkit-tap-highlight-color: transparent;
     transition: background .15s ease;
   }
-  #btn-scroll-bottom:active { background: rgba(0,0,0,0.8); }
+  #btn-scroll-bottom:active { transform: scale(0.95); background: rgba(0,0,0,0.8); }
   #btn-scroll-bottom.show { display: block; }
   /* [弹窗] HTML弹窗体系:替代 Flutter AlertDialog/BottomSheet(避免HC跨引擎合成卡顿) */
   .dialog-overlay {
@@ -178,7 +188,7 @@ if (!String.prototype.at) {
     padding: 9px 18px; border-radius: 8px; border: none; font-size: 14px;
     font-weight: 500; cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
-  .dialog-btn:active { opacity: 0.75; }
+  .dialog-btn:active { transform: scale(0.95); opacity: 0.75; }
   .dialog-btn-cancel { background: rgba(255,255,255,0.08); color: #E0E0E0; }
   .dialog-btn-confirm { background: #7C4DFF; color: #FFFFFF; }
   .dialog-btn-danger { background: #E5484D; color: #FFFFFF; }
@@ -195,7 +205,7 @@ if (!String.prototype.at) {
     padding: 14px 18px; font-size: 15px; color: #E0E0E0; cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
-  .bottom-sheet-item:active { background: rgba(255,255,255,0.08); }
+  .bottom-sheet-item:active { transform: scale(0.95); background: rgba(255,255,255,0.08); }
   .bottom-sheet-item.danger { color: #FF6B6E; }
   /* [聊天页大改] 用户/助手气泡左右对齐:用户靠右(气泡本身仍左对齐文字,因外层右对齐) */
   .msg-group.user { text-align: right; }
@@ -262,7 +272,7 @@ if (!String.prototype.at) {
     padding: 4px 12px; font-size: 12px; cursor: pointer;
     -webkit-tap-highlight-color: transparent; transition: background .15s ease;
   }
-  .card-collapse-btn:active { background: rgba(0,0,0,0.85); }
+  .card-collapse-btn:active { transform: scale(0.92); background: rgba(0,0,0,0.85); }
   /* wrap 处于展开态时才显示收起按钮 */
   .card-frame-wrap.expanded .card-collapse-btn { display: block; }
   /* 折叠态 iframe 不拦截点击，让点击穿透到 wrap 触发展开 */
@@ -291,7 +301,7 @@ if (!String.prototype.at) {
     letter-spacing: 2px; cursor: pointer;
     transition: background .15s ease; -webkit-tap-highlight-color: transparent;
   }
-  .tools-toggle:active { background: rgba(124,77,255,0.25); }
+  .tools-toggle:active { transform: scale(0.95); background: rgba(124,77,255,0.25); }
   /* 展开的按钮排：常驻 flex，靠 max-height + opacity 做平滑弹缩（display 不能过渡）。 */
   .tools-expanded {
     display: flex; align-items: center; flex-wrap: wrap; gap: 5px; width: 100%;
@@ -314,10 +324,10 @@ if (!String.prototype.at) {
     -webkit-tap-highlight-color: transparent; flex: 0 0 auto;
     border: 1px solid rgba(255,255,255,0.10);
   }
-  .act-btn:active { background: rgba(50,56,70,0.95); }
+  .act-btn:active { transform: scale(0.92); background: rgba(50,56,70,0.95); }
   .act-spacer { flex: 1; min-width: 4px; }
   .act-del { background: rgba(70,28,28,0.92); color: #FF9B9B; border: 1px solid rgba(255,77,77,0.25); }
-  .act-del:active { background: rgba(95,36,36,0.95); }
+  .act-del:active { transform: scale(0.9); background: rgba(95,36,36,0.95); }
   .swipe-bar {
     display: flex; align-items: center; justify-content: center;
     gap: 14px; padding: 4px 0 2px;
@@ -329,7 +339,7 @@ if (!String.prototype.at) {
     cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
   .swipe-btn:disabled { opacity: 0.3; }
-  .swipe-btn:active:not(:disabled) { background: rgba(255,255,255,0.18); }
+  .swipe-btn:active:not(:disabled) { transform: scale(0.95); background: rgba(255,255,255,0.18); }
   .swipe-label { font-size: 12px; color: #9A9A9A; min-width: 40px; text-align: center; }
   .floor-tag-wrap { display: flex; padding: 2px 8px 0; }
   .msg-group.user .floor-tag-wrap { justify-content: flex-end; }
@@ -634,7 +644,7 @@ if (!String.prototype.at) {
   .func-overlay.show .func-grid .func-item:nth-child(5){transition-delay:.34s;}
   .func-overlay.show .func-grid .func-item:nth-child(6){transition-delay:.39s;}
   .func-overlay.show .func-grid .func-item:nth-child(7){transition-delay:.44s;}
-  .func-item:active{background:rgba(124,77,255,.22);}
+  .func-item:active{transform:scale(.97);background:rgba(124,77,255,.22);}
   .func-icon{width:26px;height:26px;stroke:#5B9EF5;fill:none;stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round;}
   /* [浮窗化] 设置面板容器:底部弹出,可滚动,z-index低于弹窗 */
@@ -652,7 +662,7 @@ if (!String.prototype.at) {
     color:rgba(255,255,255,.87);border-radius:50%;cursor:pointer;
     display:flex;align-items:center;justify-content:center;
     -webkit-tap-highlight-color:transparent;transition:background .15s;}
-  .sp-close:active{background:rgba(255,255,255,.18);}
+  .sp-close:active{transform:scale(.92);background:rgba(255,255,255,.18);}
   .sp-title{font-size:1.05rem;font-weight:600;color:#F5F7FA;margin:0;flex:1;text-align:center;}
   .sp-spacer{width:2.25rem;flex-shrink:0;}
   .sp-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
@@ -667,7 +677,7 @@ if (!String.prototype.at) {
   .sp-row{display:flex;align-items:center;justify-content:space-between;
     padding:.75rem 1rem;border-bottom:1px solid rgba(255,255,255,.06);
     -webkit-tap-highlight-color:transparent;transition:background .15s;}
-  .sp-row:active{background:rgba(255,255,255,.04);}
+  .sp-row:active{transform:scale(.95);background:rgba(255,255,255,.04);}
   .sp-row-label{font-size:.9rem;color:rgba(255,255,255,.87);flex:1;}
   .sp-row-sub{font-size:.75rem;color:rgba(255,255,255,.45);margin-top:.15rem;}
   .sp-toggle{position:relative;width:2.75rem;height:1.5rem;border-radius:.75rem;
@@ -700,14 +710,14 @@ if (!String.prototype.at) {
   .sp-btn{width:calc(100% - 2rem);margin:.75rem 1rem;padding:.7rem;
     border:none;border-radius:.5rem;font-size:.9rem;font-weight:600;cursor:pointer;
     -webkit-tap-highlight-color:transparent;transition:opacity .15s;}
-  .sp-btn:active{opacity:.7;}
+  .sp-btn:active{transform:scale(.95);opacity:.7;}
   .sp-btn-primary{background:#7C4DFF;color:#fff;}
   .sp-btn-danger{background:rgba(229,72,77,.15);color:#FF6B6E;}
   .sp-empty{text-align:center;padding:2rem 1rem;font-size:.85rem;color:rgba(255,255,255,.35);}
   .sp-icon-btn{width:1.75rem;height:1.75rem;border:none;background:transparent;
     color:rgba(255,255,255,.5);font-size:.8rem;cursor:pointer;
     -webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;}
-  .sp-icon-btn:active{color:#fff;}
+  .sp-icon-btn:active{transform:scale(.92);color:#fff;}
 </style>
 </head>
 <body>
