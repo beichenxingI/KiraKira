@@ -78,6 +78,8 @@ dependencies:
   figma_squircle: ^0.6.3
   just_audio: ^0.10.6
   flutter_tts: ^4.2.5
+  sherpa_onnx: ^1.13.8
+  record: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -101,6 +103,7 @@ flutter:
     - assets/live2d/
     - assets/
     - assets/models/bge-small-zh/
+    - assets/models/stt/
     - assets/images/
     - assets/icon/
     - assets/world_info/

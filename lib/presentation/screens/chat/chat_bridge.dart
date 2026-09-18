@@ -85,6 +85,7 @@ class BridgeType {
   static const String showPrompt = 'showPrompt'; // Dart→JS: HTML输入弹窗
   static const String showBottomSheet = 'showBottomSheet'; // Dart→JS: HTML底部选择框
   static const String setImage = 'setImage'; // 单独推送图片base64，避免撑爆setMessages
+  static const String setMessageTranslation = 'setMessageTranslation'; // 推送消息翻译结果(显示在气泡下方浅色小字)
   static const String setGenerating = 'setGenerating'; // 插入"生成中"占位(请求比例)
   static const String clearGenerating = 'clearGenerating'; // 移除"生成中"占位
   static const String setGenerateProgress = 'setGenerateProgress'; // 更新占位符进度

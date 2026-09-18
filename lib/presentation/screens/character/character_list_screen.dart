@@ -1114,7 +1114,7 @@ class _SegmentedHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.tab != tab || oldDelegate.trailing != trailing;
 }
 
-/// 角色市场（双站架构：Kira官方站 + Chub国际站）
+/// 角色市场（双站架构：Kira官方站 + ACC国际站）
 class _CharacterMarketView extends ConsumerStatefulWidget {
   final VoidCallback onSwitchToMyCharacters;
 
@@ -1181,7 +1181,7 @@ class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
               ),
               Tab(
                 icon: Icon(Icons.public, size: 18),
-                text: 'Chub国际',
+                text: 'ACC国际',
               ),
             ],
           ),
@@ -1192,7 +1192,7 @@ class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
             controller: _tabController,
             children: [
               const _KiraMarketTab(),
-              _ChubMarketTab(
+              _AccMarketTab(
                 onSwitchToMyCharacters: widget.onSwitchToMyCharacters,
               ),
             ],
@@ -1283,7 +1283,7 @@ class _KiraMarketTab extends StatelessWidget {
             ),
             const SizedBox(height: DesignTokens.spaceLg),
             Text(
-              '暂时请使用 Chub国际站 浏览角色卡',
+              '暂时请使用 ACC国际站 浏览角色卡',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -1295,11 +1295,11 @@ class _KiraMarketTab extends StatelessWidget {
   }
 }
 
-/// Chub国际站（WebView浏览器入口）
-class _ChubMarketTab extends StatelessWidget {
+/// ACC国际站（AI Character Cards，WebView浏览器入口）
+class _AccMarketTab extends StatelessWidget {
   final VoidCallback onSwitchToMyCharacters;
 
-  const _ChubMarketTab({required this.onSwitchToMyCharacters});
+  const _AccMarketTab({required this.onSwitchToMyCharacters});
 
   @override
   Widget build(BuildContext context) {
@@ -1319,14 +1319,14 @@ class _ChubMarketTab extends StatelessWidget {
             ),
             const SizedBox(height: DesignTokens.spaceLg),
             Text(
-              'Chub.ai 角色市场',
+              'AI Character Cards 角色市场',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: DesignTokens.weightBold,
               ),
             ),
             const SizedBox(height: DesignTokens.spaceXs),
             Text(
-              '数万个角色卡等你发现',
+              '国际SFW角色卡社区',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -1338,7 +1338,7 @@ class _ChubMarketTab extends StatelessWidget {
               label: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: DesignTokens.spaceSm),
                 child: Text(
-                  '打开 Chub.ai 浏览器',
+                  '打开 AI Character Cards 浏览器',
                   style: TextStyle(fontSize: DesignTokens.fontSizeBodyLarge),
                 ),
               ),
@@ -1358,11 +1358,11 @@ class _ChubMarketTab extends StatelessWidget {
             Container(
               padding: DesignTokens.paddingCard,
               decoration: BoxDecoration(
-                color: DesignTokens.statusWarning.withValues(alpha: 0.08),
+                color: DesignTokens.primary.withValues(alpha: 0.08),
                 borderRadius:
                     BorderRadius.circular(DesignTokens.radiusMd),
                 border: Border.all(
-                  color: DesignTokens.statusWarning.withValues(alpha: 0.2),
+                  color: DesignTokens.primary.withValues(alpha: 0.2),
                 ),
               ),
               child: Column(
@@ -1370,26 +1370,26 @@ class _ChubMarketTab extends StatelessWidget {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.vpn_lock,
-                          size: 18, color: DesignTokens.statusWarning),
+                      Icon(Icons.verified_outlined,
+                          size: 18, color: DesignTokens.primary),
                       SizedBox(width: DesignTokens.spaceXs),
                       Text(
-                        '需要VPN',
+                        '国际SFW社区',
                         style: TextStyle(
                           fontSize: DesignTokens.fontSizeSm,
                           fontWeight: DesignTokens.weightSemibold,
-                          color: DesignTokens.statusWarning,
+                          color: DesignTokens.primary,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: DesignTokens.spaceSm),
                   Text(
-                    '• 访问 Chub.ai 需要启用 VPN\n'
-                    '• 在浏览器内直接浏览角色\n'
+                    '• 国际SFW角色卡社区，内容安全合规\n'
+                    '• 在浏览器内直接浏览、搜索角色\n'
                     '• 点击下载自动导入到 Kira\n'
                     '• 支持包含世界书自动导入\n'
-                    '• Chub 包含大量 NSFW 内容，请遵守当地法律',
+                    '• 如无法访问请检查网络（部分地区或需VPN）',
                     style: TextStyle(
                       fontSize: DesignTokens.fontSizeSm,
                       height: 1.6,

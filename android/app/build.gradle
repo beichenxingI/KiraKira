@@ -44,6 +44,15 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    // [STT] onnxruntime插件(1.15.1)与sherpa_onnx(1.28.2)都打包了libonnxruntime.so。
+    // 二选一保留:保留app本地jniLibs里放入的sherpa新版so(app输入在合并中最先),
+    // onnxruntime插件走C API向后兼容,新版so对其无影响。
+    packagingOptions {
+        jniLibs {
+            pickFirsts += ['lib/**/libonnxruntime.so']
+        }
+    }
 }
 
 flutter {

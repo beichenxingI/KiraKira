@@ -203,6 +203,13 @@ if (!String.prototype.at) {
     font-size: 13px; opacity: .55; border-left: 2px solid rgba(124,77,255,0.6);
     padding-left: 10px; margin-bottom: 8px;
   }
+  /* 翻译结果：气泡内容下方浅色小字 */
+  .msg-translation {
+    font-size: 13px; color: rgba(255,255,255,0.55);
+    margin-top: 8px; padding-top: 6px;
+    border-top: 1px dashed rgba(255,255,255,0.15);
+    line-height: 1.6; word-break: break-word; white-space: pre-wrap;
+  }
   img { max-width: 100%; height: auto; border-radius: 8px; }
   .att-wrap { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
   .att-img {
@@ -2592,7 +2599,8 @@ function injectBridge(html, id, floorIdx) {
       { a: 'tts',   t: '♪', title: '语音' },
       { a: 'edit',  t: '✎', title: '编辑' },
       { a: 'retry', t: '↻', title: '重试' },
-      { a: 'imagegen', t: '▤', title: '生图' }
+      { a: 'imagegen', t: '▤', title: '生图' },
+      { a: 'translate', t: '译', title: '翻译' }
     ];
     if (isLatestAi) {
       items.push({ a: 'reroll',   t: '⇄', title: '重roll' });
@@ -2832,6 +2840,7 @@ function injectBridge(html, id, floorIdx) {
         }
 
         wrap.setAttribute('data-floor', m.floor || 0);
+        applyMsgTranslation(m.id); // 翻译缓存重挂载（全量重建后恢复译文）
         if (m.floor) {
           group.appendChild(buildFloorTag(m.floor));
         }
@@ -3204,6 +3213,7 @@ function injectBridge(html, id, floorIdx) {
       var c = document.createElement('div');
       c.innerHTML = (p.html && String(p.html).trim() !== '') ? p.html : '';
       wrap.appendChild(c);
+      applyMsgTranslation(id); // 定点更新清空了内容，翻译层需要重挂
       if (__stickBottom && __scrollAnchor === null) {
         window.scrollTo(0, document.body.scrollHeight);
       }
@@ -3227,6 +3237,55 @@ function injectBridge(html, id, floorIdx) {
       syncBottomButton();
     } catch (e) {
       try { sendToFlutter('log', { text: '[removeMessage] 失败: ' + e }); } catch (_e2) {}
+    }
+  });
+
+  // ── 翻译结果：缓存 + 显示在气泡内容下方浅色小字 ─────────────────────────
+  // Dart 侧调 LLM 翻译完成后经桥推送 {id, text}；文本为空则移除。
+  // 缓存挂在 window 上，全量重推/定点更新后由 applyMsgTranslation 重新挂载。
+  window.__kiraTranslations = window.__kiraTranslations || {};
+  function applyMsgTranslation(id) {
+    if (!id) return;
+    var wrap = document.querySelector('.msg[data-id="' + id + '"]');
+    // 富文本卡片消息可能没有 .msg[data-id] 节点，回退到 iframe 外层包裹层
+    var host = wrap;
+    if (!wrap) {
+      var fw = document.querySelector('[data-frame-id="' + id + '"]');
+      host = fw ? fw.parentNode : null;
+    }
+    if (!host) return;
+    var el = null;
+    for (var i = 0; i < host.children.length; i++) {
+      if (host.children[i].classList && host.children[i].classList.contains('msg-translation')) {
+        el = host.children[i];
+        break;
+      }
+    }
+    if (!window.__kiraTranslations.hasOwnProperty(id)) return; // 无缓存不处理
+    var text = window.__kiraTranslations[id];
+    if (!text || String(text).trim() === '') {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+      return;
+    }
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'msg-translation';
+      host.appendChild(el);
+    }
+    el.textContent = text;
+  }
+  registerBridgeHandler('setMessageTranslation', function (p) {
+    try {
+      var id = p && p.id;
+      if (!id) return;
+      if (p.text === undefined || p.text === null || String(p.text).trim() === '') {
+        delete window.__kiraTranslations[id];
+      } else {
+        window.__kiraTranslations[id] = String(p.text);
+      }
+      applyMsgTranslation(id);
+    } catch (e) {
+      try { sendToFlutter('log', { text: '[setMessageTranslation] 失败: ' + e }); } catch (_e3) {}
     }
   });
 

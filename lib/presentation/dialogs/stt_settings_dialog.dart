@@ -162,7 +162,8 @@ class _SttSettingsDialog extends ConsumerWidget {
                   }).toList(),
                 ),
               ),
-              if (settings.provider != STTProvider.system)
+              if (settings.provider == STTProvider.whisper ||
+                  settings.provider == STTProvider.azure)
                 CoreTile(
                   title: l10n.apiKey,
                   subtitle: settings.apiKey?.isNotEmpty == true
@@ -296,11 +297,18 @@ class _SttSettingsDialog extends ConsumerWidget {
           CoreInfoRow(
             icon: CupertinoIcons.info,
             title: '关于语音识别',
-            text: 'Speech-to-Text allows you to dictate messages using your '
-                'voice. Tap the microphone button in the chat input to start '
-                'speaking.',
+            text: '在聊天输入框旁按住麦克风按钮说话，松开后识别结果自动填入'
+                '输入框。当前内置模型仅支持中文。',
             palette: palette,
           ),
+          if (settings.provider == STTProvider.sherpa)
+            CoreInfoRow(
+              icon: CupertinoIcons.lock_fill,
+              title: '本地离线识别',
+              text: '基于 sherpa-onnx 流式 Zipformer 中文模型，识别在设备'
+                  '本地完成，无需联网，音频不会上传。',
+              palette: palette,
+            ),
           if (settings.provider == STTProvider.system)
             CoreInfoRow(
               icon: CupertinoIcons.device_phone_portrait,

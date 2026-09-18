@@ -627,11 +627,10 @@ class _FilePickerViewState extends State<_FilePickerView> {
                         alignment: WrapAlignment.center,
                         children: const [
                           _CommunityChip(name: 'KiraKira', url: 'https://KiraKira.com', isPrimary: true),
-                          _CommunityChip(name: 'Chub.ai', url: 'https://chub.ai/characters'),
+                          _CommunityChip(name: 'AICharacterCards', url: 'https://aicharactercards.com'),
                           _CommunityChip(name: 'JanitorAI', url: 'https://janitorai.com'),
                           _CommunityChip(name: 'Pygmalion', url: 'https://pygmalion.chat'),
                           _CommunityChip(name: 'RisuRealm', url: 'https://realm.risuai.net'),
-                          _CommunityChip(name: 'AICharacterCards', url: 'https://aicharactercards.com'),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -709,7 +708,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
         const _FormatTile(
           icon: Icons.link,
           title: '社区链接',
-          description: 'KiraKira, Chub.ai, JanitorAI, Pygmalion, RisuRealm, AICharacterCards',
+          description: 'KiraKira, AICharacterCards, JanitorAI, Pygmalion, RisuRealm',
         ),
       ],
     );

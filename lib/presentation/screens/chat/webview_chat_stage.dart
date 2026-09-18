@@ -62,6 +62,7 @@ import 'package:kirakira/core/utils/path_utils.dart';
 import 'package:kirakira/presentation/providers/context_usage_providers.dart';
 import 'package:image/image.dart' as img;
 import 'package:kirakira/presentation/providers/tts_providers.dart';
+import 'package:kirakira/presentation/providers/stt_providers.dart';
 import 'package:kirakira/presentation/providers/background_providers.dart';
 import 'package:kirakira/presentation/providers/variables_providers.dart';
 import 'package:kirakira/presentation/providers/tokenizer_providers.dart';
@@ -131,6 +132,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   static const String _kWebViewBaseUrl = 'https://localhost/';
   bool _webViewMounted = false; // 延迟挂载:入场后才创建WebView,避免动画期被重活饿死
   final TextEditingController _inputController = TextEditingController();
+
+  /// [翻译] 进行中的消息id集合，防重复请求/占位闪烁
+  final Set<String> _translatingIds = {};
   // [发送] 有无待发文字:驱动发送按钮 enabled/disabled 样式(有字亮色/无字灰)
   final ValueNotifier<bool> _hasInput = ValueNotifier(false);
   final ImagePicker _imagePicker = ImagePicker();
@@ -3620,6 +3624,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
                   controller: _inputController,
                   color: activeGlassPalette.secondaryText,
                 ),
+                // [STT] 按住说话→松开识别→文字填入输入框(设置页 STT 开关控制显隐)
+                if (ref.watch(sttSettingsProvider.select((s) => s.enabled)) &&
+                    !isGenerating)
+                  _SttMicButton(
+                    color: activeGlassPalette.secondaryText,
+                    recording: ref.watch(sttListeningProvider),
+                    onStart: _sttStart,
+                    onFinish: _sttFinish,
+                    onCancel: _sttCancel,
+                  ),
                 if (isGenerating)
                   _CircleActionButton(
                     icon: Icons.stop_rounded,
@@ -3666,6 +3680,49 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   // 只有 true↔false 跳变时重建按钮,不逐键重建整个 build)
   void _syncHasInput() {
     _hasInput.value = _inputController.text.trim().isNotEmpty;
+  }
+
+  // ── [STT] 话筒按钮:按住录音,松开识别,结果追加到输入框 ──────────────────────
+
+  Future<void> _sttStart() async {
+    HapticFeedback.mediumImpact();
+    try {
+      await ref.read(sttStartListeningProvider)();
+      if (!mounted) return;
+      if (!ref.read(sttListeningProvider)) {
+        showErrorSnackBar(context, '未能开始录音，请检查麦克风权限或稍后重试');
+      }
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, '录音启动失败：$e');
+    }
+  }
+
+  Future<void> _sttFinish() async {
+    HapticFeedback.mediumImpact();
+    try {
+      await ref.read(sttStopListeningProvider)();
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, '识别失败：$e');
+      return;
+    }
+    if (!mounted) return;
+    final result = ref.read(sttResultProvider);
+    ref.read(sttClearResultProvider)();
+    final text = result?.text.trim() ?? '';
+    if (text.isEmpty) return;
+    // 追加到现有输入内容之后
+    _inputController.text = '${_inputController.text}$text';
+    _inputController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _inputController.text.length),
+    );
+  }
+
+  Future<void> _sttCancel() async {
+    try {
+      await ref.read(sttCancelListeningProvider)();
+    } catch (_) {
+      // 取消失败静默处理
+    }
   }
 
   /// 退出聊天页:pause → 遮罩瞬间盖满 → 卸载 WebView → 一帧后 pop。
@@ -4760,6 +4817,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       case 'imagegen':
         _showImageGenerationDialog(id);
         break;
+      case 'translate':
+        _translateMessage(id);
+        break;
     }
   }
 
@@ -4943,6 +5003,50 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       await ref
           .read(activeChatProvider.notifier)
           .deleteMessageAndAfter(id);
+    }
+  }
+
+  // ── 翻译消息（LLM直译，结果显示在气泡下方浅色小字）────────────────────
+
+  Future<void> _translateMessage(String id) async {
+    if (_translatingIds.contains(id)) return;
+    final messages = ref.read(activeChatProvider).messages;
+    final idx = messages.indexWhere((m) => m.id == id);
+    if (idx < 0) return;
+    final content = messages[idx].content.trim();
+    if (content.isEmpty) return;
+
+    _translatingIds.add(id);
+    // 先推占位符，译文回来后覆盖
+    _bridge.send(BridgeType.setMessageTranslation, {'id': id, 'text': '正在翻译…'});
+    try {
+      final config = ref.read(llmConfigProvider);
+      final translated = await ref.read(llmServiceProvider).generate(
+        [
+          {
+            'role': 'system',
+            'content': '你是翻译引擎。将用户发送的文本翻译为中文，只输出翻译结果，'
+                '不要输出任何解释、原文或额外说明。如果文本本身已是中文，原样输出。',
+          },
+          {'role': 'user', 'content': content},
+        ],
+        config,
+      );
+      final text = translated.trim();
+      if (!mounted) return;
+      if (text.isEmpty) {
+        _bridge.send(BridgeType.setMessageTranslation, {'id': id, 'text': ''});
+        showErrorSnackBar(context, '翻译结果为空');
+        return;
+      }
+      _bridge.send(BridgeType.setMessageTranslation, {'id': id, 'text': text});
+    } catch (e) {
+      if (!mounted) return;
+      // 失败：清掉占位符
+      _bridge.send(BridgeType.setMessageTranslation, {'id': id, 'text': ''});
+      showErrorSnackBar(context, '翻译失败：$e');
+    } finally {
+      _translatingIds.remove(id);
     }
   }
 
@@ -5745,6 +5849,41 @@ class _SlidingAppBar extends StatelessWidget implements PreferredSizeWidget {
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOutCubic,
       child: child,
+    );
+  }
+}
+/// [STT] 话筒按钮：长按开始录音（图标变红），松开识别并把结果填入输入框。
+/// 短按不触发录音（长按语义），中途手势被夺走走 onCancel 丢弃。
+class _SttMicButton extends StatelessWidget {
+  const _SttMicButton({
+    required this.color,
+    required this.recording,
+    required this.onStart,
+    required this.onFinish,
+    required this.onCancel,
+  });
+
+  final Color color;
+  final bool recording;
+  final VoidCallback onStart;
+  final VoidCallback onFinish;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onLongPressStart: (_) => onStart(),
+      onLongPressEnd: (_) => onFinish(),
+      onLongPressCancel: onCancel,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Icon(
+          recording ? Icons.mic : Icons.mic_none,
+          color: recording ? const Color(0xFFE5484D) : color,
+          size: 22,
+        ),
+      ),
     );
   }
 }
