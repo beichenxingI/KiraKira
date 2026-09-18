@@ -183,13 +183,33 @@ class ChronicleOrchestrator {
 
         final settings = settingsGetter();
         final config = llmConfigGetter();
-        final summaryConfig = config.copyWith(
-          temperature: settings.summaryTemperature,
-          maxTokens: 16384,
-          model: settings.summaryModel.isNotEmpty
-              ? settings.summaryModel
-              : config.model,
-        );
+        // [修改三] Chronicle 专属总结模型：三项配置任一非空 → 走专属 openAICompatible
+        // 全空则沿用主对话模型（兼容旧 summaryModel 字段）
+        final LLMConfig summaryConfig;
+        if (settings.summaryUsesMainModel) {
+          summaryConfig = config.copyWith(
+            temperature: settings.summaryTemperature,
+            maxTokens: 16384,
+            model: settings.summaryModel.isNotEmpty
+                ? settings.summaryModel
+                : config.model,
+          );
+        } else {
+          summaryConfig = config.copyWith(
+            provider: LLMProvider.openAICompatible,
+            apiUrl: settings.summaryBaseUrl.isNotEmpty
+                ? settings.summaryBaseUrl
+                : config.apiUrl,
+            apiKey: settings.summaryApiKey.isNotEmpty
+                ? settings.summaryApiKey
+                : config.apiKey,
+            model: settings.summaryModelName.isNotEmpty
+                ? settings.summaryModelName
+                : config.model,
+            temperature: settings.summaryTemperature,
+            maxTokens: 16384,
+          );
+        }
 
         // 1. [Phase 2] 结构化JSON抽取（失败降级纯文本，H5）
         final existingWiki = await _buildExistingWikiText(task.chatId);
@@ -290,11 +310,19 @@ class ChronicleOrchestrator {
           }
         }
       }
-      // 有id且属于本聊天 → 更新；否则新建
+      // 有id且属于本聊天 → 更新；否则系统兜底查重再决定新建/覆盖
       models.MemoryEntry? existing;
       if (inst.id != null && inst.id!.isNotEmpty) {
         final candidates = await _repo.getEntriesByIds(chatId, [inst.id!]);
         existing = candidates.isEmpty ? null : candidates.first;
+      } else if (inst.content.isNotEmpty) {
+        // [Part A] 模型没带ID → 向量相似度兜底查重（≥0.92 视为同一件事，复用旧ID覆盖）
+        final dupId =
+            await _findDuplicateEntry(chatId, inst.content, inst.title);
+        if (dupId != null) {
+          final candidates = await _repo.getEntriesByIds(chatId, [dupId]);
+          existing = candidates.isEmpty ? null : candidates.first;
+        }
       }
       final entry = existing?.copyWith(
             type: inst.type,
@@ -430,6 +458,45 @@ class ChronicleOrchestrator {
       await _repo.upsertMemoryEntry(entry.copyWith(vectorId: docId));
     } catch (e) {
       debugPrint('[CHRONICLE] 词条向量化跳过（不影响流程）: $e');
+    }
+  }
+
+  /// [Part A] 向量相似度兜底查重：新词条与现有未过时词条比对，
+  /// 余弦相似度 ≥ 0.92 视为同一件事，返回旧词条id（供复用覆盖）。
+  /// 用于 LLM 未带 id 的新建场景，避免同一事件重复累积词条。
+  Future<String?> _findDuplicateEntry(
+    String chatId,
+    String newContent,
+    String newTitle,
+  ) async {
+    try {
+      final newText = '$newTitle\n$newContent';
+      if (newText.trim().isEmpty) return null;
+      final vsSettings = vectorSettingsGetter();
+      final newVector = await _embedder.generateEmbedding(newText, vsSettings);
+
+      final all = await _repo.getAllEntries(chatId);
+      final active = all.where((e) => !e.deprecated).toList();
+      if (active.isEmpty) return null;
+
+      double bestScore = 0;
+      String? bestId;
+      for (final entry in active) {
+        final docId = entry.vectorId;
+        if (docId == null || docId.isEmpty) continue;
+        final doc = _vectorStorage.getDocument(chatId, docId);
+        if (doc?.embedding == null) continue;
+        final score =
+            vs.VectorMath.cosineSimilarity(newVector, doc!.embedding!);
+        if (score > bestScore) {
+          bestScore = score;
+          bestId = entry.id;
+        }
+      }
+      return bestScore >= 0.92 ? bestId : null;
+    } catch (e) {
+      debugPrint('[CHRONICLE] 兜底查重失败（不影响写入）: $e');
+      return null;
     }
   }
 

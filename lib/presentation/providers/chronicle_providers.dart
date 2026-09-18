@@ -68,6 +68,12 @@ class ChronicleSettingsNotifier
   void setSummaryInterval(int v) =>
       _update(state.copyWith(summaryInterval: v));
   void setSummaryModel(String v) => _update(state.copyWith(summaryModel: v));
+  void setSummaryBaseUrl(String v) =>
+      _update(state.copyWith(summaryBaseUrl: v));
+  void setSummaryApiKey(String v) =>
+      _update(state.copyWith(summaryApiKey: v));
+  void setSummaryModelName(String v) =>
+      _update(state.copyWith(summaryModelName: v));
   void setTokenPressureThreshold(double v) =>
       _update(state.copyWith(tokenPressureThreshold: v));
   void setHotWindowSize(int v) => _update(state.copyWith(hotWindowSize: v));

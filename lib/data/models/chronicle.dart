@@ -370,7 +370,10 @@ enum SummaryTaskStatus {
 class ChronicleSettings {
   final bool enabled; // 总开关
   final int summaryInterval; // 轮次触发阈值 10-40
-  final String summaryModel; // 空=沿用主模型
+  final String summaryModel; // 空=沿用主模型（旧字段，保留向后兼容）
+  final String summaryBaseUrl; // Chronicle专属总结模型BaseURL，空=沿用主模型
+  final String summaryApiKey; // Chronicle专属总结模型APIKey，空=沿用主模型
+  final String summaryModelName; // Chronicle专属总结模型名，空=沿用主模型
   final double summaryTemperature; // 默认0.2
   final double tokenPressureThreshold; // token压力触发占比 0.4-0.8
   final int hotWindowSize; // 热区窗口 10-40
@@ -383,6 +386,9 @@ class ChronicleSettings {
     this.enabled = true,
     this.summaryInterval = 20,
     this.summaryModel = '',
+    this.summaryBaseUrl = '',
+    this.summaryApiKey = '',
+    this.summaryModelName = '',
     this.summaryTemperature = 0.2,
     this.tokenPressureThreshold = 0.6,
     this.hotWindowSize = 20,
@@ -392,10 +398,19 @@ class ChronicleSettings {
     this.mvuBridgeEnabled = true,
   });
 
+  /// 三项专属配置全空 → 沿用主对话模型
+  bool get summaryUsesMainModel =>
+      summaryBaseUrl.isEmpty &&
+      summaryApiKey.isEmpty &&
+      summaryModelName.isEmpty;
+
   Map<String, dynamic> toJson() => {
         'enabled': enabled,
         'summaryInterval': summaryInterval,
         'summaryModel': summaryModel,
+        'summaryBaseUrl': summaryBaseUrl,
+        'summaryApiKey': summaryApiKey,
+        'summaryModelName': summaryModelName,
         'summaryTemperature': summaryTemperature,
         'tokenPressureThreshold': tokenPressureThreshold,
         'hotWindowSize': hotWindowSize,
@@ -410,6 +425,9 @@ class ChronicleSettings {
         enabled: json['enabled'] as bool? ?? true,
         summaryInterval: (json['summaryInterval'] as num?)?.toInt() ?? 20,
         summaryModel: json['summaryModel'] as String? ?? '',
+        summaryBaseUrl: json['summaryBaseUrl'] as String? ?? '',
+        summaryApiKey: json['summaryApiKey'] as String? ?? '',
+        summaryModelName: json['summaryModelName'] as String? ?? '',
         summaryTemperature:
             (json['summaryTemperature'] as num?)?.toDouble() ?? 0.2,
         tokenPressureThreshold:
@@ -425,6 +443,9 @@ class ChronicleSettings {
     bool? enabled,
     int? summaryInterval,
     String? summaryModel,
+    String? summaryBaseUrl,
+    String? summaryApiKey,
+    String? summaryModelName,
     double? summaryTemperature,
     double? tokenPressureThreshold,
     int? hotWindowSize,
@@ -437,6 +458,9 @@ class ChronicleSettings {
       enabled: enabled ?? this.enabled,
       summaryInterval: summaryInterval ?? this.summaryInterval,
       summaryModel: summaryModel ?? this.summaryModel,
+      summaryBaseUrl: summaryBaseUrl ?? this.summaryBaseUrl,
+      summaryApiKey: summaryApiKey ?? this.summaryApiKey,
+      summaryModelName: summaryModelName ?? this.summaryModelName,
       summaryTemperature: summaryTemperature ?? this.summaryTemperature,
       tokenPressureThreshold:
           tokenPressureThreshold ?? this.tokenPressureThreshold,
