@@ -4642,6 +4642,36 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       case 'cleanLegacyVectors':
         await ref.read(vectorStorageServiceProvider).removeLegacyVectors();
         break;
+      case 'fetchSummaryModels':
+        try {
+          final baseUrl = data['baseUrl'] as String? ?? '';
+          final apiKey = data['apiKey'] as String? ?? '';
+          if (baseUrl.isEmpty || apiKey.isEmpty) {
+            _snack('请先填写 Base URL 和 API Key');
+            _bridge.send(BridgeType.settingsPanelData,
+                {'data': await _serializeChronicleData(), 'refresh': true});
+            return;
+          }
+          final tempConfig = LLMConfig(
+            provider: LLMProvider.openAICompatible,
+            apiKey: apiKey,
+            apiUrl: baseUrl,
+            model: '',
+          );
+          final models = await ref
+              .read(llmServiceProvider)
+              .getAvailableModels(tempConfig);
+          final updated = await _serializeChronicleData();
+          updated['availableSummaryModels'] = models;
+          _bridge.send(BridgeType.settingsPanelData,
+              {'data': updated, 'refresh': true});
+          if (models.isEmpty) _snack('未拉取到模型，请检查地址和密钥');
+        } catch (e) {
+          _snack('拉取失败: $e');
+          _bridge.send(BridgeType.settingsPanelData,
+              {'data': await _serializeChronicleData(), 'refresh': true});
+        }
+        return;
     }
     _bridge.send(BridgeType.settingsPanelData,
         {'data': await _serializeChronicleData(), 'refresh': true});
@@ -4653,12 +4683,17 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     _bridge.send(BridgeType.openSettingsPanel, {
       'panel': 'stt',
       'title': 'STT 语音识别',
-      'data': _serializeSttData(),
+      'data': await _serializeSttData(),
     });
   }
 
-  Map<String, dynamic> _serializeSttData() {
+  Future<Map<String, dynamic>> _serializeSttData() async {
     final s = ref.read(sttSettingsProvider);
+    bool available = true;
+    try {
+      available =
+          await ref.read(sttAvailableProvider.future).timeout(const Duration(seconds: 2));
+    } catch (_) {}
     return <String, dynamic>{
       'enabled': s.enabled,
       'provider': s.provider.id,
@@ -4668,6 +4703,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       'showPartialResults': s.showPartialResults,
       'apiKey': s.apiKey ?? '',
       'apiEndpoint': s.apiEndpoint ?? '',
+      'available': available,
     };
   }
 
@@ -4705,16 +4741,29 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
     }
     _bridge.send(BridgeType.settingsPanelData,
-        {'data': _serializeSttData(), 'refresh': true});
+        {'data': await _serializeSttData(), 'refresh': true});
   }
 
   // ── [浮窗化] 导出/导入面板 ───────────────────────────────────────────
 
   Future<void> _openExportPanel() async {
+    final chatState = ref.read(activeChatProvider);
+    final messages = chatState.messages;
+    int entryCount = 0;
+    try {
+      entryCount = await ref
+          .read(chronicleRepositoryProvider)
+          .countEntries(widget.chatId);
+    } catch (_) {}
     _bridge.send(BridgeType.openSettingsPanel, {
       'panel': 'export',
       'title': '导出 / 导入',
-      'data': <String, dynamic>{'defaultFormat': 'jsonl'},
+      'data': <String, dynamic>{
+        'defaultFormat': 'jsonl',
+        'messageCount': messages.length,
+        'charName': chatState.character?.name ?? '当前会话',
+        'hasChronicle': entryCount > 0,
+      },
     });
   }
 
@@ -4891,6 +4940,24 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     });
   }
 
+  /// 头像文件 → data URL（WebView loadData 无法加载 file://，转 base64 内联）
+  static String _avatarDataUrl(String? path) {
+    if (path == null || path.isEmpty) return '';
+    try {
+      final f = File(path);
+      if (!f.existsSync()) return '';
+      final ext = p.extension(path).toLowerCase();
+      final mime = ext == '.jpg' || ext == '.jpeg'
+          ? 'image/jpeg'
+          : (ext == '.webp' ? 'image/webp' : 'image/png');
+      final bytes = f.readAsBytesSync();
+      if (bytes.isEmpty) return '';
+      return 'data:$mime;base64,${base64Encode(bytes)}';
+    } catch (_) {
+      return '';
+    }
+  }
+
   Map<String, dynamic> _serializePersonaData(
       {Map<String, dynamic>? editDetail}) {
     final personas = ref.read(personaNotifierProvider).valueOrNull ?? [];
@@ -4900,7 +4967,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           .map((p) => <String, dynamic>{
                 'id': p.id,
                 'name': p.name,
-                'avatarPath': '',
+                'avatarPath': _avatarDataUrl(p.avatarPath),
                 'isDefault': p.isDefault,
               })
           .toList(),
@@ -4998,6 +5065,27 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         }
         await pushRefresh();
         break;
+      case 'pickPersonaAvatar':
+        final picked = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 256,
+          maxHeight: 256,
+        );
+        if (picked == null) return;
+        final avatarId = data['id'] as String?;
+        if (avatarId != null && avatarId.isNotEmpty) {
+          final personas = ref.read(personaNotifierProvider).valueOrNull ?? [];
+          for (final pers in personas) {
+            if (pers.id == avatarId) {
+              await notifier.updatePersona(
+                  pers.copyWith(avatarPath: picked.path));
+              break;
+            }
+          }
+          _snack('头像已更新');
+        }
+        await pushRefresh();
+        break;
     }
   }
 
@@ -5007,13 +5095,20 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     _bridge.send(BridgeType.openSettingsPanel, {
       'panel': 'sprite',
       'title': '精灵立绘',
-      'data': _serializeSpriteData(),
+      'data': await _serializeSpriteData(),
     });
   }
 
-  Map<String, dynamic> _serializeSpriteData() {
+  Future<Map<String, dynamic>> _serializeSpriteData() async {
     final s = ref.read(spriteSettingsProvider);
     final character = ref.read(activeChatProvider).character;
+    int spriteCount = 0;
+    try {
+      final pack = character != null
+          ? await ref.read(spritePackProvider(character.id).future)
+          : null;
+      spriteCount = pack?.sprites.length ?? 0;
+    } catch (_) {}
     return <String, dynamic>{
       'enabled': s.enabled,
       'size': s.size,
@@ -5024,7 +5119,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       'transitionDurationMs': s.transitionDurationMs,
       'charId': character?.id ?? '',
       'charName': character?.name ?? '',
-      'spriteCount': 0,
+      'spriteCount': spriteCount,
     };
   }
 
@@ -5077,7 +5172,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
     }
     _bridge.send(BridgeType.settingsPanelData,
-        {'data': _serializeSpriteData(), 'refresh': true});
+        {'data': await _serializeSpriteData(), 'refresh': true});
   }
 
   // ── [浮窗化] 预设&提示词面板 ─────────────────────────────────────────
@@ -5189,6 +5284,80 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           'data': _serializePresetData(),
           'refresh': true,
         });
+        break;
+      case 'renamePreset':
+        final renameId = data['id'] as String? ?? '';
+        final currentName = data['currentName'] as String? ?? '';
+        if (renameId.isEmpty) return;
+        _bridge.send(BridgeType.closeSettingsPanel, {});
+        await Future.delayed(const Duration(milliseconds: 350));
+        final newName = await _showHtmlPrompt(
+          title: '重命名预设',
+          message: '新的预设名称',
+          initial: currentName,
+        );
+        if (!mounted || newName == null || newName.trim().isEmpty) return;
+        final allPresetsNow = ref.read(allAIPresetsProvider);
+        final target = allPresetsNow.where((p) => p.id == renameId).firstOrNull;
+        if (target == null) return;
+        await ref
+            .read(aiCustomPresetsProvider.notifier)
+            .updatePreset(target.copyWith(name: newName.trim()));
+        _snack('已重命名');
+        _bridge.send(BridgeType.openSettingsPanel, {
+          'panel': 'preset',
+          'title': '预设 & 提示词',
+          'data': _serializePresetData(),
+        });
+        break;
+      case 'deletePreset':
+        final delId = data['id'] as String? ?? '';
+        if (delId.isEmpty) return;
+        await ref.read(aiCustomPresetsProvider.notifier).deletePreset(delId);
+        _snack('已删除');
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializePresetData(),
+          'refresh': true,
+        });
+        break;
+      case 'importPreset':
+        final pickResult = await FilePicker.platform.pickFiles(
+          dialogTitle: '导入预设',
+          type: FileType.custom,
+          allowedExtensions: ['json'],
+        );
+        if (pickResult == null || pickResult.files.single.path == null) {
+          _snack('未选择文件');
+          return;
+        }
+        final content = await File(pickResult.files.single.path!).readAsString();
+        try {
+          final json = jsonDecode(content) as Map<String, dynamic>;
+          final preset =
+              await ref.read(aiCustomPresetsProvider.notifier).importPreset(json);
+          _snack('已导入「${preset.name}」');
+        } catch (e) {
+          _snack('导入失败: $e');
+        }
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializePresetData(),
+          'refresh': true,
+        });
+        break;
+      case 'exportPreset':
+        final activeIdNow = ref.read(activeAIPresetIdProvider);
+        final presetsNow = ref.read(allAIPresetsProvider);
+        final active = presetsNow.where((p) => p.id == activeIdNow).firstOrNull;
+        if (active == null) {
+          _snack('当前无激活预设');
+          return;
+        }
+        final exportJson = jsonEncode(active.toExportJson());
+        final tempDir = await getTemporaryDirectory();
+        final file = File(
+            '${tempDir.path}/${active.name}_${DateTime.now().millisecondsSinceEpoch}.json');
+        await file.writeAsString(exportJson);
+        await Share.shareXFiles([XFile(file.path)], subject: '预设导出');
         break;
     }
   }
@@ -5318,11 +5487,25 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               detail = {
                 'id': e.id,
                 'keysStr': e.keys.join(', '),
+                'secondaryKeysStr': e.secondaryKeys.join(', '),
                 'comment': e.comment,
                 'content': e.content,
                 'order': e.insertionOrder,
                 'enabled': e.enabled,
                 'constant': e.constant,
+                'selective': e.selective,
+                'caseSensitive': e.caseSensitive,
+                'matchWholeWords': e.matchWholeWords,
+                'useProbability': e.useProbability,
+                'probability': e.probability,
+                'position': e.position.name,
+                'depth': e.depth,
+                'role': e.role.name,
+                'group': e.group ?? '',
+                'groupWeight': e.groupWeight,
+                'preventRecursion': e.preventRecursion,
+                'excludeRecursion': e.excludeRecursion,
+                'delayUntilRecursion': e.delayUntilRecursion,
               };
               break;
             }
@@ -5404,11 +5587,25 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         final bookId = data['bookId'] as String? ?? '';
         final id = data['id'] as String?;
         final keysRaw = data['keys'] as String? ?? '';
+        final secKeysRaw = data['secondaryKeys'] as String? ?? '';
         final comment = data['comment'] as String? ?? '';
         final content = data['content'] as String? ?? '';
         final order = (data['order'] as num?)?.toInt() ?? 100;
         final enabled = data['enabled'] as bool? ?? true;
         final constant = data['constant'] as bool? ?? false;
+        final selective = data['selective'] as bool? ?? false;
+        final caseSensitive = data['caseSensitive'] as bool? ?? false;
+        final matchWholeWords = data['matchWholeWords'] as bool? ?? false;
+        final useProbability = data['useProbability'] as bool? ?? false;
+        final probability = (data['probability'] as num?)?.toInt() ?? 100;
+        final positionStr = data['position'] as String? ?? 'before';
+        final depth = (data['depth'] as num?)?.toInt() ?? 0;
+        final roleStr = data['role'] as String? ?? 'system';
+        final group = data['group'] as String?;
+        final groupWeight = (data['groupWeight'] as num?)?.toInt() ?? 100;
+        final preventRecursion = data['preventRecursion'] as bool? ?? false;
+        final excludeRecursion = data['excludeRecursion'] as bool? ?? false;
+        final delayUntilRecursion = data['delayUntilRecursion'] as bool? ?? false;
         if (bookId.isEmpty) return;
         if (!constant && keysRaw.trim().isEmpty) {
           _snack('触发词不能为空（或勾选「始终插入」）');
@@ -5419,6 +5616,19 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             .map((e) => e.trim())
             .where((e) => e.isNotEmpty)
             .toList();
+        final secondaryKeys = secKeysRaw
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        final position = models.WorldInfoPosition.values.firstWhere(
+          (p) => p.name == positionStr,
+          orElse: () => models.WorldInfoPosition.before,
+        );
+        final role = models.WorldInfoRole.values.firstWhere(
+          (r) => r.name == roleStr,
+          orElse: () => models.WorldInfoRole.system,
+        );
         if (id != null && id.isNotEmpty) {
           final book = await repo.getWorldInfoById(bookId);
           if (book != null) {
@@ -5426,11 +5636,25 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               if (e.id == id) {
                 await notifier.updateEntry(e.copyWith(
                   keys: keys,
+                  secondaryKeys: secondaryKeys,
                   comment: comment,
                   content: content,
                   insertionOrder: order,
                   enabled: enabled,
                   constant: constant,
+                  selective: selective,
+                  caseSensitive: caseSensitive,
+                  matchWholeWords: matchWholeWords,
+                  useProbability: useProbability,
+                  probability: probability,
+                  position: position,
+                  depth: depth,
+                  role: role,
+                  group: (group != null && group.isNotEmpty) ? group : e.group,
+                  groupWeight: groupWeight,
+                  preventRecursion: preventRecursion,
+                  excludeRecursion: excludeRecursion,
+                  delayUntilRecursion: delayUntilRecursion,
                 ));
                 break;
               }
@@ -5441,8 +5665,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             worldInfoId: bookId,
             keys: keys,
             content: content,
+            secondaryKeys: secondaryKeys.isNotEmpty ? secondaryKeys : null,
             comment: comment,
+            position: position,
             constant: constant,
+            selective: selective,
             insertionOrder: order,
           );
         }

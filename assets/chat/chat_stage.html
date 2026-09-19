@@ -2053,7 +2053,11 @@ __KIRA_CHAT_BRIDGE__
     }
     if (data.hasLegacyVectors) {
       container.appendChild(spButton('清理旧向量数据', 'danger', function() {
-        spAction('cleanLegacyVectors', {});
+        spConfirm('清理旧向量数据',
+          '将删除旧格式的向量数据，不影响 Chronicle 词条。此操作不可撤销。',
+          '确认清理', function(){
+            spAction('cleanLegacyVectors',{});
+          }, true);
       }));
     }
 
@@ -2104,6 +2108,27 @@ __KIRA_CHAT_BRIDGE__
       data.summaryModelName || '', 'gpt-4o-mini', 'text',
       function(v) { spAction('setSummaryModelName', {value: v}); }));
 
+    var fetchModelsBtn = document.createElement('button');
+    fetchModelsBtn.className = 'sp-btn secondary';
+    fetchModelsBtn.style.marginTop = '6px';
+    fetchModelsBtn.textContent = '获取可用模型列表';
+    fetchModelsBtn.addEventListener('click', function(){
+      var url = document.getElementById('chronicle-sum-url');
+      var key = document.getElementById('chronicle-sum-key');
+      spAction('fetchSummaryModels',{
+        baseUrl: url ? url.value : '',
+        apiKey: key ? key.value : ''
+      });
+    });
+    container.appendChild(fetchModelsBtn);
+
+    if (data.availableSummaryModels && data.availableSummaryModels.length > 0) {
+      container.appendChild(spSelect('chronicle-model-select','选择模型',
+        data.availableSummaryModels.map(function(m){ return {value:m,label:m}; }),
+        data.summaryModelName||'',
+        function(v){ spAction('setSummaryModelName',{value:v}); }));
+    }
+
     container.appendChild(spSection('高级选项'));
     container.appendChild(spToggle('chronicle-emotion', '情感召回加成',
       '活跃情感关联实体事件加权召回', data.emotionRecallEnabled !== false,
@@ -2151,7 +2176,12 @@ __KIRA_CHAT_BRIDGE__
       container.appendChild(spInput('stt-key', 'API Key',
         data.apiKey || '', 'sk-...', 'password',
         function(v) { spAction('setApiKey', {value: v}); }));
-    } else {
+    if (d.provider === 'sherpa' && d.available === false) {
+      var unavailCard = document.createElement('div');
+      unavailCard.className = 'sp-warn-card';
+      unavailCard.textContent = '本地模型未就绪，请检查模型文件是否存在。';
+      container.appendChild(unavailCard);
+    } else if (d.provider !== 'whisper' && d.provider !== 'azure') {
       container.appendChild(spDesc('本地/系统引擎无需 API 配置。'));
     }
     container.appendChild(spSection('行为'));
@@ -2171,6 +2201,13 @@ __KIRA_CHAT_BRIDGE__
   // ── [浮窗化] 导出/导入面板 ───────────────────────────────────────────
   function renderExportPanel(container, data) {
     container.innerHTML = '';
+    var d = data || {};
+    if (d.charName) {
+      container.appendChild(spDesc(
+        '导出「' + d.charName + '」的 ' + (d.messageCount||0) + ' 条消息' +
+        (d.hasChronicle ? '（含 Chronicle 记忆词条）' : '')
+      ));
+    }
     container.appendChild(spSection('导出当前聊天'));
     container.appendChild(spSelect('export-fmt', '导出格式', [
       {value:'jsonl', label:'JSONL（兼容主流格式，含记忆）'},
@@ -2461,8 +2498,13 @@ __KIRA_CHAT_BRIDGE__
           main.className = 'sp-list-item-main';
           var title = document.createElement('div');
           title.className = 'sp-list-item-title';
-          title.textContent = p.name + (p.isActive ? ' ✓' : '') +
-            (p.isBuiltIn ? '（内置）' : '');
+          title.textContent = p.name + (p.isActive ? ' ✓' : '');
+          if (p.isBuiltIn) {
+            var badge = document.createElement('span');
+            badge.className = 'sp-badge sp-badge-accent';
+            badge.textContent = '内置';
+            title.appendChild(badge);
+          }
           main.appendChild(title);
           row.appendChild(main);
           var actions = document.createElement('div');
@@ -2473,9 +2515,31 @@ __KIRA_CHAT_BRIDGE__
             useBtn.textContent = '应用';
             useBtn.addEventListener('click', function(e) {
               e.stopPropagation();
-              spAction('applyPreset', {id: p.id});
+              spConfirm('应用预设',
+                '应用「' + p.name + '」将覆盖当前采样参数、提示词分区设置。',
+                '确认应用', function(){ spAction('applyPreset',{id:p.id}); }, false);
             });
             actions.appendChild(useBtn);
+          }
+          if (!p.isBuiltIn) {
+            var renameBtn = document.createElement('button');
+            renameBtn.className = 'sp-icon-btn';
+            renameBtn.textContent = '✎';
+            renameBtn.addEventListener('click', function(e){
+              e.stopPropagation();
+              spAction('renamePreset',{id:p.id, currentName:p.name});
+            });
+            var delPresetBtn = document.createElement('button');
+            delPresetBtn.className = 'sp-icon-btn danger';
+            delPresetBtn.textContent = '✕';
+            delPresetBtn.addEventListener('click', function(e){
+              e.stopPropagation();
+              spConfirm('删除预设','删除「'+p.name+'」？', '删除', function(){
+                spAction('deletePreset',{id:p.id});
+              }, true);
+            });
+            actions.appendChild(renameBtn);
+            actions.appendChild(delPresetBtn);
           }
           row.appendChild(actions);
           container.appendChild(row);
@@ -2484,11 +2548,30 @@ __KIRA_CHAT_BRIDGE__
       container.appendChild(spButton('+ 从当前设置新建预设', 'secondary', function() {
         spAction('createPreset', {});
       }));
+      var presetIoRow = document.createElement('div');
+      presetIoRow.className = 'sp-flex-row'; presetIoRow.style.marginTop='8px';
+      var importPresetBtn = document.createElement('button');
+      importPresetBtn.className='sp-btn secondary'; importPresetBtn.style.flex='1';
+      importPresetBtn.textContent='导入预设';
+      importPresetBtn.addEventListener('click',function(){ spAction('importPreset',{}); });
+      var exportPresetBtn = document.createElement('button');
+      exportPresetBtn.className='sp-btn secondary'; exportPresetBtn.style.flex='1';
+      exportPresetBtn.textContent='导出当前';
+      exportPresetBtn.addEventListener('click',function(){ spAction('exportPreset',{}); });
+      presetIoRow.appendChild(importPresetBtn); presetIoRow.appendChild(exportPresetBtn);
+      container.appendChild(presetIoRow);
     } else {
       var sections = data.promptSections || [];
       if (sections.length === 0) {
         container.appendChild(spEmpty('暂无提示词分区'));
       } else {
+        var _promptSaveTimer = null;
+        function promptDebounce(fn) {
+          return function(v) {
+            clearTimeout(_promptSaveTimer);
+            _promptSaveTimer = setTimeout(function(){ fn(v); }, 600);
+          };
+        }
         sections.forEach(function(sec) {
           container.appendChild(spSection(sec.name));
           container.appendChild(spToggle('prompt-sec-' + sec.id,
@@ -2496,7 +2579,9 @@ __KIRA_CHAT_BRIDGE__
             function(v) { spAction('togglePromptSection', {id: sec.id, enabled: v}); }));
           container.appendChild(spTextarea('prompt-content-' + sec.id,
             '', sec.content || '', '提示词内容…',
-            function(v) { spAction('updatePromptContent', {id: sec.id, content: v}); }));
+            promptDebounce(function(v) {
+              spAction('updatePromptContent', {id: sec.id, content: v});
+            })));
         });
       }
       container.appendChild(spButton('恢复默认排序', 'secondary', function() {
@@ -2652,37 +2737,99 @@ __KIRA_CHAT_BRIDGE__
         spAction('loadWorldEntries', {bookId: _worldState.editBookId});
       });
       container.appendChild(back2);
-      container.appendChild(spInput('wi-keys', '触发词（逗号分隔）',
+
+      var wiBasicCard = document.createElement('div'); wiBasicCard.className = 'sp-card';
+      wiBasicCard.appendChild(spSection('基础'));
+      wiBasicCard.appendChild(spInput('wi-keys', '触发词（逗号分隔）',
         d.keysStr || '', 'keyword1, keyword2', 'text', function(v) {}));
-      container.appendChild(spInput('wi-comment', '备注名称',
+      wiBasicCard.appendChild(spInput('wi-seckeys', '次级触发词（逗号分隔）',
+        d.secondaryKeysStr || '', '可选次级触发词', 'text', function(v) {}));
+      wiBasicCard.appendChild(spInput('wi-comment', '备注名称',
         d.comment || '', '条目备注', 'text', function(v) {}));
-      container.appendChild(spTextarea('wi-content', '内容',
+      wiBasicCard.appendChild(spTextarea('wi-content', '内容',
         d.content || '', '世界书条目内容…', function(v) {}));
-      container.appendChild(spSlider('wi-order', '插入顺序（越小越靠前）',
-        d.order != null ? d.order : 100, 0, 1000, 10, '',
-        function(v) {}));
-      container.appendChild(spToggle('wi-enabled', '启用',
+      wiBasicCard.appendChild(spToggle('wi-enabled', '启用',
         '', d.enabled !== false, function(v) {}));
-      container.appendChild(spToggle('wi-constant', '始终插入',
+      wiBasicCard.appendChild(spToggle('wi-constant', '始终插入',
         '无论触发词是否匹配都插入', d.constant || false, function(v) {}));
+      container.appendChild(wiBasicCard);
+
+      var wiAdvCard = document.createElement('div'); wiAdvCard.className = 'sp-card';
+      wiAdvCard.appendChild(spCollapse('触发与过滤', function(body){
+        body.appendChild(spToggle('wi-selective','选择性触发','需次级触发词也匹配',d.selective,function(){}));
+        body.appendChild(spToggle('wi-case','大小写敏感','',d.caseSensitive,function(){}));
+        body.appendChild(spToggle('wi-whole','全词匹配','',d.matchWholeWords,function(){}));
+        body.appendChild(spToggle('wi-prob-en','启用概率触发','',d.useProbability,function(){}));
+        if (d.useProbability) {
+          body.appendChild(spSlider('wi-prob','触发概率',d.probability != null ? d.probability : 100,0,100,5,'%',function(){}));
+        }
+      }, false));
+      wiAdvCard.appendChild(spCollapse('插入位置', function(body){
+        body.appendChild(spSelect('wi-position','插入位置',[
+          {value:'before',label:'角色定义前'},
+          {value:'after',label:'角色定义后'},
+          {value:'ANTop',label:'作者注前'},
+          {value:'ANBottom',label:'作者注后'},
+          {value:'atDepth',label:'指定深度'}
+        ], d.position || 'before', function(){}));
+        body.appendChild(spInput('wi-depth','插入深度',String(d.depth || 0),'0','number',function(){}));
+        body.appendChild(spSelect('wi-role','角色标签',[
+          {value:'system',label:'System'},
+          {value:'user',label:'User'},
+          {value:'assistant',label:'Assistant'}
+        ], d.role || 'system', function(){}));
+        body.appendChild(spSlider('wi-order','插入顺序（越小越靠前）',
+          d.order != null ? d.order : 100, 0, 1000, 10, '', function(){}));
+      }, false));
+      wiAdvCard.appendChild(spCollapse('分组与递归', function(body){
+        body.appendChild(spInput('wi-group','分组名',d.group || '','可选分组','text',function(){}));
+        body.appendChild(spSlider('wi-groupweight','分组权重',
+          d.groupWeight != null ? d.groupWeight : 100, 0, 1000, 10, '', function(){}));
+        body.appendChild(spToggle('wi-prevent-recursion','阻止递归扫描','',d.preventRecursion,function(){}));
+        body.appendChild(spToggle('wi-exclude-recursion','排除递归包含','',d.excludeRecursion,function(){}));
+        body.appendChild(spToggle('wi-delay-recursion','延迟到递归','',d.delayUntilRecursion,function(){}));
+      }, false));
+      container.appendChild(wiAdvCard);
+
       container.appendChild(spButton(
         _worldState.editEntryId ? '保存' : '创建', 'primary',
         function() {
           var keysEl = document.getElementById('wi-keys');
+          var seckEl = document.getElementById('wi-seckeys');
           var commentEl = document.getElementById('wi-comment');
           var contentEl = document.getElementById('wi-content');
           var orderEl = document.getElementById('wi-order');
           var enabledEl = document.getElementById('wi-enabled');
           var constantEl = document.getElementById('wi-constant');
+          var probEl = document.getElementById('wi-prob');
+          var depthEl = document.getElementById('wi-depth');
+          var positionEl = document.getElementById('wi-position');
+          var roleEl = document.getElementById('wi-role');
+          var groupEl = document.getElementById('wi-group');
+          var gwEl = document.getElementById('wi-groupweight');
           spAction('saveWorldEntry', {
             id: _worldState.editEntryId,
             bookId: _worldState.editBookId,
             keys: keysEl ? keysEl.value : '',
+            secondaryKeys: seckEl ? seckEl.value : '',
             comment: commentEl ? commentEl.value : '',
             content: contentEl ? contentEl.value : '',
             order: orderEl ? (parseInt(orderEl.value) || 100) : 100,
             enabled: enabledEl ? enabledEl.classList.contains('on') : true,
-            constant: constantEl ? constantEl.classList.contains('on') : false
+            constant: constantEl ? constantEl.classList.contains('on') : false,
+            selective: document.getElementById('wi-selective') ? document.getElementById('wi-selective').classList.contains('on') : false,
+            caseSensitive: document.getElementById('wi-case') ? document.getElementById('wi-case').classList.contains('on') : false,
+            matchWholeWords: document.getElementById('wi-whole') ? document.getElementById('wi-whole').classList.contains('on') : false,
+            useProbability: document.getElementById('wi-prob-en') ? document.getElementById('wi-prob-en').classList.contains('on') : false,
+            probability: probEl ? (parseInt(probEl.value) || 100) : 100,
+            position: positionEl ? positionEl.value : 'before',
+            depth: depthEl ? (parseInt(depthEl.value) || 0) : 0,
+            role: roleEl ? roleEl.value : 'system',
+            group: groupEl ? groupEl.value : '',
+            groupWeight: gwEl ? (parseInt(gwEl.value) || 100) : 100,
+            preventRecursion: document.getElementById('wi-prevent-recursion') ? document.getElementById('wi-prevent-recursion').classList.contains('on') : false,
+            excludeRecursion: document.getElementById('wi-exclude-recursion') ? document.getElementById('wi-exclude-recursion').classList.contains('on') : false,
+            delayUntilRecursion: document.getElementById('wi-delay-recursion') ? document.getElementById('wi-delay-recursion').classList.contains('on') : false
           });
           _worldState.level = 'entries';
         }));
