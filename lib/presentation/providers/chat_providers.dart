@@ -1632,46 +1632,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       worldInfoEntries =
           await _findMatchingWorldInfoEntries(character!, chatMessages);
     }
-    // ═══ RAG 向量检索注入 ═══
-    // [CHRONICLE UI整合] Chronicle开启时此块被接管关闭：
-    // 旧RAG召回的是原文片段，Chronicle F-7召回精炼wiki词条摘要，功能重叠且更省token。
-    // Chronicle关闭时（迁移选择"保留旧数据"的用户）旧RAG行为保持可用。
-    try {
-      final vsSettings = _ref.read(vectorStorageSettingsProvider);
-      if (vsSettings.enabled &&
-          !chronicleSettings.enabled && // Chronicle接管时跳过
-          vsSettings.includeInPrompt &&
-          vsSettings.activeCollectionId != null &&
-          chatMessages.isNotEmpty) {
-        // 取最后一条 user 消息作为检索 query
-        final userMsgs =
-            chatMessages.where((m) => m.role == MessageRole.user);
-        final query =
-            userMsgs.isNotEmpty ? userMsgs.last.content.trim() : '';
-        if (query.isNotEmpty) {
-          final embedder = _ref.read(embeddingServiceProvider);
-          final vsService = _ref.read(vectorStorageServiceProvider);
-          final queryVec = await embedder.generateEmbedding(query, vsSettings);
-          final results = vsService.search(
-            collectionId: vsSettings.activeCollectionId!,
-            queryEmbedding: queryVec,
-            topK: vsSettings.topK,
-            similarityThreshold: vsSettings.similarityThreshold,
-          );
-          if (results.isNotEmpty) {
-            final contextStr = vsService.generateContext(results);
-            final injected = vsSettings.promptTemplate
-                .replaceAll('{{context}}', contextStr);
-            messages.add({'role': 'system', 'content': injected});
-            debugPrint('🔍 RAG 注入 ${results.length} 条检索结果');
-          } else {
-            debugPrint('🔍 RAG 无命中（阈值 ${vsSettings.similarityThreshold}）');
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('⚠️ RAG 检索跳过（不影响对话）: $e');
-    }
+    // [Chronicle已接管上下文注入，旧RAG检索块已移除]
 
     // Get Prompt Manager configuration
     final promptConfig = _ref.read(promptManagerProvider);

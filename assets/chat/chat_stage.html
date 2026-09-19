@@ -677,6 +677,10 @@ if (!String.prototype.at) {
   .sp-content::-webkit-scrollbar{width:3px;}
   .sp-content::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px;}
   .sp-content::-webkit-scrollbar-track{background:transparent;}
+  .sp-textarea{width:100%;background:#20242C;border:none;border-radius:10px;
+    padding:10px 12px;color:#F5F7FA;font-size:14px;outline:none;resize:vertical;
+    min-height:72px;font-family:inherit;box-sizing:border-box;}
+  .sp-row-col{flex-direction:column;align-items:flex-start;gap:6px;}
   /* [浮窗化] HTML 组件库 */
   .sp-section{padding:.75rem 1rem .25rem;font-size:.7rem;font-weight:600;
     color:#7C4DFF;text-transform:uppercase;letter-spacing:.08em;}
@@ -1138,6 +1142,25 @@ __KIRA_CHAT_BRIDGE__
     });
     return b;
   }
+  function spTextarea(id, label, value, placeholder, onChange) {
+    var wrap = document.createElement('div');
+    wrap.className = 'sp-row sp-row-col';
+    if (label) {
+      var lab = document.createElement('div');
+      lab.className = 'sp-row-label';
+      lab.textContent = label;
+      wrap.appendChild(lab);
+    }
+    var ta = document.createElement('textarea');
+    ta.id = id;
+    ta.className = 'sp-textarea';
+    ta.value = value || '';
+    ta.placeholder = placeholder || '';
+    ta.rows = 3;
+    ta.addEventListener('change', function() { onChange(ta.value); });
+    wrap.appendChild(ta);
+    return wrap;
+  }
 
   // ── [浮窗化] 设置面板管理 ─────────────────────────────────────────────
   var __currentPanel = null;
@@ -1276,6 +1299,7 @@ __KIRA_CHAT_BRIDGE__
       case 'tts': renderTtsPanel(container, data); break;
       case 'variables': renderVariablesPanel(container, data); break;
       case 'vectorStorage': renderVectorStoragePanel(container, data); break;
+      case 'chronicle': renderChroniclePanel(container, data); break;
       case 'imageGen': renderImageGenPanel(container, data); break;
       default: container.appendChild(spEmpty('未知面板: ' + panel));
     }
@@ -1545,6 +1569,85 @@ __KIRA_CHAT_BRIDGE__
         })(collections[i]);
       }
     }
+  }
+
+  // ── [Chronicle融合] Chronicle 超级记忆面板 ──────────────────────────
+  function renderChroniclePanel(container, data) {
+    container.innerHTML = '';
+
+    container.appendChild(spSection('状态'));
+    container.appendChild(spToggle('chronicle-enable', '启用 Chronicle 超级记忆',
+      '自动从对话中提炼记忆词条，注入上下文', data.enabled,
+      function(v) { spAction('toggleEnabled', {enabled: v}); }));
+    if (data.entryCount > 0) {
+      container.appendChild(spDesc('当前聊天已提炼 ' + data.entryCount + ' 条记忆词条'));
+    }
+    if (data.hasLegacyVectors) {
+      container.appendChild(spButton('清理旧向量数据', 'danger', function() {
+        spAction('cleanLegacyVectors', {});
+      }));
+    }
+
+    container.appendChild(spSection('基础参数'));
+    container.appendChild(spSlider('chronicle-interval', '总结触发间隔（轮次）',
+      data.summaryInterval || 20, 10, 40, 5, ' 轮',
+      function(v) { spAction('setSummaryInterval', {value: v}); }));
+    container.appendChild(spSlider('chronicle-pressure', 'Token 压力阈值',
+      Math.round((data.tokenPressureThreshold || 0.6) * 100), 40, 80, 5, '%',
+      function(v) { spAction('setTokenPressureThreshold', {value: v / 100}); }));
+    container.appendChild(spSlider('chronicle-hot', '热区大小（保留原文轮次）',
+      data.hotWindowSize || 20, 10, 40, 5, ' 条',
+      function(v) { spAction('setHotWindowSize', {value: v}); }));
+    container.appendChild(spSlider('chronicle-topk', '召回数量 Top K',
+      data.ragTopK || 5, 3, 10, 1, ' 条',
+      function(v) { spAction('setRagTopK', {value: v}); }));
+
+    container.appendChild(spSection('向量配置'));
+    container.appendChild(spSelect('chronicle-embedding', 'Embedding 模型', [
+      {value: 'local', label: '本地 BGE（免费，推荐）'},
+      {value: 'openai', label: 'OpenAI'},
+      {value: 'cohere', label: 'Cohere'},
+      {value: 'custom', label: 'Custom API'}
+    ], data.embeddingProvider || 'local',
+    function(v) { spAction('setEmbeddingProvider', {value: v}); }));
+    if (data.embeddingProvider && data.embeddingProvider !== 'local') {
+      container.appendChild(spInput('chronicle-emb-url', 'API 地址',
+        data.embeddingApiUrl || '', 'https://api.openai.com/v1', 'text',
+        function(v) { spAction('setEmbeddingApiUrl', {value: v}); }));
+      container.appendChild(spInput('chronicle-emb-key', 'API 密钥',
+        data.embeddingApiKey || '', 'sk-...', 'password',
+        function(v) { spAction('setEmbeddingApiKey', {value: v}); }));
+      container.appendChild(spInput('chronicle-emb-model', '模型名',
+        data.embeddingModel || '', 'text-embedding-3-small', 'text',
+        function(v) { spAction('setEmbeddingModel', {value: v}); }));
+    } else {
+      container.appendChild(spDesc('使用设备本地模型生成向量，无需 API，不花费 token。'));
+    }
+
+    container.appendChild(spSection('总结模型（留空=沿用主模型）'));
+    container.appendChild(spInput('chronicle-sum-url', 'Base URL',
+      data.summaryBaseUrl || '', 'https://api.openai.com/v1', 'text',
+      function(v) { spAction('setSummaryBaseUrl', {value: v}); }));
+    container.appendChild(spInput('chronicle-sum-key', 'API Key',
+      data.summaryApiKey || '', 'sk-...', 'password',
+      function(v) { spAction('setSummaryApiKey', {value: v}); }));
+    container.appendChild(spInput('chronicle-sum-model', '模型名',
+      data.summaryModelName || '', 'gpt-4o-mini', 'text',
+      function(v) { spAction('setSummaryModelName', {value: v}); }));
+
+    container.appendChild(spSection('高级选项'));
+    container.appendChild(spToggle('chronicle-emotion', '情感召回加成',
+      '活跃情感关联实体事件加权召回', data.emotionRecallEnabled !== false,
+      function(v) { spAction('setEmotionRecallEnabled', {enabled: v}); }));
+    container.appendChild(spToggle('chronicle-mvu', 'MVU 桥接',
+      '数值变化超过阈值时自动记录为记忆事件', data.mvuBridgeEnabled !== false,
+      function(v) { spAction('setMvuBridgeEnabled', {enabled: v}); }));
+
+    container.appendChild(spSection('自定义提示词追加'));
+    container.appendChild(spDesc('基础总结模板已内置，此处只写补充内容'));
+    container.appendChild(spTextarea('chronicle-prompt', '',
+      data.customPromptSuffix || '', '可在这里补充对总结的额外要求…',
+      function(v) { spAction('setCustomPromptSuffix', {value: v}); }));
   }
 
   // ── [浮窗化] 生图设置面板 ────────────────────────────────────────────

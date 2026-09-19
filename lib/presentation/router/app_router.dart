@@ -14,7 +14,8 @@ import 'package:kirakira/presentation/screens/ai_config/llm_test_screen.dart';
 import 'package:kirakira/presentation/screens/ai_config/llm_config_list_screen.dart';
 import 'package:kirakira/presentation/screens/settings/sprite_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/image_gen_settings_screen.dart';
-import 'package:kirakira/presentation/screens/settings/vector_storage_settings_screen.dart';
+// [Chronicle融合] VectorStorageSettingsScreen 路由已摘除，import 一并注释
+// import 'package:kirakira/presentation/screens/settings/vector_storage_settings_screen.dart';
 import 'package:kirakira/presentation/widgets/chat/logprobs_panel.dart';
 import 'package:kirakira/presentation/screens/ai_config/ai_config_screen.dart';
 import 'package:kirakira/presentation/screens/import/import_screen.dart';
@@ -289,13 +290,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             _buildIosPushPage(state.pageKey, const LogprobsSettingsScreen()),
       ),
-      GoRoute(
-        path: AppRoutes.vectorStorageSettings,
-        name: 'vectorStorageSettings',
-        parentNavigatorKey: _rootNavigatorKey,
-        pageBuilder: (context, state) => _buildIosPushPage(
-            state.pageKey, const VectorStorageSettingsScreen()),
-      ),
+      // [Chronicle融合] VectorStorageSettingsScreen 路由已摘除，
+      // 设置入口由 Chronicle 面板接管。文件保留以便回滚。
+      // GoRoute(
+      //   path: AppRoutes.vectorStorageSettings,
+      //   name: 'vectorStorageSettings',
+      //   parentNavigatorKey: _rootNavigatorKey,
+      //   pageBuilder: (context, state) => _buildIosPushPage(
+      //       state.pageKey, const VectorStorageSettingsScreen()),
+      // ),
       GoRoute(
         path: AppRoutes.llmTest,
         name: 'llmTest',

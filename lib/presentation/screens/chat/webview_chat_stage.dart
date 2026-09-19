@@ -1302,6 +1302,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                         case 'openVectorStoragePanel':
                           await _openVectorStoragePanel();
                           break;
+                        case 'openChroniclePanel':
+                          await _openChroniclePanel();
+                          break;
                         case 'openImageGenPanel':
                           await _openImageGenPanel();
                           break;
@@ -3804,6 +3807,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       case 'vectorStorage':
         await _handleVectorStoragePanelAction(action, data);
         break;
+      case 'chronicle':
+        await _handleChroniclePanelAction(action, data);
+        break;
       case 'imageGen':
         await _handleImageGenPanelAction(action, data);
         break;
@@ -4254,6 +4260,113 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         });
         break;
     }
+  }
+
+  // ── [Chronicle融合] Chronicle 超级记忆面板 ─────────────────────────
+
+  Future<void> _openChroniclePanel() async {
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'chronicle',
+      'title': 'Chronicle 超级记忆',
+      'data': await _serializeChronicleData(),
+    });
+  }
+
+  Future<Map<String, dynamic>> _serializeChronicleData() async {
+    final cs = ref.read(chronicleSettingsProvider);
+    final vs = ref.read(vectorStorageSettingsProvider);
+    final vsService = ref.read(vectorStorageServiceProvider);
+    final repo = ref.read(chronicleRepositoryProvider);
+
+    int entryCount = 0;
+    try {
+      entryCount = await repo.countEntries(widget.chatId);
+    } catch (_) {}
+
+    return {
+      'enabled': cs.enabled,
+      'summaryInterval': cs.summaryInterval,
+      'tokenPressureThreshold': cs.tokenPressureThreshold,
+      'hotWindowSize': cs.hotWindowSize,
+      'ragTopK': cs.ragTopK,
+      'emotionRecallEnabled': cs.emotionRecallEnabled,
+      'mvuBridgeEnabled': cs.mvuBridgeEnabled,
+      'customPromptSuffix': cs.customPromptSuffix,
+      'summaryUsesMainModel': cs.summaryUsesMainModel,
+      'summaryBaseUrl': cs.summaryBaseUrl,
+      'summaryApiKey': cs.summaryApiKey,
+      'summaryModelName': cs.summaryModelName,
+      'embeddingProvider': vs.embeddingProvider.name,
+      'embeddingModel':
+          vs.embeddingModel ?? vs.embeddingProvider.defaultModel,
+      'embeddingApiUrl': vs.embeddingApiUrl ?? '',
+      'embeddingApiKey': vs.embeddingApiKey ?? '',
+      'entryCount': entryCount,
+      'hasLegacyVectors': vsService.hasLegacyVectors,
+    };
+  }
+
+  Future<void> _handleChroniclePanelAction(
+      String action, Map<String, dynamic> data) async {
+    final cn = ref.read(chronicleSettingsProvider.notifier);
+    final vn = ref.read(vectorStorageSettingsProvider.notifier);
+    switch (action) {
+      case 'toggleEnabled':
+        cn.setEnabled(data['enabled'] as bool);
+        break;
+      case 'setSummaryInterval':
+        cn.setSummaryInterval((data['value'] as num).toInt());
+        break;
+      case 'setTokenPressureThreshold':
+        cn.setTokenPressureThreshold((data['value'] as num).toDouble());
+        break;
+      case 'setHotWindowSize':
+        cn.setHotWindowSize((data['value'] as num).toInt());
+        break;
+      case 'setRagTopK':
+        cn.setRagTopK((data['value'] as num).toInt());
+        break;
+      case 'setEmotionRecallEnabled':
+        cn.setEmotionRecallEnabled(data['enabled'] as bool);
+        break;
+      case 'setMvuBridgeEnabled':
+        cn.setMvuBridgeEnabled(data['enabled'] as bool);
+        break;
+      case 'setCustomPromptSuffix':
+        cn.setCustomPromptSuffix(data['value'] as String);
+        break;
+      case 'setSummaryBaseUrl':
+        cn.setSummaryBaseUrl(data['value'] as String);
+        break;
+      case 'setSummaryApiKey':
+        cn.setSummaryApiKey(data['value'] as String);
+        break;
+      case 'setSummaryModelName':
+        cn.setSummaryModelName(data['value'] as String);
+        break;
+      case 'setEmbeddingProvider':
+        final providerStr = data['value'] as String;
+        final provider = EmbeddingProvider.values.firstWhere(
+          (p) => p.name == providerStr,
+          orElse: () => EmbeddingProvider.local,
+        );
+        vn.setEmbeddingProvider(provider);
+        break;
+      case 'setEmbeddingModel':
+        vn.setEmbeddingModel(data['value'] as String);
+        break;
+      case 'setEmbeddingApiUrl':
+        vn.setEmbeddingApiUrl(data['value'] as String);
+        break;
+      case 'setEmbeddingApiKey':
+        vn.setEmbeddingApiKey(data['value'] as String);
+        break;
+      case 'cleanLegacyVectors':
+        await ref.read(vectorStorageServiceProvider).removeLegacyVectors();
+        break;
+    }
+    _bridge.send(BridgeType.settingsPanelData,
+        {'data': await _serializeChronicleData()});
   }
 
   // ── [浮窗化] 生图设置面板 ────────────────────────────────────────────
