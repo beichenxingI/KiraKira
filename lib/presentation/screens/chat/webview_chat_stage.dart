@@ -4094,6 +4094,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   Map<String, dynamic> _serializeBackgroundData() {
     final appSettings = ref.read(appSettingsProvider);
     final bg = ref.read(globalBackgroundProvider);
+    final quoteState = ref.read(quoteColorStateProvider);
     return <String, dynamic>{
       'useCharacterAvatar': appSettings.useCharacterAvatarAsBackground,
       'enableBlur': appSettings.enableBackgroundBlur,
@@ -4104,7 +4105,49 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       'bgBlur': bg.blur,
       'bubbleOpacity': bg.bubbleOpacity,
       'imagePath': bg.imagePath ?? '',
+      'quotePrimaryA': _hex(quoteState.primaryA),
+      'quotePrimaryB': _hex(quoteState.primaryB),
+      'quoteSymbols': QuoteSymbol.values
+          .where((s) =>
+              s != QuoteSymbol.doubleQuote && s != QuoteSymbol.parenthesis)
+          .map((s) => <String, dynamic>{
+                'symbol': s.name,
+                'label': _quoteSymbolLabel(s),
+                'enabled': quoteState.enabledFor(s),
+              })
+          .toList(),
     };
+  }
+
+  static String _quoteSymbolLabel(QuoteSymbol s) {
+    switch (s) {
+      case QuoteSymbol.doubleQuote:
+        return '双引号';
+      case QuoteSymbol.parenthesis:
+        return '圆括号';
+      case QuoteSymbol.cornerBracket:
+        return '直角括号「」';
+      case QuoteSymbol.doubleCorner:
+        return '双直角括号『』';
+      case QuoteSymbol.blackLenticular:
+        return '方头括号【】';
+      case QuoteSymbol.bookTitle:
+        return '书名号《》';
+      case QuoteSymbol.squareBracket:
+        return '英文方括号[]';
+    }
+  }
+
+  static Color? _parseHexColor(String? hex) {
+    if (hex == null || hex.isEmpty) return null;
+    var h = hex.replaceFirst('#', '');
+    if (h.length == 3) {
+      h = h.split('').map((c) => c + c).join();
+    }
+    if (h.length != 6) return null;
+    final value = int.tryParse(h, radix: 16);
+    if (value == null) return null;
+    return Color(0xFF000000 | value);
   }
 
   Future<void> _handleBackgroundPanelAction(
@@ -4153,6 +4196,44 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         ref.read(appSettingsProvider.notifier)
             .updateChatLayoutMode(data['mode'] as String);
         break;
+      case 'setQuotePrimaryA':
+        final cA = _parseHexColor(data['color'] as String?);
+        if (cA != null) {
+          await ref.read(quoteColorStateProvider.notifier).setPrimaryA(cA);
+        }
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeBackgroundData(),
+          'refresh': true,
+        });
+        break;
+      case 'setQuotePrimaryB':
+        final cB = _parseHexColor(data['color'] as String?);
+        if (cB != null) {
+          await ref.read(quoteColorStateProvider.notifier).setPrimaryB(cB);
+        }
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeBackgroundData(),
+          'refresh': true,
+        });
+        break;
+      case 'setQuoteSymbolEnabled':
+        final symStr = data['symbol'] as String? ?? '';
+        if (symStr.isEmpty) return;
+        final symbol = QuoteSymbol.values.firstWhere(
+          (s) => s.name == symStr,
+          orElse: () => QuoteSymbol.cornerBracket,
+        );
+        await ref
+            .read(quoteColorStateProvider.notifier)
+            .setEnabled(symbol, data['enabled'] as bool);
+        break;
+      case 'resetQuoteColors':
+        await ref.read(quoteColorStateProvider.notifier).resetAll();
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializeBackgroundData(),
+          'refresh': true,
+        });
+        break;
     }
   }
 
@@ -4182,6 +4263,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'rate': settings.rate,
         'pitch': settings.pitch,
         'volume': settings.volume,
+        'apiKey': settings.apiKey ?? '',
+        'apiEndpoint': settings.apiEndpoint ?? '',
         'availableVoices': voices,
       },
     });
@@ -4235,6 +4318,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
       case 'setVolume':
         notifier.setVolume((data['volume'] as num).toDouble());
+        break;
+      case 'setApiKey':
+        notifier.setApiKey(data['value'] as String);
+        break;
+      case 'setApiEndpoint':
+        notifier.setApiEndpoint(data['value'] as String);
         break;
       case 'testTts':
         final speak = ref.read(ttsSpeakProvider);
@@ -4342,16 +4431,23 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
 
       case 'clearAllVariables':
-        final ok = await _showHtmlConfirm(
-          title: '清空变量',
-          message: '确定清空所有全局和会话变量吗？此操作不可撤销。',
-          confirmText: '清空',
-          cancelText: '取消',
-          danger: true,
-        );
-        if (!mounted || !ok) return;
-        await ref.read(globalVariablesProvider.notifier).clearAll();
-        ref.read(localVariablesProvider(widget.chatId).notifier).clearAll();
+        final scope = data['scope'] as String?;
+        if (scope == null) {
+          final ok = await _showHtmlConfirm(
+            title: '清空变量',
+            message: '确认清空所有全局和会话变量？此操作不可撤销。',
+            confirmText: '清空',
+            cancelText: '取消',
+            danger: true,
+          );
+          if (!mounted || !ok) return;
+          await ref.read(globalVariablesProvider.notifier).clearAll();
+          ref.read(localVariablesProvider(widget.chatId).notifier).clearAll();
+        } else if (scope == 'global') {
+          await ref.read(globalVariablesProvider.notifier).clearAll();
+        } else if (scope == 'local') {
+          ref.read(localVariablesProvider(widget.chatId).notifier).clearAll();
+        }
         _bridge.send(BridgeType.settingsPanelData, {
           'data': _serializeVariablesData(),
           'refresh': true,
@@ -4661,6 +4757,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       case 'setStreamEnabled':
         ln.updateStreamEnabled(data['enabled'] as bool);
         break;
+      case 'setSeed':
+        ln.updateSeed((data['value'] as num).toInt());
+        break;
       case 'toggleCfg':
         ref
             .read(cfgScaleSettingsProvider.notifier)
@@ -4684,7 +4783,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         ln.updateFrequencyPenalty(0);
         ln.updatePresencePenalty(0);
         ln.updateMirostatMode(0);
+        ln.updateMirostatTau(5);
+        ln.updateMirostatEta(0.1);
         ln.updateMaxTokens(512);
+        ln.updateContextLength(8192);
+        ln.updateStopSequences(const []);
         ln.updateSeed(-1);
         break;
     }
