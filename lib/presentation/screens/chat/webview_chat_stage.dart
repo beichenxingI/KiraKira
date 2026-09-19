@@ -1329,9 +1329,6 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                         case 'openVariablesPanel':
                           await _openVariablesPanel();
                           break;
-                        case 'openVectorStoragePanel':
-                          await _openVectorStoragePanel();
-                          break;
                         case 'openChroniclePanel':
                           await _openChroniclePanel();
                           break;
@@ -3834,9 +3831,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       case 'variables':
         await _handleVariablesPanelAction(action, data);
         break;
-      case 'vectorStorage':
-        await _handleVectorStoragePanelAction(action, data);
-        break;
       case 'chronicle':
         await _handleChroniclePanelAction(action, data);
         break;
@@ -4213,79 +4207,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         ref.read(localVariablesProvider(widget.chatId).notifier).clearAll();
         _bridge.send(BridgeType.settingsPanelData, {
           'data': _serializeVariablesData(),
-          'refresh': true,
-        });
-        break;
-    }
-  }
-
-  // ── [浮窗化] 向量记忆面板 ────────────────────────────────────────────
-
-  Future<void> _openVectorStoragePanel() async {
-    _bridge.send(BridgeType.openSettingsPanel, {
-      'panel': 'vectorStorage',
-      'title': '向量记忆',
-      'data': _serializeVectorStorageData(),
-    });
-  }
-
-  Map<String, dynamic> _serializeVectorStorageData() {
-    final settings = ref.read(vectorStorageSettingsProvider);
-    final collections = ref.read(vectorCollectionsProvider);
-    return <String, dynamic>{
-      'enabled': settings.enabled,
-      'topK': settings.topK,
-      'similarityThreshold': settings.similarityThreshold,
-      'includeInPrompt': settings.includeInPrompt,
-      'embeddingProvider': settings.embeddingProvider.name,
-      'embeddingModel': settings.embeddingModel ?? settings.embeddingProvider.defaultModel,
-      'embeddingApiKey': settings.embeddingApiKey ?? '',
-      'embeddingApiUrl': settings.embeddingApiUrl ?? '',
-      'activeCollectionId': settings.activeCollectionId ?? '',
-      'collections': collections
-          .map((c) => {'id': c.id, 'name': c.name, 'documentCount': c.documentCount})
-          .toList(),
-    };
-  }
-
-  Future<void> _handleVectorStoragePanelAction(
-      String action, Map<String, dynamic> data) async {
-    final notifier = ref.read(vectorStorageSettingsProvider.notifier);
-    switch (action) {
-      case 'toggleEnabled':
-        notifier.setEnabled(data['enabled'] as bool);
-        break;
-      case 'setTopK':
-        notifier.setTopK((data['topK'] as num).toInt());
-        break;
-      case 'setSimilarityThreshold':
-        notifier.setSimilarityThreshold((data['threshold'] as num).toDouble());
-        break;
-      case 'setEmbeddingProvider':
-        final providerStr = data['provider'] as String;
-        final provider = EmbeddingProvider.values.firstWhere(
-          (p) => p.name == providerStr,
-          orElse: () => EmbeddingProvider.local,
-        );
-        notifier.setEmbeddingProvider(provider);
-        _bridge.send(BridgeType.settingsPanelData, {
-          'data': _serializeVectorStorageData(),
-          'refresh': true,
-        });
-        break;
-      case 'setEmbeddingModel':
-        notifier.setEmbeddingModel(data['model'] as String);
-        break;
-      case 'setEmbeddingApiKey':
-        notifier.setEmbeddingApiKey(data['key'] as String);
-        break;
-      case 'setEmbeddingApiUrl':
-        notifier.setEmbeddingApiUrl(data['url'] as String);
-        break;
-      case 'selectCollection':
-        notifier.setActiveCollection(data['id'] as String?);
-        _bridge.send(BridgeType.settingsPanelData, {
-          'data': _serializeVectorStorageData(),
           'refresh': true,
         });
         break;

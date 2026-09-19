@@ -1467,7 +1467,6 @@ __KIRA_CHAT_BRIDGE__
       case 'background': renderBackgroundPanel(container, data); break;
       case 'tts': renderTtsPanel(container, data); break;
       case 'variables': renderVariablesPanel(container, data); break;
-      case 'vectorStorage': renderVectorStoragePanel(container, data); break;
       case 'chronicle': renderChroniclePanel(container, data); break;
       case 'imageGen': renderImageGenPanel(container, data); break;
       default: container.appendChild(spEmpty('未知面板: ' + panel));
@@ -1660,84 +1659,6 @@ __KIRA_CHAT_BRIDGE__
       spAction('deleteVariable', { scope: scope, name: variable.name });
     }));
     return item;
-  }
-
-  // ── [浮窗化] 向量记忆面板 ────────────────────────────────────────────
-  function renderVectorStoragePanel(container, data) {
-    container.appendChild(spSection('基础设置'));
-    container.appendChild(spToggle('vector-enable', '启用 RAG',
-      '检索增强生成，让 AI 记住长期对话内容', data.enabled,
-      function(checked) { spAction('toggleEnabled', { enabled: checked }); }));
-
-    if (data.enabled === false) {
-      container.appendChild(spDesc('启用后可以让 AI 记住长期对话内容（下方设置可先配置）'));
-    }
-
-    // 搜索设置
-    container.appendChild(spSection('搜索设置'));
-    container.appendChild(spSlider('vector-topk', 'Top K 结果数',
-      data.topK || 5, 1, 20, 1, ' 条',
-      function(v) { spAction('setTopK', { topK: v }); }));
-    container.appendChild(spSlider('vector-threshold', '相似度阈值',
-      Math.round((data.similarityThreshold || 0.7) * 100), 0, 100, 5, '%',
-      function(v) { spAction('setSimilarityThreshold', { threshold: v / 100 }); }));
-    container.appendChild(spDesc('相似度低于此阈值的文档不会被检索'));
-
-    // Embedding 配置
-    container.appendChild(spSection('Embedding 配置'));
-    container.appendChild(spSelect('embedding-provider', '提供者', [
-      { value: 'openai', label: 'OpenAI' },
-      { value: 'cohere', label: 'Cohere' },
-      { value: 'local', label: '本地模型（免费）' },
-      { value: 'custom', label: 'Custom API' }
-    ], data.embeddingProvider || 'local', function(v) {
-      spAction('setEmbeddingProvider', { provider: v });
-    }));
-    container.appendChild(spInput('embedding-model', '模型',
-      data.embeddingModel || '', 'text-embedding-3-small', 'text',
-      function(v) { spAction('setEmbeddingModel', { model: v }); }));
-
-    // API 配置（非 local 模式）
-    if (data.embeddingProvider && data.embeddingProvider !== 'local') {
-      container.appendChild(spInput('embedding-api-url', 'API 地址',
-        data.embeddingApiUrl || '', 'https://api.openai.com/v1', 'text',
-        function(v) { spAction('setEmbeddingApiUrl', { url: v }); }));
-      container.appendChild(spInput('embedding-api-key', 'API 密钥',
-        data.embeddingApiKey || '', 'sk-...', 'password',
-        function(v) { spAction('setEmbeddingApiKey', { key: v }); }));
-    } else if (data.embeddingProvider === 'local') {
-      container.appendChild(spDesc('使用设备本地的 bge-small-zh 模型生成向量，无需 API、不花费 token。'));
-    }
-
-    // 集合状态
-    var collections = data.collections || [];
-    if (collections.length > 0) {
-      container.appendChild(spSection('知识库集合'));
-      for (var i = 0; i < collections.length; i++) {
-        (function(col) {
-          var isActive = col.id === data.activeCollectionId;
-          var row = document.createElement('div');
-          row.className = 'sp-row';
-          var lab = document.createElement('div');
-          lab.style.flex = '1';
-          var nameEl = document.createElement('div');
-          nameEl.className = 'sp-row-label';
-          nameEl.textContent = col.name + (isActive ? ' ✓' : '');
-          lab.appendChild(nameEl);
-          var subEl = document.createElement('div');
-          subEl.className = 'sp-row-sub';
-          subEl.textContent = col.documentCount + ' 个文档';
-          lab.appendChild(subEl);
-          row.appendChild(lab);
-          if (!isActive) {
-            row.appendChild(spIconButton('◉', function() {
-              spAction('selectCollection', { id: col.id });
-            }));
-          }
-          container.appendChild(row);
-        })(collections[i]);
-      }
-    }
   }
 
   // ── [Chronicle融合] Chronicle 超级记忆面板 ──────────────────────────
