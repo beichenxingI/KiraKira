@@ -3965,7 +3965,7 @@ function injectBridge(html, id, floorIdx) {
   //   按钮:func(功能菜单) / upload(图片上传) / send-发送 / send-generating→stop
   //   Flutter 通过 inputBarState 推送 {generating, text, tokenCount, attachments, sttEnabled, sttListening}
   //   通过 sttResult 推送 {text} 填回 textarea
-  (function () {
+  document.addEventListener('DOMContentLoaded', function () {
     var ta = document.getElementById('chatTextarea');
     var sendBtn = document.getElementById('sendBtn');
     var sendIconSend = sendBtn ? sendBtn.querySelector('.icon-send') : null;
@@ -4140,7 +4140,7 @@ function injectBridge(html, id, floorIdx) {
         try { sendToFlutter('log', { text: '[STT结果] 填入失败: ' + e }); } catch (_sr0) {}
       }
     });
-  })();
+  });
   registerBridgeHandler('setImage', function(p) {
     try {
       var sel = '[data-att-path="' + p.path + '"]';
