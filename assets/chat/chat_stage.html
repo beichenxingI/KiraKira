@@ -636,9 +636,12 @@ if (!String.prototype.at) {
   .func-overlay.hiding .func-panel{
     transform:scale(.95) translateY(8px);opacity:0;
     transition:transform .18s ease-in,opacity .18s ease-in;}
-  .func-panel-title{font-size:15px;font-weight:600;
+  .func-panel-title{font-size:17px;font-weight:700;
     color:var(--kira-text-1,#F5F7FA);
-    text-align:center;margin-bottom:14px;}
+    text-align:center;padding:4px 0 14px;
+    letter-spacing:.3px;
+    border-bottom:1px solid var(--kira-divider,rgba(255,255,255,.06));
+    margin-bottom:12px;}
   .func-context{margin-bottom:12px;
     color:var(--kira-accent,#7FD98A);font-size:13px;cursor:pointer;
     background:color-mix(in srgb,var(--kira-accent,#7FD98A) 8%,transparent);
@@ -663,6 +666,8 @@ if (!String.prototype.at) {
   .func-btn-jump:active{transform:scale(.92);}
   .func-group-label{color:var(--kira-text-3,#8A8A8A);font-size:11px;
     font-weight:600;letter-spacing:.8px;margin:8px 0 6px;}
+  .func-card{background:rgba(255,255,255,.04);border-radius:16px;
+    padding:8px;margin-bottom:8px;}
   .func-grid{display:grid;grid-template-columns:repeat(4,1fr);
     gap:8px;margin-bottom:10px;}
   .func-item{display:flex;flex-direction:column;align-items:center;
@@ -693,7 +698,7 @@ if (!String.prototype.at) {
     text-align:center;}
   .ti-image    .func-icon-box{--ti-color:#7C4DFF;}
   .ti-tts      .func-icon-box{--ti-color:#FF8A65;}
-  .ti-stt      .func-icon-box{--ti-color:#EF5350;}
+  .ti-stt      .func-icon-box{--ti-color:#5C6BC0;}
   .ti-sprite   .func-icon-box{--ti-color:#66BB6A;}
   .ti-memory   .func-icon-box{--ti-color:#EC407A;}
   .ti-world    .func-icon-box{--ti-color:#42A5F5;}
@@ -726,15 +731,18 @@ if (!String.prototype.at) {
   .sp-overlay.hiding .sp-panel{transform:scale(.97) translateY(14px);opacity:0;
     transition:transform .18s var(--ease-modal,cubic-bezier(.25,1,.5,1)),
       opacity .18s var(--ease-modal,cubic-bezier(.25,1,.5,1));}
-  .sp-header{display:flex;align-items:center;padding:16px 16px 12px;
-    border-bottom:1px solid var(--kira-divider,rgba(255,255,255,.05));flex-shrink:0;}
-  .sp-close{background:transparent;border:none;
-    color:var(--kira-text-3,#8A8A8A);cursor:pointer;padding:4px;
-    border-radius:8px;transition:all .2s var(--ease-elastic,cubic-bezier(.175,.885,.32,1.275));}
+  .sp-header{padding:18px 16px 14px;
+    border-bottom:1px solid var(--kira-divider,rgba(255,255,255,.06));
+    display:flex;align-items:center;flex-shrink:0;position:relative;}
+  .sp-close{position:absolute;left:12px;
+    background:rgba(255,255,255,.08);border:none;border-radius:50%;
+    width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+    color:var(--kira-text-2,#C8CDD6);cursor:pointer;
+    transition:all .2s var(--ease-elastic,cubic-bezier(.175,.885,.32,1.275));}
   .sp-close:active{transform:scale(.9);}
-  .sp-title{flex:1;text-align:center;font-size:16px;font-weight:600;
-    color:var(--kira-text-1,#F5F7FA);}
-  .sp-spacer{width:28px;}
+  .sp-title{flex:1;text-align:center;font-size:17px;font-weight:700;
+    color:var(--kira-text-1,#F5F7FA);letter-spacing:.3px;}
+  .sp-spacer{width:30px;}
   .sp-content{overflow-y:auto;padding:12px 16px 24px;flex:1;
     -webkit-overflow-scrolling:touch;}
   .sp-content::-webkit-scrollbar{width:3px;}
@@ -868,6 +876,7 @@ if (!String.prototype.at) {
       <div class="func-btn-jump func-action" data-action="jumpFloor">跳转</div>
     </div>
     <div class="func-group-label">快捷设置</div>
+    <div class="func-card">
     <div class="func-grid">
       <div class="func-item func-action ti-image" data-action="openImageGenPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div><span>生图</span></div>
       <div class="func-item func-action ti-tts" data-action="openTtsPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div><span>TTS</span></div>
@@ -882,12 +891,15 @@ if (!String.prototype.at) {
       <div class="func-item func-action ti-bubble" data-action="openBackgroundPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div><span>气泡</span></div>
       <div class="func-item func-action ti-vars" data-action="openVariablesPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><span>变量</span></div>
     </div>
+    </div>
     <div class="func-group-label">当前角色</div>
+    <div class="func-card">
     <div class="func-grid">
       <div class="func-item func-action ti-charbook" data-action="openCharacterBookPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><span>角色书</span></div>
       <div class="func-item func-action ti-charregex" data-action="openCharacterRegexPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div><span>角色则</span></div>
       <div class="func-item func-action ti-search" data-action="openSearchPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><span>搜索</span></div>
       <div class="func-item func-action ti-export" data-action="openExportPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><span>导出</span></div>
+    </div>
     </div>
   </div>
 </div>
@@ -1859,8 +1871,8 @@ __KIRA_CHAT_BRIDGE__
       var fmt = document.getElementById('export-fmt');
       spAction('exportChatToFile', {format: fmt ? fmt.value : 'jsonl'});
     }));
-    container.appendChild(spSection('导入聊天'));
-    container.appendChild(spDesc('支持 JSONL / JSON 格式。导入将在当前角色下新建聊天，如含 kira_chronicle 会恢复记忆。'));
+    container.appendChild(spSection('导入'));
+    container.appendChild(spDesc('支持 JSONL / JSON / ST 标准格式。导入前请先导出备份当前记录。'));
     container.appendChild(spButton('选择文件导入', 'secondary', function() {
       spAction('importChat', {});
     }));
