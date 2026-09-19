@@ -653,6 +653,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     );
   }
   @override
+  void didChangePlatformBrightness() {
+    super.didChangePlatformBrightness();
+    if (!mounted) return;
+    _injectLayoutVars();
+  }
+  @override
   void didChangeMetrics() {
     super.didChangeMetrics();
     if (!mounted) return;
@@ -713,6 +719,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     final keyboardHeight = mq.viewInsets.bottom;
     // visualViewport 在 WebView 里不一定可用,用实际可视高度(减去键盘)
     final viewportHeight = mq.size.height - keyboardHeight;
+    // [新菜单] 主题色注入（深色/浅色都跟随）
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     _bridge.send(BridgeType.layoutVars, {
       'keyboardHeight': keyboardHeight,
       'statusBarHeight': statusBarHeight,
@@ -720,7 +729,28 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       'viewportHeight': viewportHeight,
       'topBarVisible': _topBarVisible,
       'topBarHeight': _topBarVisible ? 44.0 : 0.0,
+      'panelBg': _hex(cs.surface),
+      'panelRadius': 24,
+      'scrim': 'rgba(0,0,0,0.5)',
+      'accent': _hex(isDark ? const Color(0xFF7C4DFF) : cs.primary),
+      'text1': _hex(cs.onSurface),
+      'text2': _hex(cs.onSurfaceVariant),
+      'text3': isDark ? '#8A8A8A' : '#6B7280',
+      'inputBg': _hex(isDark
+          ? const Color(0xFF20242C)
+          : const Color(0xFFF1F3F6)),
+      'divider': isDark
+          ? 'rgba(255,255,255,0.05)'
+          : 'rgba(0,0,0,0.06)',
     });
+  }
+
+  /// Color → #RRGGBB（WebView setProperty 不认 ARGB）
+  static String _hex(Color c) {
+    final r = (c.r * 255).round().toRadixString(16).padLeft(2, '0');
+    final g = (c.g * 255).round().toRadixString(16).padLeft(2, '0');
+    final b = (c.b * 255).round().toRadixString(16).padLeft(2, '0');
+    return '#$r$g$b';
   }
 
   /// [P1-A5] 崩溃自愈超限后,用户点「重新加载」:重置计数并重挂 webview 恢复。
@@ -4366,7 +4396,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
     }
     _bridge.send(BridgeType.settingsPanelData,
-        {'data': await _serializeChronicleData()});
+        {'data': await _serializeChronicleData(), 'refresh': true});
   }
 
   // ── [浮窗化] 生图设置面板 ────────────────────────────────────────────
