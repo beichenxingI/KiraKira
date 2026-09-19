@@ -47,15 +47,29 @@ if (!String.prototype.at) {
                 background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
   }
   * { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
-  .model-sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);
-    display:none;z-index:9999;align-items:flex-end;}
-  .model-sheet-overlay.show{display:flex;}
-  .model-sheet-panel{width:100%;max-height:70vh;background:#14161C;
-    border-radius:18px 18px 0 0;padding:16px;box-sizing:border-box;
-    display:flex;flex-direction:column;transform:translateY(100%);
-    transition:transform .25s ease;}
-  .model-sheet-overlay.show .model-sheet-panel{transform:translateY(0);}
-  .model-sheet-header{font-size:15px;font-weight:600;color:#F5F7FA;margin-bottom:10px;}
+  .model-sheet-overlay{position:fixed;inset:0;
+    background:var(--kira-scrim,rgba(0,0,0,.5));
+    display:none;z-index:10000;align-items:center;justify-content:center;
+    padding:16px;box-sizing:border-box;
+    opacity:0;transition:opacity .22s ease;}
+  .model-sheet-overlay.show{display:flex;opacity:1;}
+  .model-sheet-panel{width:min(calc(100vw - 32px),420px);
+    max-height:75vh;background:var(--kira-panel-bg,#14161C);
+    border-radius:var(--kira-panel-radius,24px);overflow:hidden;
+    display:flex;flex-direction:column;
+    box-shadow:0 24px 64px rgba(0,0,0,.45);
+    transform:scale(.96) translateY(12px);opacity:0;
+    transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .22s ease;}
+  .model-sheet-overlay.show .model-sheet-panel{transform:scale(1) translateY(0);opacity:1;}
+  .model-sheet-overlay.hiding .model-sheet-panel{
+    transform:scale(.96) translateY(8px);opacity:0;
+    transition:transform .18s ease-in,opacity .18s ease-in;}
+  .model-sheet-header{font-size:17px;font-weight:700;
+    color:var(--kira-text-1,#F5F7FA);text-align:center;
+    padding:18px 16px 14px;
+    border-bottom:1px solid var(--kira-divider,rgba(255,255,255,.06));
+    flex-shrink:0;}
+  .model-sheet-body{overflow-y:auto;padding:8px 12px 16px;}
   .config-switcher{margin-bottom:10px;}
   .config-current{display:flex;align-items:center;justify-content:space-between;
     padding:10px 12px;background:#20242C;border-radius:8px;color:#F5F7FA;
@@ -506,9 +520,8 @@ if (!String.prototype.at) {
   }
   .chat-input-container .action-btn:active { transform: scale(0.92); }
   .chat-input-container .send-btn:active { transform: scale(0.9); }
-  /* 图片按钮 / +号菜单按钮:透明底,点击亮色 */
-  .chat-input-container .btn-image:active,
-  .chat-input-container .func-btn:active {
+  /* 图片按钮:透明底,点击亮色 */
+  .chat-input-container .btn-image:active {
     background: rgba(255, 255, 255, 0.08);
     color: #E0E0E0;
   }
@@ -611,6 +624,38 @@ if (!String.prototype.at) {
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     font-size: 11px;
+  }
+  /* ===== 图片小浮层（贴着图片按钮向上弹） =====
+     容器已是 position:fixed（键盘锚定），天然构成 absolute 子元素的包含块 */
+  .img-picker-popup{
+    position:absolute;
+    bottom:calc(100% + 8px);
+    left:12px;
+    background:var(--kira-panel-bg,#1A1C26);
+    border-radius:14px;
+    padding:6px;
+    box-shadow:0 8px 32px rgba(0,0,0,.4);
+    border:1px solid var(--kira-divider,rgba(255,255,255,.08));
+    z-index:1001;
+    min-width:140px;
+    transform:scale(.92) translateY(8px);opacity:0;
+    transition:transform .25s cubic-bezier(.34,1.56,.64,1),
+               opacity .18s ease;
+  }
+  .img-picker-popup.show{
+    transform:scale(1) translateY(0);opacity:1;
+  }
+  .img-picker-item{
+    display:flex;align-items:center;gap:10px;
+    width:100%;background:transparent;border:none;
+    padding:10px 12px;border-radius:10px;
+    color:var(--kira-text-1,#F5F7FA);font-size:14px;
+    cursor:pointer;white-space:nowrap;
+    transition:background .15s;
+  }
+  .img-picker-item:active{
+    background:color-mix(in srgb,var(--kira-accent,#7C4DFF) 15%,transparent);
+    transform:scale(.97);
   }
   /* ===== func-overlay（功能菜单，屏幕居中） ===== */
   :root{
@@ -850,6 +895,7 @@ if (!String.prototype.at) {
 <div id="__kira_model_sheet" class="model-sheet-overlay">
   <div class="model-sheet-panel">
     <div class="model-sheet-header">选择模型</div>
+    <div class="model-sheet-body">
     <input id="__kira_model_search" class="model-search" placeholder="搜索模型…" />
     <div id="__kira_config_switcher" class="config-switcher" style="display:none;">
       <div class="config-current" id="config-current">
@@ -859,6 +905,7 @@ if (!String.prototype.at) {
       <div class="config-list" id="config-list"></div>
     </div>
     <div id="model-list" class="model-list"></div>
+    </div>
   </div>
 </div>
 <div id="__kira_func_overlay" class="func-overlay">
@@ -1007,8 +1054,11 @@ __KIRA_CHAT_BRIDGE__
   function __closeModelSheet(){
     var ov = document.getElementById('__kira_model_sheet');
     if(!ov) return;
-    ov.classList.remove('show');
-    setTimeout(function(){ ov.style.display = 'none'; }, 260);
+    ov.classList.add('hiding');
+    setTimeout(function(){
+      ov.classList.remove('show', 'hiding');
+      ov.style.display = 'none';
+    }, 200);
   }
   var __configs = [];
   function __renderConfigs(){
@@ -4779,7 +4829,6 @@ function injectBridge(html, id, floorIdx) {
     var sendBtn = document.getElementById('sendBtn');
     var sendIconSend = sendBtn ? sendBtn.querySelector('.icon-send') : null;
     var sendIconStop = sendBtn ? sendBtn.querySelector('.icon-stop') : null;
-    var funcBtn = document.getElementById('funcBtn');
     var btnImage = document.getElementById('btnImage');
     var previewBar = document.getElementById('attachmentPreviewBar');
 
@@ -4862,18 +4911,48 @@ function injectBridge(html, id, floorIdx) {
         if (_isVoiceMode) _exitVoiceMode();
       });
     }
-    // 图片按钮:桥到 Flutter inputUpload → _pickImages(独立直达,不走 func-overlay)
+    // 图片按钮:切换小浮层(发送图片/会话图片)
+    var imagePickerPopup = document.getElementById('imagePickerPopup');
+    var btnPickImage = document.getElementById('btnPickImage');
+    var btnSessionImages = document.getElementById('btnSessionImages');
+    function __hideImagePickerPopup() {
+      if (!imagePickerPopup) return;
+      imagePickerPopup.classList.remove('show');
+      setTimeout(function() { imagePickerPopup.style.display = 'none'; }, 180);
+    }
     if (btnImage) {
-      btnImage.addEventListener('click', function () {
+      btnImage.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (!imagePickerPopup) return;
+        if (imagePickerPopup.classList.contains('show')) {
+          __hideImagePickerPopup();
+        } else {
+          imagePickerPopup.style.display = 'block';
+          requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+              imagePickerPopup.classList.add('show');
+            });
+          });
+        }
+      });
+    }
+    if (btnPickImage) {
+      btnPickImage.addEventListener('click', function () {
+        __hideImagePickerPopup();
         try { sendToFlutter('inputUpload', {}); } catch (_ie) {}
       });
     }
-    // +号菜单按钮:桥到 Flutter inputFunc → _handleInputFunc → openFunctionPanel
-    if (funcBtn) {
-      funcBtn.addEventListener('click', function () {
-        try { sendToFlutter('inputFunc', {}); } catch (_fe) {}
+    if (btnSessionImages) {
+      btnSessionImages.addEventListener('click', function () {
+        __hideImagePickerPopup();
+        try { sendToFlutter('openSessionImages', {}); } catch (_se) {}
       });
     }
+    document.addEventListener('click', function () {
+      if (imagePickerPopup && imagePickerPopup.classList.contains('show')) {
+        __hideImagePickerPopup();
+      }
+    });
     // 发送按钮:统一走 handleSend(内部根据 is-generating 类分流)
     if (sendBtn) {
       sendBtn.addEventListener('click', function () {
@@ -5379,22 +5458,36 @@ function injectBridge(html, id, floorIdx) {
 <div class="chat-input-container" id="chatInputContainer">
   <!-- 待发图片预览条:Flutter 通过 inputBarState.attachments 推送 -->
   <div class="attachment-preview-bar" id="attachmentPreviewBar" style="display:none;"></div>
+  <!-- 图片小浮层（贴着图片按钮向上弹） -->
+  <div id="imagePickerPopup" class="img-picker-popup" style="display:none;">
+    <button class="img-picker-item" id="btnPickImage" type="button">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+      <span>发送图片</span>
+    </button>
+    <button class="img-picker-item" id="btnSessionImages" type="button">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <line x1="3" y1="16" x2="9" y2="10"/>
+        <line x1="13" y1="14" x2="21" y2="6"/>
+      </svg>
+      <span>会话图片</span>
+    </button>
+  </div>
   <div class="input-wrapper">
-    <!-- 左:图片按钮(独立直达相册,不走 func-overlay) -->
+    <!-- 左:图片按钮(弹小浮层:发送图片/会话图片) -->
     <button class="action-btn btn-image" id="btnImage" type="button" aria-label="发送图片">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="3"/>
         <circle cx="8.5" cy="8.5" r="1.5"/>
         <polyline points="21 15 16 10 5 21"/>
-      </svg>
-    </button>
-    <!-- 功能菜单按钮(打开 HTML func-overlay) -->
-    <button class="action-btn func-btn" id="funcBtn" type="button" aria-label="功能菜单">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <line x1="5" y1="12" x2="19" y2="12"/>
       </svg>
     </button>
     <!-- 中:textarea / 语音条(互斥) -->

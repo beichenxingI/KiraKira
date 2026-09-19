@@ -137,6 +137,7 @@ class BridgeType {
   static const String inputStop = 'inputStop';         // JS→Dart: WebView 输入栏点了停止
   static const String inputUpload = 'inputUpload';     // JS→Dart: WebView 点了图片上传按钮
   static const String inputFunc = 'inputFunc';         // JS→Dart: WebView 点了功能菜单按钮
+  static const String openSessionImages = 'openSessionImages'; // JS→Dart: WebView 请求打开会话图片页
   static const String sttStart = 'sttStart';           // JS→Dart: WebView 长按触发 STT 开始
   static const String sttStop = 'sttStop';             // JS→Dart: WebView 松开触发 STT 停止
   static const String inputRemoveAttachment = 'inputRemoveAttachment'; // JS→Dart: WebView 输入栏移除待发图片(index)

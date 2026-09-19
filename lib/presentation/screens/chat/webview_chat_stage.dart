@@ -705,7 +705,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     final status = MediaQuery.viewPaddingOf(context).top;
     _bridge.send(BridgeType.topBarInsets, {
       'visible': _topBarVisible,
-      'barHeight': _topBarVisible ? 44.0 : 0.0,
+      'barHeight': _topBarVisible ? 56.0 : 0.0,
       'statusHeight': status,
     });
     _injectLayoutVars();
@@ -734,7 +734,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       'navBarHeight': navBarHeight,
       'viewportHeight': viewportHeight,
       'topBarVisible': _topBarVisible,
-      'topBarHeight': _topBarVisible ? 44.0 : 0.0,
+      'topBarHeight': _topBarVisible ? 56.0 : 0.0,
       'panelBg': _hex(cs.surface),
       'panelRadius': 24,
       'scrim': 'rgba(0,0,0,0.5)',
@@ -1413,6 +1413,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.on(BridgeType.inputFunc, (payload) {
                       _handleInputFunc();
                     });
+                    _bridge.on(BridgeType.openSessionImages, (payload) {
+                      if (!mounted) return;
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => ChatImagesScreen(chatId: widget.chatId),
+                      ));
+                    });
                     _bridge.on(BridgeType.inputRemoveAttachment, (payload) {
                       final idx = (payload['index'] as num?)?.toInt() ?? -1;
                       _handleInputRemoveAttachment(idx);
@@ -1471,7 +1477,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
             curve: Curves.easeOutCubic,
             top: _topBarVisible
                 ? 0
-                : -(44 + MediaQuery.viewPaddingOf(context).top),
+                : -(56 + MediaQuery.viewPaddingOf(context).top),
             left: 0,
             right: 0,
             child: ClipRRect(
@@ -1479,7 +1485,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                 bottom: Radius.circular(20),
               ),
               child: Container(
-                height: 44 + MediaQuery.viewPaddingOf(context).top, // [顶栏] 双行标题 32→44
+                height: 56 + MediaQuery.viewPaddingOf(context).top, // [顶栏] 双行标题 44→56
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.82),
                   borderRadius: const BorderRadius.vertical(
@@ -3497,9 +3503,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   PreferredSizeWidget _buildGlassAppBar(
       Character? character, String? activeModel) {
     return AppBar(
-      // [顶栏] 44:双行标题(角色名+模型名);同高度需同步:
+      // [顶栏] 56:双行标题(角色名+模型名);同高度需同步:
       // bridge barHeight / 毛玻璃层 AnimatedPositioned / __KIRA_TOP_INSET__ 烘入
-      toolbarHeight: 44,
+      toolbarHeight: 56,
       elevation: 0,
       scrolledUnderElevation: 0,
       shadowColor: Colors.transparent,
@@ -3610,34 +3616,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           child: IconButton(
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            tooltip: '会话图片',
+            tooltip: '功能菜单',
             iconSize: 16,
             color: activeGlassPalette.primaryText,
-            icon: const Icon(Icons.photo_library_outlined),
-            onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => ChatImagesScreen(chatId: widget.chatId),
-              ));
-            },
-          ),
-        ),
-        Container(
-          width: 28,
-          height: 28,
-          margin: const EdgeInsets.only(right: 10),
-          decoration: BoxDecoration(
-            color: GlassDesign.controlFill,
-            shape: BoxShape.circle,
-            border: Border.all(color: GlassDesign.highlightBorder),
-          ),
-          child: IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            tooltip: '菜单',
-            iconSize: 16,
-            color: activeGlassPalette.primaryText,
-            icon: const Icon(Icons.more_vert),
-            onPressed: _showTopMenuSheet,
+            icon: const Icon(Icons.add_rounded),
+            onPressed: _handleInputFunc,
           ),
         ),
       ],
@@ -5484,6 +5467,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return result is String ? result : null;
   }
 
+  // [顶栏精简] 三个点按钮已改+号菜单(走 func-overlay);本方法暂无入口,
+  // 保留以防回滚——清空聊天/手动总结目前仅此处可达,后续可挂进 func-overlay。
   Future<void> _showTopMenuSheet() async {
     final result = await _showHtmlBottomSheet([
       {'text': '导出聊天', 'value': 'exportChat'},
@@ -6701,7 +6686,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         // [顶栏] 初始内容起始位置直接烘进 HTML:WebView 全出血后首帧就要避开顶栏,
         // 不能等桥消息到达(会闪一下)
         .replaceAll('__KIRA_TOP_INSET__',
-            (44 + MediaQuery.viewPaddingOf(context).top + 12).toStringAsFixed(1))
+            (56 + MediaQuery.viewPaddingOf(context).top + 12).toStringAsFixed(1))
         .replaceAll('__KIRA_CHAT_BRIDGE__', bridge);
   }
 }
