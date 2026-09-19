@@ -57,6 +57,8 @@ import 'package:kirakira/presentation/widgets/chat/image_generation_dialog.dart'
 import 'package:kirakira/presentation/screens/chat/chat_images_screen.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:path/path.dart' as p;
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
@@ -3961,9 +3963,17 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               detail = {
                 'id': s.id,
                 'name': s.scriptName,
+                'description': s.description ?? '',
                 'pattern': s.findRegex,
                 'replacement': s.replaceString,
                 'enabled': !s.disabled,
+                'placement': s.placement.map((p) => p.name).toList(),
+                'markdownOnly': s.markdownOnly,
+                'promptOnly': s.promptOnly,
+                'runOnEdit': s.runOnEdit,
+                'order': s.order,
+                'minDepth': s.minDepth ?? 0,
+                'maxDepth': s.maxDepth ?? 100,
               };
               break;
             }
@@ -4026,8 +4036,22 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       case 'saveRegex':
         final id = data['id'] as String?;
         final name = data['name'] as String? ?? '';
+        final description = data['description'] as String? ?? '';
         final pattern = data['pattern'] as String? ?? '';
         final replacement = data['replacement'] as String? ?? '';
+        final placementRaw = data['placement'] as List<dynamic>? ?? const [];
+        final placement = placementRaw
+            .map((p) => RegexPlacement.values.firstWhere(
+                  (e) => e.name == p.toString(),
+                  orElse: () => RegexPlacement.aiOutput,
+                ))
+            .toList();
+        final markdownOnly = data['markdownOnly'] as bool? ?? false;
+        final promptOnly = data['promptOnly'] as bool? ?? false;
+        final runOnEdit = data['runOnEdit'] as bool? ?? false;
+        final order = (data['order'] as num?)?.toInt() ?? 0;
+        final minDepth = (data['minDepth'] as num?)?.toInt() ?? 0;
+        final maxDepth = (data['maxDepth'] as num?)?.toInt() ?? 100;
         if (pattern.isEmpty) {
           _snack('匹配模式不能为空');
           return;
@@ -4039,8 +4063,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               if (s.id == id) {
                 await notifier.updateScript(s.copyWith(
                   scriptName: name.isNotEmpty ? name : s.scriptName,
+                  description: description,
                   findRegex: pattern,
                   replaceString: replacement,
+                  placement: placement.isNotEmpty ? placement : s.placement,
+                  markdownOnly: markdownOnly,
+                  promptOnly: promptOnly,
+                  runOnEdit: runOnEdit,
+                  order: order,
+                  minDepth: minDepth,
+                  maxDepth: maxDepth,
                   updatedAt: DateTime.now(),
                 ));
                 break;
@@ -4049,8 +4081,17 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           } else {
             await notifier.addScript(createRegexScript(
               scriptName: name.isNotEmpty ? name : '未命名规则',
+              description: description.isNotEmpty ? description : null,
               findRegex: pattern,
               replaceString: replacement,
+              placement: placement.isNotEmpty
+                  ? placement
+                  : const [RegexPlacement.aiOutput],
+              markdownOnly: markdownOnly,
+              promptOnly: promptOnly,
+              runOnEdit: runOnEdit,
+              minDepth: minDepth,
+              maxDepth: maxDepth,
             ));
           }
         } else if (characterId != null) {
@@ -4061,8 +4102,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               if (s.id == id) {
                 await notifier.updateScript(s.copyWith(
                   scriptName: name.isNotEmpty ? name : s.scriptName,
+                  description: description,
                   findRegex: pattern,
                   replaceString: replacement,
+                  placement: placement.isNotEmpty ? placement : s.placement,
+                  markdownOnly: markdownOnly,
+                  promptOnly: promptOnly,
+                  runOnEdit: runOnEdit,
+                  order: order,
+                  minDepth: minDepth,
+                  maxDepth: maxDepth,
                   updatedAt: DateTime.now(),
                 ));
                 break;
@@ -4071,12 +4120,47 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           } else {
             await notifier.addScript(createRegexScript(
               scriptName: name.isNotEmpty ? name : '未命名规则',
+              description: description.isNotEmpty ? description : null,
               findRegex: pattern,
               replaceString: replacement,
+              placement: placement.isNotEmpty
+                  ? placement
+                  : const [RegexPlacement.aiOutput],
+              markdownOnly: markdownOnly,
+              promptOnly: promptOnly,
+              runOnEdit: runOnEdit,
+              minDepth: minDepth,
+              maxDepth: maxDepth,
             ));
           }
         }
         await pushRefresh();
+        break;
+
+      case 'importRegex':
+        final pickResult = await FilePicker.platform.pickFiles(
+          dialogTitle: '导入正则规则',
+          type: FileType.custom,
+          allowedExtensions: ['json'],
+        );
+        if (pickResult == null || pickResult.files.single.path == null) {
+          _snack('未选择文件');
+          return;
+        }
+        final content = await File(pickResult.files.single.path!).readAsString();
+        final count = await ref
+            .read(globalRegexScriptsProvider.notifier)
+            .importScripts(content);
+        _snack('已导入 $count 条规则');
+        await pushRefresh();
+        break;
+
+      case 'exportRegex':
+        final json = ref.read(globalRegexScriptsProvider.notifier).exportScripts();
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/regex_scripts_${DateTime.now().millisecondsSinceEpoch}.json');
+        await file.writeAsString(json);
+        await Share.shareXFiles([XFile(file.path)], subject: '正则规则导出');
         break;
     }
   }
@@ -5413,6 +5497,19 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       'positivePromptPrefix': settings.positivePromptPrefix ?? '',
       'imageTagInstruction': settings.imageTagInstruction ?? '',
       'enableAutoPromptGeneration': settings.enableAutoPromptGeneration,
+      'defaultSteps': settings.defaultSteps,
+      'defaultCfgScale': settings.defaultCfgScale,
+      'defaultSampler': settings.defaultSampler,
+      'availableSamplers': ImageGenSampler.forProvider(settings.provider)
+          .map((s) => s.name)
+          .toList(),
+      'novelaiAnlasGuard': settings.novelaiAnlasGuard,
+      'novelaiSm': settings.novelaiSm,
+      'novelaiSmDyn': settings.novelaiSmDyn,
+      'novelaiDecrisper': settings.novelaiDecrisper,
+      'novelaiVarietyBoost': settings.novelaiVarietyBoost,
+      'openaiStyle': settings.openaiStyle,
+      'openaiQuality': settings.openaiQuality,
       'availableProviders': ImageGenProvider.values
           .map((p) => {'value': p.id, 'label': p.displayName})
           .toList(),
@@ -5503,6 +5600,24 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
       case 'setOpenaiQuality':
         notifier.setOpenaiQuality(data['quality'] as String);
+        break;
+      case 'setSampler':
+        notifier.setDefaultSampler(data['value'] as String);
+        break;
+      case 'setNovelaiAnlasGuard':
+        notifier.setNovelaiAnlasGuard(data['enabled'] as bool);
+        break;
+      case 'setNovelaiSm':
+        notifier.setNovelaiSm(data['enabled'] as bool);
+        break;
+      case 'setNovelaiSmDyn':
+        notifier.setNovelaiSmDyn(data['enabled'] as bool);
+        break;
+      case 'setNovelaiDecrisper':
+        notifier.setNovelaiDecrisper(data['enabled'] as bool);
+        break;
+      case 'setNovelaiVarietyBoost':
+        notifier.setNovelaiVarietyBoost(data['enabled'] as bool);
         break;
     }
   }

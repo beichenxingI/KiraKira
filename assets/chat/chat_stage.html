@@ -1642,6 +1642,19 @@ __KIRA_CHAT_BRIDGE__
         _regexState.editId = null;
         spAction('getRegexDetail', {id: null, scope: _regexState.tab});
       }));
+      var ioRow = document.createElement('div');
+      ioRow.className = 'sp-flex-row';
+      ioRow.style.marginTop = '8px';
+      var importBtn = document.createElement('button');
+      importBtn.className = 'sp-btn secondary'; importBtn.style.flex='1';
+      importBtn.textContent = '导入';
+      importBtn.addEventListener('click',function(){ spAction('importRegex',{scope:_regexState.tab}); });
+      var exportBtn = document.createElement('button');
+      exportBtn.className = 'sp-btn secondary'; exportBtn.style.flex='1';
+      exportBtn.textContent = '导出';
+      exportBtn.addEventListener('click',function(){ spAction('exportRegex',{scope:_regexState.tab}); });
+      ioRow.appendChild(importBtn); ioRow.appendChild(exportBtn);
+      container.appendChild(ioRow);
     } else {
       var d = data.editDetail || {};
       var back = document.createElement('button');
@@ -1652,24 +1665,73 @@ __KIRA_CHAT_BRIDGE__
         spAction('loadRegexList', {scope: _regexState.tab});
       });
       container.appendChild(back);
-      container.appendChild(spInput('regex-name', '规则名称',
+
+      var editCard = document.createElement('div'); editCard.className = 'sp-card';
+      editCard.appendChild(spSection('基础'));
+      editCard.appendChild(spInput('regex-name', '规则名称',
         d.name || '', '规则名称', 'text', function(v) {}));
-      container.appendChild(spInput('regex-pattern', '匹配模式',
+      editCard.appendChild(spInput('regex-desc', '描述',
+        d.description || '', '可选描述', 'text', function(v) {}));
+      editCard.appendChild(spInput('regex-pattern', '匹配模式（正则）',
         d.pattern || '', '正则表达式', 'text', function(v) {}));
-      container.appendChild(spTextarea('regex-replacement', '替换内容',
+      editCard.appendChild(spTextarea('regex-replacement', '替换内容',
         d.replacement || '', '替换后的内容（留空=删除）', function(v) {}));
+      container.appendChild(editCard);
+
+      var advCard = document.createElement('div'); advCard.className = 'sp-card';
+      advCard.appendChild(spCollapse('高级选项', function(body){
+        var placementSection = document.createElement('div');
+        placementSection.appendChild(spSection('生效位置'));
+        var placements = [
+          {key:'userInput',label:'用户输入'},
+          {key:'aiOutput',label:'AI 回复'},
+          {key:'slashCommand',label:'斜杠命令'},
+          {key:'worldInfo',label:'世界书条目'},
+          {key:'reasoning',label:'推理过程'}
+        ];
+        placements.forEach(function(p){
+          var checked = d.placement && d.placement.indexOf(p.key) > -1;
+          placementSection.appendChild(spToggle('regex-p-'+p.key, p.label, '', checked, function(){}));
+        });
+        body.appendChild(placementSection);
+        body.appendChild(spToggle('regex-mdonly','仅 Markdown','只在渲染 Markdown 时生效', d.markdownOnly,function(){}));
+        body.appendChild(spToggle('regex-promptonly','仅提示词','只在提示词构建时生效', d.promptOnly,function(){}));
+        body.appendChild(spToggle('regex-onEdit','编辑时运行','在用户编辑消息时也运行', d.runOnEdit,function(){}));
+        body.appendChild(spSlider('regex-order','执行顺序',d.order||0,0,100,1,'',function(){}));
+        body.appendChild(spSlider('regex-mindepth','最小深度',d.minDepth||0,0,100,1,'',function(){}));
+        body.appendChild(spSlider('regex-maxdepth','最大深度',d.maxDepth||100,0,100,1,'',function(){}));
+      }, false));
+      container.appendChild(advCard);
+
       container.appendChild(spButton(
         _regexState.editId ? '保存修改' : '创建规则', 'primary',
         function() {
+          var placement = [];
+          ['userInput','aiOutput','slashCommand','worldInfo','reasoning'].forEach(function(k){
+            var el = document.getElementById('regex-p-'+k);
+            if (el && el.classList.contains('on')) placement.push(k);
+          });
           var nameEl = document.getElementById('regex-name');
+          var descEl = document.getElementById('regex-desc');
           var patternEl = document.getElementById('regex-pattern');
           var replEl = document.getElementById('regex-replacement');
+          var orderEl = document.getElementById('regex-order');
+          var minEl = document.getElementById('regex-mindepth');
+          var maxEl = document.getElementById('regex-maxdepth');
           spAction('saveRegex', {
             id: _regexState.editId,
             scope: _regexState.tab,
             name: nameEl ? nameEl.value : '',
+            description: descEl ? descEl.value : '',
             pattern: patternEl ? patternEl.value : '',
-            replacement: replEl ? replEl.value : ''
+            replacement: replEl ? replEl.value : '',
+            placement: placement,
+            markdownOnly: document.getElementById('regex-mdonly') ? document.getElementById('regex-mdonly').classList.contains('on') : false,
+            promptOnly: document.getElementById('regex-promptonly') ? document.getElementById('regex-promptonly').classList.contains('on') : false,
+            runOnEdit: document.getElementById('regex-onEdit') ? document.getElementById('regex-onEdit').classList.contains('on') : false,
+            order: orderEl ? (parseInt(orderEl.value) || 0) : 0,
+            minDepth: minEl ? (parseInt(minEl.value) || 0) : 0,
+            maxDepth: maxEl ? (parseInt(maxEl.value) || 100) : 100
           });
           _regexState.mode = 'list';
         }));
@@ -2629,106 +2691,91 @@ __KIRA_CHAT_BRIDGE__
 
   // ── [浮窗化] 生图设置面板 ────────────────────────────────────────────
   function renderImageGenPanel(container, data) {
-    container.appendChild(spSection('基础设置'));
-    container.appendChild(spToggle('imagegen-enable', '启用生图功能',
-      '根据对话内容自动生成图片', data.enabled,
+    container.innerHTML = '';
+    var d = data || {};
+
+    var card1 = document.createElement('div'); card1.className = 'sp-card';
+    card1.appendChild(spSection('基础'));
+    card1.appendChild(spToggle('imagegen-enable', '启用生图功能',
+      '根据对话内容自动生成图片', d.enabled,
       function(checked) { spAction('toggleEnabled', { enabled: checked }); }));
-
-    if (data.enabled === false) {
-      container.appendChild(spDesc('启用后可以根据对话内容自动生成图片（下方设置可先配置）'));
-    }
-
-    // 自动生图模式
-    container.appendChild(spSection('自动生图'));
-    container.appendChild(spSelect('auto-gen-mode', '自动生图模式', [
+    card1.appendChild(spSelect('auto-gen-mode', '自动生图模式', [
       { value: 'off', label: '关闭 - 仅手动生图' },
       { value: 'promptOnly', label: '仅写提示词 - AI 输出画面描述' },
       { value: 'auto', label: '全自动生成 - 自动出图' }
-    ], data.autoImageMode || 'off', function(v) {
+    ], d.autoImageMode || 'off', function(v) {
       spAction('setAutoImageMode', { mode: v });
     }));
+    container.appendChild(card1);
 
-    // 提示词配置
-    container.appendChild(spSection('提示词配置'));
-    container.appendChild(spInput('negative-prompt', '固定负面提示词',
-      data.defaultNegativePrompt || '', 'low quality, blurry, bad anatomy, watermark', 'text',
+    var card2 = document.createElement('div'); card2.className = 'sp-card';
+    card2.appendChild(spSection('提示词'));
+    card2.appendChild(spInput('negative-prompt', '固定负面提示词',
+      d.defaultNegativePrompt || '', 'low quality, blurry, bad anatomy, watermark', 'text',
       function(v) { spAction('setDefaultNegativePrompt', { prompt: v }); }));
-    container.appendChild(spInput('positive-prefix', '正面提示词前缀',
-      data.positivePromptPrefix || '', 'masterpiece, best quality, ', 'text',
+    card2.appendChild(spInput('positive-prefix', '正面提示词前缀',
+      d.positivePromptPrefix || '', 'masterpiece, best quality, ', 'text',
       function(v) { spAction('setPositivePromptPrefix', { prefix: v }); }));
-    container.appendChild(spInput('image-tag-instruction', '告诉 AI 怎么写生图标签',
-      data.imageTagInstruction || '', '留空使用默认指令', 'text',
+    card2.appendChild(spInput('image-tag-instruction', '告诉 AI 怎么写生图标签',
+      d.imageTagInstruction || '', '留空使用默认指令', 'text',
       function(v) { spAction('setImageTagInstruction', { instruction: v }); }));
-
-    // 全自动生图提示词优化
-    container.appendChild(spSection('提示词优化'));
-    container.appendChild(spToggle('auto-prompt-gen', '额外调用 AI 优化提示词',
+    card2.appendChild(spToggle('auto-prompt-gen', '额外调用 AI 优化提示词',
       'AI 没写 <image> 标签时额外调一次 AI 提炼画面描述',
-      data.enableAutoPromptGeneration,
+      d.enableAutoPromptGeneration,
       function(checked) { spAction('toggleAutoPromptGeneration', { enabled: checked }); }));
+    container.appendChild(card2);
 
-    // 生图提供商
-    container.appendChild(spSection('生图提供商'));
-    var providers = data.availableProviders || [];
-    container.appendChild(spSelect('image-provider', '提供商', providers,
-      data.provider || '', function(v) {
+    var card3 = document.createElement('div'); card3.className = 'sp-card';
+    card3.appendChild(spSection('提供商'));
+    var providers = d.availableProviders || [];
+    card3.appendChild(spSelect('image-provider', '提供商', providers,
+      d.provider || '', function(v) {
         spAction('setProvider', { provider: v });
       }));
 
-    // 提供商信息卡片(显示当前方案的endpoint/ masked API key)
-    var providerInfo = document.createElement('div');
-    providerInfo.style.cssText = 'margin:0.5rem 1rem 1rem;padding:0.75rem;background:rgba(124,77,255,0.08);border:1px solid rgba(124,77,255,0.2);border-radius:0.5rem;';
-    var piName = document.createElement('div');
-    piName.style.cssText = 'font-size:0.8rem;font-weight:600;color:rgba(255,255,255,0.87);margin-bottom:0.25rem;';
-    piName.textContent = 'Endpoint: ' + (data.apiEndpoint || '(默认)');
-    providerInfo.appendChild(piName);
-    if (data.apiKey && data.apiKey.length > 0) {
-      var maskedKey = data.apiKey.length > 12
-        ? data.apiKey.substring(0, 8) + '...' + data.apiKey.substring(data.apiKey.length - 4)
-        : data.apiKey;
-      var piKey = document.createElement('div');
-      piKey.style.cssText = 'font-size:0.75rem;color:rgba(255,255,255,0.5);font-family:monospace;';
-      piKey.textContent = 'API Key: ' + maskedKey;
-      providerInfo.appendChild(piKey);
-    }
-    container.appendChild(providerInfo);
-
-    // 模型选择: 有可用模型时显示下拉,否则显示手动输入
-    var availableModels = data.availableModels || [];
-    if (availableModels.length > 0) {
-      container.appendChild(spSection('生图模型 (检测到 ' + availableModels.length + ' 个)'));
-      var modelOpts = availableModels.map(function(m) {
-        return { value: m, label: m };
-      });
-      container.appendChild(spSelect('image-model-select', '选择模型', modelOpts,
-        data.model || '', function(v) {
-          spAction('setModel', { model: v });
-        }));
-    } else {
-      container.appendChild(spSection('生图模型'));
-      var noModelWarn = document.createElement('div');
-      noModelWarn.style.cssText = 'margin:0 1rem 0.5rem;padding:0.75rem;background:rgba(255,152,0,0.1);border:1px solid rgba(255,152,0,0.3);border-radius:0.5rem;font-size:0.75rem;color:rgba(255,255,255,0.6);';
-      noModelWarn.textContent = '未检测到生图模型。可在下方手动输入模型名称（如 dall-e-3、flux-1-schnell 等）。';
-      container.appendChild(noModelWarn);
-      container.appendChild(spInput('image-model', '模型名称',
-        data.model || '', 'dall-e-3 / sdxl / flux...', 'text',
-        function(v) { spAction('setModel', { model: v }); }));
+    if (d.apiEndpoint) {
+      var infoCard = document.createElement('div');
+      infoCard.className = 'sp-info-card';
+      var piName = document.createElement('div');
+      piName.style.cssText = 'font-size:12px;color:var(--kira-text-3,#8A8A8A);';
+      piName.textContent = '端点：' + d.apiEndpoint;
+      infoCard.appendChild(piName);
+      card3.appendChild(infoCard);
     }
 
-    // API 配置(根据提供商类型显示不同字段)
-    if (data.requiresApiKey) {
-      container.appendChild(spInput('api-key', 'API 密钥',
-        data.apiKey || '', 'sk-...', 'password',
+    if (d.requiresApiKey) {
+      card3.appendChild(spInput('api-key', 'API 密钥',
+        d.apiKey || '', 'sk-...', 'password',
         function(v) { spAction('setApiKey', { key: v }); }));
-    } else if (!data.isLocalProvider) {
-      container.appendChild(spInput('api-endpoint', 'API 地址',
-        data.apiEndpoint || '', 'http://localhost:7860', 'text',
+    } else if (!d.isLocalProvider) {
+      card3.appendChild(spInput('api-endpoint', 'API 地址',
+        d.apiEndpoint || '', 'http://localhost:7860', 'text',
         function(v) { spAction('setApiEndpoint', { endpoint: v }); }));
     }
 
-    // 图片参数 — 预设尺寸选择 + 自定义宽高
-    container.appendChild(spSection('图片参数'));
-    var currentSize = (data.defaultWidth || 1024) + 'x' + (data.defaultHeight || 1024);
+    var availableModels = d.availableModels || [];
+    if (availableModels.length > 0) {
+      var modelOpts = availableModels.map(function(m) {
+        return { value: m, label: m };
+      });
+      card3.appendChild(spSelect('image-model-select', '生图模型（检测到 ' + availableModels.length + ' 个）', modelOpts,
+        d.model || '', function(v) {
+          spAction('setModel', { model: v });
+        }));
+    } else {
+      var noModelWarn = document.createElement('div');
+      noModelWarn.className = 'sp-warn-card';
+      noModelWarn.textContent = '未检测到生图模型，可手动输入模型名称。';
+      card3.appendChild(noModelWarn);
+      card3.appendChild(spInput('image-model', '模型名称',
+        d.model || '', 'dall-e-3 / sdxl / flux...', 'text',
+        function(v) { spAction('setModel', { model: v }); }));
+    }
+    container.appendChild(card3);
+
+    var card4 = document.createElement('div'); card4.className = 'sp-card';
+    card4.appendChild(spSection('图片参数'));
+    var currentSize = (d.defaultWidth || 1024) + 'x' + (d.defaultHeight || 1024);
     var sizeOptions = [
       { value: '512x512', label: '512×512 (正方形)' },
       { value: '768x768', label: '768×768 (正方形)' },
@@ -2741,23 +2788,72 @@ __KIRA_CHAT_BRIDGE__
     for (var si = 0; si < sizeOptions.length - 1; si++) {
       if (sizeOptions[si].value === currentSize) { selectedSize = currentSize; break; }
     }
-    container.appendChild(spSelect('image-size', '图片尺寸', sizeOptions, selectedSize, function(v) {
+    card4.appendChild(spSelect('image-size', '图片尺寸', sizeOptions, selectedSize, function(v) {
       spAction('setImageSize', { size: v });
     }));
-    // 自定义尺寸输入(只在选中custom时显示)
     if (selectedSize === 'custom') {
-      var customDiv = document.createElement('div');
-      customDiv.style.cssText = 'display:flex;gap:1rem;padding:0 1rem;';
-      var wWrap = spInput('custom-width', '宽度', String(data.defaultWidth || 1024), '', 'number',
+      var sizeRow = document.createElement('div');
+      sizeRow.className = 'sp-flex-row';
+      sizeRow.style.marginTop = '6px';
+      var wWrap = spInput('custom-width', '宽度', String(d.defaultWidth || 1024), '', 'number',
         function(v) { spAction('setCustomWidth', { width: parseInt(v) || 1024 }); });
       wWrap.style.flex = '1';
-      var hWrap = spInput('custom-height', '高度', String(data.defaultHeight || 1024), '', 'number',
+      var hWrap = spInput('custom-height', '高度', String(d.defaultHeight || 1024), '', 'number',
         function(v) { spAction('setCustomHeight', { height: parseInt(v) || 1024 }); });
       hWrap.style.flex = '1';
-      customDiv.appendChild(wWrap);
-      customDiv.appendChild(hWrap);
-      container.appendChild(customDiv);
+      sizeRow.appendChild(wWrap);
+      sizeRow.appendChild(hWrap);
+      card4.appendChild(sizeRow);
     }
+    card4.appendChild(spSlider('ig-steps','生成步数',
+      d.defaultSteps != null ? d.defaultSteps : 20, 1, 50, 1, ' 步',
+      function(v){ spAction('setDefaultSteps',{value:Math.round(v)}); }));
+    card4.appendChild(spSlider('ig-cfg','CFG Scale',
+      d.defaultCfgScale != null ? Math.round(d.defaultCfgScale*10)/10 : 7, 1, 30, 0.5, '',
+      function(v){ spAction('setDefaultCfgScale',{value:v}); }));
+    container.appendChild(card4);
+
+    var card5 = document.createElement('div'); card5.className = 'sp-card';
+    card5.appendChild(spCollapse('高级选项', function(body){
+      var samplers = d.availableSamplers || [];
+      if (samplers.length > 0) {
+        var samplerOpts = samplers.map(function(s){ return {value:s,label:s}; });
+        body.appendChild(spSelect('ig-sampler','采样器', samplerOpts,
+          d.defaultSampler || samplers[0],
+          function(v){ spAction('setSampler',{value:v}); }));
+      }
+      if (d.provider === 'novelai') {
+        body.appendChild(spSection('NovelAI 专属'));
+        body.appendChild(spToggle('ig-anlas','Anlas 守护','余额不足时拒绝生成', d.novelaiAnlasGuard,
+          function(v){ spAction('setNovelaiAnlasGuard',{enabled:v}); }));
+        body.appendChild(spToggle('ig-smea','SMEA','', d.novelaiSm,
+          function(v){ spAction('setNovelaiSm',{enabled:v}); }));
+        body.appendChild(spToggle('ig-smea-dyn','SMEA DYN','需先开启 SMEA', d.novelaiSmDyn,
+          function(v){ spAction('setNovelaiSmDyn',{enabled:v}); }));
+        body.appendChild(spToggle('ig-decrisper','Decrisper','', d.novelaiDecrisper,
+          function(v){ spAction('setNovelaiDecrisper',{enabled:v}); }));
+        body.appendChild(spToggle('ig-variety','Variety+','', d.novelaiVarietyBoost,
+          function(v){ spAction('setNovelaiVarietyBoost',{enabled:v}); }));
+      }
+      if (d.provider === 'openai' && d.model && d.model.indexOf('dall-e-3') > -1) {
+        body.appendChild(spSection('DALL-E 3 专属'));
+        body.appendChild(spChips('风格',[
+          {value:'vivid',label:'Vivid'},
+          {value:'natural',label:'Natural'}
+        ], d.openaiStyle || 'vivid',
+        function(v){ spAction('setOpenaiStyle',{value:v}); }));
+        body.appendChild(spChips('质量',[
+          {value:'standard',label:'Standard'},
+          {value:'hd',label:'HD'}
+        ], d.openaiQuality || 'standard',
+        function(v){ spAction('setOpenaiQuality',{value:v}); }));
+      }
+      if (samplers.length === 0 && d.provider !== 'novelai' &&
+          !(d.provider === 'openai' && d.model && d.model.indexOf('dall-e-3') > -1)) {
+        body.appendChild(spDesc('当前提供商暂无高级选项'));
+      }
+    }, false));
+    container.appendChild(card5);
   }
 
   function decodeB64Utf8(b64) {
