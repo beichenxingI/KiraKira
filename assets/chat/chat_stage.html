@@ -1395,69 +1395,114 @@ __KIRA_CHAT_BRIDGE__
   });
 
   // ── [浮窗化] 正则面板渲染 ─────────────────────────────────────────────
+  var _regexState = {tab: 'global', mode: 'list', editId: null};
   function renderRegexPanel(container, data) {
-    var scripts = (data && data.regexScripts) || [];
-    var charName = (data && data.charName) || '';
-    // 说明区
-    container.appendChild(spSection('角色正则脚本'));
-    container.appendChild(spDesc(
-      '正则脚本可对 AI 输出/用户输入进行文本替换。' +
-      (charName ? '当前角色: ' + charName : '') +
-      '\n开关: 启用/禁用单条脚本。编辑/新建将跳转编辑器。'
-    ));
-    // 列表区
-    if (scripts.length === 0) {
-      container.appendChild(spEmpty('暂无正则脚本，点击下方按钮新建'));
-    } else {
-      for (var i = 0; i < scripts.length; i++) {
-        (function(script) {
-          var row = document.createElement('div');
-          row.className = 'sp-row';
-          // 开关
-          var toggleBtn = document.createElement('button');
-          toggleBtn.className = 'sp-toggle' + (script.disabled ? '' : ' on');
-          toggleBtn.setAttribute('role', 'switch');
-          toggleBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            var isOn = toggleBtn.classList.toggle('on');
-            spAction('toggleScript', { id: script.id, enabled: isOn });
-          });
-          // 名称+描述
-          var lab = document.createElement('div');
-          lab.style.flex = '1';
-          lab.addEventListener('click', function() {
-            spAction('editScript', { id: script.id });
-          });
-          var nameEl = document.createElement('div');
-          nameEl.className = 'sp-row-label';
-          nameEl.textContent = script.name || script.scriptName || '未命名脚本';
-          lab.appendChild(nameEl);
-          if (script.description) {
-            var descEl = document.createElement('div');
-            descEl.className = 'sp-row-sub';
-            descEl.textContent = script.description;
-            lab.appendChild(descEl);
-          }
-          // 编辑按钮
-          var editBtn = spIconButton('✎', function() {
-            spAction('editScript', { id: script.id });
-          });
-          // 删除按钮 (确认走 Flutter HTML 弹窗,避免原生 confirm 卡顿)
-          var delBtn = spIconButton('✕', function() {
-            spAction('deleteScript', { id: script.id, name: script.name || script.scriptName || '此脚本' });
-          });
-          row.appendChild(toggleBtn);
-          row.appendChild(lab);
-          row.appendChild(editBtn);
-          row.appendChild(delBtn);
-          container.appendChild(row);
-        })(scripts[i]);
-      }
+    container.innerHTML = '';
+    if (data && data.initialTab) {
+      _regexState.tab = data.initialTab;
+      _regexState.mode = 'list';
     }
-    // 新建按钮
-    container.appendChild(spButton('+ 新建正则脚本', 'sp-btn-primary', function() {
-      spAction('createScript', {});
+    container.appendChild(spTabs([
+      {value:'global', label:'全局正则'},
+      {value:'character', label:'角色正则'}
+    ], _regexState.tab, function(v) {
+      _regexState.tab = v;
+      _regexState.mode = 'list';
+      spAction('loadRegexList', {scope: v});
     }));
+
+    if (_regexState.mode === 'list') {
+      var items = _regexState.tab === 'global'
+        ? (data.globalScripts || [])
+        : (data.characterScripts || []);
+      var charName = (data && data.charName) || '';
+      if (_regexState.tab === 'character' && charName) {
+        container.appendChild(spDesc('当前角色: ' + charName));
+      }
+      if (items.length === 0) {
+        container.appendChild(spEmpty('暂无正则规则，点击下方按钮新建'));
+      } else {
+        items.forEach(function(item) {
+          var row = document.createElement('div');
+          row.className = 'sp-list-item';
+          var main = document.createElement('div');
+          main.className = 'sp-list-item-main';
+          var title = document.createElement('div');
+          title.className = 'sp-list-item-title';
+          title.textContent = item.name || '未命名规则';
+          var sub = document.createElement('div');
+          sub.className = 'sp-list-item-sub';
+          sub.textContent = item.pattern || '';
+          main.appendChild(title); main.appendChild(sub);
+          row.appendChild(main);
+          var tog = document.createElement('button');
+          tog.className = 'sp-toggle' + (item.enabled ? ' on' : '');
+          tog.addEventListener('click', function(e) {
+            e.stopPropagation();
+            spAction('toggleRegex', {id: item.id, enabled: !item.enabled,
+              scope: _regexState.tab});
+          });
+          var editBtn = document.createElement('button');
+          editBtn.className = 'sp-icon-btn';
+          editBtn.textContent = '✎';
+          editBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            _regexState.mode = 'edit';
+            _regexState.editId = item.id;
+            spAction('getRegexDetail', {id: item.id, scope: _regexState.tab});
+          });
+          var delBtn = document.createElement('button');
+          delBtn.className = 'sp-icon-btn danger';
+          delBtn.textContent = '✕';
+          delBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            spAction('deleteRegex', {id: item.id, scope: _regexState.tab,
+              name: item.name || '此规则'});
+          });
+          var actions = document.createElement('div');
+          actions.className = 'sp-list-item-actions';
+          actions.appendChild(tog); actions.appendChild(editBtn); actions.appendChild(delBtn);
+          row.appendChild(actions);
+          container.appendChild(row);
+        });
+      }
+      container.appendChild(spButton('+ 新建规则', 'primary', function() {
+        _regexState.mode = 'edit';
+        _regexState.editId = null;
+        spAction('getRegexDetail', {id: null, scope: _regexState.tab});
+      }));
+    } else {
+      var d = data.editDetail || {};
+      var back = document.createElement('button');
+      back.className = 'sp-back-btn';
+      back.textContent = '← 返回列表';
+      back.addEventListener('click', function() {
+        _regexState.mode = 'list';
+        spAction('loadRegexList', {scope: _regexState.tab});
+      });
+      container.appendChild(back);
+      container.appendChild(spInput('regex-name', '规则名称',
+        d.name || '', '规则名称', 'text', function(v) {}));
+      container.appendChild(spInput('regex-pattern', '匹配模式',
+        d.pattern || '', '正则表达式', 'text', function(v) {}));
+      container.appendChild(spTextarea('regex-replacement', '替换内容',
+        d.replacement || '', '替换后的内容（留空=删除）', function(v) {}));
+      container.appendChild(spButton(
+        _regexState.editId ? '保存修改' : '创建规则', 'primary',
+        function() {
+          var nameEl = document.getElementById('regex-name');
+          var patternEl = document.getElementById('regex-pattern');
+          var replEl = document.getElementById('regex-replacement');
+          spAction('saveRegex', {
+            id: _regexState.editId,
+            scope: _regexState.tab,
+            name: nameEl ? nameEl.value : '',
+            pattern: patternEl ? patternEl.value : '',
+            replacement: replEl ? replEl.value : ''
+          });
+          _regexState.mode = 'list';
+        }));
+    }
   }
 
   // ── [浮窗化] 面板渲染调度器 ─────────────────────────────────────────
@@ -1469,6 +1514,13 @@ __KIRA_CHAT_BRIDGE__
       case 'variables': renderVariablesPanel(container, data); break;
       case 'chronicle': renderChroniclePanel(container, data); break;
       case 'imageGen': renderImageGenPanel(container, data); break;
+      case 'stt': renderSttPanel(container, data); break;
+      case 'export': renderExportPanel(container, data); break;
+      case 'sampling': renderSamplingPanel(container, data); break;
+      case 'persona': renderPersonaPanel(container, data); break;
+      case 'sprite': renderSpritePanel(container, data); break;
+      case 'preset': renderPresetPanel(container, data); break;
+      case 'worldInfo': renderWorldInfoPanel(container, data); break;
       default: container.appendChild(spEmpty('未知面板: ' + panel));
     }
   }
@@ -1738,6 +1790,548 @@ __KIRA_CHAT_BRIDGE__
     container.appendChild(spTextarea('chronicle-prompt', '',
       data.customPromptSuffix || '', '可在这里补充对总结的额外要求…',
       function(v) { spAction('setCustomPromptSuffix', {value: v}); }));
+  }
+
+  // ── [浮窗化] STT 语音识别面板 ────────────────────────────────────────
+  function renderSttPanel(container, data) {
+    container.innerHTML = '';
+    container.appendChild(spSection('基础'));
+    container.appendChild(spToggle('stt-enable', '启用语音识别',
+      '长按输入栏麦克风按钮开始识别', data.enabled,
+      function(v) { spAction('toggleEnabled', {enabled: v}); }));
+    container.appendChild(spSelect('stt-engine', '识别引擎', [
+      {value:'sherpa', label:'本地离线识别（免费）'},
+      {value:'system', label:'系统 STT'},
+      {value:'whisper', label:'Whisper'},
+      {value:'azure', label:'Azure Speech'}
+    ], data.provider || 'sherpa',
+    function(v) { spAction('setProvider', {value: v}); }));
+    container.appendChild(spSelect('stt-lang', '识别语言', [
+      {value:'zh-CN', label:'简体中文'},
+      {value:'zh-TW', label:'繁體中文'},
+      {value:'en-US', label:'English (US)'},
+      {value:'en-GB', label:'English (UK)'},
+      {value:'es-ES', label:'Español'},
+      {value:'fr-FR', label:'Français'},
+      {value:'de-DE', label:'Deutsch'}
+    ], data.language || 'zh-CN',
+    function(v) { spAction('setLanguage', {value: v}); }));
+    if (data.provider === 'whisper' || data.provider === 'azure') {
+      container.appendChild(spSection('API 配置'));
+      container.appendChild(spInput('stt-url', 'API 地址',
+        data.apiEndpoint || '', 'https://api.example.com/v1', 'text',
+        function(v) { spAction('setApiEndpoint', {value: v}); }));
+      container.appendChild(spInput('stt-key', 'API Key',
+        data.apiKey || '', 'sk-...', 'password',
+        function(v) { spAction('setApiKey', {value: v}); }));
+    } else {
+      container.appendChild(spDesc('本地/系统引擎无需 API 配置。'));
+    }
+    container.appendChild(spSection('行为'));
+    container.appendChild(spToggle('stt-continuous', '持续监听',
+      '连续识别而非单次', data.continuousListening,
+      function(v) { spAction('setContinuousListening', {enabled: v}); }));
+    container.appendChild(spToggle('stt-autosend', '自动发送',
+      '识别完成后自动发出消息', data.autoSend,
+      function(v) { spAction('setAutoSend', {enabled: v}); }));
+    container.appendChild(spToggle('stt-partial', '显示中间结果',
+      '实时显示识别中的文字', data.showPartialResults,
+      function(v) { spAction('setShowPartialResults', {enabled: v}); }));
+    container.appendChild(spSection('说明'));
+    container.appendChild(spDesc('长按输入框（键盘未弹出时）触发语音输入，松开自动识别。'));
+  }
+
+  // ── [浮窗化] 导出/导入面板 ───────────────────────────────────────────
+  function renderExportPanel(container, data) {
+    container.innerHTML = '';
+    container.appendChild(spSection('导出当前聊天'));
+    container.appendChild(spSelect('export-fmt', '导出格式', [
+      {value:'jsonl', label:'JSONL（兼容主流格式，含记忆）'},
+      {value:'json', label:'JSON（本应用原生）'}
+    ], data.defaultFormat || 'jsonl',
+    function(v) { spAction('setExportFormat', {value: v}); }));
+    container.appendChild(spDesc('JSONL 格式可被其他工具导入；内嵌 kira_chronicle 记忆 bundle。'));
+    container.appendChild(spButton('分享导出', 'primary', function() {
+      var fmt = document.getElementById('export-fmt');
+      spAction('exportChat', {format: fmt ? fmt.value : 'jsonl'});
+    }));
+    container.appendChild(spButton('保存到文件', 'secondary', function() {
+      var fmt = document.getElementById('export-fmt');
+      spAction('exportChatToFile', {format: fmt ? fmt.value : 'jsonl'});
+    }));
+    container.appendChild(spSection('导入聊天'));
+    container.appendChild(spDesc('支持 JSONL / JSON 格式。导入将在当前角色下新建聊天，如含 kira_chronicle 会恢复记忆。'));
+    container.appendChild(spButton('选择文件导入', 'secondary', function() {
+      spAction('importChat', {});
+    }));
+  }
+
+  // ── [浮窗化] 采样参数面板 ────────────────────────────────────────────
+  function renderSamplingPanel(container, data) {
+    container.innerHTML = '';
+    container.appendChild(spSection('基础采样'));
+    container.appendChild(spSlider('samp-temp', 'Temperature（温度）',
+      data.temperature != null ? data.temperature : 0.8, 0, 2, 0.05, '',
+      function(v) { spAction('setTemperature', {value: v}); }));
+    container.appendChild(spSlider('samp-topp', 'Top P（核采样）',
+      data.topP != null ? data.topP : 0.95, 0, 1, 0.01, '',
+      function(v) { spAction('setTopP', {value: v}); }));
+    container.appendChild(spSlider('samp-topk', 'Top K',
+      data.topK != null ? data.topK : 40, 0, 100, 1, '',
+      function(v) { spAction('setTopK', {value: Math.round(v)}); }));
+    container.appendChild(spSlider('samp-minp', 'Min P',
+      data.minP != null ? data.minP : 0, 0, 1, 0.01, '',
+      function(v) { spAction('setMinP', {value: v}); }));
+    container.appendChild(spSlider('samp-typicalp', 'Typical P',
+      data.typicalP != null ? data.typicalP : 1, 0, 1, 0.01, '',
+      function(v) { spAction('setTypicalP', {value: v}); }));
+    container.appendChild(spSlider('samp-topa', 'Top A',
+      data.topA != null ? data.topA : 0, 0, 1, 0.01, '',
+      function(v) { spAction('setTopA', {value: v}); }));
+    container.appendChild(spSlider('samp-tfs', 'Tail Free Sampling（TFS）',
+      data.tailFreeSampling != null ? data.tailFreeSampling : 1, 0, 1, 0.01, '',
+      function(v) { spAction('setTailFreeSampling', {value: v}); }));
+    container.appendChild(spSection('重复惩罚'));
+    container.appendChild(spSlider('samp-repp', 'Repetition Penalty',
+      data.repetitionPenalty != null ? data.repetitionPenalty : 1.1, 1, 2, 0.01, '',
+      function(v) { spAction('setRepetitionPenalty', {value: v}); }));
+    container.appendChild(spSlider('samp-repr', 'Repetition Penalty Range',
+      data.repetitionPenaltyRange != null ? data.repetitionPenaltyRange : 512, 0, 2048, 16, '',
+      function(v) { spAction('setRepetitionPenaltyRange', {value: Math.round(v)}); }));
+    container.appendChild(spSlider('samp-freqp', 'Frequency Penalty',
+      data.frequencyPenalty != null ? data.frequencyPenalty : 0, -2, 2, 0.05, '',
+      function(v) { spAction('setFrequencyPenalty', {value: v}); }));
+    container.appendChild(spSlider('samp-presp', 'Presence Penalty',
+      data.presencePenalty != null ? data.presencePenalty : 0, -2, 2, 0.05, '',
+      function(v) { spAction('setPresencePenalty', {value: v}); }));
+    container.appendChild(spSection('Mirostat'));
+    container.appendChild(spSlider('samp-miro-mode', 'Mirostat 模式（0=关）',
+      data.mirostatMode != null ? data.mirostatMode : 0, 0, 2, 1, '',
+      function(v) { spAction('setMirostatMode', {value: Math.round(v)}); }));
+    container.appendChild(spSlider('samp-miro-tau', 'Mirostat Tau',
+      data.mirostatTau != null ? data.mirostatTau : 5, 0, 10, 0.1, '',
+      function(v) { spAction('setMirostatTau', {value: v}); }));
+    container.appendChild(spSlider('samp-miro-eta', 'Mirostat Eta',
+      data.mirostatEta != null ? data.mirostatEta : 0.1, 0, 1, 0.01, '',
+      function(v) { spAction('setMirostatEta', {value: v}); }));
+    container.appendChild(spSection('生成控制'));
+    container.appendChild(spSlider('samp-maxtok', 'Max Tokens（最大输出）',
+      data.maxTokens != null ? data.maxTokens : 512, 128, 8192, 128, '',
+      function(v) { spAction('setMaxTokens', {value: Math.round(v)}); }));
+    container.appendChild(spSlider('samp-ctxlen', 'Context Length（上下文窗口）',
+      data.contextLength != null ? data.contextLength : 8192, 2048, 131072, 512, '',
+      function(v) { spAction('setContextLength', {value: Math.round(v)}); }));
+    container.appendChild(spInput('samp-stop', '停止序列（逗号分隔）',
+      data.stopSequencesStr || '', '示例：###', 'text',
+      function(v) { spAction('setStopSequences', {value: v}); }));
+    container.appendChild(spToggle('samp-stream', '流式输出',
+      '', data.streamEnabled !== false,
+      function(v) { spAction('setStreamEnabled', {enabled: v}); }));
+    container.appendChild(spSection('CFG Scale'));
+    var cfg = data.cfg || {};
+    container.appendChild(spToggle('samp-cfg-enable', '启用 CFG',
+      '对生成过程施加引导', cfg.enabled,
+      function(v) { spAction('toggleCfg', {enabled: v}); }));
+    container.appendChild(spChips('Global Guidance Scale', [
+      {value:1.0,label:'1.0'},{value:1.5,label:'1.5'},{value:2.0,label:'2.0'},
+      {value:3.0,label:'3.0'},{value:5.0,label:'5.0'},{value:7.0,label:'7.0'}
+    ], cfg.globalGuidanceScale != null ? cfg.globalGuidanceScale : 1.0,
+    function(v) { spAction('setCfgScale', {value: v}); }));
+    container.appendChild(spButton('恢复默认', 'secondary', function() {
+      spAction('resetToDefault', {});
+    }));
+  }
+
+  // ── [浮窗化] 人设管理面板 ────────────────────────────────────────────
+  var _personaState = {mode: 'list', editId: null};
+  function renderPersonaPanel(container, data) {
+    container.innerHTML = '';
+    if (_personaState.mode === 'list') {
+      var personas = data.personas || [];
+      if (personas.length === 0) {
+        container.appendChild(spEmpty('暂无人设，点击下方按钮新建'));
+      } else {
+        personas.forEach(function(p) {
+          var row = document.createElement('div');
+          row.className = 'sp-list-item';
+          if (p.avatarPath) {
+            var av = document.createElement('img');
+            av.src = p.avatarPath;
+            av.style.cssText = 'width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;';
+            row.appendChild(av);
+          }
+          var main = document.createElement('div');
+          main.className = 'sp-list-item-main';
+          var title = document.createElement('div');
+          title.className = 'sp-list-item-title';
+          title.textContent = p.name + (p.isDefault ? ' ✓' : '');
+          main.appendChild(title);
+          row.appendChild(main);
+          var actions = document.createElement('div');
+          actions.className = 'sp-list-item-actions';
+          if (!p.isDefault) {
+            var useBtn = document.createElement('button');
+            useBtn.className = 'sp-icon-btn';
+            useBtn.textContent = '启用';
+            useBtn.addEventListener('click', function(e) {
+              e.stopPropagation();
+              spAction('setDefaultPersona', {id: p.id});
+            });
+            actions.appendChild(useBtn);
+          }
+          var editBtn = document.createElement('button');
+          editBtn.className = 'sp-icon-btn';
+          editBtn.textContent = '✎';
+          editBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            _personaState.mode = 'edit';
+            _personaState.editId = p.id;
+            spAction('getPersonaDetail', {id: p.id});
+          });
+          actions.appendChild(editBtn);
+          if (!p.isDefault) {
+            var delBtn = document.createElement('button');
+            delBtn.className = 'sp-icon-btn danger';
+            delBtn.textContent = '✕';
+            delBtn.addEventListener('click', function(e) {
+              e.stopPropagation();
+              spAction('deletePersona', {id: p.id});
+            });
+            actions.appendChild(delBtn);
+          }
+          row.appendChild(actions);
+          container.appendChild(row);
+        });
+      }
+      container.appendChild(spButton('+ 新建人设', 'secondary', function() {
+        _personaState.mode = 'edit';
+        _personaState.editId = null;
+        spAction('getPersonaDetail', {id: null});
+      }));
+    } else {
+      var d = data.editDetail || {};
+      var back = document.createElement('button');
+      back.className = 'sp-back-btn';
+      back.textContent = '← 返回列表';
+      back.addEventListener('click', function() {
+        _personaState.mode = 'list';
+        spAction('loadPersonaList', {});
+      });
+      container.appendChild(back);
+      if (d.avatarPath) {
+        container.appendChild(spAvatar(d.avatarPath, function() {
+          spAction('pickPersonaAvatar', {id: _personaState.editId});
+        }));
+      }
+      container.appendChild(spInput('persona-name', '名称',
+        d.name || '', '人设名称', 'text', function(v) {}));
+      container.appendChild(spTextarea('persona-desc', '描述/人设内容',
+        d.description || '', '描述你的角色形象…', function(v) {}));
+      container.appendChild(spButton(
+        _personaState.editId ? '保存' : '创建', 'primary',
+        function() {
+          var nameEl = document.getElementById('persona-name');
+          var descEl = document.getElementById('persona-desc');
+          spAction('savePersona', {
+            id: _personaState.editId,
+            name: nameEl ? nameEl.value : '',
+            description: descEl ? descEl.value : ''
+          });
+          _personaState.mode = 'list';
+        }));
+    }
+  }
+
+  // ── [浮窗化] 精灵图面板（占位配置） ──────────────────────────────────
+  function renderSpritePanel(container, data) {
+    container.innerHTML = '';
+    container.appendChild(spDesc('精灵图渲染层正在开发中，配置已保存但暂不在聊天页显示。'));
+    container.appendChild(spSection('显示设置'));
+    container.appendChild(spToggle('sprite-enable', '启用精灵图',
+      '', data.enabled,
+      function(v) { spAction('toggleEnabled', {enabled: v}); }));
+    container.appendChild(spSlider('sprite-size', '显示尺寸',
+      data.size != null ? data.size : 150, 50, 400, 10, ' px',
+      function(v) { spAction('setSize', {value: v}); }));
+    container.appendChild(spSelect('sprite-position', '位置', [
+      {value:'left', label:'左侧'},
+      {value:'right', label:'右侧'},
+      {value:'center', label:'居中'},
+      {value:'floatingLeft', label:'浮动左侧'},
+      {value:'floatingRight', label:'浮动右侧'}
+    ], data.position || 'left',
+    function(v) { spAction('setPosition', {value: v}); }));
+    container.appendChild(spSlider('sprite-opacity', '透明度',
+      data.opacity != null ? data.opacity : 1, 0, 1, 0.05, '',
+      function(v) { spAction('setOpacity', {value: v}); }));
+    container.appendChild(spToggle('sprite-streaming', '流式输出时显示',
+      '', data.showDuringStreaming,
+      function(v) { spAction('setShowDuringStreaming', {enabled: v}); }));
+    container.appendChild(spToggle('sprite-animate', '表情切换动画',
+      '', data.animateTransitions,
+      function(v) { spAction('setAnimateTransitions', {enabled: v}); }));
+    container.appendChild(spSlider('sprite-transdur', '切换时长',
+      data.transitionDurationMs != null ? data.transitionDurationMs : 300, 0, 1000, 50, ' ms',
+      function(v) { spAction('setTransitionDuration', {value: Math.round(v)}); }));
+    container.appendChild(spSection('表情图（当前角色）'));
+    if (data.charName) {
+      container.appendChild(spDesc('当前角色：' + data.charName +
+        (data.spriteCount > 0 ? '，已配置 ' + data.spriteCount + ' 张' : '，未配置')));
+    }
+    container.appendChild(spButton('选择精灵图片', 'secondary', function() {
+      spAction('pickSpriteImage', {});
+    }));
+  }
+
+  // ── [浮窗化] 预设&提示词面板 ─────────────────────────────────────────
+  var _presetState = {tab: 'presets'};
+  function renderPresetPanel(container, data) {
+    container.innerHTML = '';
+    container.appendChild(spTabs([
+      {value:'presets', label:'预设管理'},
+      {value:'prompts', label:'提示词'}
+    ], _presetState.tab, function(v) {
+      _presetState.tab = v;
+      spAction('loadPresetData', {tab: v});
+    }));
+    if (_presetState.tab === 'presets') {
+      var presets = data.presets || [];
+      if (presets.length === 0) {
+        container.appendChild(spEmpty('暂无预设'));
+      } else {
+        presets.forEach(function(p) {
+          var row = document.createElement('div');
+          row.className = 'sp-list-item';
+          var main = document.createElement('div');
+          main.className = 'sp-list-item-main';
+          var title = document.createElement('div');
+          title.className = 'sp-list-item-title';
+          title.textContent = p.name + (p.isActive ? ' ✓' : '') +
+            (p.isBuiltIn ? '（内置）' : '');
+          main.appendChild(title);
+          row.appendChild(main);
+          var actions = document.createElement('div');
+          actions.className = 'sp-list-item-actions';
+          if (!p.isActive) {
+            var useBtn = document.createElement('button');
+            useBtn.className = 'sp-icon-btn';
+            useBtn.textContent = '应用';
+            useBtn.addEventListener('click', function(e) {
+              e.stopPropagation();
+              spAction('applyPreset', {id: p.id});
+            });
+            actions.appendChild(useBtn);
+          }
+          row.appendChild(actions);
+          container.appendChild(row);
+        });
+      }
+      container.appendChild(spButton('+ 从当前设置新建预设', 'secondary', function() {
+        spAction('createPreset', {});
+      }));
+    } else {
+      var sections = data.promptSections || [];
+      if (sections.length === 0) {
+        container.appendChild(spEmpty('暂无提示词分区'));
+      } else {
+        sections.forEach(function(sec) {
+          container.appendChild(spSection(sec.name));
+          container.appendChild(spToggle('prompt-sec-' + sec.id,
+            '启用', '', sec.enabled,
+            function(v) { spAction('togglePromptSection', {id: sec.id, enabled: v}); }));
+          container.appendChild(spTextarea('prompt-content-' + sec.id,
+            '', sec.content || '', '提示词内容…',
+            function(v) { spAction('updatePromptContent', {id: sec.id, content: v}); }));
+        });
+      }
+      container.appendChild(spButton('恢复默认排序', 'secondary', function() {
+        spAction('resetPromptSections', {});
+      }));
+    }
+  }
+
+  // ── [浮窗化] 世界书面板（三级导航） ──────────────────────────────────
+  var _worldState = {tab:'global', level:'books', editBookId:null, editEntryId:null};
+  function renderWorldInfoPanel(container, data) {
+    container.innerHTML = '';
+    if (data && data.initialTab) {
+      _worldState.tab = data.initialTab;
+      _worldState.level = 'books';
+    }
+    container.appendChild(spTabs([
+      {value:'global', label:'全局世界书'},
+      {value:'character', label:'角色世界书'}
+    ], _worldState.tab, function(v) {
+      _worldState.tab = v;
+      _worldState.level = 'books';
+      spAction('loadWorldBooks', {scope: v,
+        characterId: v === 'character' ? data.currentCharId : null});
+    }));
+    if (_worldState.level === 'books') {
+      var books = _worldState.tab === 'global'
+        ? (data.globalBooks || [])
+        : (data.characterBooks || []);
+      if (books.length === 0) {
+        container.appendChild(spEmpty('暂无世界书，点击下方按钮新建'));
+      } else {
+        books.forEach(function(book) {
+          var row = document.createElement('div');
+          row.className = 'sp-list-item';
+          var main = document.createElement('div');
+          main.className = 'sp-list-item-main';
+          var title = document.createElement('div');
+          title.className = 'sp-list-item-title';
+          title.textContent = book.name;
+          var sub = document.createElement('div');
+          sub.className = 'sp-list-item-sub';
+          sub.textContent = (book.entryCount || 0) + ' 条条目';
+          main.appendChild(title); main.appendChild(sub);
+          row.appendChild(main);
+          var actions = document.createElement('div');
+          actions.className = 'sp-list-item-actions';
+          var tog = document.createElement('button');
+          tog.className = 'sp-toggle' + (book.enabled ? ' on' : '');
+          tog.addEventListener('click', function(e) {
+            e.stopPropagation();
+            spAction('toggleWorldBook', {id: book.id, enabled: !book.enabled});
+          });
+          var openBtn = document.createElement('button');
+          openBtn.className = 'sp-icon-btn';
+          openBtn.textContent = '▶';
+          openBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            _worldState.level = 'entries';
+            _worldState.editBookId = book.id;
+            spAction('loadWorldEntries', {bookId: book.id});
+          });
+          var delBtn = document.createElement('button');
+          delBtn.className = 'sp-icon-btn danger';
+          delBtn.textContent = '✕';
+          delBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            spAction('deleteWorldBook', {id: book.id});
+          });
+          actions.appendChild(tog); actions.appendChild(openBtn); actions.appendChild(delBtn);
+          row.appendChild(actions);
+          container.appendChild(row);
+        });
+      }
+      container.appendChild(spButton('+ 新建世界书', 'secondary', function() {
+        spAction('createWorldBook', {
+          scope: _worldState.tab,
+          characterId: _worldState.tab === 'character' ? data.currentCharId : null
+        });
+      }));
+    } else if (_worldState.level === 'entries') {
+      var back = document.createElement('button');
+      back.className = 'sp-back-btn';
+      back.textContent = '← 返回世界书列表';
+      back.addEventListener('click', function() {
+        _worldState.level = 'books';
+        spAction('loadWorldBooks', {scope: _worldState.tab,
+          characterId: _worldState.tab === 'character' ? data.currentCharId : null});
+      });
+      container.appendChild(back);
+      var entries = data.entries || [];
+      if (entries.length === 0) {
+        container.appendChild(spEmpty('暂无条目，点击下方按钮新建'));
+      } else {
+        entries.forEach(function(entry) {
+          var row = document.createElement('div');
+          row.className = 'sp-list-item';
+          var main = document.createElement('div');
+          main.className = 'sp-list-item-main';
+          var title = document.createElement('div');
+          title.className = 'sp-list-item-title';
+          title.textContent = entry.comment || '未命名条目';
+          var sub = document.createElement('div');
+          sub.className = 'sp-list-item-sub';
+          sub.textContent = '触发词：' + (entry.keysStr || '无');
+          main.appendChild(title); main.appendChild(sub);
+          row.appendChild(main);
+          var actions = document.createElement('div');
+          actions.className = 'sp-list-item-actions';
+          var tog = document.createElement('button');
+          tog.className = 'sp-toggle' + (entry.enabled ? ' on' : '');
+          tog.addEventListener('click', function(e) {
+            e.stopPropagation();
+            spAction('toggleWorldEntry', {id: entry.id, enabled: !entry.enabled,
+              bookId: _worldState.editBookId});
+          });
+          var editBtn = document.createElement('button');
+          editBtn.className = 'sp-icon-btn';
+          editBtn.textContent = '✎';
+          editBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            _worldState.level = 'edit';
+            _worldState.editEntryId = entry.id;
+            spAction('getWorldEntryDetail', {id: entry.id,
+              bookId: _worldState.editBookId});
+          });
+          var delBtn = document.createElement('button');
+          delBtn.className = 'sp-icon-btn danger';
+          delBtn.textContent = '✕';
+          delBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            spAction('deleteWorldEntry', {id: entry.id,
+              bookId: _worldState.editBookId});
+          });
+          actions.appendChild(tog); actions.appendChild(editBtn); actions.appendChild(delBtn);
+          row.appendChild(actions);
+          container.appendChild(row);
+        });
+      }
+      container.appendChild(spButton('+ 新建条目', 'secondary', function() {
+        _worldState.level = 'edit';
+        _worldState.editEntryId = null;
+        spAction('getWorldEntryDetail', {id: null,
+          bookId: _worldState.editBookId});
+      }));
+    } else {
+      var d = data.editDetail || {};
+      var back2 = document.createElement('button');
+      back2.className = 'sp-back-btn';
+      back2.textContent = '← 返回条目列表';
+      back2.addEventListener('click', function() {
+        _worldState.level = 'entries';
+        spAction('loadWorldEntries', {bookId: _worldState.editBookId});
+      });
+      container.appendChild(back2);
+      container.appendChild(spInput('wi-keys', '触发词（逗号分隔）',
+        d.keysStr || '', 'keyword1, keyword2', 'text', function(v) {}));
+      container.appendChild(spInput('wi-comment', '备注名称',
+        d.comment || '', '条目备注', 'text', function(v) {}));
+      container.appendChild(spTextarea('wi-content', '内容',
+        d.content || '', '世界书条目内容…', function(v) {}));
+      container.appendChild(spSlider('wi-order', '插入顺序（越小越靠前）',
+        d.order != null ? d.order : 100, 0, 1000, 10, '',
+        function(v) {}));
+      container.appendChild(spToggle('wi-enabled', '启用',
+        '', d.enabled !== false, function(v) {}));
+      container.appendChild(spToggle('wi-constant', '始终插入',
+        '无论触发词是否匹配都插入', d.constant || false, function(v) {}));
+      container.appendChild(spButton(
+        _worldState.editEntryId ? '保存' : '创建', 'primary',
+        function() {
+          var keysEl = document.getElementById('wi-keys');
+          var commentEl = document.getElementById('wi-comment');
+          var contentEl = document.getElementById('wi-content');
+          var orderEl = document.getElementById('wi-order');
+          var enabledEl = document.getElementById('wi-enabled');
+          var constantEl = document.getElementById('wi-constant');
+          spAction('saveWorldEntry', {
+            id: _worldState.editEntryId,
+            bookId: _worldState.editBookId,
+            keys: keysEl ? keysEl.value : '',
+            comment: commentEl ? commentEl.value : '',
+            content: contentEl ? contentEl.value : '',
+            order: orderEl ? (parseInt(orderEl.value) || 100) : 100,
+            enabled: enabledEl ? enabledEl.classList.contains('on') : true,
+            constant: constantEl ? constantEl.classList.contains('on') : false
+          });
+          _worldState.level = 'entries';
+        }));
+    }
   }
 
   // ── [浮窗化] 生图设置面板 ────────────────────────────────────────────

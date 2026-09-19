@@ -49,6 +49,8 @@ import 'package:kirakira/domain/services/slash_command/commands/generation_comma
 import 'package:kirakira/domain/services/slash_command/commands/ui_commands.dart';
 import 'package:kirakira/domain/services/slash_command/commands/floor_commands.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
+import 'package:kirakira/presentation/providers/world_info_providers.dart'
+    show worldInfoNotifierProvider;
 import 'package:kirakira/data/models/world_info.dart' as models;
 import 'package:image_picker/image_picker.dart';
 import 'package:kirakira/presentation/widgets/chat/image_generation_dialog.dart';
@@ -62,6 +64,10 @@ import 'package:kirakira/presentation/providers/context_usage_providers.dart';
 import 'package:image/image.dart' as img;
 import 'package:kirakira/presentation/providers/tts_providers.dart';
 import 'package:kirakira/presentation/providers/stt_providers.dart';
+import 'package:kirakira/domain/services/stt_service.dart';
+import 'package:kirakira/presentation/providers/sprite_providers.dart';
+import 'package:kirakira/data/models/sprite.dart';
+import 'package:kirakira/presentation/providers/cfg_scale_providers.dart';
 import 'package:kirakira/presentation/providers/background_providers.dart';
 import 'package:kirakira/presentation/providers/variables_providers.dart';
 import 'package:kirakira/presentation/providers/tokenizer_providers.dart';
@@ -1334,6 +1340,42 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                           break;
                         case 'openImageGenPanel':
                           await _openImageGenPanel();
+                          break;
+                        case 'openSttPanel':
+                          await _openSttPanel();
+                          break;
+                        case 'openSpritePanel':
+                          await _openSpritePanel();
+                          break;
+                        case 'openWorldInfoPanel':
+                          await _openWorldInfoPanel();
+                          break;
+                        case 'openCharacterBookPanel':
+                          await _openWorldInfoPanel(initialScope: 'character');
+                          break;
+                        case 'openPresetPanel':
+                          await _openPresetPanel();
+                          break;
+                        case 'openSamplingPanel':
+                          await _openSamplingPanel();
+                          break;
+                        case 'openPersonaPanel':
+                          await _openPersonaPanel();
+                          break;
+                        case 'openCharacterRegexPanel':
+                          final charId = payload['charId'] as String? ??
+                              ref.read(activeChatProvider).character?.id;
+                          if (charId == null || charId.isEmpty) {
+                            _snack('当前聊天没有关联角色');
+                            break;
+                          }
+                          await _openRegexPanel(charId, initialTab: 'character');
+                          break;
+                        case 'openExportPanel':
+                          await _openExportPanel();
+                          break;
+                        case 'openSearchPanel':
+                          _snack('搜索功能开发中');
                           break;
                         case 'navigateTo':
                           final route = payload['route'] as String? ?? '';
@@ -3837,11 +3879,32 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       case 'imageGen':
         await _handleImageGenPanelAction(action, data);
         break;
+      case 'stt':
+        await _handleSttPanelAction(action, data);
+        break;
+      case 'export':
+        await _handleExportPanelAction(action, data);
+        break;
+      case 'sampling':
+        await _handleSamplingPanelAction(action, data);
+        break;
+      case 'persona':
+        await _handlePersonaPanelAction(action, data);
+        break;
+      case 'sprite':
+        await _handleSpritePanelAction(action, data);
+        break;
+      case 'preset':
+        await _handlePresetPanelAction(action, data);
+        break;
+      case 'worldInfo':
+        await _handleWorldInfoPanelAction(action, data);
+        break;
     }
   }
 
-  /// 打开角色正则浮窗面板:收集正则脚本数据推给 WebView。
-  Future<void> _openRegexPanel(String charId) async {
+  /// 打开正则浮窗面板(全局/角色tab):收集正则脚本数据推给 WebView。
+  Future<void> _openRegexPanel(String charId, {String initialTab = 'global'}) async {
     final notifier =
         ref.read(characterRegexScriptsProvider(charId).notifier);
     await notifier.ready;
@@ -3849,87 +3912,188 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     _bridge.send(BridgeType.openSettingsPanel, {
       'panel': 'regex',
       'title': '正则脚本',
-      'data': _serializeRegexScripts(charId),
+      'data': _serializeRegexData(editDetail: null)
+        ..['initialTab'] = initialTab,
     });
   }
 
-  /// 把当前正则脚本列表序列化为 JSON map(打开/刷新复用)。
-  Map<String, dynamic> _serializeRegexScripts(String charId) {
-    final scripts = ref.read(characterRegexScriptsProvider(charId));
+  /// 序列化正则脚本数据(双scope列表+编辑态详情,打开/刷新复用)。
+  Map<String, dynamic> _serializeRegexData(
+      {Map<String, dynamic>? editDetail}) {
     final character = ref.read(activeChatProvider).character;
-    final charName = character?.name ?? '';
-    return <String, dynamic>{
-      'regexScripts': scripts
+    final characterId = character?.id;
+    final globalScripts = ref.read(globalRegexScriptsProvider);
+    final characterScripts = characterId != null
+        ? ref.read(characterRegexScriptsProvider(characterId))
+        : <RegexScript>[];
+    List<Map<String, dynamic>> serializeList(List<RegexScript> scripts) {
+      return scripts
           .map((s) => <String, dynamic>{
                 'id': s.id,
                 'name': s.scriptName,
-                'scriptName': s.scriptName,
-                'description': s.description ?? '',
-                'disabled': s.disabled,
-                'findRegex': s.findRegex,
-                'replaceString': s.replaceString,
+                'pattern': s.findRegex,
+                'replacement': s.replaceString,
+                'enabled': !s.disabled,
               })
-          .toList(),
-      'charName': charName,
+          .toList();
+    }
+    return <String, dynamic>{
+      'globalScripts': serializeList(globalScripts),
+      'characterScripts': serializeList(characterScripts),
+      'charName': character?.name ?? '',
+      if (editDetail != null) 'editDetail': editDetail,
     };
   }
 
-  /// 正则面板操作处理:开关/删除/编辑/新建。
+  /// 正则面板操作处理:列表加载/详情/开关/删除/保存。
   Future<void> _handleRegexPanelAction(
       String action, Map<String, dynamic> data) async {
-    final characterId = ref.read(activeChatProvider).character?.id;
-    if (characterId == null) {
-      _snack('当前聊天没有关联角色');
-      return;
+    final character = ref.read(activeChatProvider).character;
+    final characterId = character?.id;
+    final scope = data['scope'] as String? ?? 'global';
+
+    Future<void> pushRefresh({Map<String, dynamic>? editDetail}) async {
+      _bridge.send(BridgeType.settingsPanelData, {
+        'data': _serializeRegexData(editDetail: editDetail),
+        'refresh': true,
+      });
     }
-    final notifier =
-        ref.read(characterRegexScriptsProvider(characterId).notifier);
+
     switch (action) {
-      case 'toggleScript':
+      case 'loadRegexList':
+        await pushRefresh();
+        break;
+
+      case 'getRegexDetail':
+        final id = data['id'] as String?;
+        Map<String, dynamic>? detail;
+        if (id != null && id.isNotEmpty) {
+          final list = scope == 'global'
+              ? ref.read(globalRegexScriptsProvider)
+              : (characterId != null
+                  ? ref.read(characterRegexScriptsProvider(characterId))
+                  : <RegexScript>[]);
+          for (final s in list) {
+            if (s.id == id) {
+              detail = {
+                'id': s.id,
+                'name': s.scriptName,
+                'pattern': s.findRegex,
+                'replacement': s.replaceString,
+                'enabled': !s.disabled,
+              };
+              break;
+            }
+          }
+        }
+        await pushRefresh(editDetail: detail ?? {});
+        break;
+
+      case 'toggleRegex':
         final id = data['id'] as String? ?? '';
         final enabled = data['enabled'] as bool? ?? true;
         if (id.isEmpty) return;
-        final scripts = ref.read(characterRegexScriptsProvider(characterId));
-        for (final s in scripts) {
-          if (s.id == id) {
-            await notifier.updateScript(
-              s.copyWith(disabled: !enabled, updatedAt: DateTime.now()),
-            );
-            break;
+        if (scope == 'global') {
+          final notifier = ref.read(globalRegexScriptsProvider.notifier);
+          for (final s in ref.read(globalRegexScriptsProvider)) {
+            if (s.id == id) {
+              await notifier.updateScript(
+                s.copyWith(disabled: !enabled, updatedAt: DateTime.now()),
+              );
+              break;
+            }
+          }
+        } else if (characterId != null) {
+          final notifier =
+              ref.read(characterRegexScriptsProvider(characterId).notifier);
+          for (final s in ref.read(characterRegexScriptsProvider(characterId))) {
+            if (s.id == id) {
+              await notifier.updateScript(
+                s.copyWith(disabled: !enabled, updatedAt: DateTime.now()),
+              );
+              break;
+            }
           }
         }
-        _bridge.send(BridgeType.settingsPanelData, {
-          'data': _serializeRegexScripts(characterId),
-          'refresh': true,
-        });
+        await pushRefresh();
         break;
 
-      case 'deleteScript':
+      case 'deleteRegex':
         final id = data['id'] as String? ?? '';
-        final name = data['name'] as String? ?? '此脚本';
+        final name = data['name'] as String? ?? '此规则';
         if (id.isEmpty) return;
-        // [弹窗] HTML确认框,在WebView内渲染,无HC合成开销
         final ok = await _showHtmlConfirm(
-          title: '删除正则脚本',
+          title: '删除正则规则',
           message: '删除「$name」？此操作不可撤销。',
           confirmText: '删除',
           cancelText: '取消',
           danger: true,
         );
         if (!mounted || !ok) return;
-        await notifier.removeScript(id);
-        _bridge.send(BridgeType.settingsPanelData, {
-          'data': _serializeRegexScripts(characterId),
-          'refresh': true,
-        });
+        if (scope == 'global') {
+          await ref.read(globalRegexScriptsProvider.notifier).removeScript(id);
+        } else if (characterId != null) {
+          await ref
+              .read(characterRegexScriptsProvider(characterId).notifier)
+              .removeScript(id);
+        }
+        await pushRefresh();
         break;
 
-      case 'editScript':
-      case 'createScript':
-        // [fallback] 关闭浮窗 → 跳转 Flutter 编辑页
-        _bridge.send(BridgeType.closeSettingsPanel, {});
-        await Future.delayed(const Duration(milliseconds: 350));
-        await _navigateTo('/characters/$characterId/regex');
+      case 'saveRegex':
+        final id = data['id'] as String?;
+        final name = data['name'] as String? ?? '';
+        final pattern = data['pattern'] as String? ?? '';
+        final replacement = data['replacement'] as String? ?? '';
+        if (pattern.isEmpty) {
+          _snack('匹配模式不能为空');
+          return;
+        }
+        if (scope == 'global') {
+          final notifier = ref.read(globalRegexScriptsProvider.notifier);
+          if (id != null && id.isNotEmpty) {
+            for (final s in ref.read(globalRegexScriptsProvider)) {
+              if (s.id == id) {
+                await notifier.updateScript(s.copyWith(
+                  scriptName: name.isNotEmpty ? name : s.scriptName,
+                  findRegex: pattern,
+                  replaceString: replacement,
+                  updatedAt: DateTime.now(),
+                ));
+                break;
+              }
+            }
+          } else {
+            await notifier.addScript(createRegexScript(
+              scriptName: name.isNotEmpty ? name : '未命名规则',
+              findRegex: pattern,
+              replaceString: replacement,
+            ));
+          }
+        } else if (characterId != null) {
+          final notifier =
+              ref.read(characterRegexScriptsProvider(characterId).notifier);
+          if (id != null && id.isNotEmpty) {
+            for (final s in ref.read(characterRegexScriptsProvider(characterId))) {
+              if (s.id == id) {
+                await notifier.updateScript(s.copyWith(
+                  scriptName: name.isNotEmpty ? name : s.scriptName,
+                  findRegex: pattern,
+                  replaceString: replacement,
+                  updatedAt: DateTime.now(),
+                ));
+                break;
+              }
+            }
+          } else {
+            await notifier.addScript(createRegexScript(
+              scriptName: name.isNotEmpty ? name : '未命名规则',
+              findRegex: pattern,
+              replaceString: replacement,
+            ));
+          }
+        }
+        await pushRefresh();
         break;
     }
   }
@@ -4320,6 +4484,820 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         {'data': await _serializeChronicleData(), 'refresh': true});
   }
 
+  // ── [浮窗化] STT 语音识别面板 ────────────────────────────────────────
+
+  Future<void> _openSttPanel() async {
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'stt',
+      'title': 'STT 语音识别',
+      'data': _serializeSttData(),
+    });
+  }
+
+  Map<String, dynamic> _serializeSttData() {
+    final s = ref.read(sttSettingsProvider);
+    return <String, dynamic>{
+      'enabled': s.enabled,
+      'provider': s.provider.id,
+      'language': s.language,
+      'continuousListening': s.continuousListening,
+      'autoSend': s.autoSend,
+      'showPartialResults': s.showPartialResults,
+      'apiKey': s.apiKey ?? '',
+      'apiEndpoint': s.apiEndpoint ?? '',
+    };
+  }
+
+  Future<void> _handleSttPanelAction(
+      String action, Map<String, dynamic> data) async {
+    final notifier = ref.read(sttSettingsProvider.notifier);
+    switch (action) {
+      case 'toggleEnabled':
+        notifier.setEnabled(data['enabled'] as bool);
+        break;
+      case 'setProvider':
+        final p = STTProvider.values.firstWhere(
+          (e) => e.id == (data['value'] as String),
+          orElse: () => STTProvider.sherpa,
+        );
+        notifier.setProvider(p);
+        break;
+      case 'setLanguage':
+        notifier.setLanguage(data['value'] as String);
+        break;
+      case 'setContinuousListening':
+        notifier.setContinuousListening(data['enabled'] as bool);
+        break;
+      case 'setAutoSend':
+        notifier.setAutoSend(data['enabled'] as bool);
+        break;
+      case 'setShowPartialResults':
+        notifier.setShowPartialResults(data['enabled'] as bool);
+        break;
+      case 'setApiKey':
+        notifier.setApiKey(data['value'] as String);
+        break;
+      case 'setApiEndpoint':
+        notifier.setApiEndpoint(data['value'] as String);
+        break;
+    }
+    _bridge.send(BridgeType.settingsPanelData,
+        {'data': _serializeSttData(), 'refresh': true});
+  }
+
+  // ── [浮窗化] 导出/导入面板 ───────────────────────────────────────────
+
+  Future<void> _openExportPanel() async {
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'export',
+      'title': '导出 / 导入',
+      'data': <String, dynamic>{'defaultFormat': 'jsonl'},
+    });
+  }
+
+  Future<void> _handleExportPanelAction(
+      String action, Map<String, dynamic> data) async {
+    switch (action) {
+      case 'exportChat':
+        await _exportChatRecord(
+          useJsonl: (data['format'] as String? ?? 'jsonl') == 'jsonl',
+          toFile: false,
+        );
+        break;
+      case 'exportChatToFile':
+        await _exportChatRecord(
+          useJsonl: (data['format'] as String? ?? 'jsonl') == 'jsonl',
+          toFile: true,
+        );
+        break;
+      case 'importChat':
+        await _importChatRecord();
+        break;
+    }
+  }
+
+  // ── [浮窗化] 采样参数面板 ────────────────────────────────────────────
+
+  Future<void> _openSamplingPanel() async {
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'sampling',
+      'title': '采样参数',
+      'data': _serializeSamplingData(),
+    });
+  }
+
+  Map<String, dynamic> _serializeSamplingData() {
+    final c = ref.read(llmConfigProvider);
+    final cfg = ref.read(cfgScaleSettingsProvider);
+    return <String, dynamic>{
+      'temperature': c.temperature,
+      'topP': c.topP,
+      'topK': c.topK,
+      'minP': c.minP,
+      'typicalP': c.typicalP,
+      'topA': c.topA,
+      'tailFreeSampling': c.tailFreeSampling,
+      'repetitionPenalty': c.repetitionPenalty,
+      'repetitionPenaltyRange': c.repetitionPenaltyRange,
+      'frequencyPenalty': c.frequencyPenalty,
+      'presencePenalty': c.presencePenalty,
+      'mirostatMode': c.mirostatMode,
+      'mirostatTau': c.mirostatTau,
+      'mirostatEta': c.mirostatEta,
+      'maxTokens': c.maxTokens,
+      'contextLength': c.contextLength,
+      'stopSequencesStr': c.stopSequences.join(','),
+      'streamEnabled': c.streamEnabled,
+      'cfg': <String, dynamic>{
+        'enabled': cfg.enabled,
+        'globalGuidanceScale': cfg.globalGuidanceScale,
+      },
+    };
+  }
+
+  Future<void> _handleSamplingPanelAction(
+      String action, Map<String, dynamic> data) async {
+    final ln = ref.read(llmConfigProvider.notifier);
+    switch (action) {
+      case 'setTemperature':
+        ln.updateTemperature((data['value'] as num).toDouble());
+        break;
+      case 'setTopP':
+        ln.updateTopP((data['value'] as num).toDouble());
+        break;
+      case 'setTopK':
+        ln.updateTopK((data['value'] as num).toInt());
+        break;
+      case 'setMinP':
+        ln.updateMinP((data['value'] as num).toDouble());
+        break;
+      case 'setTypicalP':
+        ln.updateTypicalP((data['value'] as num).toDouble());
+        break;
+      case 'setTopA':
+        ln.updateTopA((data['value'] as num).toDouble());
+        break;
+      case 'setTailFreeSampling':
+        ln.updateTailFreeSampling((data['value'] as num).toDouble());
+        break;
+      case 'setRepetitionPenalty':
+        ln.updateRepetitionPenalty((data['value'] as num).toDouble());
+        break;
+      case 'setRepetitionPenaltyRange':
+        ln.updateRepetitionPenaltyRange((data['value'] as num).toInt());
+        break;
+      case 'setFrequencyPenalty':
+        ln.updateFrequencyPenalty((data['value'] as num).toDouble());
+        break;
+      case 'setPresencePenalty':
+        ln.updatePresencePenalty((data['value'] as num).toDouble());
+        break;
+      case 'setMirostatMode':
+        ln.updateMirostatMode((data['value'] as num).toInt());
+        break;
+      case 'setMirostatTau':
+        ln.updateMirostatTau((data['value'] as num).toDouble());
+        break;
+      case 'setMirostatEta':
+        ln.updateMirostatEta((data['value'] as num).toDouble());
+        break;
+      case 'setMaxTokens':
+        ln.updateMaxTokens((data['value'] as num).toInt());
+        break;
+      case 'setContextLength':
+        ln.updateContextLength((data['value'] as num).toInt());
+        break;
+      case 'setStopSequences':
+        final raw = data['value'] as String? ?? '';
+        ln.updateStopSequences(raw
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList());
+        break;
+      case 'setStreamEnabled':
+        ln.updateStreamEnabled(data['enabled'] as bool);
+        break;
+      case 'toggleCfg':
+        ref
+            .read(cfgScaleSettingsProvider.notifier)
+            .setEnabled(data['enabled'] as bool);
+        break;
+      case 'setCfgScale':
+        ref
+            .read(cfgScaleSettingsProvider.notifier)
+            .setGlobalGuidanceScale((data['value'] as num).toDouble());
+        break;
+      case 'resetToDefault':
+        ln.updateTemperature(0.8);
+        ln.updateTopP(0.95);
+        ln.updateTopK(40);
+        ln.updateMinP(0);
+        ln.updateTypicalP(1);
+        ln.updateTopA(0);
+        ln.updateTailFreeSampling(1);
+        ln.updateRepetitionPenalty(1.1);
+        ln.updateRepetitionPenaltyRange(512);
+        ln.updateFrequencyPenalty(0);
+        ln.updatePresencePenalty(0);
+        ln.updateMirostatMode(0);
+        ln.updateMaxTokens(512);
+        ln.updateSeed(-1);
+        break;
+    }
+    _bridge.send(BridgeType.settingsPanelData,
+        {'data': _serializeSamplingData(), 'refresh': true});
+  }
+
+  // ── [浮窗化] 人设管理面板 ────────────────────────────────────────────
+
+  Future<void> _openPersonaPanel() async {
+    await ref.read(personaNotifierProvider.notifier).refresh();
+    if (!mounted) return;
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'persona',
+      'title': '人设管理',
+      'data': _serializePersonaData(),
+    });
+  }
+
+  Map<String, dynamic> _serializePersonaData(
+      {Map<String, dynamic>? editDetail}) {
+    final personas = ref.read(personaNotifierProvider).valueOrNull ?? [];
+    final activeId = ref.read(activePersonaIdProvider);
+    return <String, dynamic>{
+      'personas': personas
+          .map((p) => <String, dynamic>{
+                'id': p.id,
+                'name': p.name,
+                'avatarPath': '',
+                'isDefault': p.isDefault,
+              })
+          .toList(),
+      'activeId': activeId ?? '',
+      if (editDetail != null) 'editDetail': editDetail,
+    };
+  }
+
+  Future<void> _handlePersonaPanelAction(
+      String action, Map<String, dynamic> data) async {
+    final notifier = ref.read(personaNotifierProvider.notifier);
+
+    Future<void> pushRefresh({Map<String, dynamic>? editDetail}) async {
+      _bridge.send(BridgeType.settingsPanelData, {
+        'data': _serializePersonaData(editDetail: editDetail),
+        'refresh': true,
+      });
+    }
+
+    switch (action) {
+      case 'loadPersonaList':
+        await notifier.refresh();
+        await pushRefresh();
+        break;
+      case 'setDefaultPersona':
+        final id = data['id'] as String? ?? '';
+        if (id.isEmpty) return;
+        await notifier.setActivePersona(id);
+        await notifier.setDefaultPersona(id);
+        _snack('已切换人设');
+        await pushRefresh();
+        break;
+      case 'getPersonaDetail':
+        final id = data['id'] as String?;
+        Map<String, dynamic> detail = {};
+        if (id != null && id.isNotEmpty) {
+          final personas =
+              ref.read(personaNotifierProvider).valueOrNull ?? [];
+          for (final p in personas) {
+            if (p.id == id) {
+              detail = {
+                'id': p.id,
+                'name': p.name,
+                'description': p.description,
+                'avatarPath': '',
+              };
+              break;
+            }
+          }
+        }
+        await pushRefresh(editDetail: detail);
+        break;
+      case 'savePersona':
+        final id = data['id'] as String?;
+        final name = data['name'] as String? ?? '';
+        final description = data['description'] as String? ?? '';
+        if (name.trim().isEmpty) {
+          _snack('名称不能为空');
+          return;
+        }
+        if (id != null && id.isNotEmpty) {
+          final personas =
+              ref.read(personaNotifierProvider).valueOrNull ?? [];
+          for (final p in personas) {
+            if (p.id == id) {
+              await notifier.updatePersona(
+                  p.copyWith(name: name.trim(), description: description));
+              break;
+            }
+          }
+        } else {
+          await notifier.createPersona(
+              name: name.trim(), description: description);
+        }
+        _snack('已保存');
+        await notifier.refresh();
+        await pushRefresh();
+        break;
+      case 'deletePersona':
+        final id = data['id'] as String? ?? '';
+        if (id.isEmpty) return;
+        final ok = await _showHtmlConfirm(
+          title: '删除人设',
+          message: '删除该人设？此操作不可撤销。',
+          confirmText: '删除',
+          cancelText: '取消',
+          danger: true,
+        );
+        if (!mounted || !ok) return;
+        try {
+          await notifier.deletePersona(id);
+          _snack('已删除');
+        } catch (e) {
+          _snack('$e');
+        }
+        await pushRefresh();
+        break;
+    }
+  }
+
+  // ── [浮窗化] 精灵图面板（占位配置） ──────────────────────────────────
+
+  Future<void> _openSpritePanel() async {
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'sprite',
+      'title': '精灵立绘',
+      'data': _serializeSpriteData(),
+    });
+  }
+
+  Map<String, dynamic> _serializeSpriteData() {
+    final s = ref.read(spriteSettingsProvider);
+    final character = ref.read(activeChatProvider).character;
+    return <String, dynamic>{
+      'enabled': s.enabled,
+      'size': s.size,
+      'position': s.position.name,
+      'opacity': s.opacity,
+      'showDuringStreaming': s.showDuringStreaming,
+      'animateTransitions': s.animateTransitions,
+      'transitionDurationMs': s.transitionDurationMs,
+      'charId': character?.id ?? '',
+      'charName': character?.name ?? '',
+      'spriteCount': 0,
+    };
+  }
+
+  Future<void> _handleSpritePanelAction(
+      String action, Map<String, dynamic> data) async {
+    final notifier = ref.read(spriteSettingsProvider.notifier);
+    switch (action) {
+      case 'toggleEnabled':
+        notifier.setEnabled(data['enabled'] as bool);
+        break;
+      case 'setSize':
+        notifier.setSize((data['value'] as num).toDouble());
+        break;
+      case 'setPosition':
+        final posStr = data['value'] as String;
+        final pos = SpritePosition.values.firstWhere(
+          (p) => p.name == posStr,
+          orElse: () => SpritePosition.left,
+        );
+        notifier.setPosition(pos);
+        break;
+      case 'setOpacity':
+        notifier.setOpacity((data['value'] as num).toDouble());
+        break;
+      case 'setShowDuringStreaming':
+        notifier.setShowDuringStreaming(data['enabled'] as bool);
+        break;
+      case 'setAnimateTransitions':
+        notifier.setAnimateTransitions(data['enabled'] as bool);
+        break;
+      case 'setTransitionDuration':
+        notifier.setTransitionDuration((data['value'] as num).toInt());
+        break;
+      case 'pickSpriteImage':
+        final charId = ref.read(activeChatProvider).character?.id;
+        if (charId == null || charId.isEmpty) {
+          _snack('当前聊天没有关联角色');
+          return;
+        }
+        final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+        if (picked == null) return;
+        try {
+          await ref
+              .read(spritePackNotifierProvider(charId).notifier)
+              .addSprite('neutral', File(picked.path));
+          _snack('已添加为 neutral 表情图');
+        } catch (e) {
+          _snack('添加失败: $e');
+        }
+        break;
+    }
+    _bridge.send(BridgeType.settingsPanelData,
+        {'data': _serializeSpriteData(), 'refresh': true});
+  }
+
+  // ── [浮窗化] 预设&提示词面板 ─────────────────────────────────────────
+
+  Future<void> _openPresetPanel() async {
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'preset',
+      'title': '预设 & 提示词',
+      'data': _serializePresetData(),
+    });
+  }
+
+  Map<String, dynamic> _serializePresetData(
+      {String? tab, Map<String, dynamic>? editDetail}) {
+    final presets = ref.read(allAIPresetsProvider);
+    final activeId = ref.read(activeAIPresetIdProvider);
+    final promptConfig = ref.read(promptManagerProvider);
+    return <String, dynamic>{
+      'presets': presets
+          .map((p) => <String, dynamic>{
+                'id': p.id,
+                'name': p.name,
+                'isBuiltIn': p.isBuiltIn,
+                'isActive': p.id == activeId,
+              })
+          .toList(),
+      'activePresetName': presets
+          .where((p) => p.id == activeId)
+          .map((p) => p.name)
+          .firstOrNull,
+      'promptSections': promptConfig.sections
+          .map((s) => <String, dynamic>{
+                'id': s.type.name,
+                'name': PromptSection.getDisplayName(s.type),
+                'enabled': s.enabled,
+                'content': _getSectionContent(s),
+              })
+          .toList(),
+      if (tab != null) 'tab': tab,
+      if (editDetail != null) 'editDetail': editDetail,
+    };
+  }
+
+  String _getSectionContent(PromptSection section) {
+    final c = section.content;
+    if (c == null) return '';
+    return c;
+  }
+
+  Future<void> _handlePresetPanelAction(
+      String action, Map<String, dynamic> data) async {
+    final promptNotifier = ref.read(promptManagerProvider.notifier);
+    switch (action) {
+      case 'loadPresetData':
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializePresetData(tab: data['tab'] as String?),
+          'refresh': true,
+        });
+        break;
+      case 'applyPreset':
+        final id = data['id'] as String? ?? '';
+        if (id.isEmpty) return;
+        final presets = ref.read(allAIPresetsProvider);
+        final preset = presets.where((p) => p.id == id).firstOrNull;
+        if (preset == null) return;
+        _snack('正在应用预设…');
+        await ref.read(aiPresetManagerProvider).applyPreset(preset);
+        _snack('预设已应用');
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializePresetData(),
+          'refresh': true,
+        });
+        break;
+      case 'createPreset':
+        final count = ref.read(aiCustomPresetsProvider).length + 1;
+        final preset = await ref
+            .read(aiPresetManagerProvider)
+            .createFromCurrentSettings(name: '自定义预设 $count');
+        await ref.read(aiCustomPresetsProvider.notifier).addPreset(preset);
+        _snack('已创建「${preset.name}」');
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializePresetData(),
+          'refresh': true,
+        });
+        break;
+      case 'togglePromptSection':
+        final typeId = data['id'] as String? ?? '';
+        if (typeId.isEmpty) return;
+        final type = PromptSectionType.values.firstWhere(
+          (t) => t.name == typeId,
+          orElse: () => PromptSectionType.systemPrompt,
+        );
+        await promptNotifier.toggleSection(type);
+        break;
+      case 'updatePromptContent':
+        final typeId = data['id'] as String? ?? '';
+        final content = data['content'] as String? ?? '';
+        if (typeId.isEmpty) return;
+        final type = PromptSectionType.values.firstWhere(
+          (t) => t.name == typeId,
+          orElse: () => PromptSectionType.systemPrompt,
+        );
+        await promptNotifier.updateSectionContent(type, content);
+        break;
+      case 'resetPromptSections':
+        await promptNotifier.resetToDefault();
+        _snack('已恢复默认');
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': _serializePresetData(),
+          'refresh': true,
+        });
+        break;
+    }
+  }
+
+  // ── [浮窗化] 世界书面板（三级导航） ──────────────────────────────────
+
+  Future<void> _openWorldInfoPanel({String initialScope = 'global'}) async {
+    final character = ref.read(activeChatProvider).character;
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'worldInfo',
+      'title': '世界书',
+      'data': await _serializeWorldInfoData(
+        initialScope: initialScope,
+        characterId: initialScope == 'character' ? character?.id : null,
+      ),
+    });
+  }
+
+  Future<Map<String, dynamic>> _serializeWorldInfoData(
+      {String? initialScope, String? characterId}) async {
+    final repo = ref.read(worldInfoRepositoryProvider);
+    final globalBooks = await repo.getGlobalWorldInfos();
+    final characterBooks = characterId != null
+        ? await repo.getWorldInfosForCharacter(characterId)
+        : <models.WorldInfo>[];
+    Map<String, dynamic> serializeBook(models.WorldInfo b) {
+      return <String, dynamic>{
+        'id': b.id,
+        'name': b.name,
+        'enabled': b.enabled,
+        'entryCount': b.entries.length,
+      };
+    }
+    return <String, dynamic>{
+      'globalBooks': globalBooks.map(serializeBook).toList(),
+      'characterBooks': characterBooks.map(serializeBook).toList(),
+      'currentCharId': characterId ?? '',
+      if (initialScope != null) 'initialTab': initialScope,
+    };
+  }
+
+  Future<void> _handleWorldInfoPanelAction(
+      String action, Map<String, dynamic> data) async {
+    final repo = ref.read(worldInfoRepositoryProvider);
+    final notifier = ref.read(worldInfoNotifierProvider.notifier);
+    final character = ref.read(activeChatProvider).character;
+    final scope = data['scope'] as String? ?? 'global';
+
+    Future<void> pushBooks() async {
+      _bridge.send(BridgeType.settingsPanelData, {
+        'data': await _serializeWorldInfoData(
+          characterId: character?.id,
+        ),
+        'refresh': true,
+      });
+    }
+
+    switch (action) {
+      case 'loadWorldBooks':
+        await pushBooks();
+        break;
+      case 'toggleWorldBook':
+        final id = data['id'] as String? ?? '';
+        final enabled = data['enabled'] as bool? ?? true;
+        if (id.isEmpty) return;
+        final book = await repo.getWorldInfoById(id);
+        if (book == null) return;
+        await notifier.updateWorldInfo(book.copyWith(enabled: enabled));
+        await pushBooks();
+        break;
+      case 'createWorldBook':
+        final isGlobal = scope == 'global';
+        final name = isGlobal ? '新全局世界书' : '新角色世界书';
+        await notifier.createWorldInfo(
+          name: name,
+          isGlobal: isGlobal,
+          characterId: isGlobal ? null : character?.id,
+        );
+        _snack('已创建，点击进入添加条目');
+        await pushBooks();
+        break;
+      case 'deleteWorldBook':
+        final id = data['id'] as String? ?? '';
+        if (id.isEmpty) return;
+        final ok = await _showHtmlConfirm(
+          title: '删除世界书',
+          message: '删除该世界书及其全部条目？此操作不可撤销。',
+          confirmText: '删除',
+          cancelText: '取消',
+          danger: true,
+        );
+        if (!mounted || !ok) return;
+        await notifier.deleteWorldInfo(id);
+        await pushBooks();
+        break;
+      case 'loadWorldEntries':
+        final bookId = data['bookId'] as String? ?? '';
+        if (bookId.isEmpty) return;
+        final book = await repo.getWorldInfoById(bookId);
+        if (book == null) return;
+        final entries = book.entries
+            .map((e) => <String, dynamic>{
+                  'id': e.id,
+                  'comment': e.comment,
+                  'keysStr': e.keys.join(', '),
+                  'enabled': e.enabled,
+                  'constant': e.constant,
+                })
+            .toList();
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': <String, dynamic>{
+            'entries': entries,
+            'currentCharId': character?.id ?? '',
+          },
+          'refresh': true,
+        });
+        break;
+      case 'getWorldEntryDetail':
+        final bookId = data['bookId'] as String? ?? '';
+        final id = data['id'] as String?;
+        if (bookId.isEmpty) return;
+        final book = await repo.getWorldInfoById(bookId);
+        Map<String, dynamic> detail = {};
+        if (book != null && id != null && id.isNotEmpty) {
+          for (final e in book.entries) {
+            if (e.id == id) {
+              detail = {
+                'id': e.id,
+                'keysStr': e.keys.join(', '),
+                'comment': e.comment,
+                'content': e.content,
+                'order': e.insertionOrder,
+                'enabled': e.enabled,
+                'constant': e.constant,
+              };
+              break;
+            }
+          }
+        }
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': <String, dynamic>{
+            'editDetail': detail,
+            'currentCharId': character?.id ?? '',
+          },
+          'refresh': true,
+        });
+        break;
+      case 'toggleWorldEntry':
+        final bookId = data['bookId'] as String? ?? '';
+        final id = data['id'] as String? ?? '';
+        final enabled = data['enabled'] as bool? ?? true;
+        if (bookId.isEmpty || id.isEmpty) return;
+        final book = await repo.getWorldInfoById(bookId);
+        if (book == null) return;
+        for (final e in book.entries) {
+          if (e.id == id) {
+            await notifier.updateEntry(e.copyWith(enabled: enabled));
+            break;
+          }
+        }
+        final updated = await repo.getWorldInfoById(bookId);
+        final entries = (updated?.entries ?? [])
+            .map((e) => <String, dynamic>{
+                  'id': e.id,
+                  'comment': e.comment,
+                  'keysStr': e.keys.join(', '),
+                  'enabled': e.enabled,
+                  'constant': e.constant,
+                })
+            .toList();
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': <String, dynamic>{
+            'entries': entries,
+            'currentCharId': character?.id ?? '',
+          },
+          'refresh': true,
+        });
+        break;
+      case 'deleteWorldEntry':
+        final id = data['id'] as String? ?? '';
+        if (id.isEmpty) return;
+        final ok = await _showHtmlConfirm(
+          title: '删除条目',
+          message: '删除该条目？此操作不可撤销。',
+          confirmText: '删除',
+          cancelText: '取消',
+          danger: true,
+        );
+        if (!mounted || !ok) return;
+        await notifier.deleteEntry(id);
+        final bookId = data['bookId'] as String? ?? '';
+        final updated = bookId.isNotEmpty
+            ? await repo.getWorldInfoById(bookId)
+            : null;
+        final entries = (updated?.entries ?? [])
+            .map((e) => <String, dynamic>{
+                  'id': e.id,
+                  'comment': e.comment,
+                  'keysStr': e.keys.join(', '),
+                  'enabled': e.enabled,
+                  'constant': e.constant,
+                })
+            .toList();
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': <String, dynamic>{
+            'entries': entries,
+            'currentCharId': character?.id ?? '',
+          },
+          'refresh': true,
+        });
+        break;
+      case 'saveWorldEntry':
+        final bookId = data['bookId'] as String? ?? '';
+        final id = data['id'] as String?;
+        final keysRaw = data['keys'] as String? ?? '';
+        final comment = data['comment'] as String? ?? '';
+        final content = data['content'] as String? ?? '';
+        final order = (data['order'] as num?)?.toInt() ?? 100;
+        final enabled = data['enabled'] as bool? ?? true;
+        final constant = data['constant'] as bool? ?? false;
+        if (bookId.isEmpty) return;
+        if (!constant && keysRaw.trim().isEmpty) {
+          _snack('触发词不能为空（或勾选「始终插入」）');
+          return;
+        }
+        final keys = keysRaw
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        if (id != null && id.isNotEmpty) {
+          final book = await repo.getWorldInfoById(bookId);
+          if (book != null) {
+            for (final e in book.entries) {
+              if (e.id == id) {
+                await notifier.updateEntry(e.copyWith(
+                  keys: keys,
+                  comment: comment,
+                  content: content,
+                  insertionOrder: order,
+                  enabled: enabled,
+                  constant: constant,
+                ));
+                break;
+              }
+            }
+          }
+        } else {
+          await notifier.addEntry(
+            worldInfoId: bookId,
+            keys: keys,
+            content: content,
+            comment: comment,
+            constant: constant,
+            insertionOrder: order,
+          );
+        }
+        _snack('已保存');
+        final updated = await repo.getWorldInfoById(bookId);
+        final entries = (updated?.entries ?? [])
+            .map((e) => <String, dynamic>{
+                  'id': e.id,
+                  'comment': e.comment,
+                  'keysStr': e.keys.join(', '),
+                  'enabled': e.enabled,
+                  'constant': e.constant,
+                })
+            .toList();
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': <String, dynamic>{
+            'entries': entries,
+            'currentCharId': character?.id ?? '',
+          },
+          'refresh': true,
+        });
+        break;
+    }
+  }
+
   // ── [浮窗化] 生图设置面板 ────────────────────────────────────────────
 
   Future<void> _openImageGenPanel() async {
@@ -4565,7 +5543,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  Future<void> _exportChatRecord() async {
+  Future<void> _exportChatRecord({bool? useJsonl, bool? toFile}) async {
     final chatState = ref.read(activeChatProvider);
     if (chatState.chat == null || chatState.character == null) {
       _snack('当前聊天无法导出');
@@ -4574,14 +5552,19 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final userName =
         ref.read(activePersonaProvider).valueOrNull?.name ?? 'User';
 
-    // 先让用户选：分享，还是保存到文件
+    // 先让用户选：分享，还是保存到文件（带参调用时跳过选择）
     // [弹窗] HTML底部选择框,无需 pause/resume
-    final mode = await _showHtmlBottomSheet(const [
-      {'text': '分享', 'value': 'share'},
-      {'text': '保存到文件', 'value': 'file'},
-    ], title: '导出聊天（SillyTavern 兼容 JSONL）');
-    if (!mounted) return;
-    if (mode == null) return;
+    String? mode;
+    if (useJsonl == null && toFile == null) {
+      mode = await _showHtmlBottomSheet(const [
+        {'text': '分享', 'value': 'share'},
+        {'text': '保存到文件', 'value': 'file'},
+      ], title: '导出聊天');
+      if (!mounted) return;
+      if (mode == null) return;
+    } else {
+      mode = (toFile == true) ? 'file' : 'share';
+    }
 
     // [CHRONICLE Phase 2] 注入Chronicle能力，导出内嵌kira_chronicle
     final service = ChatExportService(
@@ -4595,7 +5578,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           chatState.messages,
           chatState.character!,
           userName: userName,
-          useJsonl: true,
+          useJsonl: useJsonl ?? true,
         );
       } else {
         final path = await service.exportToFile(
@@ -4603,7 +5586,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           chatState.messages,
           chatState.character!,
           userName: userName,
-          useJsonl: true,
+          useJsonl: useJsonl ?? true,
         );
         if (path != null) {
           _snack('已保存到：$path');
