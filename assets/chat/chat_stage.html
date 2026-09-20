@@ -3553,8 +3553,15 @@ function injectBridge(html, id, floorIdx) {
             cards2[mi].contentWindow.postMessage({ __thEvent: true, type: d.type, args: d.args || [] }, '*');
           }
         }
-        if (cards2.length > 0) {
-          sendToFlutter('log', { text: '[Mvu] 事件中继 card x' + cards2.length + ' type=' + d.type });
+        // Shadow host 投递（与 iframe 中继并存）
+        var shadowHosts = document.querySelectorAll('.card-shadow-host');
+        for (var shi = 0; shi < shadowHosts.length; shi++) {
+          if (typeof shadowHosts[shi].__kiraEmitMvuEvent === 'function') {
+            try { shadowHosts[shi].__kiraEmitMvuEvent(d.type, d.args || []); } catch(_) {}
+          }
+        }
+        if (cards2.length > 0 || shadowHosts.length > 0) {
+          sendToFlutter('log', { text: '[Mvu] 事件中继 card x' + (cards2.length + shadowHosts.length) + ' type=' + d.type });
         }
       } catch (me) {
         sendToFlutter('log', { text: '[Mvu] 事件中继失败: ' + me });
@@ -4443,38 +4450,13 @@ function injectBridge(html, id, floorIdx) {
             var segType = seg.type || 'prose';
             var segHtml = seg.html || '';
             if (segType === 'frontend') {
+              // Shadow DOM 版（替代 iframe segFrame）
               var segId = 'TH-message--' + (m.floor || 0) + '--' + frontendIndex;
               frontendIndex++;
-              var segFrame = document.createElement('iframe');
-              segFrame.className = 'card-frame';
-              segFrame.style.width = '100%';
-              segFrame.style.height = '300px';
-              segFrame.style.background = 'rgba(255,255,255,0.06)';
-              segFrame.style.borderRadius = '12px';
-              segFrame.setAttribute('data-frame-id', segId);
-              segFrame.setAttribute('data-floor', m.floor || 0);
-              segFrame.setAttribute('scrolling', 'no');
-              segFrame.setAttribute('data-html', segHtml);
-              (function(f, html, id, floor){
-                var injected = injectBridge(html, id, floor > 0 ? floor - 1 : -1);
-                if (injected.length <= 524288) {
-                  f.srcdoc = injected;
-                } else {
-                  try {
-                    var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
-                    var url = URL.createObjectURL(blob);
-                    f.src = url;
-                    f.addEventListener('load', function onLoad(){
-                      f.removeEventListener('load', onLoad);
-                      URL.revokeObjectURL(url);
-                    });
-                  } catch(e) {
-                    f.srcdoc = injected;
-                  }
-                }
-              })(segFrame, segHtml, segId, m.floor || 0);
-              segsGroup.appendChild(createCardFrameWrap(segFrame, segId));
-              try { window.__kiraMsgFloorMap[segId] = (m.floor || 1) - 1; } catch (_segMapE) {}
+              var segFloorIdx = m.floor ? m.floor - 1 : -1;
+              var segShadowWrap = createCardShadowWrap(segHtml, segId, segFloorIdx);
+              segsGroup.appendChild(segShadowWrap);
+              try { window.__kiraMsgFloorMap[segId] = segFloorIdx; } catch (_segMapE) {}
             } else if (segHtml.trim() !== '') {
               var segProse = document.createElement('div');
               segProse.className = 'seg-prose';
@@ -4488,35 +4470,10 @@ function injectBridge(html, id, floorIdx) {
         } else if (typeof m.rich === 'boolean' ? m.rich : isRichHtml(m.html)) {
           // [MD修复2] 优先消费 Dart 序列化里的显式 rich 标记(文档级判定),
           // isRichHtml 仅作旧载荷兜底
-          var frame = document.createElement('iframe');
-          frame.className = 'card-frame';
-          frame.style.width = '100%';
-          frame.style.height = '300px';
-          frame.style.background = 'rgba(255,255,255,0.06)';
-          frame.style.borderRadius = '12px';
-          frame.setAttribute('data-frame-id', m.id);
-          frame.setAttribute('data-floor', m.floor || 0);
-          frame.setAttribute('scrolling', 'no');
-          frame.setAttribute('data-html', m.html);
-          (function(f, html, id){
-            var injected = injectBridge(html, id, (m.floor ? (m.floor - 1) : -1));
-            if (injected.length <= 524288) {
-              f.srcdoc = injected;
-            } else {
-              try {
-                var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
-                var url = URL.createObjectURL(blob);
-                f.src = url;
-                f.addEventListener('load', function onLoad(){
-                  f.removeEventListener('load', onLoad);
-                  URL.revokeObjectURL(url);
-                });
-              } catch(e) {
-                f.srcdoc = injected;
-              }
-            }
-          })(frame, m.html, m.id);
-          group.appendChild(createCardFrameWrap(frame, m.id));
+          // Shadow DOM 版（替代 iframe rich frame）
+          var richFloorIdx = m.floor ? m.floor - 1 : -1;
+          var richShadowWrap = createCardShadowWrap(m.html, m.id, richFloorIdx);
+          group.appendChild(richShadowWrap);
           // [P3-K1] isRichHtml 分支补挂载 wrap：reasoning 塞在 wrap 里，不挂出来 reasoning 必丢(t4 实测)
           if (wrap.children.length > 0) group.appendChild(wrap);
         } else {
