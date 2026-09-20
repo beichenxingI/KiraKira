@@ -1030,6 +1030,7 @@ __KIRA_CHAT_BRIDGE__
     }
     var _oe = window.onerror;
     window.onerror = function (msg, src, line, col, err) {
+      if (msg && String(msg).indexOf('ResizeObserver loop') !== -1) return true;
       __mainLog(String(msg) + ' @' + (line || '?') + ':' + (col || '?') + (err && err.stack ? ' ' + err.stack : ''));
       if (_oe) return _oe.apply(this, arguments);
       return false;
@@ -3137,42 +3138,6 @@ function injectBridge(html, id, floorIdx) {
       '});' +
       '})();' +
       'var _id=' + JSON.stringify(id) + ';' +
-      'var _debTimer=null,_forceTimer=null,_lastH=0;' +
-      // lowestElement 测高(照抄 iframe-resizer v4.4.1)：量"最低内容元素的 bottom"，
-      // 不量 body/视口高度，从根上断开 vh 正反馈(不再被 iframe 当前高度反推)。
-      'function _gcsBottom(el){' +
-      'try{return parseInt(getComputedStyle(el).marginBottom,10)||0;}catch(e){return 0;}' +
-      '}' +
-      'function _lowestBottom(){' +
-      'var els=document.querySelectorAll("body *");var maxV=0;' +
-      'for(var i=0;i<els.length;i++){' +
-      'var v=els[i].getBoundingClientRect().bottom+_gcsBottom(els[i]);' +
-      'if(v>maxV){maxV=v;}' +
-      '}' +
-      'return maxV;' +
-      '}' +
-      'function report(){' +
-      'var b=document.body;' +
-      'var bodyOffset=b?(b.offsetHeight+(parseInt(getComputedStyle(b).marginTop,10)||0)+(parseInt(getComputedStyle(b).marginBottom,10)||0)):0;' +
-      'var h=Math.ceil(Math.max(bodyOffset||document.documentElement.offsetHeight,_lowestBottom()))||0;' +
-      'if(!h){h=document.documentElement.scrollHeight||0;}' +
-      'if(h>0&&Math.abs(h-_lastH)>4){_lastH=h;var _vh=0;parent.postMessage({__cardHeight:true,id:_id,height:h,vh:_vh},"*");}' +
-      '}' +
-      'function scheduledReport(){' +
-      'if(_debTimer)clearTimeout(_debTimer);' +
-      '_debTimer=setTimeout(function(){_debTimer=null;report();},150);' +
-      'if(!_forceTimer){_forceTimer=setTimeout(function(){_forceTimer=null;if(_debTimer){clearTimeout(_debTimer);_debTimer=null;}report();},500);}' +
-      '}' +
-      'window.addEventListener("load",function(){' +
-      'setTimeout(report,200);setTimeout(report,600);setTimeout(report,1500);' +
-      '});' +
-      'if(typeof ResizeObserver!=="undefined"){' +
-      'var _roTarget=document.body||document.documentElement;' +
-      'if(_roTarget){' +
-      'var ro=new ResizeObserver(function(){scheduledReport();});' +
-      'ro.observe(_roTarget);' +
-      '}}' +
-
       'var __thPending={};var __thId=1;' +
       'function __thCall(method,args){' +
       'return new Promise(function(resolve,reject){' +
@@ -3560,28 +3525,6 @@ function injectBridge(html, id, floorIdx) {
         sendToFlutter('log', { text: '[Mvu] 事件中继失败: ' + me });
       }
       return;
-    }
-    if (d && d.__cardHeight && d.id) {
-      var f = document.querySelector('iframe.card-frame[data-card-id="' + d.id + '"]');
-      if (!f) return;
-      // 折叠锁：手动折叠态忽略所有高度上报，杜绝弹回
-      if (f.getAttribute('data-collapsed') === '1') return;
-      if (d.height > 0) {
-        // 只有明确标记为 vh 卡时才夹视口下限，其他一律用内容高度（根治全屏爆炸）
-        var isVhCard = (d.vh === 1) || (d.vh === true);
-        var h = isVhCard ? Math.max(d.height + 4, window.innerHeight) : (d.height + 4);
-        f.style.height = h + 'px';
-        // 记录内容高（展开用）与 last-height（离屏卸载恢复用）
-        f.setAttribute('data-content-height', h + 'px');
-        f.setAttribute('data-last-height', h + 'px');
-        f.setAttribute('data-vh', isVhCard ? '1' : '0');
-        // 高度超过初始值(300+4)时进入展开态、显示收起按钮
-        var wrap = f.closest('.card-frame-wrap');
-        if (wrap) {
-          if (h > 304) { wrap.classList.add('expanded'); }
-          else { wrap.classList.remove('expanded'); }
-        }
-      }
     }
   });
   // ── 外层 → 引擎房 iframe 的点火中继 ──
@@ -4698,7 +4641,7 @@ function injectBridge(html, id, floorIdx) {
 
   // 前景卡包裹层：iframe + 收起按钮。
   // data-frame-id 供离屏卸载/MVU 用，data-card-id 供 cardHeight 接收与收起按钮定位用。
-  // 高度同步仍走 iframe 内 report() → postMessage __cardHeight → 父文档接收（折叠锁防棘轮）。
+  // 高度同步走父文档 syncHeight()：load后RO监听contentDocument，getBoundingClientRect测量。
   function createCardFrameWrap(frame, frameId) {
     var w = document.createElement('div');
     w.className = 'card-frame-wrap';
@@ -4711,7 +4654,7 @@ function injectBridge(html, id, floorIdx) {
         var doc = frame.contentDocument || frame.contentWindow.document;
         if (!doc) return;
         var _syncRaf = null;
-        var _syncH = []; var _syncTs = []; var _frozenH = 0; var _lastSetH = 0;
+        var _syncH = []; var _syncTs = []; var _frozenH = 0; var _lastSetH = 0; var _readyAt = Date.now() + 800;
         function _lBot() {
           try {
             var els = doc.body ? doc.body.getElementsByTagName('*') : [];
@@ -4743,7 +4686,7 @@ function injectBridge(html, id, floorIdx) {
             }
             if (_frozenH <= 0) {
               var now = Date.now();
-              _syncTs.push(now); _syncH.push(h);
+              if (now >= _readyAt) { _syncTs.push(now); _syncH.push(h); }
               if (_syncTs.length > 8) _syncTs.shift();
               if (_syncH.length > 8) _syncH.shift();
               if (_syncTs.length >= 6 && (_syncTs[_syncTs.length-1] - _syncTs[0]) < 500) {
