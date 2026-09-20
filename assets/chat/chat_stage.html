@@ -40,7 +40,7 @@ if (!String.prototype.at) {
     --ease-keyboard: cubic-bezier(0.165, 0.84, 0.44, 1);
   }
   /* 按钮统一按压反馈 transition:弹性回弹 + 颜色/透明度过渡 */
-  .act-btn, .act-del, .tools-toggle, .swipe-btn, .card-collapse-btn,
+  .swipe-btn, .card-collapse-btn, .msg-star, .menu-item,
   .dialog-btn, .bottom-sheet-item, .func-item, .sp-close, .sp-icon-btn,
   .sp-btn, .sp-row, #btn-scroll-bottom {
     transition: transform 0.2s var(--ease-elastic),
@@ -108,7 +108,8 @@ if (!String.prototype.at) {
      配 1px 半透白边形成卡片层次感。气泡宽度仍 max-width:78%。 */
   .msg {
     display: inline-block; max-width: 78%;
-    margin: 14px 0; padding: 12px 16px; border-radius: 18px;
+    position: relative;
+    margin: 14px 0; padding: 12px 16px 34px; border-radius: 18px;
     word-wrap: break-word; overflow-wrap: break-word;
     box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     color: #EAEAEA;
@@ -306,50 +307,6 @@ if (!String.prototype.at) {
   /* 消息组：气泡 + 挂在外面下方的工具条 */
   .msg-group { margin: 14px 0; content-visibility: auto; contain-intrinsic-size: 100px; }
   .msg-group .msg { margin: 0; }
-  /* 工具条容器，挂在气泡外面下方，不占气泡内部空间 */
-  .msg-tools {
-    display: flex; align-items: center; flex-wrap: wrap;
-    gap: 6px; padding: 6px 8px 2px;
-    opacity: 0;
-    transition: opacity 0.2s var(--ease-elastic);
-  }
-  .msg-group:hover .msg-tools,
-  .msg-group.active .msg-tools { opacity: 1; }
-  .msg-group.user .msg-tools { justify-content: flex-end; }
-  /* 折叠态：一个极简小胶囊（三个点） */
-  .tools-toggle {
-    background: rgba(0,0,0,0.35); color: #B39DFF; border: 1px solid rgba(124,77,255,0.35);
-    border-radius: 12px; padding: 3px 12px; font-size: 14px; line-height: 1;
-    letter-spacing: 2px; cursor: pointer;
-    transition: background .15s ease; -webkit-tap-highlight-color: transparent;
-  }
-  .tools-toggle:active { transform: scale(0.95); background: rgba(124,77,255,0.25); }
-  /* 展开的按钮排：常驻 flex，靠 max-height + opacity 做平滑弹缩（display 不能过渡）。 */
-  .tools-expanded {
-    display: flex; align-items: center; flex-wrap: wrap; gap: 5px; width: 100%;
-    max-height: 0; opacity: 0; overflow: hidden;
-    transition: max-height .22s ease, opacity .18s ease;
-    will-change: max-height, opacity;
-  }
-  .msg-tools.open .tools-expanded {
-    max-height: 120px; opacity: 1;
-  }
-  /* toggle 收起态时淡出，展开后隐藏（display 切换无需动画，它是收起态的入口） */
-  .tools-toggle { transition: opacity .15s ease, background .15s ease; }
-  .msg-tools.open .tools-toggle { display: none; }
-  .act-btn {
-    background: rgba(30,34,44,0.92); color: #EDEFF2; border: none;
-    width: 32px; height: 32px; border-radius: 50%; padding: 0;
-    font-size: 16px; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: background .15s ease;
-    -webkit-tap-highlight-color: transparent; flex: 0 0 auto;
-    border: 1px solid rgba(255,255,255,0.10);
-  }
-  .act-btn:active { transform: scale(0.92); background: rgba(50,56,70,0.95); }
-  .act-spacer { flex: 1; min-width: 4px; }
-  .act-del { background: rgba(70,28,28,0.92); color: #FF9B9B; border: 1px solid rgba(255,77,77,0.25); }
-  .act-del:active { transform: scale(0.9); background: rgba(95,36,36,0.95); }
   .swipe-bar {
     display: flex; align-items: center; justify-content: center;
     gap: 14px; padding: 4px 0 2px;
@@ -363,16 +320,58 @@ if (!String.prototype.at) {
   .swipe-btn:disabled { opacity: 0.3; }
   .swipe-btn:active:not(:disabled) { transform: scale(0.95); background: rgba(255,255,255,0.18); }
   .swipe-label { font-size: 12px; color: #9A9A9A; min-width: 40px; text-align: center; }
-  .floor-tag-wrap { display: flex; padding: 2px 8px 0; }
-  .msg-group.user .floor-tag-wrap { justify-content: flex-end; }
-  .floor-tag {
+
+  /* ── 气泡内联楼层标签 ── */
+  .floor-tag-inner {
+    position: absolute; bottom: 8px; pointer-events: none; z-index: 2;
     background: rgba(124,77,255,0.14); color: #B39DFF;
-    border-radius: 10px; padding: 2px 10px; font-size: 11px;
-    letter-spacing: 0.5px;
+    border-radius: 8px; padding: 2px 8px; font-size: 11px; letter-spacing: 0.5px;
   }
-  .act-close {
-    background: rgba(255,255,255,0.05); color: #8A8A8A;
+  .msg-group:not(.user) .floor-tag-inner { right: 10px; }
+  .msg-group.user .floor-tag-inner { left: 10px; }
+
+  /* ── 消息操作：星标触发 + 弹出菜单 ── */
+  .msg-star-wrap { position: absolute; bottom: 6px; z-index: 3; }
+  .msg-group:not(.user) .msg-star-wrap { left: 8px; }
+  .msg-group.user .msg-star-wrap { right: 8px; }
+
+  .msg-star {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s ease;
   }
+  .msg-star:active { background: rgba(124,77,255,0.28); border-color: rgba(124,77,255,0.5); }
+  .msg-star.open { background: rgba(124,77,255,0.22); border-color: rgba(124,77,255,0.45); }
+  .msg-star svg { transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1); }
+  .msg-star.open svg { transform: rotate(45deg); }
+
+  .msg-menu {
+    position: absolute; bottom: 34px;
+    background: rgba(22,24,32,0.96); border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 14px; padding: 6px;
+    display: flex; flex-direction: column; gap: 2px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.55); backdrop-filter: blur(16px);
+    opacity: 0; transform: scale(0.85) translateY(6px);
+    transition: opacity 0.18s ease, transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none; z-index: 100; min-width: 56px;
+  }
+  .msg-group:not(.user) .msg-menu { left: 0; transform-origin: bottom left; }
+  .msg-group.user .msg-menu { right: 0; transform-origin: bottom right; }
+  .msg-menu.open { opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
+
+  .menu-item {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: transparent; border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: background 0.12s ease, transform 0.1s ease;
+  }
+  .menu-item:active { transform: scale(0.9); background: rgba(255,255,255,0.10); }
+  .menu-item.menu-del:active { background: rgba(239,83,80,0.18); }
+  .menu-item svg { display: block; }
+  .menu-sep { height: 1px; background: rgba(255,255,255,0.08); margin: 2px 4px; }
 
   .thinking {
     display: inline-flex; align-items: center; gap: 6px;
@@ -4111,63 +4110,61 @@ function injectBridge(html, id, floorIdx) {
     observeFrames();
   })();
 
-  // 工具条：折叠态只有一个小胶囊，点开展开一排文字按钮。挂在气泡外面下方。
-  function buildActions(id, isLatestAi) {
-    var tools = document.createElement('div');
-    tools.className = 'msg-tools';
-    tools.setAttribute('data-tools-id', id);
-
-    // 折叠入口：三个点
-    var toggle = document.createElement('button');
-    toggle.className = 'tools-toggle';
-    toggle.textContent = '•••';
-    toggle.setAttribute('data-toggle', id);
-    tools.appendChild(toggle);
-
-    // 展开区
-    var exp = document.createElement('div');
-    exp.className = 'tools-expanded';
-    var items = [
-      { a: 'tts',   t: '♪', title: '语音' },
-      { a: 'edit',  t: '✎', title: '编辑' },
-      { a: 'retry', t: '↻', title: '重试' },
-      { a: 'imagegen', t: '▤', title: '生图' },
-      { a: 'translate', t: '译', title: '翻译' }
-    ];
-    if (isLatestAi) {
-      items.push({ a: 'reroll',   t: '⇄', title: '重roll' });
-      items.push({ a: 'continue', t: '››', title: '继续' });
+  // 星标菜单：星标触发，弹出图标菜单（挂在气泡内部底部，替代旧外挂工具条）
+  function buildStarMenu(id, isUser, isLatestAi) {
+    var wrap = document.createElement('div');
+    wrap.className = 'msg-star-wrap';
+    var star = document.createElement('button');
+    star.className = 'msg-star';
+    star.setAttribute('data-star', id);
+    star.setAttribute('aria-label', '消息操作');
+    star.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="rgba(255,255,255,0.55)" stroke="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L13.8 10.2L22 12L13.8 13.8L12 22L10.2 13.8L2 12L10.2 10.2Z"/></svg>';
+    var menu = document.createElement('div');
+    menu.className = 'msg-menu';
+    menu.setAttribute('data-menu', id);
+    function mkSvg(color, paths) {
+      return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">' + paths + '</svg>';
     }
-    items.push({ a: 'more', t: '⋯', title: '更多' });
-    for (var i = 0; i < items.length; i++) {
+    function mkItem(act, title, extraCls, svgHtml) {
       var b = document.createElement('button');
-      b.className = 'act-btn';
-      b.textContent = items[i].t;
-      b.setAttribute('title', items[i].title);
-      b.setAttribute('data-act', items[i].a);
-      b.setAttribute('data-id', id);
-      exp.appendChild(b);
+      b.className = 'menu-item' + (extraCls ? ' ' + extraCls : '');
+      b.setAttribute('data-act', act); b.setAttribute('data-id', id); b.setAttribute('title', title);
+      b.innerHTML = svgHtml; return b;
     }
-    var sp = document.createElement('span');
-    sp.className = 'act-spacer';
-    exp.appendChild(sp);
-    var del = document.createElement('button');
-    del.className = 'act-btn act-del';
-    del.textContent = '✕';
-    del.setAttribute('title', '删除');
-    del.setAttribute('data-act', 'delete');
-    del.setAttribute('data-id', id);
-    exp.appendChild(del);
-    // 收起按钮
-    var close = document.createElement('button');
-    close.className = 'act-btn act-close';
-    close.textContent = '∨';
-    close.setAttribute('title', '收起');
-    close.setAttribute('data-collapse', id);
-    exp.appendChild(close);
+    function mkSep() { var s = document.createElement('div'); s.className = 'menu-sep'; return s; }
+    if (isUser) {
+      menu.appendChild(mkItem('edit', '编辑', '',
+        mkSvg('#64B5F6', '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>')));
+      menu.appendChild(mkItem('retry', '重试', '',
+        mkSvg('#FFB74D', '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>')));
+      menu.appendChild(mkSep());
+      menu.appendChild(mkItem('delete', '删除', 'menu-del',
+        mkSvg('#EF5350', '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>')));
+    } else {
+      menu.appendChild(mkItem('tts', '语音', '',
+        mkSvg('#81C784', '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/>')));
+      menu.appendChild(mkItem('reroll', '重roll', '',
+        mkSvg('#FFB74D', '<polyline points="16 3 21 8 16 13"/><line x1="3" y1="8" x2="21" y2="8"/><polyline points="8 21 3 16 8 11"/><line x1="21" y1="16" x2="3" y2="16"/>')));
+      menu.appendChild(mkItem('continue', '继续生成', '',
+        mkSvg('#B39DFF', '<polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/>')));
+      menu.appendChild(mkItem('imagegen', '生图', '',
+        mkSvg('#4DD0E1', '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/><line x1="16" y1="1" x2="16" y2="7"/><line x1="13" y1="4" x2="19" y2="4"/>')));
+      menu.appendChild(mkSep());
+      menu.appendChild(mkItem('delete', '删除', 'menu-del',
+        mkSvg('#EF5350', '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>')));
+    }
+    wrap.appendChild(star); wrap.appendChild(menu); return wrap;
+  }
 
-    tools.appendChild(exp);
-    return tools;
+  function injectMessageOverlays(target, id, isUser, isLatestAi, floor) {
+    if (!target) return;
+    target.appendChild(buildStarMenu(id, isUser, isLatestAi));
+    if (floor) {
+      var ft = document.createElement('span');
+      ft.className = 'floor-tag-inner';
+      ft.textContent = '#' + floor;
+      target.appendChild(ft);
+    }
   }
 
   function setMessages(b64, options) {
@@ -4331,6 +4328,7 @@ function injectBridge(html, id, floorIdx) {
           }
           wrap.appendChild(segsGroup);
           // [P3-K1] hasSegs 分支补挂载 wrap：建完不挂,所有 seg frame/prose 游离(t3 实测 cardIframes=0)
+          injectMessageOverlays(wrap, m.id, m.role === 'user', m.isLatestAi, m.floor);
           group.appendChild(wrap);
         } else if (typeof m.rich === 'boolean' ? m.rich : isRichHtml(m.html)) {
           // [MD修复2] 优先消费 Dart 序列化里的显式 rich 标记(文档级判定),
@@ -4363,7 +4361,9 @@ function injectBridge(html, id, floorIdx) {
               }
             }
           })(frame, m.html, m.id);
-          group.appendChild(createCardFrameWrap(frame, m.id));
+          var _cfWrap = createCardFrameWrap(frame, m.id);
+          injectMessageOverlays(_cfWrap, m.id, false, m.isLatestAi, m.floor);
+          group.appendChild(_cfWrap);
           // [P3-K1] isRichHtml 分支补挂载 wrap：reasoning 塞在 wrap 里，不挂出来 reasoning 必丢(t4 实测)
           if (wrap.children.length > 0) group.appendChild(wrap);
         } else {
@@ -4383,18 +4383,15 @@ function injectBridge(html, id, floorIdx) {
             errBadge.onclick = function() { alert('EJS错误：\n' + m.ejsError); };
             c.appendChild(errBadge);
           }
+          injectMessageOverlays(wrap, m.id, m.role === 'user', m.isLatestAi, m.floor);
           group.appendChild(wrap);
         }
 
         wrap.setAttribute('data-floor', m.floor || 0);
         applyMsgTranslation(m.id); // 翻译缓存重挂载（全量重建后恢复译文）
-        if (m.floor) {
-          group.appendChild(buildFloorTag(m.floor));
-        }
         if (m.role === 'assistant' && m.swipeCount && m.swipeCount > 1) {
           group.appendChild(buildSwipeBar(m.id, m.swipeIndex, m.swipeCount));
         }
-        group.appendChild(buildActions(m.id, m.isLatestAi));
 
         // prepend: 追加历史，插入头部
         if (options && options.prepend) {
@@ -4457,17 +4454,6 @@ function injectBridge(html, id, floorIdx) {
       } catch(_e2) {}
     }
   }
-  // 楼层编号标记：大圆角小长条 #xx
-  function buildFloorTag(floor) {
-    var tag = document.createElement('div');
-    tag.className = 'floor-tag-wrap';
-    var pill = document.createElement('span');
-    pill.className = 'floor-tag';
-    pill.textContent = '#' + floor;
-    tag.appendChild(pill);
-    return tag;
-  }
-
   // 滚动到指定楼层
   function scrollToFloor(floor) {
     var el = document.querySelector('[data-floor="' + floor + '"]');
@@ -4988,47 +4974,38 @@ function injectBridge(html, id, floorIdx) {
         return;
       }
     }
-    // 展开
-    var toggle = tgt.closest('.tools-toggle');
-    if (toggle) {
-      // 同时只开一个：先收起所有已展开的
-      var opened = document.querySelectorAll('.msg-tools.open');
-      for (var i = 0; i < opened.length; i++) opened[i].classList.remove('open');
-      var box = toggle.closest('.msg-tools');
-      if (box) box.classList.add('open');
+    // 星标点击：开/关菜单
+    var _starClick = tgt.closest('[data-star]');
+    if (_starClick) {
+      var _sid = _starClick.getAttribute('data-star');
+      var _smenu = document.querySelector('.msg-menu[data-menu="' + _sid + '"]');
+      document.querySelectorAll('.msg-menu.open').forEach(function(m) {
+        if (m !== _smenu) {
+          m.classList.remove('open');
+          var _ps = m.previousElementSibling;
+          if (_ps && _ps.classList) _ps.classList.remove('open');
+        }
+      });
+      if (_smenu) {
+        var _isOpen = _smenu.classList.toggle('open');
+        _starClick.classList.toggle('open', _isOpen);
+      }
       return;
     }
-    // 收起
-    var collapse = tgt.closest('[data-collapse]');
-    if (collapse) {
-      var box2 = collapse.closest('.msg-tools');
-      if (box2) box2.classList.remove('open');
+    // 菜单外点击：关所有菜单
+    if (!tgt.closest('.msg-menu') && !tgt.closest('[data-star]')) {
+      document.querySelectorAll('.msg-menu.open').forEach(function(m) { m.classList.remove('open'); });
+      document.querySelectorAll('.msg-star.open').forEach(function(s) { s.classList.remove('open'); });
+    }
+    // 菜单项 & 版本切换按钮
+    var _actBtn = tgt.closest('.menu-item[data-act]') || tgt.closest('.swipe-btn[data-act]');
+    if (_actBtn) {
+      if (_actBtn.disabled) return;
+      sendToFlutter('action', { id: _actBtn.getAttribute('data-id'), action: _actBtn.getAttribute('data-act') });
+      var _pm = _actBtn.closest('.msg-menu');
+      if (_pm) { _pm.classList.remove('open'); var _pstar = _pm.previousElementSibling; if (_pstar && _pstar.classList) _pstar.classList.remove('open'); }
       return;
     }
-    // 功能按钮（含气泡工具条 .act-btn 和版本切换 .swipe-btn）
-    var b = tgt.closest('.act-btn') || tgt.closest('.swipe-btn');
-    if (!b || !b.getAttribute('data-act')) return;
-    if (b.disabled) return;
-    sendToFlutter('action', {
-      id: b.getAttribute('data-id'),
-      action: b.getAttribute('data-act')
-    });
-  });
-
-  // 消息工具条 tap 显隐：点击气泡区域切换 .active，使 .msg-tools opacity:0→1
-  document.addEventListener('click', function(e) {
-    var tgt = e.target;
-    if (!tgt || !tgt.closest) return;
-    if (tgt.closest('.act-btn, .swipe-btn, .tools-toggle, [data-collapse], .att-img, #btn-scroll-bottom, .card-collapse-btn, .card-frame-wrap, a, button, input, textarea')) return;
-    var group = tgt.closest('.msg-group');
-    if (!group) {
-      document.querySelectorAll('.msg-group.active').forEach(function(el) { el.classList.remove('active'); });
-      return;
-    }
-    document.querySelectorAll('.msg-group.active').forEach(function(el) {
-      if (el !== group) el.classList.remove('active');
-    });
-    group.classList.toggle('active');
   });
 
   registerBridgeHandler('setMessages', function(p) { setMessages(p.data, {initial: p.initial, prepend: p.prepend, avatars: p.avatars}); });
