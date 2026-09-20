@@ -3547,7 +3547,18 @@ function injectBridge(html, id, floorIdx) {
       for (var qi = 0; qi < items.length; qi++) {
         if (e.source) e.source.postMessage(items[qi], '*');
       }
-      sendToFlutter('log', { text: '[变量同步] 快照回放给 card, 条数=' + items.length });
+      // Shadow host 主动推（与 iframe 应答并存）
+      var shadowHosts2 = document.querySelectorAll('.card-shadow-host');
+      for (var sqi = 0; sqi < shadowHosts2.length; sqi++) {
+        if (typeof shadowHosts2[sqi].__kiraDeliverSnapshot === 'function') {
+          try {
+            for (var qj = 0; qj < items.length; qj++) {
+              shadowHosts2[sqi].__kiraDeliverSnapshot(items[qj]);
+            }
+          } catch(_) {}
+        }
+      }
+      sendToFlutter('log', { text: '[变量同步] 快照回放 card+shadowHosts, 条数=' + items.length + ', hosts=' + shadowHosts2.length });
       return;
     }
     // [P3-E3] 引擎房 MVU 事件 → card 本地事件总线中继
