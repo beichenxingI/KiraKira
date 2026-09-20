@@ -295,18 +295,6 @@ if (!String.prototype.at) {
   .card-frame-wrap.expanded .card-collapse-btn { display: block; }
   /* 折叠态 iframe 不拦截点击，让点击穿透到 wrap 触发展开 */
   iframe.card-frame[data-collapsed="1"] { pointer-events: none; }
-  /* Shadow DOM host 样式（与 iframe 版并存，等 Step 8 清理旧版） */
-  .card-shadow-host {
-    width: 100%; display: block;
-    background: rgba(255,255,255,0.06);
-    border-radius: 12px;
-    min-height: 40px;
-    opacity: 0;
-    transition: height 0.22s ease, opacity 0.15s ease;
-    position: relative;
-  }
-  .card-shadow-host.expanded .card-collapse-btn { display: block; }
-  .card-shadow-host[data-collapsed="1"] { height: 300px !important; }
   /* 流式 Markdown 渲染样式（生成结束后被 Dart 渲染的最终 HTML 覆盖，仅作过渡预览） */
   .stream-text { font-size: 15px; line-height: 1.6; word-break: break-word; }
   .stream-text pre.stream-code { background: rgba(0,0,0,0.35); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
@@ -3547,18 +3535,7 @@ function injectBridge(html, id, floorIdx) {
       for (var qi = 0; qi < items.length; qi++) {
         if (e.source) e.source.postMessage(items[qi], '*');
       }
-      // Shadow host 主动推（与 iframe 应答并存）
-      var shadowHosts2 = document.querySelectorAll('.card-shadow-host');
-      for (var sqi = 0; sqi < shadowHosts2.length; sqi++) {
-        if (typeof shadowHosts2[sqi].__kiraDeliverSnapshot === 'function') {
-          try {
-            for (var qj = 0; qj < items.length; qj++) {
-              shadowHosts2[sqi].__kiraDeliverSnapshot(items[qj]);
-            }
-          } catch(_) {}
-        }
-      }
-      sendToFlutter('log', { text: '[变量同步] 快照回放 card+shadowHosts, 条数=' + items.length + ', hosts=' + shadowHosts2.length });
+      sendToFlutter('log', { text: '[变量同步] 快照回放给 card, 条数=' + items.length });
       return;
     }
     // [P3-E3] 引擎房 MVU 事件 → card 本地事件总线中继
@@ -3576,15 +3553,8 @@ function injectBridge(html, id, floorIdx) {
             cards2[mi].contentWindow.postMessage({ __thEvent: true, type: d.type, args: d.args || [] }, '*');
           }
         }
-        // Shadow host 投递（与 iframe 中继并存）
-        var shadowHosts = document.querySelectorAll('.card-shadow-host');
-        for (var shi = 0; shi < shadowHosts.length; shi++) {
-          if (typeof shadowHosts[shi].__kiraEmitMvuEvent === 'function') {
-            try { shadowHosts[shi].__kiraEmitMvuEvent(d.type, d.args || []); } catch(_) {}
-          }
-        }
-        if (cards2.length > 0 || shadowHosts.length > 0) {
-          sendToFlutter('log', { text: '[Mvu] 事件中继 card x' + (cards2.length + shadowHosts.length) + ' type=' + d.type });
+        if (cards2.length > 0) {
+          sendToFlutter('log', { text: '[Mvu] 事件中继 card x' + cards2.length + ' type=' + d.type });
         }
       } catch (me) {
         sendToFlutter('log', { text: '[Mvu] 事件中继失败: ' + me });
@@ -3614,28 +3584,6 @@ function injectBridge(html, id, floorIdx) {
       }
     }
   });
-
-  // ── Shadow DOM 主文档暴露函数 ─────────────────────────────────────
-  // Shadow 内 JS 可直接访问主文档 window，用这些函数替代 parent.postMessage。
-  window.__kiraLog = function(text, level) {
-    try { sendToFlutter('log', {text: String(text), level: level || 'info'}); } catch(_) {}
-  };
-  // 替代 iframe 内 __thCall + 主文档 __thRequest 中转（:3800-3840）。
-  // 复用现有 method 表(__TH_METHOD_TO_BRIDGE :1063)与拍平函数(__thBuildPayload :3718)，
-  // 直接走 __sendRequest，省 2 跳 postMessage。frameId 仅作 API 兼容保留，payload 不含。
-  window.__kiraThCall = function(frameId, method, args) {
-    return new Promise(function(resolve, reject) {
-      try {
-        var typeMap = window.__TH_METHOD_TO_BRIDGE || {};
-        var type = typeMap[method] ||
-          (typeof method === 'string' && method.indexOf('th_') === 0 ? method : null);
-        if (!type) { reject(new Error('__kiraThCall: unknown method ' + method)); return; }
-        var payload = __thBuildPayload(method, args || []);
-        window.__sendRequest(type, payload).then(resolve, reject);
-      } catch(e) { reject(e); }
-    });
-  };
-
   // ── 外层 → 引擎房 iframe 的点火中继 ──
   window.__emitToEngine = function(type, args, msgs) {
     try {
@@ -4218,80 +4166,6 @@ function injectBridge(html, id, floorIdx) {
     var mo = new MutationObserver(observeFrames);
     mo.observe(document.getElementById('__kira_root'), {childList: true, subtree: true});
     observeFrames();
-
-    // ── Shadow host 版虚拟化（与 iframe 版并存）──
-    var shadowObs = new IntersectionObserver(function(entries) {
-      entries.forEach(function(entry) {
-        var w = entry.target;
-        var html = w.getAttribute('data-html');
-        if (!html) return;
-        if (entry.isIntersecting) {
-          if (!w.getAttribute('data-blob-loaded')) {
-            var lastH = w.getAttribute('data-last-height');
-            if (lastH) w.style.height = lastH;
-            if (w.shadowRoot) {
-              var frameId = w.getAttribute('data-frame-id') || '';
-              var floorAttr = parseInt(w.getAttribute('data-floor'), 10);
-              var floorIdx = isNaN(floorAttr) ? -1 : floorAttr;
-              w.shadowRoot.innerHTML = '';
-              var baseStyle2 = document.createElement('style');
-              baseStyle2.textContent = ':host{display:block;width:100%;min-height:40px;}' +
-                'html,body{overflow:visible!important;margin:0;padding:0;}' +
-                'body{color:#E0E0E0;font-size:15px;line-height:1.6;word-break:break-word;}';
-              w.shadowRoot.appendChild(baseStyle2);
-              var bodyHost2 = document.createElement('div');
-              bodyHost2.innerHTML = __shadowExtractNoScript(html);
-              w.shadowRoot.appendChild(bodyHost2);
-              window.__kiraCurrentInjectHost = w;
-              var bsEl2 = document.createElement('script');
-              bsEl2.textContent = __shadowBridgeScript(frameId, floorIdx);
-              w.shadowRoot.appendChild(bsEl2);
-              __shadowInjectScripts(w.shadowRoot, __shadowExtractScripts(html));
-              window.__kiraCurrentInjectHost = null;
-              if (typeof ResizeObserver !== 'undefined') {
-                var ro2 = new ResizeObserver(function() {
-                  if (w.getAttribute('data-collapsed') === '1') return;
-                  var h2 = bodyHost2.scrollHeight || 0;
-                  if (h2 <= 0) return;
-                  var newH2 = Math.ceil(h2) + 4;
-                  w.style.height = newH2 + 'px';
-                  w.setAttribute('data-content-height', newH2 + 'px');
-                  w.setAttribute('data-last-height', newH2 + 'px');
-                  w.style.opacity = '1';
-                  if (newH2 > 304) w.classList.add('expanded');
-                  else w.classList.remove('expanded');
-                });
-                ro2.observe(bodyHost2);
-              }
-            }
-            w.setAttribute('data-blob-loaded', '1');
-            w.style.opacity = '0';
-            setTimeout(function(){ w.style.opacity = '1'; }, 50);
-          }
-        } else {
-          var h3 = w.style.height;
-          if (h3) w.setAttribute('data-last-height', h3);
-          if (w.shadowRoot) w.shadowRoot.innerHTML = '';
-          w.removeAttribute('data-blob-loaded');
-          w.style.opacity = '0';
-        }
-      });
-    }, { rootMargin: '200% 0px 200% 0px', threshold: 0 });
-
-    window.__kiraObserveShadowHost = function(host) {
-      if (!host.getAttribute('data-sh-observed')) {
-        host.setAttribute('data-sh-observed', '1');
-        shadowObs.observe(host);
-      }
-    };
-
-    // 监听新追加的 shadow host
-    var moShadow = new MutationObserver(function() {
-      document.querySelectorAll('.card-shadow-host').forEach(function(w) {
-        window.__kiraObserveShadowHost(w);
-      });
-    });
-    moShadow.observe(document.getElementById('__kira_root'), {childList: true, subtree: true});
   })();
 
   // 工具条：折叠态只有一个小胶囊，点开展开一排文字按钮。挂在气泡外面下方。
@@ -4473,13 +4347,38 @@ function injectBridge(html, id, floorIdx) {
             var segType = seg.type || 'prose';
             var segHtml = seg.html || '';
             if (segType === 'frontend') {
-              // Shadow DOM 版（替代 iframe segFrame）
               var segId = 'TH-message--' + (m.floor || 0) + '--' + frontendIndex;
               frontendIndex++;
-              var segFloorIdx = m.floor ? m.floor - 1 : -1;
-              var segShadowWrap = createCardShadowWrap(segHtml, segId, segFloorIdx);
-              segsGroup.appendChild(segShadowWrap);
-              try { window.__kiraMsgFloorMap[segId] = segFloorIdx; } catch (_segMapE) {}
+              var segFrame = document.createElement('iframe');
+              segFrame.className = 'card-frame';
+              segFrame.style.width = '100%';
+              segFrame.style.height = '300px';
+              segFrame.style.background = 'rgba(255,255,255,0.06)';
+              segFrame.style.borderRadius = '12px';
+              segFrame.setAttribute('data-frame-id', segId);
+              segFrame.setAttribute('data-floor', m.floor || 0);
+              segFrame.setAttribute('scrolling', 'no');
+              segFrame.setAttribute('data-html', segHtml);
+              (function(f, html, id, floor){
+                var injected = injectBridge(html, id, floor > 0 ? floor - 1 : -1);
+                if (injected.length <= 524288) {
+                  f.srcdoc = injected;
+                } else {
+                  try {
+                    var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
+                    var url = URL.createObjectURL(blob);
+                    f.src = url;
+                    f.addEventListener('load', function onLoad(){
+                      f.removeEventListener('load', onLoad);
+                      URL.revokeObjectURL(url);
+                    });
+                  } catch(e) {
+                    f.srcdoc = injected;
+                  }
+                }
+              })(segFrame, segHtml, segId, m.floor || 0);
+              segsGroup.appendChild(createCardFrameWrap(segFrame, segId));
+              try { window.__kiraMsgFloorMap[segId] = (m.floor || 1) - 1; } catch (_segMapE) {}
             } else if (segHtml.trim() !== '') {
               var segProse = document.createElement('div');
               segProse.className = 'seg-prose';
@@ -4493,10 +4392,35 @@ function injectBridge(html, id, floorIdx) {
         } else if (typeof m.rich === 'boolean' ? m.rich : isRichHtml(m.html)) {
           // [MD修复2] 优先消费 Dart 序列化里的显式 rich 标记(文档级判定),
           // isRichHtml 仅作旧载荷兜底
-          // Shadow DOM 版（替代 iframe rich frame）
-          var richFloorIdx = m.floor ? m.floor - 1 : -1;
-          var richShadowWrap = createCardShadowWrap(m.html, m.id, richFloorIdx);
-          group.appendChild(richShadowWrap);
+          var frame = document.createElement('iframe');
+          frame.className = 'card-frame';
+          frame.style.width = '100%';
+          frame.style.height = '300px';
+          frame.style.background = 'rgba(255,255,255,0.06)';
+          frame.style.borderRadius = '12px';
+          frame.setAttribute('data-frame-id', m.id);
+          frame.setAttribute('data-floor', m.floor || 0);
+          frame.setAttribute('scrolling', 'no');
+          frame.setAttribute('data-html', m.html);
+          (function(f, html, id){
+            var injected = injectBridge(html, id, (m.floor ? (m.floor - 1) : -1));
+            if (injected.length <= 524288) {
+              f.srcdoc = injected;
+            } else {
+              try {
+                var blob = new Blob([injected], {type: 'text/html; charset=utf-8'});
+                var url = URL.createObjectURL(blob);
+                f.src = url;
+                f.addEventListener('load', function onLoad(){
+                  f.removeEventListener('load', onLoad);
+                  URL.revokeObjectURL(url);
+                });
+              } catch(e) {
+                f.srcdoc = injected;
+              }
+            }
+          })(frame, m.html, m.id);
+          group.appendChild(createCardFrameWrap(frame, m.id));
           // [P3-K1] isRichHtml 分支补挂载 wrap：reasoning 塞在 wrap 里，不挂出来 reasoning 必丢(t4 实测)
           if (wrap.children.length > 0) group.appendChild(wrap);
         } else {
@@ -4770,296 +4694,6 @@ function injectBridge(html, id, floorIdx) {
       syncBottomButton();
     });
     try { sendToFlutter('log', { text: '[锚点] 恢复 floor=' + f }); } catch (_ae1) {}
-  }
-
-  // ── Shadow DOM 卡片渲染工具函数 ───────────────────────────────────
-
-  // 从卡片 HTML 中剥离 <script> 段（<style> 保留，innerHTML 可生效）
-  function __shadowExtractNoScript(html) {
-    return html.replace(/<script[\s\S]*?<\/script>/gi, '');
-  }
-  // 提取所有内联 <script> 代码段（保持顺序，排除外链 src）
-  function __shadowExtractScripts(html) {
-    var codes = [];
-    var re = /<script(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi;
-    var m;
-    while ((m = re.exec(html)) !== null) {
-      if (m[1].trim()) codes.push(m[1]);
-    }
-    return codes;
-  }
-  // 动态 createElement('script') 逐段执行（innerHTML 里的 script 不执行）
-  function __shadowInjectScripts(shadow, scripts) {
-    for (var si = 0; si < scripts.length; si++) {
-      try {
-        var s = document.createElement('script');
-        s.textContent = scripts[si];
-        shadow.appendChild(s);
-      } catch(e) {
-        window.__kiraLog('[Shadow] script注入失败: ' + e);
-      }
-    }
-  }
-
-  // Shadow 版桥接脚本（替代 injectBridge 的 parent.postMessage 桥）。
-  // Shadow 内无独立 window/document：脚本里的 window/document 指主文档的。
-  // API 通过 window.__kiraCurrentInjectHost（主文档注入前设置）挂回 host 元素。
-  function __shadowBridgeScript(frameId, floorIdx) {
-    var _id = JSON.stringify(frameId);
-    var _fi = (typeof floorIdx === 'number' && !isNaN(floorIdx)) ? floorIdx : -1;
-    var _macros = JSON.stringify(
-      (typeof window.__KIRA_MACRO_VALUES !== 'undefined')
-        ? window.__KIRA_MACRO_VALUES
-        : {user: 'User', char: 'Assistant'}
-    );
-    return '(function(){\n' +
-      'var _id=' + _id + ';\n' +
-      'var _myHost=window.__kiraCurrentInjectHost||null;\n' +
-      // 1) 错误捕手（走 window.__kiraLog）
-      'function _kErr(s){try{window.__kiraLog("[WV-10] CARD-ERR id="+_id+" "+String(s).substring(0,300));}catch(_){}}\n' +
-      'var _oe=window.onerror;\n' +
-      'window.onerror=function(m,s,l,c,err){_kErr(m+" @"+l+":"+c+(err&&err.stack?" "+err.stack:""));if(_oe)return _oe.apply(this,arguments);return false;};\n' +
-      'window.addEventListener("unhandledrejection",function(ev){_kErr("rejection "+(ev&&ev.reason?(ev.reason.message||ev.reason):""));});\n' +
-      // 2) 宏值（Shadow 内闭包变量，不依赖主文档 window）
-      'var __KIRA_MACRO_VALUES=' + _macros + ';\n' +
-      // 3) RPC：直接调主文档 __kiraThCall（复用 method 表 + 拍平函数）
-      'function __thCall(method,args){return window.__kiraThCall(_id,method,args||[]);}\n' +
-      'function __thCallRead(method,args){return __thCall(method,args);}\n' +
-      // 4) console 拦截（走 __kiraLog，保留原生输出）
-      '(function(){\n' +
-      '  var _c=window.console||{};\n' +
-      '  function _fmt(){var p=[];for(var i=0;i<arguments.length;i++){var a=arguments[i];p.push(typeof a==="object"?(function(){try{return JSON.stringify(a);}catch(e){return String(a);}})():String(a));}return p.join(" ");}\n' +
-      '  var _ol=_c.log,_oe2=_c.error,_ow=_c.warn;\n' +
-      '  console.log=function(){try{window.__kiraLog("[卡片:"+_id+"] "+_fmt.apply(null,arguments));}catch(_){}if(_ol)_ol.apply(console,arguments);};\n' +
-      '  console.error=function(){try{window.__kiraLog("[卡片:"+_id+"] "+_fmt.apply(null,arguments));}catch(_){}if(_oe2)_oe2.apply(console,arguments);};\n' +
-      '  console.warn=function(){try{window.__kiraLog("[卡片:"+_id+"] "+_fmt.apply(null,arguments));}catch(_){}if(_ow)_ow.apply(console,arguments);};\n' +
-      '})();\n' +
-      // 5) MVU 快照 store（host.__kiraDeliverSnapshot 主动推）
-      'var __TH_FLOOR_IDX=' + _fi + ';\n' +
-      'var __thVars={message:{},chat:{},global:{},lastMsgId:-1,swipes:{}};\n' +
-      'var __thMvuReady=false;\n' +
-      'var __TH_MVU_FACADE={\n' +
-      '  events:{VARIABLE_INITIALIZED:"mag_variable_initiailized",VARIABLE_UPDATE_STARTED:"mag_variable_update_started",COMMAND_PARSED:"mag_command_parsed",VARIABLE_UPDATE_ENDED:"mag_variable_update_ended",BEFORE_MESSAGE_UPDATE:"mag_before_message_update"},\n' +
-      '  getMvuData:function(option){option=option||{};var t=option.type||"chat";\n' +
-      '    if(t==="message"){var fi=(typeof option.message_id==="number")?option.message_id:__TH_FLOOR_IDX;return (typeof fi==="number"&&fi>=0)?(__thVars.message[fi]||{}):{};}\n' +
-      '    return __thVars[t]||{};},\n' +
-      '  replaceMvuData:function(mvu_data,option){option=option||{};var t=option.type||"chat";\n' +
-      '    if(t==="message"){var fi=(typeof option.message_id==="number")?option.message_id:__TH_FLOOR_IDX;\n' +
-      '      if(typeof fi==="number"&&fi>=0){__thVars.message[fi]=mvu_data||{};}}\n' +
-      '    else{__thVars[t]=mvu_data||{};}\n' +
-      '    return __thCall("setVariables",[mvu_data||{},option]);},\n' +
-      '  parseMessage:function(message,old_data){return __thCall("thMvuParseMessage",[message,old_data||{}]).catch(function(){return undefined;});},\n' +
-      '  isDuringExtraAnalysis:function(){return false;}\n' +
-      '};\n' +
-      'function __thArmMvu(){\n' +
-      '  try{\n' +
-      '    if(__thMvuReady)return;\n' +
-      '    if(typeof window.Mvu!=="undefined"&&window.Mvu!==null&&window.Mvu!==__TH_MVU_FACADE){__thMvuReady=true;return;}\n' +
-      '    var fi=__TH_FLOOR_IDX;\n' +
-      '    var msgSnap=(typeof fi==="number"&&fi>=0)?__thVars.message[fi]:null;\n' +
-      '    if(!msgSnap||typeof msgSnap.stat_data==="undefined")return;\n' +
-      '    window.Mvu=__TH_MVU_FACADE;\n' +
-      '    __thMvuReady=true;\n' +
-      '    window.__kiraLog("[Mvu] card("+_id+") 已挂 window.Mvu(快照门控通过)");\n' +
-      '    try{_TH.eventEmit("global_Mvu_initialized",[]);}catch(_e1){}\n' +
-      '  }catch(e){window.__kiraLog("[Mvu] 挂载失败: "+e);}\n' +
-      '}\n' +
-      // 6) _TH 门面（挂 host 元素，卡专属状态用闭包）
-      'var _TH={\n' +
-      '  __events:{},\n' +
-      '  getCurrentMessageId:function(){return _id;},\n' +
-      '  getIframeName:function(){return _id;},\n' +
-      '  getChatMessages:function(r,o){return __thCall("getChatMessages",[r,o||{}]);},\n' +
-      '  setChatMessage:function(c,i,o){return __thCall("setChatMessage",[c,i,o||{}]);},\n' +
-      '  setChatMessages:function(m,o){return __thCall("setChatMessages",[m,o||{}]);},\n' +
-      '  createChatMessages:function(m,o){return __thCall("createChatMessages",[m,o||{}]);},\n' +
-      '  deleteChatMessages:function(ids,o){return __thCall("deleteChatMessages",[ids,o||{}]);},\n' +
-      '  triggerSlash:function(c){return __thCall("triggerSlash",[c]);},\n' +
-      '  setInput:function(t){return __thCall("setInput",[t]);},\n' +
-      '  setVariables:function(v,o){return __thCall("setVariables",[v,o||{}]);},\n' +
-      '  replaceVariables:function(v,o){return __thCall("replaceVariables",[v,o||{}]);},\n' +
-      '  getVariables:function(o){o=o||{};var t=o.type||"chat";\n' +
-      '    if(t==="message"){var fi=(typeof o.message_id==="number")?o.message_id:__TH_FLOOR_IDX;return (typeof fi==="number"&&fi>=0)?(__thVars.message[fi]||{}):{};}\n' +
-      '    return __thVars[t]||{};},\n' +
-      '  getAllVariables:function(){\n' +
-      '    var out={};\n' +
-      '    function _deep(dst,src){for(var k in (src||{})){if(!Object.prototype.hasOwnProperty.call(src,k))continue;dst[k]=src[k];}}\n' +
-      '    _deep(out,__thVars.global);_deep(out,__thVars.chat);\n' +
-      '    var fi=(__TH_FLOOR_IDX>=0)?__TH_FLOOR_IDX:__thVars.lastMsgId;\n' +
-      '    for(var i=fi;i>=0;i--){if(__thVars.message[i]&&__thVars.message[i].stat_data!==undefined){_deep(out,__thVars.message[i]);break;}}\n' +
-      '    return out;},\n' +
-      '  getLorebookEntries:function(n){return __thCallRead("getLorebookEntries",[n]);},\n' +
-      '  setLorebookEntries:function(n,e){return __thCall("setLorebookEntries",[n,e||[]]);},\n' +
-      '  createLorebookEntry:function(n,e){return __thCall("createLorebookEntry",[n,e||{}]);},\n' +
-      '  deleteLorebookEntries:function(n,u){return __thCall("deleteLorebookEntries",[n,u||[]]);},\n' +
-      '  getCharacterLorebooks:function(){return __thCallRead("getCharacterLorebooks",[]);},\n' +
-      '  getLorebookSettings:function(){return __thCallRead("getLorebookSettings",[]);},\n' +
-      '  setLorebookSettings:function(s){return __thCall("setLorebookSettings",[s||{}]);},\n' +
-      '  getLorebooks:function(){return __thCallRead("getLorebooks",[]);},\n' +
-      '  getEnabledLorebookList:function(){return __thCallRead("getEnabledLorebookList",[]);},\n' +
-      '  createLorebook:function(n){return __thCall("createLorebook",[n]);},\n' +
-      '  generate:function(a){return __thCall("th_generate",[a===undefined?"normal":a]);},\n' +
-      '  stopGeneration:function(){return __thCall("th_stopGeneration",[]);},\n' +
-      '  toastr:{\n' +
-      '    info:function(m,t){return __thCall("th_toast",["info",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},\n' +
-      '    success:function(m,t){return __thCall("th_toast",["success",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},\n' +
-      '    warning:function(m,t){return __thCall("th_toast",["warning",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},\n' +
-      '    error:function(m,t){return __thCall("th_toast",["error",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});}\n' +
-      '  },\n' +
-      '  POPUP_TYPE:{TEXT:0,CONFIRM:1,INPUT:2},\n' +
-      '  POPUP_RESULT:{AFFIRMATIVE:true,NEGATIVE:false,CANCELLED:null},\n' +
-      '  callPopup:function(text,type,val){\n' +
-      '    return __thCall("th_popup",[text==null?"":String(text),(type==null?1:type),val==null?"":String(val||"")]).catch(function(){return null;});},\n' +
-      '  ask:function(t){return _TH.callPopup(t,1,"").then(function(r){return r===true;}).catch(function(){return false;});},\n' +
-      '  substitudeMacros:function(text){\n' +
-      '    var v=__KIRA_MACRO_VALUES||{user:"User",char:"Assistant"};\n' +
-      '    return String(text||"").replace(/{{user}}/gi,v.user||"User").replace(/{{char}}/gi,v.char||"Assistant");},\n' +
-      '  getTavernHelperVersion:function(){return"1.0.0-kira";},\n' +
-      '  eventOn:function(t,fn){var a=this.__events[t]||(this.__events[t]=[]);a.push(fn);return {stop:function(){_TH.eventOff(t,fn);}};},\n' +
-      '  eventOnce:function(t,fn){var wrap=function(){_TH.eventOff(t,wrap);return fn.apply(this,arguments);};return _TH.eventOn(t,wrap);},\n' +
-      '  eventOff:function(t,fn){if(!this.__events[t])return;this.__events[t]=this.__events[t].filter(function(f){return f!==fn;});},\n' +
-      '  eventEmit:function(t){var args=Array.prototype.slice.call(arguments,1);var l=(this.__events[t]||[]).slice();for(var i=0;i<l.length;i++){try{l[i].apply(null,args);}catch(_e2){}}}\n' +
-      '};\n' +
-      // 7) 裸挂兼容（第三方卡依赖 window 全局；先到先得不覆盖既有）
-      'if(typeof window.TavernHelper==="undefined")window.TavernHelper=_TH;\n' +
-      'if(typeof window.TH==="undefined")window.TH=_TH;\n' +
-      'if(typeof window.substitudeMacros==="undefined")window.substitudeMacros=_TH.substitudeMacros;\n' +
-      // 8) API 挂回 host（主文档投递快照/事件用，直接操作闭包）
-      'if(_myHost){\n' +
-      '  _myHost._TH=_TH;\n' +
-      '  _myHost.__kiraDeliverSnapshot=function(snap){\n' +
-      '    try{\n' +
-      '      if(!snap)return;\n' +
-      '      var t=snap.type||"chat";\n' +
-      '      if(t==="message"){\n' +
-      '        var fi=(typeof snap.floor_idx==="number")?snap.floor_idx:__TH_FLOOR_IDX;\n' +
-      '        if(typeof fi==="number"&&fi>=0){\n' +
-      '          __thVars.message[fi]=snap.data||{};\n' +
-      '          __thVars.swipes[fi]=(typeof snap.swipe_id==="number")?snap.swipe_id:0;\n' +
-      '        }\n' +
-      '      }else{__thVars[t]=snap.data||{};}\n' +
-      '      if(typeof snap.lastMsgId==="number"&&snap.lastMsgId>__thVars.lastMsgId){__thVars.lastMsgId=snap.lastMsgId;}\n' +
-      '      __thArmMvu();\n' +
-      '    }catch(e){window.__kiraLog("[Mvu] card 快照处理失败: "+e);}\n' +
-      '  };\n' +
-      '  _myHost.__kiraEmitMvuEvent=function(type,args){\n' +
-      '    try{_TH.eventEmit.apply(_TH,[type].concat(args||[]));}catch(e){}\n' +
-      '  };\n' +
-      '}\n' +
-      // 9) 空 body 兜底（1500ms 后检查；Shadow 内 document 是主文档的，查 host 内容）
-      'setTimeout(function(){\n' +
-      '  try{\n' +
-      '    var root=_myHost&&_myHost.shadowRoot?_myHost.shadowRoot:null;\n' +
-      '    var host2=root?root.firstElementChild:null;\n' +
-      '    var hasChild=host2&&host2.children?host2.children.length>0:false;\n' +
-      '    var hasText=host2&&typeof host2.innerText==="string"?host2.innerText.trim().length>0:false;\n' +
-      '    if(!hasChild&&!hasText){\n' +
-      '      window.__kiraLog("[WV-10] CARD-BLANK id="+_id);\n' +
-      '    }\n' +
-      '  }catch(_){}\n' +
-      '},1500);\n' +
-      '})();\n';
-  }
-
-  // Shadow DOM 版卡片包裹函数（替代 createCardFrameWrap，旧函数暂留回滚用）
-  function createCardShadowWrap(html, frameId, floorIdx) {
-    var w = document.createElement('div');
-    w.className = 'card-frame-wrap card-shadow-host';
-    w.setAttribute('data-frame-id', frameId);
-    w.setAttribute('data-card-id', frameId);
-    w.setAttribute('data-floor', (typeof floorIdx === 'number' ? floorIdx : 0));
-    w.setAttribute('data-html', html);
-    w.style.cssText = 'width:100%;opacity:0;min-height:40px;border-radius:12px;' +
-      'background:rgba(255,255,255,0.06);overflow:visible;display:block;position:relative;';
-
-    var shadow = w.attachShadow({mode: 'open'});
-
-    var baseStyle = document.createElement('style');
-    baseStyle.textContent =
-      ':host{display:block;width:100%;min-height:40px;}' +
-      'html,body{overflow:visible!important;margin:0;padding:0;}' +
-      'body{color:#E0E0E0;font-size:15px;line-height:1.6;word-break:break-word;}';
-    shadow.appendChild(baseStyle);
-
-    var bodyHost = document.createElement('div');
-    bodyHost.innerHTML = __shadowExtractNoScript(html);
-    shadow.appendChild(bodyHost);
-
-    // 注入前设 __kiraCurrentInjectHost，桥接脚本把 API 挂回 host
-    window.__kiraCurrentInjectHost = w;
-    var bsEl = document.createElement('script');
-    bsEl.textContent = __shadowBridgeScript(frameId, floorIdx);
-    shadow.appendChild(bsEl);
-    __shadowInjectScripts(shadow, __shadowExtractScripts(html));
-    window.__kiraCurrentInjectHost = null;
-
-    var _syncRaf = null;
-    function syncShadowHeight() {
-      if (_syncRaf) return;
-      _syncRaf = requestAnimationFrame(function() {
-        _syncRaf = null;
-        if (w.getAttribute('data-collapsed') === '1') return;
-        var h = 0;
-        try { h = bodyHost.scrollHeight || 0; } catch(e) {}
-        if (h <= 0) {
-          try {
-            var children = shadow.querySelectorAll('*');
-            for (var ci = 0; ci < children.length; ci++) {
-              var rect = children[ci].getBoundingClientRect();
-              if (rect.bottom > h) h = rect.bottom;
-            }
-          } catch(_) {}
-        }
-        if (h <= 0) return;
-        var newH = Math.ceil(h) + 4;
-        w.style.height = newH + 'px';
-        w.setAttribute('data-content-height', newH + 'px');
-        w.setAttribute('data-last-height', newH + 'px');
-        w.style.opacity = '1';
-        if (newH > 304) { w.classList.add('expanded'); }
-        else { w.classList.remove('expanded'); }
-      });
-    }
-    setTimeout(syncShadowHeight, 0);
-    setTimeout(syncShadowHeight, 200);
-    setTimeout(syncShadowHeight, 600);
-    if (typeof ResizeObserver !== 'undefined') {
-      var ro = new ResizeObserver(syncShadowHeight);
-      ro.observe(bodyHost);
-    }
-
-    // 主动推现有快照（主文档已有快照数据时）
-    if (typeof window.__snapAll === 'function') {
-      setTimeout(function() {
-        try {
-          var snaps = window.__snapAll();
-          if (snaps && snaps.length > 0) {
-            for (var si = 0; si < snaps.length; si++) {
-              if (snaps[si] && snaps[si].__thVars) {
-                if (w.__kiraDeliverSnapshot) w.__kiraDeliverSnapshot(snaps[si]);
-                break;
-              }
-            }
-          }
-        } catch(_) {}
-      }, 100);
-    }
-
-    var btn = document.createElement('button');
-    btn.className = 'card-collapse-btn';
-    btn.type = 'button';
-    btn.setAttribute('data-collapse-card', frameId);
-    btn.textContent = '收起';
-    w.appendChild(btn);
-
-    try {
-      if (typeof window.__kiraObserveShadowHost === 'function') {
-        window.__kiraObserveShadowHost(w);
-      }
-    } catch(_) {}
-    try { window.__kiraMsgFloorMap[frameId] = (typeof floorIdx === 'number' ? floorIdx : 0); } catch(_) {}
-
-    return w;
   }
 
   // 前景卡包裹层：iframe + 收起按钮。
@@ -5343,20 +4977,6 @@ function injectBridge(html, id, floorIdx) {
     var collapseTarget = tgt.closest('[data-collapse-card]');
     if (collapseTarget) {
       var cardId = collapseTarget.getAttribute('data-collapse-card');
-      // Shadow host（新架构）
-      var shadowHost = document.querySelector('.card-shadow-host[data-card-id="' + cardId + '"]');
-      if (shadowHost) {
-        shadowHost.setAttribute('data-collapsed', '1');
-        shadowHost.style.height = '300px';
-        shadowHost.classList.remove('expanded');
-        var sgS = shadowHost.closest('.segs-group');
-        if (sgS) {
-          var prosesS = sgS.querySelectorAll('.seg-prose');
-          for (var piS = 0; piS < prosesS.length; piS++) { prosesS[piS].style.display = 'none'; }
-        }
-        return;
-      }
-      // 旧 iframe（兼容已渲染的旧卡）
       var fr = document.querySelector('iframe.card-frame[data-card-id="' + cardId + '"]');
       var wr = fr && fr.closest('.card-frame-wrap');
       if (fr) {
@@ -5364,6 +4984,7 @@ function injectBridge(html, id, floorIdx) {
         fr.setAttribute('data-collapsed', '1');
         fr.style.height = '300px';
         if (wr) wr.classList.remove('expanded');
+        // 同步隐藏同 segs-group 内的 prose 文字段
         var sg = fr.closest('.segs-group');
         if (sg) {
           var proses = sg.querySelectorAll('.seg-prose');
@@ -5372,22 +4993,7 @@ function injectBridge(html, id, floorIdx) {
       }
       return;
     }
-    // 点击已折叠的卡片展开
-    // Shadow host 版（host 自身即点击目标，同步解锁）
-    var shadowCollapsedHost = tgt.closest('.card-shadow-host');
-    if (shadowCollapsedHost && shadowCollapsedHost.getAttribute('data-collapsed') === '1') {
-      var savedHS = shadowCollapsedHost.getAttribute('data-content-height') || (window.innerHeight + 'px');
-      shadowCollapsedHost.style.height = savedHS;
-      shadowCollapsedHost.classList.add('expanded');
-      var sg3 = shadowCollapsedHost.closest('.segs-group');
-      if (sg3) {
-        var proses3 = sg3.querySelectorAll('.seg-prose');
-        for (var pi3 = 0; pi3 < proses3.length; pi3++) { proses3[pi3].style.display = ''; }
-      }
-      shadowCollapsedHost.removeAttribute('data-collapsed');
-      return;
-    }
-    // 旧 iframe 版（兼容：折叠态 pointer-events:none，点击穿透落到 wrap）
+    // 点击已折叠的卡片展开（折叠态 iframe pointer-events:none，点击穿透落到 wrap）
     var collapsedWrap = tgt.closest('.card-frame-wrap');
     if (collapsedWrap) {
       var cfr = collapsedWrap.querySelector('iframe.card-frame[data-collapsed="1"]');
@@ -5396,6 +5002,7 @@ function injectBridge(html, id, floorIdx) {
         // 先改高度、加展开态，下一帧再解锁——防止解锁瞬间 iframe 重报高度又被夹/弹回
         cfr.style.height = savedH;
         collapsedWrap.classList.add('expanded');
+        // 同步恢复同 segs-group 内的 prose 文字段
         var sg2 = cfr.closest('.segs-group');
         if (sg2) {
           var proses2 = sg2.querySelectorAll('.seg-prose');
