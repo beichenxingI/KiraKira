@@ -279,7 +279,8 @@ if (!String.prototype.at) {
   iframe.card-frame {
     width: 100%; border: none; display: block;
     background: transparent; height: 300px; border-radius: 12px;
-    transition: height 0.22s ease;
+    transition: height 0.22s ease, opacity 0.15s ease;
+    opacity: 0;
   }
   /* 前景卡包裹层：承载 iframe + 收起按钮 */
   .card-frame-wrap { position: relative; width: 100%; }
@@ -2176,6 +2177,7 @@ __KIRA_CHAT_BRIDGE__
       container.appendChild(spInput('stt-key', 'API Key',
         data.apiKey || '', 'sk-...', 'password',
         function(v) { spAction('setApiKey', {value: v}); }));
+    }
     if (d.provider === 'sherpa' && d.available === false) {
       var unavailCard = document.createElement('div');
       unavailCard.className = 'sp-warn-card';
@@ -3154,7 +3156,7 @@ function injectBridge(html, id, floorIdx) {
       'var bodyOffset=b?(b.offsetHeight+(parseInt(getComputedStyle(b).marginTop,10)||0)+(parseInt(getComputedStyle(b).marginBottom,10)||0)):0;' +
       'var h=Math.ceil(Math.max(bodyOffset||document.documentElement.offsetHeight,_lowestBottom()))||0;' +
       'if(!h){h=document.documentElement.scrollHeight||0;}' +
-      'if(h>0&&Math.abs(h-_lastH)>4){_lastH=h;var _vh=(document.body&&document.body.scrollHeight>=window.innerHeight-2)?1:0;parent.postMessage({__cardHeight:true,id:_id,height:h,vh:_vh},"*");}' +
+      'if(h>0&&Math.abs(h-_lastH)>4){_lastH=h;var _vh=0;parent.postMessage({__cardHeight:true,id:_id,height:h,vh:_vh},"*");}' +
       '}' +
       'function scheduledReport(){' +
       'if(_debTimer)clearTimeout(_debTimer);' +
@@ -4708,17 +4710,26 @@ function injectBridge(html, id, floorIdx) {
       try {
         var doc = frame.contentDocument || frame.contentWindow.document;
         if (!doc) return;
+        var _syncRaf = null;
         function syncHeight() {
-          if (frame.getAttribute('data-collapsed') === '1') return;
-          var h = (doc.documentElement.scrollHeight || doc.body.scrollHeight || 0);
-          if (h <= 0) return;
-          frame.style.height = (h + 4) + 'px';
-          frame.setAttribute('data-content-height', (h + 4) + 'px');
-          var wrap = frame.closest('.card-frame-wrap');
-          if (wrap) {
-            if (h + 4 > 304) { wrap.classList.add('expanded'); }
-            else { wrap.classList.remove('expanded'); }
-          }
+          if (_syncRaf) return;
+          _syncRaf = requestAnimationFrame(function() {
+            _syncRaf = null;
+            if (frame.getAttribute('data-collapsed') === '1') return;
+            var h = 0;
+            try { h = doc.documentElement.scrollHeight || doc.body.scrollHeight || 0; } catch(e) {}
+            if (h <= 0) return;
+            var newH = h + 2;
+            frame.style.height = newH + 'px';
+            frame.setAttribute('data-content-height', newH + 'px');
+            frame.setAttribute('data-last-height', newH + 'px');
+            frame.style.opacity = '1';
+            var wrap = frame.closest('.card-frame-wrap');
+            if (wrap) {
+              if (newH > 304) { wrap.classList.add('expanded'); }
+              else { wrap.classList.remove('expanded'); }
+            }
+          });
         }
         syncHeight();
         if (typeof ResizeObserver !== 'undefined') {
