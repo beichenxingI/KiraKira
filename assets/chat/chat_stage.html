@@ -295,6 +295,18 @@ if (!String.prototype.at) {
   .card-frame-wrap.expanded .card-collapse-btn { display: block; }
   /* 折叠态 iframe 不拦截点击，让点击穿透到 wrap 触发展开 */
   iframe.card-frame[data-collapsed="1"] { pointer-events: none; }
+  /* Shadow DOM host 样式（与 iframe 版并存，等 Step 8 清理旧版） */
+  .card-shadow-host {
+    width: 100%; display: block;
+    background: rgba(255,255,255,0.06);
+    border-radius: 12px;
+    min-height: 40px;
+    opacity: 0;
+    transition: height 0.22s ease, opacity 0.15s ease;
+    position: relative;
+  }
+  .card-shadow-host.expanded .card-collapse-btn { display: block; }
+  .card-shadow-host[data-collapsed="1"] { height: 300px !important; }
   /* 流式 Markdown 渲染样式（生成结束后被 Dart 渲染的最终 HTML 覆盖，仅作过渡预览） */
   .stream-text { font-size: 15px; line-height: 1.6; word-break: break-word; }
   .stream-text pre.stream-code { background: rgba(0,0,0,0.35); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 6px 0; }
