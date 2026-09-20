@@ -4188,6 +4188,80 @@ function injectBridge(html, id, floorIdx) {
     var mo = new MutationObserver(observeFrames);
     mo.observe(document.getElementById('__kira_root'), {childList: true, subtree: true});
     observeFrames();
+
+    // ── Shadow host 版虚拟化（与 iframe 版并存）──
+    var shadowObs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        var w = entry.target;
+        var html = w.getAttribute('data-html');
+        if (!html) return;
+        if (entry.isIntersecting) {
+          if (!w.getAttribute('data-blob-loaded')) {
+            var lastH = w.getAttribute('data-last-height');
+            if (lastH) w.style.height = lastH;
+            if (w.shadowRoot) {
+              var frameId = w.getAttribute('data-frame-id') || '';
+              var floorAttr = parseInt(w.getAttribute('data-floor'), 10);
+              var floorIdx = isNaN(floorAttr) ? -1 : floorAttr;
+              w.shadowRoot.innerHTML = '';
+              var baseStyle2 = document.createElement('style');
+              baseStyle2.textContent = ':host{display:block;width:100%;min-height:40px;}' +
+                'html,body{overflow:visible!important;margin:0;padding:0;}' +
+                'body{color:#E0E0E0;font-size:15px;line-height:1.6;word-break:break-word;}';
+              w.shadowRoot.appendChild(baseStyle2);
+              var bodyHost2 = document.createElement('div');
+              bodyHost2.innerHTML = __shadowExtractNoScript(html);
+              w.shadowRoot.appendChild(bodyHost2);
+              window.__kiraCurrentInjectHost = w;
+              var bsEl2 = document.createElement('script');
+              bsEl2.textContent = __shadowBridgeScript(frameId, floorIdx);
+              w.shadowRoot.appendChild(bsEl2);
+              __shadowInjectScripts(w.shadowRoot, __shadowExtractScripts(html));
+              window.__kiraCurrentInjectHost = null;
+              if (typeof ResizeObserver !== 'undefined') {
+                var ro2 = new ResizeObserver(function() {
+                  if (w.getAttribute('data-collapsed') === '1') return;
+                  var h2 = bodyHost2.scrollHeight || 0;
+                  if (h2 <= 0) return;
+                  var newH2 = Math.ceil(h2) + 4;
+                  w.style.height = newH2 + 'px';
+                  w.setAttribute('data-content-height', newH2 + 'px');
+                  w.setAttribute('data-last-height', newH2 + 'px');
+                  w.style.opacity = '1';
+                  if (newH2 > 304) w.classList.add('expanded');
+                  else w.classList.remove('expanded');
+                });
+                ro2.observe(bodyHost2);
+              }
+            }
+            w.setAttribute('data-blob-loaded', '1');
+            w.style.opacity = '0';
+            setTimeout(function(){ w.style.opacity = '1'; }, 50);
+          }
+        } else {
+          var h3 = w.style.height;
+          if (h3) w.setAttribute('data-last-height', h3);
+          if (w.shadowRoot) w.shadowRoot.innerHTML = '';
+          w.removeAttribute('data-blob-loaded');
+          w.style.opacity = '0';
+        }
+      });
+    }, { rootMargin: '200% 0px 200% 0px', threshold: 0 });
+
+    window.__kiraObserveShadowHost = function(host) {
+      if (!host.getAttribute('data-sh-observed')) {
+        host.setAttribute('data-sh-observed', '1');
+        shadowObs.observe(host);
+      }
+    };
+
+    // 监听新追加的 shadow host
+    var moShadow = new MutationObserver(function() {
+      document.querySelectorAll('.card-shadow-host').forEach(function(w) {
+        window.__kiraObserveShadowHost(w);
+      });
+    });
+    moShadow.observe(document.getElementById('__kira_root'), {childList: true, subtree: true});
   })();
 
   // 工具条：折叠态只有一个小胶囊，点开展开一排文字按钮。挂在气泡外面下方。
