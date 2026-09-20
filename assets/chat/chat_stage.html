@@ -4718,6 +4718,296 @@ function injectBridge(html, id, floorIdx) {
     try { sendToFlutter('log', { text: '[锚点] 恢复 floor=' + f }); } catch (_ae1) {}
   }
 
+  // ── Shadow DOM 卡片渲染工具函数 ───────────────────────────────────
+
+  // 从卡片 HTML 中剥离 <script> 段（<style> 保留，innerHTML 可生效）
+  function __shadowExtractNoScript(html) {
+    return html.replace(/<script[\s\S]*?<\/script>/gi, '');
+  }
+  // 提取所有内联 <script> 代码段（保持顺序，排除外链 src）
+  function __shadowExtractScripts(html) {
+    var codes = [];
+    var re = /<script(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi;
+    var m;
+    while ((m = re.exec(html)) !== null) {
+      if (m[1].trim()) codes.push(m[1]);
+    }
+    return codes;
+  }
+  // 动态 createElement('script') 逐段执行（innerHTML 里的 script 不执行）
+  function __shadowInjectScripts(shadow, scripts) {
+    for (var si = 0; si < scripts.length; si++) {
+      try {
+        var s = document.createElement('script');
+        s.textContent = scripts[si];
+        shadow.appendChild(s);
+      } catch(e) {
+        window.__kiraLog('[Shadow] script注入失败: ' + e);
+      }
+    }
+  }
+
+  // Shadow 版桥接脚本（替代 injectBridge 的 parent.postMessage 桥）。
+  // Shadow 内无独立 window/document：脚本里的 window/document 指主文档的。
+  // API 通过 window.__kiraCurrentInjectHost（主文档注入前设置）挂回 host 元素。
+  function __shadowBridgeScript(frameId, floorIdx) {
+    var _id = JSON.stringify(frameId);
+    var _fi = (typeof floorIdx === 'number' && !isNaN(floorIdx)) ? floorIdx : -1;
+    var _macros = JSON.stringify(
+      (typeof window.__KIRA_MACRO_VALUES !== 'undefined')
+        ? window.__KIRA_MACRO_VALUES
+        : {user: 'User', char: 'Assistant'}
+    );
+    return '(function(){\n' +
+      'var _id=' + _id + ';\n' +
+      'var _myHost=window.__kiraCurrentInjectHost||null;\n' +
+      // 1) 错误捕手（走 window.__kiraLog）
+      'function _kErr(s){try{window.__kiraLog("[WV-10] CARD-ERR id="+_id+" "+String(s).substring(0,300));}catch(_){}}\n' +
+      'var _oe=window.onerror;\n' +
+      'window.onerror=function(m,s,l,c,err){_kErr(m+" @"+l+":"+c+(err&&err.stack?" "+err.stack:""));if(_oe)return _oe.apply(this,arguments);return false;};\n' +
+      'window.addEventListener("unhandledrejection",function(ev){_kErr("rejection "+(ev&&ev.reason?(ev.reason.message||ev.reason):""));});\n' +
+      // 2) 宏值（Shadow 内闭包变量，不依赖主文档 window）
+      'var __KIRA_MACRO_VALUES=' + _macros + ';\n' +
+      // 3) RPC：直接调主文档 __kiraThCall（复用 method 表 + 拍平函数）
+      'function __thCall(method,args){return window.__kiraThCall(_id,method,args||[]);}\n' +
+      'function __thCallRead(method,args){return __thCall(method,args);}\n' +
+      // 4) console 拦截（走 __kiraLog，保留原生输出）
+      '(function(){\n' +
+      '  var _c=window.console||{};\n' +
+      '  function _fmt(){var p=[];for(var i=0;i<arguments.length;i++){var a=arguments[i];p.push(typeof a==="object"?(function(){try{return JSON.stringify(a);}catch(e){return String(a);}})():String(a));}return p.join(" ");}\n' +
+      '  var _ol=_c.log,_oe2=_c.error,_ow=_c.warn;\n' +
+      '  console.log=function(){try{window.__kiraLog("[卡片:"+_id+"] "+_fmt.apply(null,arguments));}catch(_){}if(_ol)_ol.apply(console,arguments);};\n' +
+      '  console.error=function(){try{window.__kiraLog("[卡片:"+_id+"] "+_fmt.apply(null,arguments));}catch(_){}if(_oe2)_oe2.apply(console,arguments);};\n' +
+      '  console.warn=function(){try{window.__kiraLog("[卡片:"+_id+"] "+_fmt.apply(null,arguments));}catch(_){}if(_ow)_ow.apply(console,arguments);};\n' +
+      '})();\n' +
+      // 5) MVU 快照 store（host.__kiraDeliverSnapshot 主动推）
+      'var __TH_FLOOR_IDX=' + _fi + ';\n' +
+      'var __thVars={message:{},chat:{},global:{},lastMsgId:-1,swipes:{}};\n' +
+      'var __thMvuReady=false;\n' +
+      'var __TH_MVU_FACADE={\n' +
+      '  events:{VARIABLE_INITIALIZED:"mag_variable_initiailized",VARIABLE_UPDATE_STARTED:"mag_variable_update_started",COMMAND_PARSED:"mag_command_parsed",VARIABLE_UPDATE_ENDED:"mag_variable_update_ended",BEFORE_MESSAGE_UPDATE:"mag_before_message_update"},\n' +
+      '  getMvuData:function(option){option=option||{};var t=option.type||"chat";\n' +
+      '    if(t==="message"){var fi=(typeof option.message_id==="number")?option.message_id:__TH_FLOOR_IDX;return (typeof fi==="number"&&fi>=0)?(__thVars.message[fi]||{}):{};}\n' +
+      '    return __thVars[t]||{};},\n' +
+      '  replaceMvuData:function(mvu_data,option){option=option||{};var t=option.type||"chat";\n' +
+      '    if(t==="message"){var fi=(typeof option.message_id==="number")?option.message_id:__TH_FLOOR_IDX;\n' +
+      '      if(typeof fi==="number"&&fi>=0){__thVars.message[fi]=mvu_data||{};}}\n' +
+      '    else{__thVars[t]=mvu_data||{};}\n' +
+      '    return __thCall("setVariables",[mvu_data||{},option]);},\n' +
+      '  parseMessage:function(message,old_data){return __thCall("thMvuParseMessage",[message,old_data||{}]).catch(function(){return undefined;});},\n' +
+      '  isDuringExtraAnalysis:function(){return false;}\n' +
+      '};\n' +
+      'function __thArmMvu(){\n' +
+      '  try{\n' +
+      '    if(__thMvuReady)return;\n' +
+      '    if(typeof window.Mvu!=="undefined"&&window.Mvu!==null&&window.Mvu!==__TH_MVU_FACADE){__thMvuReady=true;return;}\n' +
+      '    var fi=__TH_FLOOR_IDX;\n' +
+      '    var msgSnap=(typeof fi==="number"&&fi>=0)?__thVars.message[fi]:null;\n' +
+      '    if(!msgSnap||typeof msgSnap.stat_data==="undefined")return;\n' +
+      '    window.Mvu=__TH_MVU_FACADE;\n' +
+      '    __thMvuReady=true;\n' +
+      '    window.__kiraLog("[Mvu] card("+_id+") 已挂 window.Mvu(快照门控通过)");\n' +
+      '    try{_TH.eventEmit("global_Mvu_initialized",[]);}catch(_e1){}\n' +
+      '  }catch(e){window.__kiraLog("[Mvu] 挂载失败: "+e);}\n' +
+      '}\n' +
+      // 6) _TH 门面（挂 host 元素，卡专属状态用闭包）
+      'var _TH={\n' +
+      '  __events:{},\n' +
+      '  getCurrentMessageId:function(){return _id;},\n' +
+      '  getIframeName:function(){return _id;},\n' +
+      '  getChatMessages:function(r,o){return __thCall("getChatMessages",[r,o||{}]);},\n' +
+      '  setChatMessage:function(c,i,o){return __thCall("setChatMessage",[c,i,o||{}]);},\n' +
+      '  setChatMessages:function(m,o){return __thCall("setChatMessages",[m,o||{}]);},\n' +
+      '  createChatMessages:function(m,o){return __thCall("createChatMessages",[m,o||{}]);},\n' +
+      '  deleteChatMessages:function(ids,o){return __thCall("deleteChatMessages",[ids,o||{}]);},\n' +
+      '  triggerSlash:function(c){return __thCall("triggerSlash",[c]);},\n' +
+      '  setInput:function(t){return __thCall("setInput",[t]);},\n' +
+      '  setVariables:function(v,o){return __thCall("setVariables",[v,o||{}]);},\n' +
+      '  replaceVariables:function(v,o){return __thCall("replaceVariables",[v,o||{}]);},\n' +
+      '  getVariables:function(o){o=o||{};var t=o.type||"chat";\n' +
+      '    if(t==="message"){var fi=(typeof o.message_id==="number")?o.message_id:__TH_FLOOR_IDX;return (typeof fi==="number"&&fi>=0)?(__thVars.message[fi]||{}):{};}\n' +
+      '    return __thVars[t]||{};},\n' +
+      '  getAllVariables:function(){\n' +
+      '    var out={};\n' +
+      '    function _deep(dst,src){for(var k in (src||{})){if(!Object.prototype.hasOwnProperty.call(src,k))continue;dst[k]=src[k];}}\n' +
+      '    _deep(out,__thVars.global);_deep(out,__thVars.chat);\n' +
+      '    var fi=(__TH_FLOOR_IDX>=0)?__TH_FLOOR_IDX:__thVars.lastMsgId;\n' +
+      '    for(var i=fi;i>=0;i--){if(__thVars.message[i]&&__thVars.message[i].stat_data!==undefined){_deep(out,__thVars.message[i]);break;}}\n' +
+      '    return out;},\n' +
+      '  getLorebookEntries:function(n){return __thCallRead("getLorebookEntries",[n]);},\n' +
+      '  setLorebookEntries:function(n,e){return __thCall("setLorebookEntries",[n,e||[]]);},\n' +
+      '  createLorebookEntry:function(n,e){return __thCall("createLorebookEntry",[n,e||{}]);},\n' +
+      '  deleteLorebookEntries:function(n,u){return __thCall("deleteLorebookEntries",[n,u||[]]);},\n' +
+      '  getCharacterLorebooks:function(){return __thCallRead("getCharacterLorebooks",[]);},\n' +
+      '  getLorebookSettings:function(){return __thCallRead("getLorebookSettings",[]);},\n' +
+      '  setLorebookSettings:function(s){return __thCall("setLorebookSettings",[s||{}]);},\n' +
+      '  getLorebooks:function(){return __thCallRead("getLorebooks",[]);},\n' +
+      '  getEnabledLorebookList:function(){return __thCallRead("getEnabledLorebookList",[]);},\n' +
+      '  createLorebook:function(n){return __thCall("createLorebook",[n]);},\n' +
+      '  generate:function(a){return __thCall("th_generate",[a===undefined?"normal":a]);},\n' +
+      '  stopGeneration:function(){return __thCall("th_stopGeneration",[]);},\n' +
+      '  toastr:{\n' +
+      '    info:function(m,t){return __thCall("th_toast",["info",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},\n' +
+      '    success:function(m,t){return __thCall("th_toast",["success",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},\n' +
+      '    warning:function(m,t){return __thCall("th_toast",["warning",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},\n' +
+      '    error:function(m,t){return __thCall("th_toast",["error",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});}\n' +
+      '  },\n' +
+      '  POPUP_TYPE:{TEXT:0,CONFIRM:1,INPUT:2},\n' +
+      '  POPUP_RESULT:{AFFIRMATIVE:true,NEGATIVE:false,CANCELLED:null},\n' +
+      '  callPopup:function(text,type,val){\n' +
+      '    return __thCall("th_popup",[text==null?"":String(text),(type==null?1:type),val==null?"":String(val||"")]).catch(function(){return null;});},\n' +
+      '  ask:function(t){return _TH.callPopup(t,1,"").then(function(r){return r===true;}).catch(function(){return false;});},\n' +
+      '  substitudeMacros:function(text){\n' +
+      '    var v=__KIRA_MACRO_VALUES||{user:"User",char:"Assistant"};\n' +
+      '    return String(text||"").replace(/{{user}}/gi,v.user||"User").replace(/{{char}}/gi,v.char||"Assistant");},\n' +
+      '  getTavernHelperVersion:function(){return"1.0.0-kira";},\n' +
+      '  eventOn:function(t,fn){var a=this.__events[t]||(this.__events[t]=[]);a.push(fn);return {stop:function(){_TH.eventOff(t,fn);}};},\n' +
+      '  eventOnce:function(t,fn){var wrap=function(){_TH.eventOff(t,wrap);return fn.apply(this,arguments);};return _TH.eventOn(t,wrap);},\n' +
+      '  eventOff:function(t,fn){if(!this.__events[t])return;this.__events[t]=this.__events[t].filter(function(f){return f!==fn;});},\n' +
+      '  eventEmit:function(t){var args=Array.prototype.slice.call(arguments,1);var l=(this.__events[t]||[]).slice();for(var i=0;i<l.length;i++){try{l[i].apply(null,args);}catch(_e2){}}}\n' +
+      '};\n' +
+      // 7) 裸挂兼容（第三方卡依赖 window 全局；先到先得不覆盖既有）
+      'if(typeof window.TavernHelper==="undefined")window.TavernHelper=_TH;\n' +
+      'if(typeof window.TH==="undefined")window.TH=_TH;\n' +
+      'if(typeof window.substitudeMacros==="undefined")window.substitudeMacros=_TH.substitudeMacros;\n' +
+      // 8) API 挂回 host（主文档投递快照/事件用，直接操作闭包）
+      'if(_myHost){\n' +
+      '  _myHost._TH=_TH;\n' +
+      '  _myHost.__kiraDeliverSnapshot=function(snap){\n' +
+      '    try{\n' +
+      '      if(!snap)return;\n' +
+      '      var t=snap.type||"chat";\n' +
+      '      if(t==="message"){\n' +
+      '        var fi=(typeof snap.floor_idx==="number")?snap.floor_idx:__TH_FLOOR_IDX;\n' +
+      '        if(typeof fi==="number"&&fi>=0){\n' +
+      '          __thVars.message[fi]=snap.data||{};\n' +
+      '          __thVars.swipes[fi]=(typeof snap.swipe_id==="number")?snap.swipe_id:0;\n' +
+      '        }\n' +
+      '      }else{__thVars[t]=snap.data||{};}\n' +
+      '      if(typeof snap.lastMsgId==="number"&&snap.lastMsgId>__thVars.lastMsgId){__thVars.lastMsgId=snap.lastMsgId;}\n' +
+      '      __thArmMvu();\n' +
+      '    }catch(e){window.__kiraLog("[Mvu] card 快照处理失败: "+e);}\n' +
+      '  };\n' +
+      '  _myHost.__kiraEmitMvuEvent=function(type,args){\n' +
+      '    try{_TH.eventEmit.apply(_TH,[type].concat(args||[]));}catch(e){}\n' +
+      '  };\n' +
+      '}\n' +
+      // 9) 空 body 兜底（1500ms 后检查；Shadow 内 document 是主文档的，查 host 内容）
+      'setTimeout(function(){\n' +
+      '  try{\n' +
+      '    var root=_myHost&&_myHost.shadowRoot?_myHost.shadowRoot:null;\n' +
+      '    var host2=root?root.firstElementChild:null;\n' +
+      '    var hasChild=host2&&host2.children?host2.children.length>0:false;\n' +
+      '    var hasText=host2&&typeof host2.innerText==="string"?host2.innerText.trim().length>0:false;\n' +
+      '    if(!hasChild&&!hasText){\n' +
+      '      window.__kiraLog("[WV-10] CARD-BLANK id="+_id);\n' +
+      '    }\n' +
+      '  }catch(_){}\n' +
+      '},1500);\n' +
+      '})();\n';
+  }
+
+  // Shadow DOM 版卡片包裹函数（替代 createCardFrameWrap，旧函数暂留回滚用）
+  function createCardShadowWrap(html, frameId, floorIdx) {
+    var w = document.createElement('div');
+    w.className = 'card-frame-wrap card-shadow-host';
+    w.setAttribute('data-frame-id', frameId);
+    w.setAttribute('data-card-id', frameId);
+    w.setAttribute('data-floor', (typeof floorIdx === 'number' ? floorIdx : 0));
+    w.setAttribute('data-html', html);
+    w.style.cssText = 'width:100%;opacity:0;min-height:40px;border-radius:12px;' +
+      'background:rgba(255,255,255,0.06);overflow:visible;display:block;position:relative;';
+
+    var shadow = w.attachShadow({mode: 'open'});
+
+    var baseStyle = document.createElement('style');
+    baseStyle.textContent =
+      ':host{display:block;width:100%;min-height:40px;}' +
+      'html,body{overflow:visible!important;margin:0;padding:0;}' +
+      'body{color:#E0E0E0;font-size:15px;line-height:1.6;word-break:break-word;}';
+    shadow.appendChild(baseStyle);
+
+    var bodyHost = document.createElement('div');
+    bodyHost.innerHTML = __shadowExtractNoScript(html);
+    shadow.appendChild(bodyHost);
+
+    // 注入前设 __kiraCurrentInjectHost，桥接脚本把 API 挂回 host
+    window.__kiraCurrentInjectHost = w;
+    var bsEl = document.createElement('script');
+    bsEl.textContent = __shadowBridgeScript(frameId, floorIdx);
+    shadow.appendChild(bsEl);
+    __shadowInjectScripts(shadow, __shadowExtractScripts(html));
+    window.__kiraCurrentInjectHost = null;
+
+    var _syncRaf = null;
+    function syncShadowHeight() {
+      if (_syncRaf) return;
+      _syncRaf = requestAnimationFrame(function() {
+        _syncRaf = null;
+        if (w.getAttribute('data-collapsed') === '1') return;
+        var h = 0;
+        try { h = bodyHost.scrollHeight || 0; } catch(e) {}
+        if (h <= 0) {
+          try {
+            var children = shadow.querySelectorAll('*');
+            for (var ci = 0; ci < children.length; ci++) {
+              var rect = children[ci].getBoundingClientRect();
+              if (rect.bottom > h) h = rect.bottom;
+            }
+          } catch(_) {}
+        }
+        if (h <= 0) return;
+        var newH = Math.ceil(h) + 4;
+        w.style.height = newH + 'px';
+        w.setAttribute('data-content-height', newH + 'px');
+        w.setAttribute('data-last-height', newH + 'px');
+        w.style.opacity = '1';
+        if (newH > 304) { w.classList.add('expanded'); }
+        else { w.classList.remove('expanded'); }
+      });
+    }
+    setTimeout(syncShadowHeight, 0);
+    setTimeout(syncShadowHeight, 200);
+    setTimeout(syncShadowHeight, 600);
+    if (typeof ResizeObserver !== 'undefined') {
+      var ro = new ResizeObserver(syncShadowHeight);
+      ro.observe(bodyHost);
+    }
+
+    // 主动推现有快照（主文档已有快照数据时）
+    if (typeof window.__snapAll === 'function') {
+      setTimeout(function() {
+        try {
+          var snaps = window.__snapAll();
+          if (snaps && snaps.length > 0) {
+            for (var si = 0; si < snaps.length; si++) {
+              if (snaps[si] && snaps[si].__thVars) {
+                if (w.__kiraDeliverSnapshot) w.__kiraDeliverSnapshot(snaps[si]);
+                break;
+              }
+            }
+          }
+        } catch(_) {}
+      }, 100);
+    }
+
+    var btn = document.createElement('button');
+    btn.className = 'card-collapse-btn';
+    btn.type = 'button';
+    btn.setAttribute('data-collapse-card', frameId);
+    btn.textContent = '收起';
+    w.appendChild(btn);
+
+    try {
+      if (typeof window.__kiraObserveShadowHost === 'function') {
+        window.__kiraObserveShadowHost(w);
+      }
+    } catch(_) {}
+    try { window.__kiraMsgFloorMap[frameId] = (typeof floorIdx === 'number' ? floorIdx : 0); } catch(_) {}
+
+    return w;
+  }
+
   // 前景卡包裹层：iframe + 收起按钮。
   // data-frame-id 供离屏卸载/MVU 用，data-card-id 供 cardHeight 接收与收起按钮定位用。
   // 高度同步仍走 iframe 内 report() → postMessage __cardHeight → 父文档接收（折叠锁防棘轮）。
