@@ -62,7 +62,7 @@ class BridgeType {
   static const String ready = 'ready'; // 握手：WebView 准备就绪
   static const String linkTap = 'linkTap'; // 点击外部链接
   static const String scroll = 'scroll'; // 滚动位置回传（高频）
-  static const String cardHeight = 'cardHeight'; // iframe 卡片高度上报
+  // static const String cardHeight = 'cardHeight'; // 已废弃：Shadow DOM 高度同步不走此桥（无消费者）
   static const String log = 'log'; // WebView 侧调试日志
   static const String action = 'action'; // 气泡操作按钮点击
   static const String dialogResult = 'dialogResult'; // WebView回传: HTML弹窗结果(callbackId配对)
