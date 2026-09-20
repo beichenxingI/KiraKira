@@ -5320,6 +5320,20 @@ function injectBridge(html, id, floorIdx) {
     var collapseTarget = tgt.closest('[data-collapse-card]');
     if (collapseTarget) {
       var cardId = collapseTarget.getAttribute('data-collapse-card');
+      // Shadow host（新架构）
+      var shadowHost = document.querySelector('.card-shadow-host[data-card-id="' + cardId + '"]');
+      if (shadowHost) {
+        shadowHost.setAttribute('data-collapsed', '1');
+        shadowHost.style.height = '300px';
+        shadowHost.classList.remove('expanded');
+        var sgS = shadowHost.closest('.segs-group');
+        if (sgS) {
+          var prosesS = sgS.querySelectorAll('.seg-prose');
+          for (var piS = 0; piS < prosesS.length; piS++) { prosesS[piS].style.display = 'none'; }
+        }
+        return;
+      }
+      // 旧 iframe（兼容已渲染的旧卡）
       var fr = document.querySelector('iframe.card-frame[data-card-id="' + cardId + '"]');
       var wr = fr && fr.closest('.card-frame-wrap');
       if (fr) {
@@ -5327,7 +5341,6 @@ function injectBridge(html, id, floorIdx) {
         fr.setAttribute('data-collapsed', '1');
         fr.style.height = '300px';
         if (wr) wr.classList.remove('expanded');
-        // 同步隐藏同 segs-group 内的 prose 文字段
         var sg = fr.closest('.segs-group');
         if (sg) {
           var proses = sg.querySelectorAll('.seg-prose');
@@ -5336,7 +5349,22 @@ function injectBridge(html, id, floorIdx) {
       }
       return;
     }
-    // 点击已折叠的卡片展开（折叠态 iframe pointer-events:none，点击穿透落到 wrap）
+    // 点击已折叠的卡片展开
+    // Shadow host 版（host 自身即点击目标，同步解锁）
+    var shadowCollapsedHost = tgt.closest('.card-shadow-host');
+    if (shadowCollapsedHost && shadowCollapsedHost.getAttribute('data-collapsed') === '1') {
+      var savedHS = shadowCollapsedHost.getAttribute('data-content-height') || (window.innerHeight + 'px');
+      shadowCollapsedHost.style.height = savedHS;
+      shadowCollapsedHost.classList.add('expanded');
+      var sg3 = shadowCollapsedHost.closest('.segs-group');
+      if (sg3) {
+        var proses3 = sg3.querySelectorAll('.seg-prose');
+        for (var pi3 = 0; pi3 < proses3.length; pi3++) { proses3[pi3].style.display = ''; }
+      }
+      shadowCollapsedHost.removeAttribute('data-collapsed');
+      return;
+    }
+    // 旧 iframe 版（兼容：折叠态 pointer-events:none，点击穿透落到 wrap）
     var collapsedWrap = tgt.closest('.card-frame-wrap');
     if (collapsedWrap) {
       var cfr = collapsedWrap.querySelector('iframe.card-frame[data-collapsed="1"]');
@@ -5345,7 +5373,6 @@ function injectBridge(html, id, floorIdx) {
         // 先改高度、加展开态，下一帧再解锁——防止解锁瞬间 iframe 重报高度又被夹/弹回
         cfr.style.height = savedH;
         collapsedWrap.classList.add('expanded');
-        // 同步恢复同 segs-group 内的 prose 文字段
         var sg2 = cfr.closest('.segs-group');
         if (sg2) {
           var proses2 = sg2.querySelectorAll('.seg-prose');
