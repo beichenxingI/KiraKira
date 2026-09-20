@@ -3043,7 +3043,7 @@ function injectBridge(html, id, floorIdx) {
       'var _ciderr=' + JSON.stringify(id) + ';' +
       'function _wv10e(s){try{parent.postMessage({__thLog:true,text:"[WV-10] CARD-ERR id="+_ciderr+" "+String(s).substring(0,300)},"*");}catch(_){}}' +
       'var _oe=window.onerror;' +
-      'window.onerror=function(m,s,l,c,err){_wv10e(m+" @"+l+":"+c+(err&&err.stack?" "+err.stack:""));if(_oe){return _oe.apply(this,arguments);}return false;};' +
+      'window.onerror=function(m,s,l,c,err){if(m&&String(m).indexOf("ResizeObserver loop")!==-1)return true;_wv10e(m+" @"+l+":"+c+(err&&err.stack?" "+err.stack:""));if(_oe){return _oe.apply(this,arguments);}return false;};' +
       'window.addEventListener("unhandledrejection",function(ev){_wv10e("rejection "+(ev&&ev.reason?(ev.reason.message||ev.reason||ev.reason):""));});' +
       'var _c0=window.console||{};var _ce0=_c0.error;_c0.error=function(){' +
       '_wv10e(Array.prototype.slice.call(arguments).map(function(x){return (typeof x==="object")?"[obj]":String(x);}).join(" "));' +
@@ -3518,7 +3518,7 @@ function injectBridge(html, id, floorIdx) {
     if (_ci) { window.clearInterval = function(id){ window.__wvActiveIntervals = Math.max(0, window.__wvActiveIntervals - 1); return _ci(id); }; }
   })();
   window.addEventListener('error', function(ev){
-    try { sendToFlutter('log', { text: '[WV-4] onerror msg=' + ev.message + ' line=' + ev.lineno + ' stack=' + ((ev.error && ev.error.stack) || '') }); } catch(e){}
+    if (ev.message && String(ev.message).indexOf('ResizeObserver loop') !== -1) return; try { sendToFlutter('log', { text: '[WV-4] onerror msg=' + ev.message + ' line=' + ev.lineno + ' stack=' + ((ev.error && ev.error.stack) || '') }); } catch(e){}
   });
   window.addEventListener('unhandledrejection', function(ev){
     try { var r = ev.reason; sendToFlutter('log', { text: '[WV-4] unhandledrejection reason=' + ((r && (r.stack || r.message)) || r) }); } catch(e){}
@@ -4711,15 +4711,48 @@ function injectBridge(html, id, floorIdx) {
         var doc = frame.contentDocument || frame.contentWindow.document;
         if (!doc) return;
         var _syncRaf = null;
+        var _syncH = []; var _syncTs = []; var _frozenH = 0; var _lastSetH = 0;
+        function _lBot() {
+          try {
+            var els = doc.body ? doc.body.getElementsByTagName('*') : [];
+            var m = 0;
+            for (var i = 0; i < els.length; i++) {
+              var b = els[i].getBoundingClientRect().bottom;
+              if (b > m) m = b;
+            }
+            return m;
+          } catch(e) { return 0; }
+        }
         function syncHeight() {
           if (_syncRaf) return;
           _syncRaf = requestAnimationFrame(function() {
             _syncRaf = null;
             if (frame.getAttribute('data-collapsed') === '1') return;
             var h = 0;
-            try { h = doc.documentElement.scrollHeight || doc.body.scrollHeight || 0; } catch(e) {}
+            try {
+              h = _lBot();
+              if (h <= 0) h = (doc.body && doc.body.scrollHeight > 0) ? doc.body.scrollHeight : (doc.documentElement.scrollHeight || 0);
+            } catch(e) {}
             if (h <= 0) return;
-            var newH = h + 2;
+            if (_frozenH > 0) {
+              if (Math.abs(h - _frozenH) >= 50) {
+                _frozenH = 0; _syncTs = []; _syncH = [];
+              } else {
+                h = _frozenH;
+              }
+            }
+            if (_frozenH <= 0) {
+              var now = Date.now();
+              _syncTs.push(now); _syncH.push(h);
+              if (_syncTs.length > 8) _syncTs.shift();
+              if (_syncH.length > 8) _syncH.shift();
+              if (_syncTs.length >= 6 && (_syncTs[_syncTs.length-1] - _syncTs[0]) < 500) {
+                var sorted = _syncH.slice().sort(function(a,b){return a-b;});
+                _frozenH = sorted[Math.floor(sorted.length/2)];
+                _syncTs = []; _syncH = []; h = _frozenH;
+              }
+            }
+            var newH = h + 2; if (newH === _lastSetH) return; _lastSetH = newH;
             frame.style.height = newH + 'px';
             frame.setAttribute('data-content-height', newH + 'px');
             frame.setAttribute('data-last-height', newH + 'px');
