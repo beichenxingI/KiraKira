@@ -3584,6 +3584,28 @@ function injectBridge(html, id, floorIdx) {
       }
     }
   });
+
+  // ── Shadow DOM 主文档暴露函数 ─────────────────────────────────────
+  // Shadow 内 JS 可直接访问主文档 window，用这些函数替代 parent.postMessage。
+  window.__kiraLog = function(text, level) {
+    try { sendToFlutter('log', {text: String(text), level: level || 'info'}); } catch(_) {}
+  };
+  // 替代 iframe 内 __thCall + 主文档 __thRequest 中转（:3800-3840）。
+  // 复用现有 method 表(__TH_METHOD_TO_BRIDGE :1063)与拍平函数(__thBuildPayload :3718)，
+  // 直接走 __sendRequest，省 2 跳 postMessage。frameId 仅作 API 兼容保留，payload 不含。
+  window.__kiraThCall = function(frameId, method, args) {
+    return new Promise(function(resolve, reject) {
+      try {
+        var typeMap = window.__TH_METHOD_TO_BRIDGE || {};
+        var type = typeMap[method] ||
+          (typeof method === 'string' && method.indexOf('th_') === 0 ? method : null);
+        if (!type) { reject(new Error('__kiraThCall: unknown method ' + method)); return; }
+        var payload = __thBuildPayload(method, args || []);
+        window.__sendRequest(type, payload).then(resolve, reject);
+      } catch(e) { reject(e); }
+    });
+  };
+
   // ── 外层 → 引擎房 iframe 的点火中继 ──
   window.__emitToEngine = function(type, args, msgs) {
     try {
