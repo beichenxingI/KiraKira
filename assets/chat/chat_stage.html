@@ -172,41 +172,45 @@ if (!String.prototype.at) {
   #btn-scroll-bottom.show { display: block; }
   /* [弹窗] HTML弹窗体系:替代 Flutter AlertDialog/BottomSheet(避免HC跨引擎合成卡顿) */
   .dialog-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     z-index: 10000; display: flex; align-items: center; justify-content: center;
-    /* [顶栏空隙] WebView 全出血后 overlay 从屏幕顶起算,而 Flutter 顶栏浮在其上:
-       顶部留白必须跟随 --top-inset(顶栏收起时自动变小),否则弹窗标题会钻到顶栏后面 */
     padding: calc(var(--top-inset, 56px) + 8px) 12px 78px;
-    opacity: 0; transition: opacity .18s ease;
+    opacity: 0; transition: opacity .22s ease;
   }
   .dialog-overlay.show { opacity: 1; }
   .dialog-overlay.sheet { align-items: flex-end; padding: calc(var(--top-inset, 56px) + 8px) 0 0; }
   .dialog-box {
-    background: #1B1E26; border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px; padding: 20px; min-width: 260px; max-width: 82vw;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.45);
-    transform: scale(0.94); transition: transform .18s ease;
+    background: rgba(22,25,34,0.98); border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 20px; padding: 24px 20px 18px; min-width: 270px; max-width: 84vw;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04);
+    transform: scale(0.88) translateY(10px);
+    transition: transform .28s cubic-bezier(0.34,1.56,0.64,1), opacity .2s ease;
+    opacity: 0;
   }
-  .dialog-overlay.show .dialog-box { transform: scale(1); }
-  .dialog-title { font-size: 16px; font-weight: 600; margin-bottom: 10px; color: #FFFFFF; }
+  .dialog-overlay.show .dialog-box { transform: scale(1) translateY(0); opacity: 1; }
+  .dialog-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; color: #FFFFFF; letter-spacing: 0.2px; }
   .dialog-message {
-    font-size: 14px; line-height: 1.55; margin-bottom: 18px; color: #C8CDD6;
+    font-size: 14px; line-height: 1.6; margin-bottom: 22px; color: #A0A8B8;
     white-space: pre-wrap; word-break: break-word; max-height: 46vh; overflow-y: auto;
   }
   .dialog-input {
-    width: 100%; box-sizing: border-box; background: #20242C; color: #F5F7FA;
-    border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
-    padding: 10px 12px; font-size: 14px; margin-bottom: 18px; outline: none;
+    width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.06); color: #F5F7FA;
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
+    padding: 11px 14px; font-size: 14px; margin-bottom: 20px; outline: none;
+    transition: border-color .15s ease;
   }
-  .dialog-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+  .dialog-input:focus { border-color: rgba(124,77,255,0.6); }
+  .dialog-buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
   .dialog-btn {
-    padding: 9px 18px; border-radius: 8px; border: none; font-size: 14px;
-    font-weight: 500; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    padding: 10px 20px; border-radius: 12px; border: none; font-size: 14px;
+    font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: transform .12s ease, opacity .12s ease;
   }
-  .dialog-btn:active { transform: scale(0.95); opacity: 0.75; }
-  .dialog-btn-cancel { background: rgba(255,255,255,0.08); color: #E0E0E0; }
-  .dialog-btn-confirm { background: #7C4DFF; color: #FFFFFF; }
-  .dialog-btn-danger { background: #E5484D; color: #FFFFFF; }
+  .dialog-btn:active { transform: scale(0.94); opacity: 0.8; }
+  .dialog-btn-cancel { background: rgba(255,255,255,0.08); color: #C0C6D4; }
+  .dialog-btn-confirm { background: #7C4DFF; color: #FFFFFF; box-shadow: 0 4px 14px rgba(124,77,255,0.4); }
+  .dialog-btn-danger { background: #E5484D; color: #FFFFFF; box-shadow: 0 4px 14px rgba(229,72,77,0.4); }
   .bottom-sheet {
     position: fixed; left: 0; right: 0; bottom: 0;
     background: #12141C; border: 1px solid rgba(255,255,255,0.08);
@@ -4143,6 +4147,8 @@ function injectBridge(html, id, floorIdx) {
     } else {
       menu.appendChild(mkItem('tts', '语音', '',
         mkSvg('#81C784', '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/>')));
+      menu.appendChild(mkItem('edit', '编辑', '',
+        mkSvg('#64B5F6', '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>')));
       menu.appendChild(mkItem('reroll', '重roll', '',
         mkSvg('#FFB74D', '<polyline points="16 3 21 8 16 13"/><line x1="3" y1="8" x2="21" y2="8"/><polyline points="8 21 3 16 8 11"/><line x1="21" y1="16" x2="3" y2="16"/>')));
       menu.appendChild(mkItem('continue', '继续生成', '',
