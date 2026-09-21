@@ -4835,6 +4835,7 @@ function injectBridge(html, id, floorIdx) {
         sendToFlutter('action', { action: 'needFullPush', id: id });
         return;
       }
+      var _sStar = wrap.querySelector('.msg-star-wrap'); var _sFloor = wrap.querySelector('.floor-tag-inner');
       wrap.innerHTML = '';
       if (p.reasoning) {
         var r = document.createElement('div');
@@ -4845,6 +4846,7 @@ function injectBridge(html, id, floorIdx) {
       var c = document.createElement('div');
       c.innerHTML = (p.html && String(p.html).trim() !== '') ? p.html : '';
       wrap.appendChild(c);
+      if (_sStar) wrap.appendChild(_sStar); if (_sFloor) wrap.appendChild(_sFloor);
       applyMsgTranslation(id); // 定点更新清空了内容，翻译层需要重挂
       if (__stickBottom && __scrollAnchor === null) {
         window.scrollTo(0, document.body.scrollHeight);

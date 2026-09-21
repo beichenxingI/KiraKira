@@ -878,7 +878,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           final delta = last.content.substring(prevLast.content.length);
           _bridge.send(BridgeType.appendToken, {'id': last.id, 'token': delta});
         } else if (last.content != prevLast.content) {
-          _pushMessages();
+          _updateSingleMessage(last.id);
         } else {
           // 中间消息的 swipe 结构/索引变化（reroll 插占位、swipe 切换）→ 刷新同步 webview。
           // 只看 swipes 数量与 index，不看 content：流式中间的 content 变化不在此刷，
@@ -6492,7 +6492,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
     if (result != null) {
       await ref.read(activeChatProvider.notifier).editMessage(id, result);
-      await _pushMessages();
+      _updateSingleMessage(id);
       // [聊天页大改] 编辑保存:WebView 动态岛提示
       if (mounted) {
         _bridge.send(BridgeType.showToast, {'icon': '✏️', 'text': '消息已修改'});
@@ -6930,6 +6930,24 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     _pushImages([msgs[lastIdx]]);
   }
 
+  /// 定点刷新单条消息：编辑后只更新那一条DOM节点，不触发全量重建。
+  /// rich卡片由JS侧回传needFullPush兜底全量重推。
+  void _updateSingleMessage(String id) {
+    final chatState = ref.read(activeChatProvider);
+    final msgs = chatState.messages;
+    final idx = msgs.indexWhere((m) => m.id == id);
+    if (idx < 0) { _pushMessages(); return; }
+    final character = chatState.character;
+    final scripts = ref.read(combinedRegexScriptsProvider(character?.id));
+    int lastAiIndex = -1;
+    for (var i = 0; i < msgs.length; i++) {
+      if (msgs[i].role != MessageRole.user) lastAiIndex = i;
+    }
+    final m = _safeSerializeMessage(msgs[idx], idx, lastAiIndex, character, scripts);
+    _bridge.send(BridgeType.updateMessage, m);
+    _pushImages([msgs[idx]]);
+  }
+
   String _buildAttachmentsHtml(ChatMessage m) {
     if (m.attachments.isEmpty) return '';
     final buf = StringBuffer('<div class="att-wrap">');
@@ -6990,10 +7008,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     String? charUri;
     String? userUri;
     try {
-      charUri = await _avatarToDataUri(character?.assets?.avatarPath, false)
-          .timeout(const Duration(seconds: 3));
-      userUri = await _avatarToDataUri(persona?.avatarPath, true)
-          .timeout(const Duration(seconds: 3));
+      final uris = await Future.wait([
+        _avatarToDataUri(character?.assets?.avatarPath, false)
+            .timeout(const Duration(seconds: 3)),
+        _avatarToDataUri(persona?.avatarPath, true)
+            .timeout(const Duration(seconds: 3)),
+      ]);
+      charUri = uris[0];
+      userUri = uris[1];
     } catch (e) {
       debugPrint('[卡点] 头像转换 超时/出错: $e');
     }
