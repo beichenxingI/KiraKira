@@ -80,6 +80,9 @@ class ChronicleSettingsNotifier
   void setRagTopK(int v) => _update(state.copyWith(ragTopK: v));
   void setCustomPromptSuffix(String v) =>
       _update(state.copyWith(customPromptSuffix: v));
+  void setMatureContentSuffix(String v) =>
+      _update(state.copyWith(matureContentSuffix: v));
+  void setMaxRetries(int v) => _update(state.copyWith(maxRetries: v));
   void setEmotionRecallEnabled(bool v) =>
       _update(state.copyWith(emotionRecallEnabled: v));
   void setMvuBridgeEnabled(bool v) =>

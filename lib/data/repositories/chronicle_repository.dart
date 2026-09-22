@@ -101,6 +101,28 @@ class ChronicleRepository {
     ));
   }
 
+  /// 某聊天的全部任务（Wiki管理面板用，时间倒序）
+  Future<List<db.SummaryTask>> getTasksForChat(String chatId) async {
+    final query = (_db.select(_db.summaryTasks)
+          ..where((t) => t.chatId.equals(chatId))
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)
+          ]));
+    return query.get();
+  }
+
+  /// 删除任务记录（用户手动）
+  Future<void> deleteTask(String id) async {
+    await (_db.delete(_db.summaryTasks)..where((t) => t.id.equals(id))).go();
+  }
+
+  /// 清除某聊天的所有failed任务（Wiki管理面板用）
+  Future<void> clearFailedTasksForChat(String chatId) async {
+    await (_db.delete(_db.summaryTasks)
+          ..where((t) => t.chatId.equals(chatId) & t.status.equals('failed')))
+        .go();
+  }
+
   // ═══════════════════ MemoryEntries ═══════════════════
 
   /// 插入或更新词条（按主键覆盖）
@@ -668,6 +690,7 @@ class ChronicleRepository {
         ),
         content: row.content,
         timestamp: row.timestamp,
+        characterName: row.characterName,
       );
     }).toList();
   }

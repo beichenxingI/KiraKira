@@ -379,6 +379,7 @@ class ChronicleSettings {
   final int hotWindowSize; // 热区窗口 10-40
   final int ragTopK; // 召回数量 3-10
   final String customPromptSuffix; // 用户自定义追加指令
+  final String matureContentSuffix; // 成人内容补充指令（独立字段，可单独开关）
   final bool emotionRecallEnabled; // 情感召回加成
   final bool mvuBridgeEnabled; // MVU阈值桥接
   final int maxRetries; // 失败任务最大重试次数（超限停止入队，等待用户干预）
@@ -396,6 +397,7 @@ class ChronicleSettings {
     this.hotWindowSize = 20,
     this.ragTopK = 5,
     this.customPromptSuffix = '',
+    this.matureContentSuffix = '',
     this.emotionRecallEnabled = true,
     this.mvuBridgeEnabled = true,
     this.maxRetries = 3,
@@ -420,6 +422,7 @@ class ChronicleSettings {
         'hotWindowSize': hotWindowSize,
         'ragTopK': ragTopK,
         'customPromptSuffix': customPromptSuffix,
+        'matureContentSuffix': matureContentSuffix,
         'emotionRecallEnabled': emotionRecallEnabled,
         'mvuBridgeEnabled': mvuBridgeEnabled,
         'maxRetries': maxRetries,
@@ -441,6 +444,7 @@ class ChronicleSettings {
         hotWindowSize: (json['hotWindowSize'] as num?)?.toInt() ?? 20,
         ragTopK: (json['ragTopK'] as num?)?.toInt() ?? 5,
         customPromptSuffix: json['customPromptSuffix'] as String? ?? '',
+        matureContentSuffix: json['matureContentSuffix'] as String? ?? '',
         emotionRecallEnabled: json['emotionRecallEnabled'] as bool? ?? true,
         mvuBridgeEnabled: json['mvuBridgeEnabled'] as bool? ?? true,
         maxRetries: (json['maxRetries'] as num?)?.toInt() ?? 3,
@@ -459,6 +463,7 @@ class ChronicleSettings {
     int? hotWindowSize,
     int? ragTopK,
     String? customPromptSuffix,
+    String? matureContentSuffix,
     bool? emotionRecallEnabled,
     bool? mvuBridgeEnabled,
     int? maxRetries,
@@ -477,6 +482,7 @@ class ChronicleSettings {
       hotWindowSize: hotWindowSize ?? this.hotWindowSize,
       ragTopK: ragTopK ?? this.ragTopK,
       customPromptSuffix: customPromptSuffix ?? this.customPromptSuffix,
+      matureContentSuffix: matureContentSuffix ?? this.matureContentSuffix,
       emotionRecallEnabled: emotionRecallEnabled ?? this.emotionRecallEnabled,
       mvuBridgeEnabled: mvuBridgeEnabled ?? this.mvuBridgeEnabled,
       maxRetries: maxRetries ?? this.maxRetries,

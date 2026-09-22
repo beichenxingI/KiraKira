@@ -755,6 +755,7 @@ window.__kiraDebug = __KIRA_DEBUG__;
   .ti-stt      .func-icon-box{--ti-color:#5C6BC0;}
   .ti-sprite   .func-icon-box{--ti-color:#66BB6A;}
   .ti-memory   .func-icon-box{--ti-color:#EC407A;}
+  .ti-wiki     .func-icon-box{--ti-color:#26C6DA;}
   .ti-world    .func-icon-box{--ti-color:#42A5F5;}
   .ti-regex    .func-icon-box{--ti-color:#FFA726;}
   .ti-preset   .func-icon-box{--ti-color:#AB47BC;}
@@ -942,6 +943,48 @@ window.__kiraDebug = __KIRA_DEBUG__;
     transition:transform .2s cubic-bezier(.175,.885,.32,1.275),border-color .15s;}
   .sp-color-dot.active{border-color:#fff;transform:scale(1.15);}
   .sp-color-dot:active{transform:scale(.9);}
+  /* ── Wiki 记忆库管理面板 ─────────────────────────────────────────── */
+  .wiki-stat-line{font-size:12px;color:var(--kira-text-3,#8A8A8A);margin:2px 0 10px;}
+  .wiki-filter-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .wiki-filter-row .sp-tabs{flex:1;margin-bottom:0;}
+  .wiki-entry-card{background:rgba(255,255,255,.04);border-radius:8px;
+    padding:10px 12px;margin-bottom:8px;}
+  .wiki-entry-card.deprecated{opacity:.45;}
+  .wiki-entry-card.deprecated .wiki-entry-title{text-decoration:line-through;}
+  .wiki-entry-head{display:flex;align-items:center;gap:8px;cursor:pointer;}
+  .wiki-type-box{display:inline-block;width:8px;height:16px;border-radius:4px;flex-shrink:0;}
+  .wiki-entry-title{flex:1;font-size:14px;color:var(--kira-text-1,#F5F7FA);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .wiki-imp-badge{font-size:11px;color:var(--kira-text-1,#F5F7FA);
+    background:var(--kira-input-bg,#20242C);border-radius:4px;padding:1px 6px;flex-shrink:0;}
+  .wiki-flag-icons{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+  .wiki-entry-body{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);}
+  .wiki-entry-content{font-size:13px;color:var(--kira-text-2,#C8CDD6);line-height:1.6;
+    white-space:pre-wrap;word-break:break-word;}
+  .wiki-tags-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .wiki-tag{font-size:11px;color:var(--kira-text-2,#C8CDD6);
+    background:var(--kira-input-bg,#20242C);border-radius:4px;padding:2px 8px;}
+  .wiki-meta-line{font-size:12px;color:var(--kira-text-3,#8A8A8A);margin-top:8px;}
+  .wiki-src-ids{font-size:11px;color:var(--kira-text-3,#8A8A8A);word-break:break-all;
+    margin-top:4px;line-height:1.5;}
+  .wiki-entry-actions{display:flex;gap:8px;margin-top:10px;}
+  .wiki-entry-actions .sp-btn{flex:1;margin-top:0;}
+  .wiki-edit-form{font-size:13px;}
+  .wiki-edit-actions{display:flex;gap:8px;margin-top:8px;}
+  .wiki-edit-actions .sp-btn{flex:1;margin-top:0;}
+  .wiki-status-badge{font-size:11px;color:#fff;border-radius:4px;padding:2px 8px;flex-shrink:0;}
+  .wiki-task-range{font-size:12px;color:var(--kira-text-2,#C8CDD6);}
+  .wiki-task-dur{font-size:12px;color:var(--kira-text-3,#8A8A8A);}
+  .wiki-task-err{font-size:12px;color:#EF5350;margin-top:4px;word-break:break-all;}
+  .wiki-progress-text{font-size:12px;color:var(--kira-text-2,#C8CDD6);margin-bottom:8px;}
+  .wiki-progress-bar{height:6px;background:var(--kira-input-bg,#20242C);
+    border-radius:4px;overflow:hidden;}
+  .wiki-progress-inner{height:100%;background:var(--kira-accent,#7C4DFF);
+    border-radius:4px;transition:width .3s ease;}
+  .wiki-prompt-pre{font-size:11px;color:var(--kira-text-2,#C8CDD6);
+    background:var(--kira-input-bg,#20242C);border-radius:8px;padding:10px;
+    white-space:pre-wrap;word-break:break-word;max-height:220px;overflow-y:auto;
+    margin:0;line-height:1.5;font-family:inherit;}
 </style>
 </head>
 <body>
@@ -987,6 +1030,7 @@ window.__kiraDebug = __KIRA_DEBUG__;
       <div class="func-item func-action ti-stt" data-action="openSttPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M9 19h6"/></svg></div><span>STT</span></div>
       <div class="func-item func-action ti-sprite" data-action="openSpritePanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><circle cx="12" cy="9" r="3"/><path d="M5 21c0-3.866 3.134-7 7-7s7 3.134 7 7"/></svg></div><span>精灵</span></div>
       <div class="func-item func-action ti-memory" data-action="openChroniclePanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div><span>记忆</span></div>
+      <div class="func-item func-action ti-wiki" data-action="openWikiPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><span>记忆库</span></div>
       <div class="func-item func-action ti-world" data-action="openWorldInfoPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><span>世界书</span></div>
       <div class="func-item func-action ti-regex" data-action="openRegexPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div><span>正则</span></div>
       <div class="func-item func-action ti-preset" data-action="openPresetPanel"><div class="func-icon-box"><svg class="func-icon" viewBox="0 0 24 24"><path d="M4 4h16v4H4z"/><path d="M4 12h10v4H4z"/><path d="M4 20h7"/></svg></div><span>预设</span></div>
@@ -1756,6 +1800,7 @@ __KIRA_CHAT_BRIDGE__
       case 'tts': renderTtsPanel(container, data); break;
       case 'variables': renderVariablesPanel(container, data); break;
       case 'chronicle': renderChroniclePanel(container, data); break;
+      case 'wiki': renderWikiPanel(container, data); break;
       case 'imageGen': renderImageGenPanel(container, data); break;
       case 'stt': renderSttPanel(container, data); break;
       case 'export': renderExportPanel(container, data); break;
@@ -2153,6 +2198,475 @@ __KIRA_CHAT_BRIDGE__
     container.appendChild(spTextarea('chronicle-prompt', '',
       data.customPromptSuffix || '', '可在这里补充对总结的额外要求…',
       function(v) { spAction('setCustomPromptSuffix', {value: v}); }));
+  }
+
+  // ── [Chronicle融合] Wiki 记忆库管理面板（运行监控+记忆管理） ─────────
+  var _wikiState = {tab: 'entries', filterType: 'all', searchText: ''};
+
+  function renderWikiPanel(container, data) {
+    container.innerHTML = '';
+    var d = data || {};
+
+    container.appendChild(spTabs([
+      {value:'entries', label:'记忆词条'},
+      {value:'status', label:'运行状态'}
+    ], _wikiState.tab, function(v) {
+      _wikiState.tab = v;
+      renderWikiPanel(container, d);
+    }));
+
+    if (_wikiState.tab === 'status') {
+      _renderWikiStatusTab(container, d);
+    } else {
+      _renderWikiEntriesTab(container, d);
+    }
+  }
+
+  function _renderWikiEntriesTab(container, d) {
+    var stats = d.stats || {};
+
+    // 顶部统计行
+    var statLine = document.createElement('div');
+    statLine.className = 'wiki-stat-line';
+    statLine.textContent = '已归档 ' + (stats.archivedMessageCount||0) + ' 条消息 · 词条 ' +
+      (stats.entryCount||0) + ' 条 · 实体 ' + (stats.entityCount||0) + ' 个';
+    container.appendChild(statLine);
+
+    // 筛选条：类型筛选
+    var filterRow = document.createElement('div');
+    filterRow.className = 'wiki-filter-row';
+    filterRow.appendChild(spTabs([
+      {value:'all', label:'全部'},
+      {value:'event', label:'事件'},
+      {value:'state', label:'状态'},
+      {value:'knowledge', label:'知识'}
+    ], _wikiState.filterType, function(v) {
+      _wikiState.filterType = v;
+      renderWikiPanel(container, d);
+    }));
+    container.appendChild(filterRow);
+
+    var listWrap = document.createElement('div');
+    container.appendChild(listWrap);
+
+    // 搜索框：input只重渲染词条列表，不重建输入框（保持焦点）
+    var searchWrap = document.createElement('div');
+    searchWrap.className = 'sp-input-wrap';
+    var searchInput = document.createElement('input');
+    searchInput.className = 'sp-input';
+    searchInput.type = 'text';
+    searchInput.value = _wikiState.searchText || '';
+    searchInput.placeholder = '按标题搜索…';
+    searchInput.addEventListener('input', function(e) {
+      _wikiState.searchText = e.target.value;
+      _renderWikiEntryList(listWrap, d);
+    });
+    searchWrap.appendChild(searchInput);
+    container.appendChild(searchWrap);
+
+    _renderWikiEntryList(listWrap, d);
+  }
+
+  function _renderWikiEntryList(container, d) {
+    container.innerHTML = '';
+    var entries = d.entries || [];
+    var ft = _wikiState.filterType;
+    var kw = (_wikiState.searchText || '').trim().toLowerCase();
+    var filtered = entries.filter(function(e) {
+      if (ft !== 'all' && e.type !== ft) return false;
+      if (kw && String(e.title || '').toLowerCase().indexOf(kw) < 0) return false;
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      container.appendChild(spEmpty('没有符合条件的词条'));
+    } else {
+      filtered.forEach(function(e) {
+        container.appendChild(_buildWikiEntryCard(e, d));
+      });
+    }
+
+    // 实体子区（折叠，默认收起）
+    var entities = d.entities || [];
+    container.appendChild(spCollapse('实体（' + entities.length + '个）', function(body) {
+      if (entities.length === 0) {
+        body.appendChild(spEmpty('暂无实体'));
+        return;
+      }
+      entities.forEach(function(en) {
+        body.appendChild(_buildWikiEntityCard(en, d));
+      });
+    }, false));
+  }
+
+  function _wikiSvg(pathD, color, titleText) {
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('width', '14');
+    svg.setAttribute('height', '14');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', color || 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    var p1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p1.setAttribute('d', pathD);
+    svg.appendChild(p1);
+    if (titleText) {
+      var t1 = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      t1.textContent = titleText;
+      svg.appendChild(t1);
+    }
+    return svg;
+  }
+
+  function _buildWikiEntryCard(e, d) {
+    var typeColors = {event:'#5B8CFF', state:'#52C41A', knowledge:'#FA8C16'};
+    var typeLabels = {event:'事件', state:'状态', knowledge:'知识'};
+
+    var card = document.createElement('div');
+    card.className = 'wiki-entry-card' + (e.deprecated ? ' deprecated' : '');
+
+    var view = document.createElement('div');
+    var edit = document.createElement('div');
+    edit.className = 'wiki-edit-form';
+    edit.style.display = 'none';
+
+    // ── 摘要行 ──
+    var head = document.createElement('div');
+    head.className = 'wiki-entry-head';
+    var colorBox = document.createElement('span');
+    colorBox.className = 'wiki-type-box';
+    colorBox.style.background = typeColors[e.type] || '#5B8CFF';
+    head.appendChild(colorBox);
+    var title = document.createElement('span');
+    title.className = 'wiki-entry-title';
+    title.textContent = e.title || '未命名';
+    head.appendChild(title);
+    var badge = document.createElement('span');
+    badge.className = 'wiki-imp-badge';
+    badge.textContent = e.importance || 0;
+    head.appendChild(badge);
+    var flags = document.createElement('span');
+    flags.className = 'wiki-flag-icons';
+    if (e.anchor) {
+      flags.appendChild(_wikiSvg('M19 21l-7-5-7 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z', '#FA8C16', '锚点'));
+    }
+    if (e.alwaysInject) {
+      flags.appendChild(_wikiSvg('M13 2L3 14h9l-1 8 10-12h-9l1-8z', '#5B8CFF', '始终注入'));
+    }
+    head.appendChild(flags);
+    view.appendChild(head);
+
+    // ── 展开详情 ──
+    var body = document.createElement('div');
+    body.className = 'wiki-entry-body';
+    body.style.display = 'none';
+
+    var contentEl = document.createElement('div');
+    contentEl.className = 'wiki-entry-content';
+    contentEl.textContent = e.content || '';
+    body.appendChild(contentEl);
+
+    var tags = e.tags || [];
+    if (tags.length > 0) {
+      var tagsRow = document.createElement('div');
+      tagsRow.className = 'wiki-tags-row';
+      tags.forEach(function(tg) {
+        var tag = document.createElement('span');
+        tag.className = 'wiki-tag';
+        tag.textContent = tg;
+        tagsRow.appendChild(tag);
+      });
+      body.appendChild(tagsRow);
+    }
+
+    var meta = document.createElement('div');
+    meta.className = 'wiki-meta-line';
+    var timeText = e.createdAt ? String(e.createdAt).replace('T', ' ').substring(0, 16) : '';
+    meta.textContent = (typeLabels[e.type] || e.type || '') + ' · 第' + (e.turnIndex||0) + '轮 · ' + timeText;
+    body.appendChild(meta);
+
+    // 源消息折叠区（只显示id列表）
+    var srcIds = e.sourceMessageIds || [];
+    if (srcIds.length > 0) {
+      body.appendChild(spCollapse('源消息（' + srcIds.length + '条）', function(sbody) {
+        var ids = document.createElement('div');
+        ids.className = 'wiki-src-ids';
+        ids.textContent = srcIds.join('\n');
+        sbody.appendChild(ids);
+      }, false));
+    }
+
+    // 操作按钮
+    var actions = document.createElement('div');
+    actions.className = 'wiki-entry-actions';
+    actions.appendChild(spButton('编辑', 'secondary', function() {
+      view.style.display = 'none';
+      edit.style.display = 'block';
+    }));
+    actions.appendChild(spButton('删除', 'danger', function() {
+      spConfirm('删除词条', '确认删除词条「' + (e.title || '未命名') + '」？此操作不可撤销。', '删除',
+        function() { spAction('deleteEntry', {id: e.id}); }, true);
+    }));
+    body.appendChild(actions);
+    view.appendChild(body);
+
+    head.addEventListener('click', function() {
+      body.style.display = body.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // ── 内联编辑表单 ──
+    var vTitle = e.title || '';
+    var vContent = e.content || '';
+    var vImp = e.importance || 5;
+    var vAi = !!e.alwaysInject;
+    var vAnchor = !!e.anchor;
+    var vTags = (e.tags || []).join(',');
+
+    edit.appendChild(spInput('we-title-' + e.id, '标题', vTitle, '', 'text', function(v) { vTitle = v; }));
+    edit.appendChild(spTextarea('we-content-' + e.id, '内容', vContent, '', function(v) { vContent = v; }));
+    edit.appendChild(spSlider('we-imp-' + e.id, '重要度', vImp, 1, 10, 1, '', function(v) { vImp = Math.round(v); }));
+    edit.appendChild(spToggle('we-ai-' + e.id, '始终注入', '', vAi, function(v) { vAi = v; }));
+    edit.appendChild(spToggle('we-anchor-' + e.id, '锚点（永不丢弃）', '', vAnchor, function(v) { vAnchor = v; }));
+    edit.appendChild(spInput('we-tags-' + e.id, '标签（逗号分隔）', vTags, '', 'text', function(v) { vTags = v; }));
+
+    var editActions = document.createElement('div');
+    editActions.className = 'wiki-edit-actions';
+    editActions.appendChild(spButton('保存', 'primary', function() {
+      spAction('updateEntry', {
+        id: e.id,
+        title: vTitle.trim(),
+        content: vContent.trim(),
+        importance: vImp,
+        alwaysInject: vAi,
+        anchor: vAnchor,
+        tags: vTags.split(/[,，]/).map(function(s) { return s.trim(); })
+          .filter(function(s) { return s.length > 0; })
+      });
+    }));
+    editActions.appendChild(spButton('取消', 'secondary', function() {
+      edit.style.display = 'none';
+      view.style.display = 'block';
+    }));
+    edit.appendChild(editActions);
+
+    card.appendChild(view);
+    card.appendChild(edit);
+    return card;
+  }
+
+  function _buildWikiEntityCard(en, d) {
+    var typeLabels = {person:'人物', place:'地点', item:'物品', concept:'概念'};
+
+    var card = document.createElement('div');
+    card.className = 'wiki-entry-card';
+
+    var view = document.createElement('div');
+    var edit = document.createElement('div');
+    edit.className = 'wiki-edit-form';
+    edit.style.display = 'none';
+
+    var head = document.createElement('div');
+    head.className = 'wiki-entry-head';
+    var colorBox = document.createElement('span');
+    colorBox.className = 'wiki-type-box';
+    colorBox.style.background = '#5B8CFF';
+    head.appendChild(colorBox);
+    var name = document.createElement('span');
+    name.className = 'wiki-entry-title';
+    name.textContent = en.name || '未命名';
+    head.appendChild(name);
+    var typeTag = document.createElement('span');
+    typeTag.className = 'wiki-tag';
+    typeTag.textContent = typeLabels[en.type] || en.type || '';
+    head.appendChild(typeTag);
+    view.appendChild(head);
+
+    var body = document.createElement('div');
+    body.className = 'wiki-entry-body';
+    body.style.display = 'none';
+
+    if (en.currentState) {
+      var st = document.createElement('div');
+      st.className = 'wiki-entry-content';
+      st.textContent = '当前状态：' + en.currentState;
+      body.appendChild(st);
+    }
+    var desc = document.createElement('div');
+    desc.className = 'wiki-entry-content';
+    desc.textContent = en.description || '（无描述）';
+    body.appendChild(desc);
+    var aliases = en.aliases || [];
+    if (aliases.length > 0) {
+      var al = document.createElement('div');
+      al.className = 'wiki-meta-line';
+      al.textContent = '别名：' + aliases.join('、');
+      body.appendChild(al);
+    }
+
+    var actions = document.createElement('div');
+    actions.className = 'wiki-entry-actions';
+    actions.appendChild(spButton('编辑', 'secondary', function() {
+      view.style.display = 'none';
+      edit.style.display = 'block';
+    }));
+    actions.appendChild(spButton('删除', 'danger', function() {
+      spConfirm('删除实体', '确认删除实体「' + (en.name || '') + '」？此操作不可撤销。', '删除',
+        function() { spAction('deleteEntity', {id: en.id}); }, true);
+    }));
+    body.appendChild(actions);
+    view.appendChild(body);
+
+    head.addEventListener('click', function() {
+      body.style.display = body.style.display === 'none' ? 'block' : 'none';
+    });
+
+    var vDesc = en.description || '';
+    var vState = en.currentState || '';
+    edit.appendChild(spTextarea('wen-desc-' + en.id, '描述', vDesc, '', function(v) { vDesc = v; }));
+    edit.appendChild(spInput('wen-state-' + en.id, '当前状态', vState, '', 'text', function(v) { vState = v; }));
+    var editActions = document.createElement('div');
+    editActions.className = 'wiki-edit-actions';
+    editActions.appendChild(spButton('保存', 'primary', function() {
+      spAction('updateEntity', {id: en.id, description: vDesc, currentState: vState});
+    }));
+    editActions.appendChild(spButton('取消', 'secondary', function() {
+      edit.style.display = 'none';
+      view.style.display = 'block';
+    }));
+    edit.appendChild(editActions);
+
+    card.appendChild(view);
+    card.appendChild(edit);
+    return card;
+  }
+
+  function _renderWikiStatusTab(container, d) {
+    var stats = d.stats || {};
+    var tasks = d.tasks || [];
+    var statusLabels = {pending:'等待', running:'运行中', done:'完成', failed:'失败'};
+    var statusColors = {pending:'#8A8A8A', running:'#5B8CFF', done:'#52C41A', failed:'#FF4D4F'};
+
+    // 归档进度条
+    var archived = stats.archivedMessageCount || 0;
+    var total = stats.totalMessageCount || 0;
+    var pct = total > 0 ? Math.min(100, Math.round(archived / total * 100)) : 0;
+    var progCard = document.createElement('div');
+    progCard.className = 'sp-card';
+    progCard.appendChild(spSection('归档进度'));
+    var progText = document.createElement('div');
+    progText.className = 'wiki-progress-text';
+    progText.textContent = '已归档 ' + archived + ' / ' + total + ' 条消息（' + pct + '%）';
+    progCard.appendChild(progText);
+    var barOuter = document.createElement('div');
+    barOuter.className = 'wiki-progress-bar';
+    var barInner = document.createElement('div');
+    barInner.className = 'wiki-progress-inner';
+    barInner.style.width = pct + '%';
+    barOuter.appendChild(barInner);
+    progCard.appendChild(barOuter);
+    container.appendChild(progCard);
+
+    // 任务队列
+    var taskCard = document.createElement('div');
+    taskCard.className = 'sp-card';
+    taskCard.appendChild(spSection('任务队列'));
+    if (tasks.length === 0) {
+      taskCard.appendChild(spEmpty('暂无任务'));
+    }
+    tasks.forEach(function(t) {
+      var row = document.createElement('div');
+      row.className = 'sp-list-item';
+
+      var main = document.createElement('div');
+      main.className = 'sp-list-item-main';
+      var titleLine = document.createElement('div');
+      titleLine.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+      var stBadge = document.createElement('span');
+      stBadge.className = 'wiki-status-badge';
+      stBadge.style.background = statusColors[t.status] || '#8A8A8A';
+      stBadge.textContent = statusLabels[t.status] || t.status || '';
+      titleLine.appendChild(stBadge);
+      var range = document.createElement('span');
+      range.className = 'wiki-task-range';
+      range.textContent = '第' + (t.fromTurn||0) + '-' + (t.toTurn||0) + '条 · ' + (t.messageCount||0) + '条消息';
+      titleLine.appendChild(range);
+      var dur = document.createElement('span');
+      dur.className = 'wiki-task-dur';
+      var durText = '—';
+      if (t.finishedAt && t.createdAt) {
+        durText = ((new Date(t.finishedAt) - new Date(t.createdAt)) / 1000).toFixed(1) + 's';
+      }
+      dur.textContent = durText;
+      titleLine.appendChild(dur);
+      main.appendChild(titleLine);
+      if (t.error) {
+        var err = document.createElement('div');
+        err.className = 'wiki-task-err';
+        err.textContent = String(t.error).length > 100
+          ? String(t.error).substring(0, 100) + '…' : String(t.error);
+        main.appendChild(err);
+      }
+      row.appendChild(main);
+
+      var actions = document.createElement('div');
+      actions.className = 'sp-list-item-actions';
+      if (t.status === 'failed') {
+        actions.appendChild(spButton('重试', 'secondary', function() {
+          spAction('retryTask', {id: t.id});
+        }));
+      }
+      var delBtn = document.createElement('button');
+      delBtn.className = 'sp-icon-btn danger';
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', function(ev) {
+        ev.stopPropagation();
+        spConfirm('删除任务', '确认删除该任务记录？', '删除',
+          function() { spAction('deleteTask', {id: t.id}); }, true);
+      });
+      actions.appendChild(delBtn);
+      row.appendChild(actions);
+      taskCard.appendChild(row);
+    });
+
+    if ((stats.failedTaskCount||0) > 0) {
+      taskCard.appendChild(spButton('清除所有失败任务（' + stats.failedTaskCount + '）', 'danger', function() {
+        spConfirm('清除失败任务', '确认清除所有失败任务记录？', '清除',
+          function() { spAction('clearFailedTasks', {}); }, true);
+      }));
+    }
+    container.appendChild(taskCard);
+
+    // 立即总结
+    var sumCard = document.createElement('div');
+    sumCard.className = 'sp-card';
+    sumCard.appendChild(spSection('手动整理'));
+    sumCard.appendChild(spDesc('跳过轮次阈值，立刻触发一次总结'));
+    sumCard.appendChild(spButton('立即整理记忆', 'primary', function() {
+      spAction('manualSummarize', {});
+    }));
+    container.appendChild(sumCard);
+
+    // Prompt区
+    var promptCard = document.createElement('div');
+    promptCard.className = 'sp-card';
+    promptCard.appendChild(spSection('提示词'));
+    promptCard.appendChild(spCollapse('内置提示词', function(body) {
+      var pre = document.createElement('pre');
+      pre.className = 'wiki-prompt-pre';
+      pre.textContent = d.currentPrompt || '';
+      body.appendChild(pre);
+    }, false));
+    promptCard.appendChild(spTextarea('wiki-custom-prompt', '补充指令',
+      d.customPromptSuffix || '', '对总结的额外要求…',
+      function(v) { spAction('setCustomPromptSuffix', {value: v}); }));
+    promptCard.appendChild(spTextarea('wiki-mature-prompt', '特殊内容补充指令',
+      d.matureContentSuffix || '', '成人内容的额外要求…',
+      function(v) { spAction('setMatureContentSuffix', {value: v}); }));
+    promptCard.appendChild(spSlider('wiki-retries', '最大重试次数', d.maxRetries || 3, 1, 10, 1, ' 次',
+      function(v) { spAction('setMaxRetries', {value: v}); }));
+    container.appendChild(promptCard);
   }
 
   // ── [浮窗化] STT 语音识别面板 ────────────────────────────────────────

@@ -107,10 +107,13 @@ class ChatRepository {
     // RAG：级联删除本聊天的向量集合与所有文档（集合 id == chatId）
     await (_db.delete(_db.vectorDocuments)..where((t) => t.collectionId.equals(id))).go();
     await (_db.delete(_db.vectorCollections)..where((t) => t.id.equals(id))).go();
-    // [CHRONICLE] 级联删除超级记忆数据（任务/词条/窗口状态）
+    // [CHRONICLE] 级联删除超级记忆数据（任务/词条/窗口状态/实体/关系/情感）
     await (_db.delete(_db.summaryTasks)..where((t) => t.chatId.equals(id))).go();
     await (_db.delete(_db.memoryEntries)..where((t) => t.chatId.equals(id))).go();
     await (_db.delete(_db.chronicleStates)..where((t) => t.chatId.equals(id))).go();
+    await (_db.delete(_db.memoryEntities)..where((t) => t.chatId.equals(id))).go();
+    await (_db.delete(_db.memoryRelationships)..where((t) => t.chatId.equals(id))).go();
+    await (_db.delete(_db.emotionNodes)..where((t) => t.chatId.equals(id))).go();
     // Delete the chat
     await (_db.delete(_db.chats)..where((t) => t.id.equals(id))).go();
   }

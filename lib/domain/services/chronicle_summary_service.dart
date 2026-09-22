@@ -16,7 +16,7 @@ class ChronicleSummaryService {
   ChronicleSummaryService(this._llmService);
 
   /// 总结Prompt模板（内置高质量版本，{custom_suffix}承接用户自定义指令）
-  static const String _basePrompt = '''
+  static const String basePrompt = '''
 你是角色扮演记忆整理助手。请基于以下新增对话，更新现有记忆词条。
 
 ## 现有记忆词条
@@ -92,6 +92,8 @@ class ChronicleSummaryService {
     required LLMConfig config,
     int fromTurn = 0,
     int toTurn = 0,
+    String characterName = 'Char',
+    String userName = 'User',
   }) async {
     if (messages.isEmpty) return const models.ChronicleSummaryOutput();
 
@@ -108,6 +110,8 @@ class ChronicleSummaryService {
         toTurn: toTurn,
         currentPass: 1,
         totalPasses: 1,
+        characterName: characterName,
+        userName: userName,
       );
     }
 
@@ -137,6 +141,8 @@ class ChronicleSummaryService {
           toTurn: fromTurn + end,
           currentPass: pass + 1,
           totalPasses: passes,
+          characterName: characterName,
+          userName: userName,
         );
 
         allEntries.addAll(partialOutput.entries);
@@ -189,10 +195,12 @@ class ChronicleSummaryService {
     required int toTurn,
     required int currentPass,
     required int totalPasses,
+    String characterName = 'Char',
+    String userName = 'User',
   }) async {
     final dialogueBuffer = StringBuffer();
     for (final msg in messages) {
-      final role = msg.role == MessageRole.user ? 'User' : 'Char';
+      final role = msg.role == MessageRole.user ? userName : characterName;
       dialogueBuffer.writeln('$role: ${msg.content}');
     }
 
@@ -210,12 +218,18 @@ class ChronicleSummaryService {
             '${currentPass > 1 ? '前几段已提炼出临时词条（见上文），本段需保持上下文连贯。' : ''}\n'
         : '';
 
-    final prompt = _basePrompt
+    // 用户自定义追加 + 成人内容补充指令（独立字段，拼入同一占位符）
+    final customSuffix = [
+      settings.customPromptSuffix,
+      settings.matureContentSuffix,
+    ].where((s) => s.trim().isNotEmpty).join('\n\n');
+
+    final prompt = basePrompt
         .replaceAll('{existing_wiki}', fullWikiContext.toString())
         .replaceAll('{from_turn}', fromTurn.toString())
         .replaceAll('{to_turn}', toTurn.toString())
         .replaceAll('{dialogue}', dialogueBuffer.toString())
-        .replaceAll('{custom_suffix}', settings.customPromptSuffix)
+        .replaceAll('{custom_suffix}', customSuffix)
         .replaceFirst('## 现有记忆词条', '$progressHint## 现有记忆词条');
 
     final rawResponse = await _llmService.generate(

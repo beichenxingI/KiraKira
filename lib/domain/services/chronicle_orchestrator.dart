@@ -71,10 +71,12 @@ class ChronicleOrchestrator {
   // ═══════════════════ 触发检查（发消息后异步调用） ═══════════════════
 
   /// 检查触发条件并入队。返回 true=Chronicle已接管（调用方跳过旧总结路径）。
+  /// force=true（Wiki面板手动整理）：跳过轮次/token阈值与失败退避，立即入队。
   Future<bool> checkAndEnqueue({
     required String chatId,
     required List<ChatMessage> messages,
     required LLMConfig llmConfig,
+    bool force = false,
   }) async {
     try {
       final settings = settingsGetter();
@@ -109,17 +111,19 @@ class ChronicleOrchestrator {
             hotTokens >= ChatSummarizationService.absoluteTokenLimit;
       }
 
-      if (!triggerByTurns && !triggerByTokens) return true; // 未达阈值，已接管
+      if (!force && !triggerByTurns && !triggerByTokens) return true; // 未达阈值，已接管
 
       // 待归档消息：溢出热窗的最早一批（调整A：messageId集合）
       final toArchive =
           unarchived.sublist(0, overflowCount).map((m) => m.id).toList();
 
-      // 失败任务退避：超过最大重试次数停止入队，等待用户在Chronicle面板手动干预
-      final failedCount = await _repo.getFailedTaskCountForChat(chatId);
-      if (failedCount >= settings.maxRetries) {
-        debugPrint('[CHRONICLE] 已达最大重试次数(\/\)，停止入队');
-        return true;
+      // 失败任务退避：超过最大重试次数停止入队，等待用户手动干预（force跳过）
+      if (!force) {
+        final failedCount = await _repo.getFailedTaskCountForChat(chatId);
+        if (failedCount >= settings.maxRetries) {
+          debugPrint('[CHRONICLE] 已达最大重试次数($failedCount)，停止入队');
+          return true;
+        }
       }
 
       final enqueued = await _repo.enqueueSummaryTask(
@@ -225,6 +229,18 @@ class ChronicleOrchestrator {
 
         // 1. [Phase 2] 结构化JSON抽取（失败降级纯文本，H5）
         final existingWiki = await _buildExistingWikiText(task.chatId);
+        // 角色名/用户名（取不到用默认值，不阻断）
+        String characterName = 'Char';
+        String userName = 'User';
+        for (final m in messages) {
+          final name = m.characterName;
+          if (name == null || name.isEmpty) continue;
+          if (m.role == MessageRole.assistant) {
+            characterName = name;
+          } else if (m.role == MessageRole.user) {
+            userName = name;
+          }
+        }
         final output = await _chronicleSummaryService.summarize(
           messages: messages,
           existingWikiText: existingWiki,
@@ -232,6 +248,8 @@ class ChronicleOrchestrator {
           config: summaryConfig,
           fromTurn: task.fromTurn,
           toTurn: task.toTurn,
+          characterName: characterName,
+          userName: userName,
         );
 
         // 2. 应用增量patch到Wiki
@@ -243,8 +261,10 @@ class ChronicleOrchestrator {
           await _vectorizeEntry(entry);
         }
 
-        // 4. 标记归档 + 任务完成
-        await _repo.markMessagesArchived(task.chatId, messageIds);
+        // 4. 空输出（LLM判定无变化）跳过归档，任务仍标完成
+        if (!output.isEmpty) {
+          await _repo.markMessagesArchived(task.chatId, messageIds);
+        }
         await _repo.updateTaskStatus(
           task.id,
           'done',
@@ -397,20 +417,39 @@ class ChronicleOrchestrator {
     }
 
     // ⑥ H5降级：JSON解析失败 → 纯文本词条（与旧总结同等质量）
+    // 固定title"降级总结"便于识别：同一聊天只保留一条fallback词条，upsert覆盖而非新建
     if (output.fallbackText != null && output.fallbackText!.isNotEmpty) {
-      final fallback = models.MemoryEntry(
-        id: _uuid.v4(),
-        chatId: chatId,
-        type: models.MemoryEntryType.event,
-        title: _deriveTitle(output.fallbackText!, const []),
-        content: output.fallbackText!,
-        importance: 5,
-        alwaysInject: true,
-        sourceMessageIds: sourceMessageIds,
-        turnIndex: turnIndex,
-        createdAt: now,
-        updatedAt: now,
-      );
+      final all = await _repo.getAllEntries(chatId);
+      models.MemoryEntry? existingFallback;
+      for (final e in all) {
+        if (e.title == '降级总结' && !e.deprecated) {
+          existingFallback = e;
+          break;
+        }
+      }
+      final fallback = existingFallback?.copyWith(
+            content: output.fallbackText!,
+            importance: 5,
+            alwaysInject: false,
+            anchor: false,
+            sourceMessageIds: sourceMessageIds,
+            turnIndex: turnIndex,
+            updatedAt: now,
+          ) ??
+          models.MemoryEntry(
+            id: _uuid.v4(),
+            chatId: chatId,
+            type: models.MemoryEntryType.event,
+            title: '降级总结',
+            content: output.fallbackText!,
+            importance: 5,
+            alwaysInject: false,
+            anchor: false,
+            sourceMessageIds: sourceMessageIds,
+            turnIndex: turnIndex,
+            createdAt: now,
+            updatedAt: now,
+          );
       await _repo.upsertMemoryEntry(fallback);
       touched.add(fallback);
     }
@@ -603,14 +642,5 @@ class ChronicleOrchestrator {
     } catch (_) {
       return const [];
     }
-  }
-
-  static String _deriveTitle(String summaryText, List<ChatMessage> messages) {
-    final firstLine = summaryText.split('\n').firstWhere(
-      (l) => l.trim().isNotEmpty,
-      orElse: () => '',
-    );
-    final t = firstLine.trim().replaceAll(RegExp(r'^[#\-*、\s]+'), '');
-    return t.length > 30 ? '${t.substring(0, 30)}...' : (t.isEmpty ? '剧情进展' : t);
   }
 }

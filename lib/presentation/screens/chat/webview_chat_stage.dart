@@ -76,6 +76,7 @@ import 'package:kirakira/presentation/providers/tokenizer_providers.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 import 'package:kirakira/data/repositories/chronicle_repository.dart';
 import 'package:kirakira/presentation/providers/chronicle_providers.dart';
+import 'package:kirakira/domain/services/chronicle_summary_service.dart';
 import 'package:kirakira/presentation/providers/image_gen_providers.dart';
 import 'package:kirakira/data/models/chat_background.dart';
 import 'package:kirakira/data/models/vector_storage.dart';
@@ -1483,6 +1484,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                           break;
                         case 'openChroniclePanel':
                           await _openChroniclePanel();
+                          break;
+                        case 'openWikiPanel':
+                          await _openWikiPanel();
                           break;
                         case 'openImageGenPanel':
                           await _openImageGenPanel();
@@ -4028,6 +4032,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       case 'chronicle':
         await _handleChroniclePanelAction(action, data);
         break;
+      case 'wiki':
+        await _handleWikiPanelAction(action, data);
+        break;
       case 'imageGen':
         await _handleImageGenPanelAction(action, data);
         break;
@@ -4762,9 +4769,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
       case 'setSummaryInterval':
         cn.setSummaryInterval((data['value'] as num).toInt());
+        break;
       case 'setSummaryPasses':
         cn.setSummaryPasses((data['value'] as num).toInt());
-        break;
         break;
       case 'setTokenPressureThreshold':
         cn.setTokenPressureThreshold((data['value'] as num).toDouble());
@@ -4846,6 +4853,191 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
     _bridge.send(BridgeType.settingsPanelData,
         {'data': await _serializeChronicleData(), 'refresh': true});
+  }
+
+  // ── [Chronicle融合] Wiki 记忆库管理面板（运行监控+记忆管理） ────────
+
+  Future<void> _openWikiPanel() async {
+    _bridge.send(BridgeType.openSettingsPanel, {
+      'panel': 'wiki',
+      'title': 'Chronicle 记忆库',
+      'data': await _serializeWikiData(),
+    });
+  }
+
+  /// 解析任务 messageIds JSON，返回id列表（失败返回空）
+  static List<String> _parseTaskMessageIds(String json) {
+    try {
+      final list = jsonDecode(json) as List;
+      return list.map((e) => e.toString()).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<Map<String, dynamic>> _serializeWikiData() async {
+    final cs = ref.read(chronicleSettingsProvider);
+    final repo = ref.read(chronicleRepositoryProvider);
+
+    final entries = await repo.getAllEntries(widget.chatId);
+    final entities = await repo.getAllEntities(widget.chatId);
+    final tasks = await repo.getTasksForChat(widget.chatId);
+    final archivedIds = await repo.getArchivedMessageIds(widget.chatId);
+    final messages = ref.read(activeChatProvider).messages;
+
+    return {
+      // 词条列表
+      'entries': [
+        for (final e in entries)
+          {
+            'id': e.id,
+            'type': e.type.name,
+            'title': e.title,
+            'content': e.content,
+            'importance': e.importance,
+            'alwaysInject': e.alwaysInject,
+            'anchor': e.anchor,
+            'deprecated': e.deprecated,
+            'tags': e.tags,
+            'sourceMessageIds': e.sourceMessageIds,
+            'turnIndex': e.turnIndex,
+            'createdAt': e.createdAt.toIso8601String(),
+            'updatedAt': e.updatedAt.toIso8601String(),
+          },
+      ],
+      // 实体列表
+      'entities': [
+        for (final en in entities)
+          {
+            'id': en.id,
+            'name': en.name,
+            'type': en.type.name,
+            'description': en.description,
+            'currentState': en.currentState,
+            'aliases': en.aliases,
+          },
+      ],
+      // 任务队列
+      'tasks': [
+        for (final t in tasks)
+          {
+            'id': t.id,
+            'status': t.status,
+            'messageCount': _parseTaskMessageIds(t.messageIds).length,
+            'fromTurn': t.fromTurn,
+            'toTurn': t.toTurn,
+            'error': t.error,
+            'createdAt': t.createdAt.toIso8601String(),
+            'finishedAt': t.finishedAt?.toIso8601String(),
+          },
+      ],
+      // 统计
+      'stats': {
+        'entryCount': entries.length,
+        'entityCount': entities.length,
+        'archivedMessageCount': archivedIds.length,
+        'totalMessageCount': messages.length,
+        'pendingTaskCount': tasks.where((t) => t.status == 'pending').length,
+        'failedTaskCount': tasks.where((t) => t.status == 'failed').length,
+      },
+      // 当前生效的完整prompt（内置模板，不含对话内容）
+      'currentPrompt': ChronicleSummaryService.basePrompt,
+      // 用户自定义追加
+      'customPromptSuffix': cs.customPromptSuffix,
+      // 成人内容提示词追加（独立字段）
+      'matureContentSuffix': cs.matureContentSuffix,
+      // 最大重试次数
+      'maxRetries': cs.maxRetries,
+    };
+  }
+
+  Future<void> _handleWikiPanelAction(
+      String action, Map<String, dynamic> data) async {
+    final cn = ref.read(chronicleSettingsProvider.notifier);
+    final repo = ref.read(chronicleRepositoryProvider);
+    switch (action) {
+      case 'updateEntry':
+        final entryId = data['id'] as String? ?? '';
+        if (entryId.isNotEmpty) {
+          final candidates =
+              await repo.getEntriesByIds(widget.chatId, [entryId]);
+          if (candidates.isNotEmpty) {
+            final e = candidates.first;
+            await repo.upsertMemoryEntry(e.copyWith(
+              title: (data['title'] as String?)?.trim() ?? e.title,
+              content: (data['content'] as String?)?.trim() ?? e.content,
+              importance: (data['importance'] as num?)?.toInt() ?? e.importance,
+              alwaysInject: (data['alwaysInject'] as bool?) ?? e.alwaysInject,
+              anchor: (data['anchor'] as bool?) ?? e.anchor,
+              tags: data['tags'] is List
+                  ? (data['tags'] as List).map((t) => t.toString()).toList()
+                  : e.tags,
+            ));
+          }
+        }
+        break;
+      case 'deleteEntry':
+        final entryId = data['id'] as String? ?? '';
+        if (entryId.isNotEmpty) await repo.deleteEntry(entryId);
+        break;
+      case 'updateEntity':
+        final entityId = data['id'] as String? ?? '';
+        if (entityId.isNotEmpty) {
+          final all = await repo.getAllEntities(widget.chatId);
+          for (final en in all) {
+            if (en.id == entityId) {
+              await repo.upsertEntity(en.copyWith(
+                description: (data['description'] as String?)?.trim() ??
+                    en.description,
+                currentState: (data['currentState'] as String?)?.trim() ??
+                    en.currentState,
+              ));
+              break;
+            }
+          }
+        }
+        break;
+      case 'deleteEntity':
+        final entityId = data['id'] as String? ?? '';
+        if (entityId.isNotEmpty) await repo.deleteEntity(entityId);
+        break;
+      case 'retryTask':
+        final taskId = data['id'] as String? ?? '';
+        if (taskId.isNotEmpty) await repo.updateTaskStatus(taskId, 'pending');
+        break;
+      case 'deleteTask':
+        final taskId = data['id'] as String? ?? '';
+        if (taskId.isNotEmpty) await repo.deleteTask(taskId);
+        break;
+      case 'clearFailedTasks':
+        await repo.clearFailedTasksForChat(widget.chatId);
+        break;
+      case 'manualSummarize':
+        try {
+          final messages = ref.read(activeChatProvider).messages;
+          final config = ref.read(llmConfigProvider);
+          final ok = await ref
+              .read(chronicleOrchestratorProvider)
+              .checkAndEnqueue(
+                chatId: widget.chatId,
+                messages: messages,
+                llmConfig: config,
+                force: true,
+              );
+          _snack(ok ? '已触发记忆整理' : '触发失败');
+        } catch (e) {
+          _snack('触发失败: $e');
+        }
+        break;
+      case 'setMatureContentSuffix':
+        cn.setMatureContentSuffix(data['value'] as String);
+        break;
+      case 'setMaxRetries':
+        cn.setMaxRetries((data['value'] as num).toInt());
+        break;
+    }
+    _bridge.send(BridgeType.settingsPanelData,
+        {'data': await _serializeWikiData(), 'refresh': true});
   }
 
   // ── [浮窗化] STT 语音识别面板 ────────────────────────────────────────
