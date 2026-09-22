@@ -56,6 +56,22 @@ class ChronicleRepository {
     return rows.isNotEmpty;
   }
 
+  /// 获取指定聊天的失败任务数量（用于退避：超过maxRetries不再入队）
+  Future<int> getFailedTaskCountForChat(String chatId) async {
+    final rows = await (_db.select(_db.summaryTasks)
+          ..where((t) => t.chatId.equals(chatId) & t.status.equals('failed')))
+        .get();
+    return rows.length;
+  }
+
+  /// 重置僵尸任务：app被杀后running状态永远卡住，启动时将超时任务重置为pending
+  Future<void> resetStuckRunningTasks() async {
+    final cutoff = DateTime.now().subtract(const Duration(minutes: 10));
+    await (_db.update(_db.summaryTasks)
+          ..where((t) => t.status.equals('running') & t.createdAt.isSmallerThanValue(cutoff)))
+        .write(db.SummaryTasksCompanion(status: Value('pending')));
+  }
+
   /// 取待处理任务（先进先出）
   Future<List<db.SummaryTask>> getPendingTasks({int limit = 1}) async {
     final query = (_db.select(_db.summaryTasks)

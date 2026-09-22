@@ -448,26 +448,16 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         confirmText: '允许',
         cancelText: '拒绝',
       );
-      await prefs.setBool(authKey, allowed);
+      if (allowed) await prefs.setBool(authKey, true);
       if (!allowed) KiraLogger().info('预设脚本', '用户拒绝，脚本不执行');
     }
     if (allowed != true) enabledScripts.clear();
-    // [P5-14] 狐神 getPreset 自激环修复(诊断见 DiaoYan/P5/P5-13_狐神超时刷屏诊断.md)。
-    // 根因: 狐神按同步语义读 _TH.getPreset(平台门面返回 Promise),
-    //   isStreamingEnabled / restoreInlineMediaOption 永远读到 undefined
-    //   → 判定"偏离偏好" → setPreset → Dart 无条件回发 preset_changed/settings_updated
-    //   → 事件监听器再读再写 → 无限自激(th timeout: th_getPreset 刷屏)。
-    // 修复: 注入前把这 2 个读点改为读 __KIRA_PRESET_CACHE 同步镜像(P5-12 JS 侧缓存):
-    //   1) isStreamingEnabled: 缓存命中读 should_stream;未命中返回 false(与旧行为一致)。
-    //      首次 setStreaming 成功后 updatePresetWith 收尾的 getPreset 会回填缓存,
-    //      后续事件回调(+300~1000ms)读到 true === 偏好 → 不再写 → 环自然熄火。
-    //   2) restoreInlineMediaOption: 缓存未就绪直接跳过。它在 settings_updated 监听器里
-    //      被同步调用,此刻缓存必刚被事件清空 —— 若仍按 undefined 误判并写回,环永不熄火;
-    //      跳过后其写回只发生在缓存就绪窗口,收敛。
-    // 仅按脚本名命中狐神,其余脚本原样注入;不改脚本源文件,仅注入时内存 patch,可逆。
+// 修复: 部分脚本按同步语义读 _TH.getPreset（平台门面返回 Promise），
+// 导致无限自激循环。注入前 patch 这两个读点，改为读 __KIRA_PRESET_CACHE 同步镜像。
+// 对所有脚本尝试 patch，regex 未命中的原样返回，不影响其他脚本。
     final patchedScripts = enabledScripts.map<Map<String, dynamic>>((s) {
-      final name = s['name']?.toString() ?? '';
-      if (!name.contains('狐神') && !name.contains('玄狐')) return s;
+      final name = s['name']?.toString() ?? '';  // 保留供日志用
+      // patch对所有脚本尝试，regex命中与否自行决定
       final original = s['content'] as String;
       var patched = original;
       var hit1 = 0, hit2 = 0;
@@ -495,10 +485,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         },
       );
       if (hit1 == 0 && hit2 == 0) {
-        debugPrint('[P5-14] 警告: 狐神脚本"$name"patch 未命中任何目标,可能版本不匹配');
+        debugPrint('[P5-14] 警告: 脚本"$name"patch 未命中任何目标,可能版本不匹配');
         return s;
       }
-      debugPrint('[P5-14] 狐神patch完成: isStreamingEnabled×$hit1, '
+      debugPrint('[P5-14] patch完成: isStreamingEnabled×$hit1, '
           'restoreInlineMediaOption×$hit2 (脚本: $name)');
       return {...s, 'content': patched};
     }).toList();
@@ -631,18 +621,33 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     _inputController.addListener(_syncHasInput);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      await _loadChatStageAssets();
-      await _loadCompatLibs();
-      await _loadMvuBundle();
-      await _loadEjsStub();
-      await _loadEjsBundle();
+      // [优化] 5 个资产加载互不依赖(各自只写自己的静态缓存),并行读取。
+      // 串行时低端机上这是遮罩期一段可观的白等。
+      await Future.wait([
+        _loadChatStageAssets(),
+        _loadCompatLibs(),
+        _loadMvuBundle(),
+        _loadEjsStub(),
+        _loadEjsBundle(),
+      ]);
       if (!mounted) return;
       // [P5-7B] 等 loadChat 真正完成,确保 character 数据就绪后再挂 WebView
-      await ref.read(activeChatProvider.notifier).loadChat(widget.chatId);
-      // 延迟挂载 WebView:让入场这段时间保持纯 Flutter(无 WebView 重活),动画/遮罩流畅
-      await Future.delayed(const Duration(milliseconds: 350));
+      // [P0-3] 超时兜底:DB 挂起时不再永久阻塞 WebView 挂载(卡在加载界面)
+      await ref.read(activeChatProvider.notifier).loadChat(widget.chatId)
+          .timeout(const Duration(seconds: 10), onTimeout: () {
+        debugPrint('[卡点] loadChat超时10s');
+      });
+      // 挂载 WebView(此前这里还有 350ms 人为延迟,已删——纯加载耗时)
       if (!mounted) return;
       setState(() => _webViewMounted = true);
+      // [P0-3] 15s 安全网:loadData 失败/渲染进程异常等导致 onLoadStop 永不触发时,
+      // 遮罩会永久盖屏。15s 未撤强制撤下,宁可闪一下也不要永久卡死。
+      Future.delayed(const Duration(seconds: 15), () {
+        if (mounted && _maskController.status != AnimationStatus.dismissed) {
+          debugPrint('[安全网] 15s遮罩未撤，强制撤下');
+          _maskController.reverse();
+        }
+      });
     });
     // [P5-7B] 自愈: character 变化时重新注入脚本,防止时序竞态注入旧卡脚本
     _charSub = ref.listenManual(
@@ -719,6 +724,138 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   // 集中在这一个函数里组装,经 ChatBridge.layoutVars 一次性下发。
   // 触发时机:onLoadStop 初始注入 + didChangeMetrics(键盘/方向变化)+ _sendTopBarInsets(顶栏切换)。
   // 不直接 evaluateJavascript:遵守 webview_chat_stage.dart:101 通信全部走 ChatBridge 的硬性规定。
+  void _showApiErrorDialog(BuildContext context, String err) {
+    final codeMatch = RegExp(r'HTTP (\d+)').firstMatch(err);
+    final statusCode = codeMatch != null ? int.tryParse(codeMatch.group(1)!) : null;
+    String title;
+    String hint;
+    if (err == '收到空回复') {
+      title = '收到空回复';
+      hint = '上游可能触发了内容审核（聊天内容被拦截），或模型返回了空响应。\n\n建议：尝试修改最后一条消息措辞，或切换模型。';
+    } else {
+      switch (statusCode) {
+        case 400:
+          title = '400 · 请求错误';
+          hint = '请求格式有误。常见原因：上下文过长超出模型限制、系统提示词格式不兼容、或请求参数有误。';
+        case 401:
+          title = '401 · 认证失败';
+          hint = 'API Key 无效、已过期或未正确填写。请在设置中检查 API Key 是否正确。';
+        case 403:
+          title = '403 · 无权访问';
+          hint = 'API Key 权限不足，或账户已被封禁/暂停服务。请检查账户状态和 Key 权限范围。';
+        case 404:
+          title = '404 · 资源不存在';
+          hint = '模型名称错误，或 API 端点地址不对。请检查模型 ID 和 Base URL 是否填写正确。';
+        case 429:
+          title = '429 · 请求过频 / 额度不足';
+          hint = '触发了速率限制，或账户余额/调用额度已用完。稍等片刻再试，或检查账户余额。';
+        case 500:
+          title = '500 · 服务器内部错误';
+          hint = 'API 服务器端出错，通常是临时性故障。稍后重试一般可恢复。';
+        case 502:
+          title = '502 · 网关错误';
+          hint = '上游服务不可用或中间代理出错。检查网络连接，或等待服务恢复。';
+        case 503:
+          title = '503 · 服务不可用';
+          hint = '服务过载或正在维护中。稍后重试，或查看服务商状态页。';
+        case 529:
+          title = '529 · 服务过载';
+          hint = 'Claude 特有错误码，服务器当前负载过高。稍等片刻重试即可。';
+        default:
+          if (err.contains('Timeout') || err.contains('timeout')) {
+            title = '请求超时';
+            hint = '网络连接超时。检查网络状态，或尝试切换响应更快的模型/节点。';
+          } else if (err.contains('Connection Error')) {
+            title = '连接失败';
+            hint = '无法连接到 API 服务器。检查网络、代理设置，以及 Base URL 是否可访问。';
+          } else {
+            title = '生成失败';
+            hint = '发生了未知错误，请查看下方完整错误信息。';
+          }
+      }
+    }
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1C24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Color(0xFFEF5350), size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFFEAEAEA),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF252830),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                hint,
+                style: const TextStyle(
+                  color: Color(0xFFB8C0CC),
+                  fontSize: 13,
+                  height: 1.6,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '完整错误信息',
+              style: TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 11,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 120),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F1117),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF2A2D35)),
+              ),
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  err,
+                  style: const TextStyle(
+                    color: Color(0xFFEF9A9A),
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('关闭', style: TextStyle(color: Color(0xFF7C4DFF))),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _injectLayoutVars() {
     if (!mounted) return;
     final mq = MediaQuery.of(context);
@@ -941,16 +1078,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       // 503/网络错误显示简短提示，完整 error 留给日志（debugPrint 已有）。
       final err = next.error;
       if (err != null && err.isNotEmpty && err != prev?.error) {
-        final msg = err == '收到空回复'
-            ? '收到空回复'
-            : '生成失败，请检查网络或 API 配置';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) _showApiErrorDialog(context, err);
       }
     });
 
@@ -1130,6 +1258,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     // [P5-12] 自愈改 loadData 重建,避免 reload 对 baseUrl 的真实导航
                     _reloadWebViewContent();
                   },
+                  // [P0-3] 主文档加载错误此前无人处理 → onLoadStop 永不触发 → 遮罩永久盖屏。
+                  // 撤下遮罩给用户出路(可返回/重进);加载完成后遮罩已撤,再触发是无视觉变化的立即完成。
+                  onReceivedError: (controller, request, error) {
+                    debugPrint('[WebView] 加载错误: ${error.description}');
+                    if (mounted) _maskController.reverse();
+                  },
                   onWebViewCreated: (c) {
                     _controller = c;
                     _bridge.attach(c);
@@ -1219,20 +1353,30 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest(BridgeType.stopGeneration, _handleStopGeneration);
                   },
                   onLoadStop: (c, url) async {
+                    // [P0-2] 整体 try/finally:任一 await 抛异常不再中断回调 →
+                    // 遮罩在 finally 强制撤下,任何失败路径都不会永久卡"加载中"。
+                    try {
                     // [顶栏] 页面(重)载完成(含崩溃自愈 loadData 重建)重置为显示
                     _setTopBarVisible(true);
                     _sendTopBarInsets(); // 重建后重新同步内容起始位置
                     // [聊天页大改] 初始注入布局 CSS 变量(--keyboard-height 等)
                     _injectLayoutVars();
-                    await _injectCompatLibs(c); // 注入第三方库到外层window
-                    await _injectMacroValues(c); // 注入宏替换用的角色名/用户名
-                    await _injectRegexRules(c); // [P6-5.2] 正则规则快照(引擎房烘焙用)
-                    await _injectMainEnv(c); // [P5-6阶段2.1] 注入主环境快照(主文档ST骨架读)
-                     await _injectEngineFacade(c); // 注入引擎房共享门面
-                     await _injectPresetScripts(c);
-                     await _injectMvuBundle(c);
-      await _injectEjsStub(c);
-      await _injectEjsBundle(c); // 注入 EJS bundle 供引擎房内联
+                    // [优化] 8 个注入互不依赖(各自只写不同的 window 全局,无返回值依赖),
+                    // 并行注入。此前 9 连串行 evaluateJavascript 是 onLoadStop 最大的自找耗时。
+                    await Future.wait([
+                      _injectCompatLibs(c), // 注入第三方库到外层window
+                      _injectMacroValues(c), // 注入宏替换用的角色名/用户名
+                      _injectRegexRules(c), // [P6-5.2] 正则规则快照(引擎房烘焙用)
+                      _injectMainEnv(c), // [P5-6阶段2.1] 注入主环境快照(主文档ST骨架读)
+                      _injectEngineFacade(c), // 注入引擎房共享门面
+                      _injectMvuBundle(c),
+                      _injectEjsStub(c),
+                      _injectEjsBundle(c), // 注入 EJS bundle 供引擎房内联
+                    ]);
+                    // [依赖] _injectPresetScripts 含用户交互(授权弹窗),且其内部
+                    // resetPresetScriptsRoom 构建脚本房时同步读上面注入的
+                    // __KIRA_REGEX_RULES → 必须在并行注入完成后串行跑
+                    await _injectPresetScripts(c);
                     await c.evaluateJavascript(
                         source: 'if(window.createEngineRoom)window.createEngineRoom();');
     // 保险丝：2 秒后若 JS 的 ready 信号仍未到（老 WebView），强制放行
@@ -1432,7 +1576,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.on(BridgeType.sttStop, (payload) {
                       _sttFinish();
                     });
-                    await Future.delayed(const Duration(milliseconds: 350));
+                    // (此前这里还有 350ms 人为延迟,已删——注入链已就绪,直接推首屏)
                     if (!mounted) return;
                     await _pushMessages();
                     // [聊天页大改] WebView 就绪后推送输入栏初始状态(generating/stt/attachments)
@@ -1450,8 +1594,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _controller?.evaluateJavascript(
                         source: 'if(window.__emitToEngine)window.__emitToEngine("chat_id_changed",[],$initMsgsJson);');
                     await Future.delayed(const Duration(milliseconds: 500));
-                    await Future.delayed(const Duration(milliseconds: 500));
-                    if (mounted) _maskController.reverse();
+                    } catch (e, st) {
+                      debugPrint('[onLoadStop] 异常，强制撤遮罩: $e\n$st');
+                    } finally {
+                      // [P0-2] 遮罩唯一清除点移入 finally:成功/异常/提前 return 都会撤下
+                      if (mounted) await _maskController.reverse();
+                    }
                   },
                 )
                       : const SizedBox.shrink(),
@@ -1540,8 +1688,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   }
   /// 角色名超过5个字用省略号截断
   String _truncateName(String name) {
-    if (name.length <= 5) return name;
-    return '${name.substring(0, 5)}…';
+    return name;
   }
 
  Future<dynamic> _handleSetInput(Map<String, dynamic> payload) async {
@@ -3631,19 +3778,39 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
   Future<void> _openModelSheet() async {
     final config = ref.read(llmConfigProvider);
+    final configsState = ref.read(llmConfigsProvider);
+    // 先弹窗，显示 loading 状态
+    _bridge.send(BridgeType.showModelSheet, {
+      'models': <String>[],
+      'current': config.model,
+      'loading': true,
+      
+      'configs': configsState.configs
+          .map((c) => {'id': c.id, 'name': c.name, 'active': c.isDefault})
+          .toList(),
+    });
+    // 后台拉取，完成后更新
     await ref.read(modelFetchProvider.notifier).fetchModels(config);
     if (!mounted) return;
     final state = ref.read(modelFetchProvider);
     if (state.status == ModelFetchStatus.error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(state.errorMessage ?? '获取模型失败')),
-      );
+      _bridge.send(BridgeType.showModelSheet, {
+        'models': <String>[],
+        'current': config.model,
+        'loading': false,
+        'error': state.errorMessage ?? '获取模型失败',
+        
+      'configs': configsState.configs
+            .map((c) => {'id': c.id, 'name': c.name, 'active': c.isDefault})
+            .toList(),
+      });
       return;
     }
-    final configsState = ref.read(llmConfigsProvider);
     _bridge.send(BridgeType.showModelSheet, {
       'models': state.models,
       'current': config.model,
+      'loading': false,
+      
       'configs': configsState.configs
           .map((c) => {'id': c.id, 'name': c.name, 'active': c.isDefault})
           .toList(),
@@ -4564,6 +4731,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return {
       'enabled': cs.enabled,
       'summaryInterval': cs.summaryInterval,
+      'summaryPasses': cs.summaryPasses,
       'tokenPressureThreshold': cs.tokenPressureThreshold,
       'hotWindowSize': cs.hotWindowSize,
       'ragTopK': cs.ragTopK,
@@ -4594,6 +4762,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
       case 'setSummaryInterval':
         cn.setSummaryInterval((data['value'] as num).toInt());
+      case 'setSummaryPasses':
+        cn.setSummaryPasses((data['value'] as num).toInt());
+        break;
         break;
       case 'setTokenPressureThreshold':
         cn.setTokenPressureThreshold((data['value'] as num).toDouble());
@@ -5856,7 +6027,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   Future<dynamic> _waitForDialogResult(String callbackId) {
     final completer = Completer<dynamic>();
     _dialogCompleters[callbackId] = completer;
-    return completer.future;
+    // [P0-8] 超时兜底:弹窗渲染失败/WebView 重建丢消息时 Completer 永久挂起,
+    // 会把调用方(含 onLoadStop 注入链)一起挂死。30s 未回应按取消收场。
+    return completer.future.timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        _dialogCompleters.remove(callbackId);
+        debugPrint('[弹窗超时] callbackId=$callbackId 等待超时30s，默认返回false');
+        return false;
+      },
+    );
   }
 
   /// HTML 确认框。[cancelText] 传空串 = 单按钮提示框。
@@ -6306,11 +6486,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           '重试',
           '将删除这条之后的内容并重新生成，确定吗？',
           () async {
-            await notifier.retryMessage(id, config);
-            // [聊天页大改] 重试触发后:WebView 内动态岛提示
             if (mounted) {
-              _bridge.send(BridgeType.showToast, {'icon': '🔄', 'text': '正在重试'});
+              _bridge.send(BridgeType.showToast, {'text': '正在重试…'});
             }
+            await notifier.retryMessage(id, config);
           },
         );
         break;
@@ -6874,14 +7053,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       int startFrom, List<ChatMessage> messages) async {
     final chatState = ref.read(activeChatProvider);
     final character = chatState.character;
-    dynamic persona;
-    try {
-      persona = await ref.read(activePersonaProvider.future)
-          .timeout(const Duration(seconds: 3));
-    } catch (e) {
-      debugPrint('[卡点] activePersona 超时/出错: $e');
-      persona = null;
-    }
+    // [优化] 原先这里还 await persona(3s超时)但从未使用(追加模式不带头像/名字)——
+    // 纯浪费的阻塞 await 已删。分析器报 unused_local_variable 即此。
     final scripts = ref.read(combinedRegexScriptsProvider(character?.id));
 
     int lastAiIndex = -1;
@@ -6987,7 +7160,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       if (messages[i].role != MessageRole.user) lastAiIndex = i;
     }
 
-    const int batchSize = 30;
+    // [优化] 首屏批量 30→50:一次 base64 载荷多带 20 条,少一轮补发往返
+    const int batchSize = 50;
     final total = messages.length;
     // 初始只渲染最近batchSize条
     final startIndex = total > batchSize ? total - batchSize : 0;
@@ -6999,12 +7173,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     // 先发送最近的消息
     debugPrint('[图片诊断] _pushMessages 发送 setMessages, 条数=${initialList.length}');
     // 头像+名字：全局各一份，随首屏一次性下发（不进每条消息，避免膨胀拖卡）
-    try {
-      persona = await ref.read(activePersonaProvider.future)
-          .timeout(const Duration(seconds: 3));
-    } catch (e) {
-      debugPrint('[卡点] activePersona2 超时/出错: $e');
-    }
+    // [优化] persona 已在函数开头读过(带3s超时兜底),此处原第二次重复读取已删——
+    // 同一 provider 重复 await 最坏白等 6s,且结果必然相同
     String? charUri;
     String? userUri;
     try {
@@ -7033,8 +7203,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
     // 后台静默追加历史消息
     if (startIndex > 0) {
-      Future.delayed(const Duration(milliseconds: 100), () async {
-        const int historyBatchSize = 20;
+      // [优化] 启动延迟 100→50ms,批大小 20→30:补发整体提速约一半
+      Future.delayed(const Duration(milliseconds: 50), () async {
+        const int historyBatchSize = 30;
         // [RC1] 游标法覆盖 [0, startIndex) 全部楼层:原 for(start=startIndex-20; start>=0; start-=20)
         // 在 (total-30)%20≠0 时(如100条→startIndex=70)会漏掉最早的 (total-30)%20 条(floor 1-10),
         // 造成"顶部楼层永久缺失、滑上去消息消失"。
@@ -7057,7 +7228,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             // 这是「补偿 JS 反向插入」的隐式耦合；P2 应改为 JS 侧用固定锚点插入、
             // Dart 保持自然升序，还这块解耦。
             await _sendEncodedMessages(batch.reversed.toList(), prepend: true);
-            await Future.delayed(const Duration(milliseconds: 16));
+            // [优化] 批间让出 16→8ms:仍防连续多批阻塞,节奏减半
+            await Future.delayed(const Duration(milliseconds: 8));
           }
           cursor = batchStart;
         }
@@ -7141,20 +7313,37 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         '</div></body></html>';
   }
 
+  // [优化] _htmlShell 键控缓存:replaceAll 要扫 313KB×4,InAppWebView 只在创建时用
+  // initialData,键盘显隐等 setState 重建 build 时是纯白算。键含 quote 颜色 + 顶栏 inset
+  // (仅有的两个动态量),变了才重算,正确性与旧实现一致。
+  String? _cachedHtmlShell;
+  String? _cachedHtmlShellKey;
+
   String _htmlShell() {
     final html = _chatStageHtml;
     final bridge = _chatBridgeJs;
     if (html == null || bridge == null) {
       return _chatStageErrorPage('缺少聊天壳资源(_chatStageHtml / _chatBridgeJs 为空)');
     }
-    return html
+    final key = '${_colorToCss(ref.watch(quoteColorStateProvider).primaryA)}|'
+        '${_colorToCss(ref.watch(quoteColorStateProvider).primaryB)}|'
+        '${MediaQuery.viewPaddingOf(context).top}';
+    if (_cachedHtmlShellKey == key && _cachedHtmlShell != null) {
+      return _cachedHtmlShell!;
+    }
+    final shell = html
         .replaceAll('__KIRA_QUOTE_Q_COLOR__', _colorToCss(ref.watch(quoteColorStateProvider).primaryA))
         .replaceAll('__KIRA_QUOTE_P_COLOR__', _colorToCss(ref.watch(quoteColorStateProvider).primaryB))
         // [顶栏] 初始内容起始位置直接烘进 HTML:WebView 全出血后首帧就要避开顶栏,
         // 不能等桥消息到达(会闪一下)
         .replaceAll('__KIRA_TOP_INSET__',
             (56 + MediaQuery.viewPaddingOf(context).top + 12).toStringAsFixed(1))
-        .replaceAll('__KIRA_CHAT_BRIDGE__', bridge);
+        .replaceAll('__KIRA_CHAT_BRIDGE__', bridge)
+        // [优化] 调试扫描总开关(kDebugMode 烘入,生产默认关,见 chat_stage.html head)
+        .replaceAll('__KIRA_DEBUG__', kDebugMode ? 'true' : 'false');
+    _cachedHtmlShell = shell;
+    _cachedHtmlShellKey = key;
+    return shell;
   }
 }
 
@@ -7367,23 +7556,12 @@ bool _looksLikeHtmlDoc(String s) {
 /// JS 字符串内的字面量 "</script>" 与浏览器解析行为一致地提前截断块,
 /// 卡片本身已在字符串内写 <\/script> 转义,不受影响。
 String normalizeCodeQuotes(String html) {
-  String norm(String s) => s
-      .replaceAll(RegExp('[‘’‚‛]'), "'")
-      .replaceAll(RegExp('[“”„‟＂]'), '"')
-      .replaceAll(RegExp('…+'), '...');
-  final blocks = RegExp(
-    r'<script[^>]*>[\s\S]*?</script>|<style[^>]*>[\s\S]*?</style>',
-    caseSensitive: false,
-  ).allMatches(html);
-  final buf = StringBuffer();
-  var last = 0;
-  for (final m in blocks) {
-    buf.write(norm(html.substring(last, m.start)));
-    buf.write(html.substring(m.start, m.end));
-    last = m.end;
-  }
-  buf.write(norm(html.substring(last)));
-  return buf.toString();
+  // 全文替换：弯引号在JS里无论出现在何处都是非法的
+  // 出现为字符串定界符时必须替换；出现在字符串内容里时替换为直引号对语义无害
+  return html
+      .replaceAll(RegExp('[\u2018\u2019\u201a\u201b]'), "'")
+      .replaceAll(RegExp('[\u201c\u201d\u201e\u201f\uff02]'), '"')
+      .replaceAll(RegExp('\u2026+'), '...');
 }
 
 /// [顶栏] 滑动显隐包装:Scaffold 布局位不变(extendBodyBehindAppBar 下 body 全出血,

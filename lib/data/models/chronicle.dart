@@ -381,6 +381,8 @@ class ChronicleSettings {
   final String customPromptSuffix; // 用户自定义追加指令
   final bool emotionRecallEnabled; // 情感召回加成
   final bool mvuBridgeEnabled; // MVU阈值桥接
+  final int maxRetries; // 失败任务最大重试次数（超限停止入队，等待用户干预）
+  final int summaryPasses; // 总结分段数（1-5），提升长对话提炼质量
 
   const ChronicleSettings({
     this.enabled = true,
@@ -396,6 +398,8 @@ class ChronicleSettings {
     this.customPromptSuffix = '',
     this.emotionRecallEnabled = true,
     this.mvuBridgeEnabled = true,
+    this.maxRetries = 3,
+    this.summaryPasses = 3,
   });
 
   /// 三项专属配置全空 → 沿用主对话模型
@@ -418,6 +422,8 @@ class ChronicleSettings {
         'customPromptSuffix': customPromptSuffix,
         'emotionRecallEnabled': emotionRecallEnabled,
         'mvuBridgeEnabled': mvuBridgeEnabled,
+        'maxRetries': maxRetries,
+        'summaryPasses': summaryPasses,
       };
 
   factory ChronicleSettings.fromJson(Map<String, dynamic> json) =>
@@ -437,6 +443,8 @@ class ChronicleSettings {
         customPromptSuffix: json['customPromptSuffix'] as String? ?? '',
         emotionRecallEnabled: json['emotionRecallEnabled'] as bool? ?? true,
         mvuBridgeEnabled: json['mvuBridgeEnabled'] as bool? ?? true,
+        maxRetries: (json['maxRetries'] as num?)?.toInt() ?? 3,
+        summaryPasses: (json['summaryPasses'] as num?)?.toInt() ?? 3,
       );
 
   ChronicleSettings copyWith({
@@ -453,6 +461,8 @@ class ChronicleSettings {
     String? customPromptSuffix,
     bool? emotionRecallEnabled,
     bool? mvuBridgeEnabled,
+    int? maxRetries,
+    int? summaryPasses,
   }) {
     return ChronicleSettings(
       enabled: enabled ?? this.enabled,
@@ -469,6 +479,8 @@ class ChronicleSettings {
       customPromptSuffix: customPromptSuffix ?? this.customPromptSuffix,
       emotionRecallEnabled: emotionRecallEnabled ?? this.emotionRecallEnabled,
       mvuBridgeEnabled: mvuBridgeEnabled ?? this.mvuBridgeEnabled,
+      maxRetries: maxRetries ?? this.maxRetries,
+      summaryPasses: summaryPasses ?? this.summaryPasses,
     );
   }
 }

@@ -82,11 +82,9 @@ class ChronicleSummaryService {
 
 {custom_suffix}''';
 
-  /// 生成结构化总结。
+  /// 生成结构化总结（支持分段渐进式提炼）。
   ///
-  /// 返回的 [models.ChronicleSummaryOutput]：
-  /// - 解析成功：含entries/entities/relationships/emotions增量patch
-  /// - 解析失败：fallbackText=LLM原文（降级纯文本词条）
+  /// passes=1: 单次调用；passes>1: 多段渐进，每段产出临时词条供下段参考。
   Future<models.ChronicleSummaryOutput> summarize({
     required List<ChatMessage> messages,
     required String existingWikiText,
@@ -94,74 +92,148 @@ class ChronicleSummaryService {
     required LLMConfig config,
     int fromTurn = 0,
     int toTurn = 0,
-    String? characterName,
-    String? userName,
   }) async {
-    // 拼对话文本
-    final dialogue = StringBuffer();
-    for (final m in messages) {
-      final speaker = m.role == MessageRole.user
-          ? (userName ?? 'User')
-          : (characterName ?? 'Char');
-      dialogue.writeln('$speaker: ${m.content}');
+    if (messages.isEmpty) return const models.ChronicleSummaryOutput();
+
+    final passes = settings.summaryPasses.clamp(1, 5);
+
+    if (passes == 1) {
+      return _summarizeChunk(
+        messages: messages,
+        existingWikiText: existingWikiText,
+        accumulatedTempWiki: '',
+        settings: settings,
+        config: config,
+        fromTurn: fromTurn,
+        toTurn: toTurn,
+        currentPass: 1,
+        totalPasses: 1,
+      );
     }
 
-    final suffix =
-        settings.customPromptSuffix.trim().isEmpty ? '' : '\n额外要求：${settings.customPromptSuffix.trim()}';
+    final chunkSize = (messages.length / passes).ceil();
+    final allEntries = <models.UpsertEntryInstruction>[];
+    final allEntities = <models.UpsertEntityInstruction>[];
+    final allRelationships = <models.UpsertRelationshipInstruction>[];
+    final allEmotions = <models.UpsertEmotionInstruction>[];
+    final allDeprecatedIds = <String>[];
+    String accumulatedTempWiki = '';
 
-    final prompt = _basePrompt
-        .replaceAll('{existing_wiki}',
-            existingWikiText.trim().isEmpty ? '（暂无词条）' : existingWikiText)
-        .replaceAll('{from_turn}', fromTurn.toString())
-        .replaceAll('{to_turn}', toTurn.toString())
-        .replaceAll('{dialogue}', dialogue.toString())
-        .replaceAll('{custom_suffix}', suffix);
+    for (int pass = 0; pass < passes; pass++) {
+      final start = pass * chunkSize;
+      final end = ((pass + 1) * chunkSize).clamp(0, messages.length);
+      if (start >= messages.length) break;
 
-    final summaryConfig = config.copyWith(
-      temperature: settings.summaryTemperature,
-      maxTokens: 16384,
-      model:
-          settings.summaryModel.isNotEmpty ? settings.summaryModel : config.model,
-    );
+      final chunk = messages.sublist(start, end);
 
-    final raw = await _generate(prompt, summaryConfig);
-    return parseSummaryOutput(raw);
-  }
+      try {
+        final partialOutput = await _summarizeChunk(
+          messages: chunk,
+          existingWikiText: existingWikiText,
+          accumulatedTempWiki: accumulatedTempWiki,
+          settings: settings,
+          config: config,
+          fromTurn: fromTurn + start,
+          toTurn: fromTurn + end,
+          currentPass: pass + 1,
+          totalPasses: passes,
+        );
 
-  /// LLM流式聚合（复用独立调用接口，与现有总结服务同路径）
-  Future<String> _generate(String prompt, LLMConfig config) async {
-    final buffer = StringBuffer();
-    final messages = [
-      {
-        'role': 'system',
-        'content': 'You are a helpful assistant that extracts structured memory from roleplay dialogue. Output valid JSON only.',
-      },
-      {'role': 'user', 'content': prompt},
-    ];
-    await for (final chunk
-        in _llmService.generateStreamWithReasoning(messages, config)) {
-      if (chunk.content != null) {
-        buffer.write(chunk.content);
+        allEntries.addAll(partialOutput.entries);
+        allEntities.addAll(partialOutput.entities);
+        allRelationships.addAll(partialOutput.relationships);
+        allEmotions.addAll(partialOutput.emotions);
+        allDeprecatedIds.addAll(partialOutput.deprecatedIds);
+
+        // 把本轮产出拼入临时wiki，供下轮参考
+        if (pass < passes - 1) {
+          accumulatedTempWiki += '\n\n## 临时词条（第${pass + 1}段产出）\n';
+          for (final e in partialOutput.entries) {
+            accumulatedTempWiki += '- [词条] ${e.title}: ${e.content}\n';
+          }
+          for (final e in partialOutput.entities) {
+            accumulatedTempWiki += '- [实体] ${e.name}(${e.type.name}): ${e.description}\n';
+          }
+        }
+      } catch (e) {
+        debugPrint('[CHRONICLE] 第${pass + 1}段总结失败: $e，跳过该段');
+        continue;
       }
     }
-    return buffer.toString().trim();
-  }
 
-  /// 解析LLM输出为结构化patch。容错：markdown代码栅栏剥离、尾随逗号、
-  /// JSON提取失败→fallbackText降级。
-  static models.ChronicleSummaryOutput parseSummaryOutput(String raw) {
-    if (raw.isEmpty) {
+    if (allEntries.isEmpty &&
+        allEntities.isEmpty &&
+        allRelationships.isEmpty &&
+        allEmotions.isEmpty &&
+        allDeprecatedIds.isEmpty) {
       return const models.ChronicleSummaryOutput();
     }
 
-    final jsonText = _extractJson(raw);
-    if (jsonText == null) {
+    return models.ChronicleSummaryOutput(
+      entries: allEntries,
+      entities: allEntities,
+      relationships: allRelationships,
+      emotions: allEmotions,
+      deprecatedIds: allDeprecatedIds,
+    );
+  }
+
+  /// 单段总结（内部方法）
+  Future<models.ChronicleSummaryOutput> _summarizeChunk({
+    required List<ChatMessage> messages,
+    required String existingWikiText,
+    required String accumulatedTempWiki,
+    required models.ChronicleSettings settings,
+    required LLMConfig config,
+    required int fromTurn,
+    required int toTurn,
+    required int currentPass,
+    required int totalPasses,
+  }) async {
+    final dialogueBuffer = StringBuffer();
+    for (final msg in messages) {
+      final role = msg.role == MessageRole.user ? 'User' : 'Char';
+      dialogueBuffer.writeln('$role: ${msg.content}');
+    }
+
+    final fullWikiContext = StringBuffer();
+    if (existingWikiText.isNotEmpty) {
+      fullWikiContext.writeln('### 现有正式词条（已入库）');
+      fullWikiContext.writeln(existingWikiText);
+    }
+    if (accumulatedTempWiki.isNotEmpty) {
+      fullWikiContext.writeln(accumulatedTempWiki);
+    }
+
+    final progressHint = totalPasses > 1
+        ? '\n## 当前处理进度\n这是第 $currentPass/$totalPasses 段对话。'
+            '${currentPass > 1 ? '前几段已提炼出临时词条（见上文），本段需保持上下文连贯。' : ''}\n'
+        : '';
+
+    final prompt = _basePrompt
+        .replaceAll('{existing_wiki}', fullWikiContext.toString())
+        .replaceAll('{from_turn}', fromTurn.toString())
+        .replaceAll('{to_turn}', toTurn.toString())
+        .replaceAll('{dialogue}', dialogueBuffer.toString())
+        .replaceAll('{custom_suffix}', settings.customPromptSuffix)
+        .replaceFirst('## 现有记忆词条', '$progressHint## 现有记忆词条');
+
+    final rawResponse = await _llmService.generate(
+      [{'role': 'user', 'content': prompt}],
+      config,
+    );
+
+    return parseSummaryOutput(rawResponse);
+  }
+
+  static models.ChronicleSummaryOutput parseSummaryOutput(String raw) {
+    final jsonStr = _extractJson(raw);
+    if (jsonStr == null) {
       debugPrint('[CHRONICLE] JSON提取失败，降级纯文本词条');
       return models.ChronicleSummaryOutput(fallbackText: raw);
     }
-
     try {
-      final data = jsonDecode(jsonText) as Map<String, dynamic>;
+      final data = jsonDecode(jsonStr) as Map<String, dynamic>;
 
       final entries = <models.UpsertEntryInstruction>[];
       for (final e in (data['upsert_entries'] as List? ?? const [])) {
@@ -220,7 +292,6 @@ class ChronicleSummaryService {
 
       final deprecatedIds = _stringList(data['deprecated_ids']);
 
-      // 全空 + 无fallback → 视为无变化（正常情况：闲聊轮无新信息）
       if (entries.isEmpty &&
           entities.isEmpty &&
           relationships.isEmpty &&
@@ -242,12 +313,12 @@ class ChronicleSummaryService {
     }
   }
 
-  /// 从LLM输出中提取JSON主体（剥离```json栅栏、定位首个{到末个}）
   static String? _extractJson(String raw) {
     var text = raw.trim();
-    // 剥离markdown代码栅栏
     if (text.startsWith('```')) {
-      text = text.replaceAll(RegExp(r'^```\w*\s*'), '').replaceAll(RegExp(r'\s*```$'), '');
+      text = text
+          .replaceAll(RegExp(r'^```\w*\s*'), '')
+          .replaceAll(RegExp(r'\s*```$'), '');
     }
     final start = text.indexOf('{');
     if (start < 0) return null;

@@ -84,6 +84,7 @@ class ChronicleSettingsNotifier
       _update(state.copyWith(emotionRecallEnabled: v));
   void setMvuBridgeEnabled(bool v) =>
       _update(state.copyWith(mvuBridgeEnabled: v));
+  void setSummaryPasses(int v) => _update(state.copyWith(summaryPasses: v));
 }
 
 class ChronicleMigrationChoiceNotifier extends StateNotifier<String?> {
@@ -92,6 +93,7 @@ class ChronicleMigrationChoiceNotifier extends StateNotifier<String?> {
   ChronicleMigrationChoiceNotifier() : super(null) {
     _load();
   }
+
 
   Future<void> _load() async {
     try {

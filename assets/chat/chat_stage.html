@@ -28,6 +28,8 @@ if (!Array.prototype.at) {
 if (!String.prototype.at) {
   String.prototype.at = function(n){ n = Math.trunc(n) || 0; if (n < 0) n += this.length; return (n < 0 || n >= this.length) ? undefined : this[n]; };
 }
+// [优化] 调试扫描总开关:Dart 侧按 kDebugMode 烘入(debug build=诊断保留,生产=关)
+window.__kiraDebug = __KIRA_DEBUG__;
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -288,7 +290,7 @@ if (!String.prototype.at) {
     opacity: 0;
   }
   /* 前景卡包裹层：承载 iframe + 收起按钮 */
-  .card-frame-wrap { position: relative; width: 100%; }
+  .card-frame-wrap { position: relative; width: 100%; padding-bottom: 34px; }
   .card-collapse-btn {
     display: none; position: absolute; top: 8px; right: 8px; z-index: 10;
     background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 12px;
@@ -338,6 +340,9 @@ if (!String.prototype.at) {
   .msg-star-wrap { position: absolute; bottom: 6px; z-index: 3; }
   .msg-group:not(.user) .msg-star-wrap { left: 8px; }
   .msg-group.user .msg-star-wrap { right: 8px; }
+  /* 生成中隐藏操作菜单和楼层标签 */
+  .msg[data-generating] .msg-star-wrap,
+  .msg[data-generating] .floor-tag-inner { visibility: hidden; }
 
   .msg-star {
     width: 26px; height: 26px; border-radius: 50%;
@@ -2067,18 +2072,19 @@ __KIRA_CHAT_BRIDGE__
     }
 
     container.appendChild(spSection('基础参数'));
-    container.appendChild(spSlider('chronicle-interval', '总结触发间隔（轮次）',
+    container.appendChild(spSlider('chronicle-interval', '总结触发间隔（对话轮次）',
       data.summaryInterval || 20, 10, 40, 5, ' 轮',
       function(v) { spAction('setSummaryInterval', {value: v}); }));
     container.appendChild(spSlider('chronicle-pressure', 'Token 压力阈值',
       Math.round((data.tokenPressureThreshold || 0.6) * 100), 40, 80, 5, '%',
       function(v) { spAction('setTokenPressureThreshold', {value: v / 100}); }));
-    container.appendChild(spSlider('chronicle-hot', '热区大小（保留原文轮次）',
-      data.hotWindowSize || 20, 10, 40, 5, ' 条',
+    container.appendChild(spSlider('chronicle-hot', '窗口大小（每区保留轮次）',
+      data.hotWindowSize || 20, 10, 40, 5, ' 轮（热/温/冷各占，共 ' + ((data.hotWindowSize||20)*3) + ' 轮）',
       function(v) { spAction('setHotWindowSize', {value: v}); }));
     container.appendChild(spSlider('chronicle-topk', '召回数量 Top K',
       data.ragTopK || 5, 3, 10, 1, ' 条',
       function(v) { spAction('setRagTopK', {value: v}); }));
+    container.appendChild(spSlider('chronicle-passes', '总结精度（分段次数）', data.summaryPasses || 3, 1, 5, 1, ' 段（' + (data.summaryPasses||3) + '次LLM调用）', function(v) { spAction('setSummaryPasses', {value: v}); }));
 
     container.appendChild(spSection('向量配置'));
     container.appendChild(spSelect('chronicle-embedding', 'Embedding 模型', [
@@ -3126,6 +3132,32 @@ function injectBridge(html, id, floorIdx) {
       '};' +
       '})();' +
       '(function(){' +
+      'var _origWinEvt=window.addEventListener.bind(window);' +
+      'window.addEventListener=function(type,fn,opts){' +
+      'if(type==="load"&&document.readyState==="complete"){' +
+      'setTimeout(fn,0);' +
+      '}else{' +
+      '_origWinEvt(type,fn,opts);' +
+      '}' +
+      '};' +
+      '})();' +
+      '(function(){' +
+      'try{localStorage.getItem("__k");}catch(e){' +
+      'var _m={};' +
+      'Object.defineProperty(window,"localStorage",{value:{' +
+      'getItem:function(k){return Object.prototype.hasOwnProperty.call(_m,k)?_m[k]:null;},' +
+      'setItem:function(k,v){_m[k]=String(v);},' +
+      'removeItem:function(k){delete _m[k];},' +
+      'clear:function(){_m={};},' +
+      'key:function(i){return Object.keys(_m)[i]||null;},' +
+      'length:0' +
+      '},configurable:true,writable:true});' +
+      '}' +
+      '})();' +
+      // [诊断] bridge 注入成功标志:进入任何 iframe 时 Flutter 日志必现 [BRIDGE-INIT]。
+      // 缺失 = injectBridge 未跑到(patch 未注入 / 卡片无 data-html / frame 未创建)。
+      'try{parent.postMessage({__thLog:true,text:"[BRIDGE-INIT] polyfills installed, readyState="+document.readyState},"*");}catch(_di){}' +
+      '(function(){' +
       'var _log=function(level){return function(){' +
       'try{var parts=[];for(var i=0;i<arguments.length;i++){var a=arguments[i];' +
       'parts.push(typeof a==="object"?(function(){try{return JSON.stringify(a);}catch(e){return String(a);}})():String(a));}' +
@@ -3468,7 +3500,14 @@ function injectBridge(html, id, floorIdx) {
       'window.SillyTavern={getContext:function(){return _ctx;}};' +
       'try{Object.defineProperty(window.SillyTavern,"chat",{configurable:true,get:function(){return window.__chatMessages||[];}});}catch(e){window.SillyTavern.chat=window.__chatMessages||[];}' +
       'window.getContext=function(){return _ctx;};' +
-      '})();<\/script>' + _guardBlank;
+      '})();<\/script>' + _guardBlank +
+      // [诊断] 卡片诊断入口:不依赖任何事件,解析即执行;console.error 被上方 console
+      // 捕获转发为 [卡片:error] → Flutter 必现 [CARD-DIAG]。patch 注入 <head> 时
+      // 这段在 head 尾、无 head 时在 </body> 前 —— 同样解析即执行,诊断等价。
+      '<script>try{console.error("[CARD-DIAG] script executed, readyState="+document.readyState);' +
+      'try{localStorage.getItem("__test");console.error("[CARD-DIAG] localStorage OK");}' +
+      'catch(e){console.error("[CARD-DIAG] localStorage FAIL: "+(e&&e.message||e));}' +
+      '}catch(e2){}<\/script>';
     // [P3-D/T3] 替换串一律用函数形式: 字符串第二参会把卡里的 $&/$'/$`/$1-9 当替换引用吞掉/展开。
     if (/<head>/i.test(html)) return html.replace(/<head>/i, function(){ return '<head>' + patch; });
     if (/<html/i.test(html)) return html.replace(/<html[^>]*>/, function(m){ return m + patch; });
@@ -4088,6 +4127,7 @@ function injectBridge(html, id, floorIdx) {
           // 离开缓冲区：记录高度，清空srcdoc
           var h = f.style.height;
           if (h) f.setAttribute('data-last-height', h);
+          var _g = f.closest('.msg-group'); if (_g && h) { var _gh = parseFloat(h) + 60; _g.style.containIntrinsicSize = '100px ' + _gh + 'px'; }
           f.src = 'about:blank';
           f.removeAttribute('data-blob-loaded');
         }
@@ -4389,6 +4429,7 @@ function injectBridge(html, id, floorIdx) {
             errBadge.onclick = function() { alert('EJS错误：\n' + m.ejsError); };
             c.appendChild(errBadge);
           }
+          if (m.isLatestAi && m.role !== 'user' && (!m.html || !m.html.trim())) wrap.setAttribute('data-generating', '1');
           injectMessageOverlays(wrap, m.id, m.role === 'user', m.isLatestAi, m.floor);
           group.appendChild(wrap);
         }
@@ -4426,13 +4467,16 @@ function injectBridge(html, id, floorIdx) {
       }
 
       // [WV-4/WV-5] 每轮 setMessages 后的资源与冲突计数(只观测,不改行为)
-      try {
-        var _ids = document.querySelectorAll('[id]');
-        var _seen = {}, _dup = 0;
-        for (var _q = 0; _q < _ids.length; _q++) { var _v = _ids[_q].getAttribute('id'); if (_seen[_v]) { _dup++; } else { _seen[_v] = 1; } }
-        sendToFlutter('log', { text: '[WV-5] nodes=' + document.getElementsByTagName('*').length + ' groups=' + document.querySelectorAll('.msg-group').length + ' cardIframes=' + document.querySelectorAll('iframe.card-frame').length + ' activeIntervals=' + (window.__wvActiveIntervals || 0) });
-        sendToFlutter('log', { text: '[WV-4] dupIds=' + _dup + ' globalsDelta=' + (Object.keys(window).length - (window.__wvBaseGlobals || 0)) });
-      } catch (_wv4e) {}
+      // [优化] __kiraDebug 门控:长聊全文档扫描(万级节点)是每次渲染的纯观测开销,生产默认关
+      if (window.__kiraDebug) {
+        try {
+          var _ids = document.querySelectorAll('[id]');
+          var _seen = {}, _dup = 0;
+          for (var _q = 0; _q < _ids.length; _q++) { var _v = _ids[_q].getAttribute('id'); if (_seen[_v]) { _dup++; } else { _seen[_v] = 1; } }
+          sendToFlutter('log', { text: '[WV-5] nodes=' + document.getElementsByTagName('*').length + ' groups=' + document.querySelectorAll('.msg-group').length + ' cardIframes=' + document.querySelectorAll('iframe.card-frame').length + ' activeIntervals=' + (window.__wvActiveIntervals || 0) });
+          sendToFlutter('log', { text: '[WV-4] dupIds=' + _dup + ' globalsDelta=' + (Object.keys(window).length - (window.__wvBaseGlobals || 0)) });
+        } catch (_wv4e) {}
+      }
 
       // 图片懒加载：给未加 loading 属性的 img 补上,滚到附近才加载
       root.querySelectorAll('img:not([loading])').forEach(function(img) {
@@ -4463,7 +4507,7 @@ function injectBridge(html, id, floorIdx) {
   // 滚动到指定楼层
   function scrollToFloor(floor) {
     var el = document.querySelector('[data-floor="' + floor + '"]');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el) { el.scrollIntoView({ behavior: 'instant', block: 'start' }); } else if (parseInt(floor) <= 1) { window.scrollTo({ top: 0, behavior: 'instant' }); }
   }
 
   // 滚动到底部(最新消息)：右下角按钮与 Dart 桥共用。
@@ -4472,7 +4516,7 @@ function injectBridge(html, id, floorIdx) {
   function scrollToBottom() {
     __programScroll++;
     __stickBottom = true;
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' });
     setTimeout(function () {
       if (__programScroll > 0) __programScroll--;
       syncBottomButton();
@@ -4649,13 +4693,25 @@ function injectBridge(html, id, floorIdx) {
         var _syncH = []; var _syncTs = []; var _frozenH = 0; var _lastSetH = 0; var _readyAt = Date.now() + 800;
         function _lBot() {
           try {
-            var els = doc.body ? doc.body.getElementsByTagName('*') : [];
-            var m = 0;
-            for (var i = 0; i < els.length; i++) {
-              var b = els[i].getBoundingClientRect().bottom;
-              if (b > m) m = b;
+            var win = doc.defaultView || doc.parentWindow;
+            if (!win) return (doc.body && doc.body.scrollHeight) || 0;
+            // 先获取"自然"高度（含min-height）
+            var naturalH = (doc.body && doc.body.scrollHeight) || (doc.documentElement && doc.documentElement.scrollHeight) || 0;
+            // 临时消除min-height，量真实内容高度
+            var style = doc.createElement('style');
+            style.textContent = '* { min-height: 0 !important; min-width: 0 !important; }';
+            (doc.head || doc.documentElement).appendChild(style);
+            var contentH = 0;
+            try {
+              contentH = (doc.body && doc.body.scrollHeight) ? doc.body.scrollHeight : 0;
+              if (contentH <= 0) contentH = (doc.documentElement && doc.documentElement.scrollHeight) || 0;
+            } finally {
+              if (style.parentNode) style.parentNode.removeChild(style);
             }
-            return m;
+            // 内容高度合理(>=100px)说明有真实内容，用它过滤min-height虚高
+            // 内容高度极小说明内容依赖fixed布局或min-height，回退自然高度
+            if (contentH >= 100) return contentH;
+            return naturalH > 0 ? naturalH : 300;
           } catch(e) { return 0; }
         }
         function syncHeight() {
@@ -4700,6 +4756,13 @@ function injectBridge(html, id, floorIdx) {
           });
         }
         syncHeight();
+        // 超时保底：2s后opacity仍为0时强制显示并重试（contentDocument未就绪时的兜底）
+        setTimeout(function() {
+          if (frame.style.opacity !== '1') {
+            frame.style.opacity = '1';
+            try { syncHeight(); } catch(_) {}
+          }
+        }, 2000);
         if (typeof ResizeObserver !== 'undefined') {
           var ro = new ResizeObserver(syncHeight);
           ro.observe(doc.documentElement);
@@ -4707,6 +4770,20 @@ function injectBridge(html, id, floorIdx) {
         }
       } catch(e) {}
     });
+    // [兜底] load事件因外部资源(Google Fonts/CDN)超时未触发时，Fix2永远不跑 → 卡片永远透明
+    // 此处在load事件外部无条件注册，3s后强制检查
+    setTimeout(function() {
+      if (frame.style.opacity !== '1') {
+        frame.style.opacity = '1';
+        try {
+          var _fd = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
+          if (_fd && _fd.body) {
+            var _fh = _fd.body.scrollHeight || 300;
+            if (_fh > 2) frame.style.height = (_fh + 2) + 'px';
+          }
+        } catch(_fe) {}
+      }
+    }, 3000);
     var btn = document.createElement('button');
     btn.className = 'card-collapse-btn';
     btn.type = 'button';
@@ -4835,6 +4912,7 @@ function injectBridge(html, id, floorIdx) {
         sendToFlutter('action', { action: 'needFullPush', id: id });
         return;
       }
+      wrap.removeAttribute('data-generating');
       var _sStar = wrap.querySelector('.msg-star-wrap'); var _sFloor = wrap.querySelector('.floor-tag-inner');
       wrap.innerHTML = '';
       if (p.reasoning) {
@@ -4982,28 +5060,53 @@ function injectBridge(html, id, floorIdx) {
         return;
       }
     }
+    // ── 菜单定位辅助：fixed定位脱离父容器overflow裁剪 ──
+    function _openMenuFixed(menu, starBtn) {
+      if (!menu._origParent) menu._origParent = menu.parentElement;
+      menu._origStar = starBtn;
+      var rect = starBtn.getBoundingClientRect();
+      var isUser = starBtn.closest('.msg-group.user') !== null;
+      document.body.appendChild(menu);
+      menu.style.position = 'fixed';
+      menu.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+      menu.style.top = 'auto';
+      if (isUser) {
+        menu.style.right = (window.innerWidth - rect.right) + 'px';
+        menu.style.left = 'auto';
+      } else {
+        menu.style.left = rect.left + 'px';
+        menu.style.right = 'auto';
+      }
+      menu.classList.add('open');
+      starBtn.classList.add('open');
+    }
+    function _closeMenuFixed(menu) {
+      menu.classList.remove('open');
+      if (menu._origStar) { menu._origStar.classList.remove('open'); menu._origStar = null; }
+      if (menu._origParent) { menu._origParent.appendChild(menu); menu._origParent = null; }
+      menu.style.position = ''; menu.style.bottom = ''; menu.style.top = '';
+      menu.style.left = ''; menu.style.right = '';
+    }
     // 星标点击：开/关菜单
     var _starClick = tgt.closest('[data-star]');
     if (_starClick) {
       var _sid = _starClick.getAttribute('data-star');
       var _smenu = document.querySelector('.msg-menu[data-menu="' + _sid + '"]');
       document.querySelectorAll('.msg-menu.open').forEach(function(m) {
-        if (m !== _smenu) {
-          m.classList.remove('open');
-          var _ps = m.previousElementSibling;
-          if (_ps && _ps.classList) _ps.classList.remove('open');
-        }
+        if (m !== _smenu) _closeMenuFixed(m);
       });
       if (_smenu) {
-        var _isOpen = _smenu.classList.toggle('open');
-        _starClick.classList.toggle('open', _isOpen);
+        if (_smenu.classList.contains('open')) {
+          _closeMenuFixed(_smenu);
+        } else {
+          _openMenuFixed(_smenu, _starClick);
+        }
       }
       return;
     }
     // 菜单外点击：关所有菜单
     if (!tgt.closest('.msg-menu') && !tgt.closest('[data-star]')) {
-      document.querySelectorAll('.msg-menu.open').forEach(function(m) { m.classList.remove('open'); });
-      document.querySelectorAll('.msg-star.open').forEach(function(s) { s.classList.remove('open'); });
+      document.querySelectorAll('.msg-menu.open').forEach(function(m) { _closeMenuFixed(m); });
     }
     // 菜单项 & 版本切换按钮
     var _actBtn = tgt.closest('.menu-item[data-act]') || tgt.closest('.swipe-btn[data-act]');
@@ -5011,7 +5114,7 @@ function injectBridge(html, id, floorIdx) {
       if (_actBtn.disabled) return;
       sendToFlutter('action', { id: _actBtn.getAttribute('data-id'), action: _actBtn.getAttribute('data-act') });
       var _pm = _actBtn.closest('.msg-menu');
-      if (_pm) { _pm.classList.remove('open'); var _pstar = _pm.previousElementSibling; if (_pstar && _pstar.classList) _pstar.classList.remove('open'); }
+      if (_pm) _closeMenuFixed(_pm);
       return;
     }
   });

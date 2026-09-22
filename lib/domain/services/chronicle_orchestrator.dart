@@ -53,6 +53,8 @@ class ChronicleOrchestrator {
 
   /// 启动队列轮询（30s一次，幂等）
   void start() {
+    // 启动时重置僵尸任务（app被杀后running任务永远卡住队列）
+    unawaited(_repo.resetStuckRunningTasks());
     _pollTimer ??= Timer.periodic(
       const Duration(seconds: 30),
       (_) => _processPendingTasks(),
@@ -89,8 +91,11 @@ class ChronicleOrchestrator {
       final overflowCount =
           (unarchived.length - settings.hotWindowSize).clamp(0, unarchived.length);
 
-      bool triggerByTurns =
-          overflowCount > 0 && unarchived.length >= settings.hotWindowSize + settings.summaryInterval;
+      // 按轮次（user消息数）计，1 user + 1 assistant = 1轮；summaryInterval单位=轮
+      final overflowUserTurns = overflowCount > 0
+          ? unarchived.sublist(0, overflowCount).where((m) => m.role == MessageRole.user).length
+          : 0;
+      bool triggerByTurns = overflowUserTurns >= settings.summaryInterval;
 
       // token压力触发：热窗token ≥ 比例阈值 或 绝对上限（H7双触发）
       bool triggerByTokens = false;
@@ -109,6 +114,13 @@ class ChronicleOrchestrator {
       // 待归档消息：溢出热窗的最早一批（调整A：messageId集合）
       final toArchive =
           unarchived.sublist(0, overflowCount).map((m) => m.id).toList();
+
+      // 失败任务退避：超过最大重试次数停止入队，等待用户在Chronicle面板手动干预
+      final failedCount = await _repo.getFailedTaskCountForChat(chatId);
+      if (failedCount >= settings.maxRetries) {
+        debugPrint('[CHRONICLE] 已达最大重试次数(\/\)，停止入队');
+        return true;
+      }
 
       final enqueued = await _repo.enqueueSummaryTask(
         chatId: chatId,

@@ -1,11 +1,4 @@
 // lib/presentation/dialogs/chronicle_settings_dialog.dart
-/// [CHRONICLE UI整合] Chronicle全局设置浮窗（极客Core规范浮窗）
-///
-/// 修复二：设置是全局运行参数，从API服务页直接打开，不依赖是否有聊天打开。
-///
-/// 修改一：移除底部"打开Wiki管理/立即整理记忆"按钮（改在聊天页实现）。
-/// 修改二："工作原理"由信息行改为可点击入口，弹出WebView浮窗加载原理HTML。
-/// 修改三："总结模型"由单行文本框改为完整模型配置区（BaseURL/APIKey/获取模型/模型名）。
 library;
 
 import 'dart:math' show min;
@@ -348,7 +341,7 @@ class _ChronicleSettingsDialogState
             child: Column(
               children: [
                 CoreSliderRow(
-                  label: '总结间隔（新增消息数）',
+                  label: '总结触发间隔（对话轮次）',
                   value: settings.summaryInterval.toDouble(),
                   min: 10,
                   max: 40,
@@ -365,6 +358,15 @@ class _ChronicleSettingsDialogState
                   display: '${(settings.tokenPressureThreshold * 100).round()}%',
                   onChanged: notifier.setTokenPressureThreshold,
                 ),
+                CoreSliderRow(
+                  label: '总结精度（分段次数）',
+                  value: settings.summaryPasses.toDouble(),
+                  min: 1,
+                  max: 5,
+                  divisions: 4,
+                  display: '${settings.summaryPasses} 段（${settings.summaryPasses}次LLM调用）',
+                  onChanged: (v) => notifier.setSummaryPasses(v.round()),
+                ),
               ],
             ),
           ),
@@ -374,12 +376,12 @@ class _ChronicleSettingsDialogState
             child: Column(
               children: [
                 CoreSliderRow(
-                  label: '热区大小（保留原文条数）',
+                  label: '窗口大小（每区保留轮次）',
                   value: settings.hotWindowSize.toDouble(),
                   min: 10,
                   max: 40,
                   divisions: 30,
-                  display: '${settings.hotWindowSize} 条',
+                  display: '${settings.hotWindowSize} 轮（热/温/冷各 ${settings.hotWindowSize}共 ${settings.hotWindowSize * 3} 轮）',
                   onChanged: (v) => notifier.setHotWindowSize(v.round()),
                 ),
                 CoreSliderRow(
