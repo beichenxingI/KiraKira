@@ -1398,6 +1398,7 @@ __KIRA_CHAT_BRIDGE__
     inp.type = type || 'text';
     inp.value = value || '';
     inp.placeholder = placeholder || '';
+    inp.id = id || '';
     inp.dataset.id = id || '';
     inp.addEventListener('input', function(e) {
       if (onChange) onChange(e.target.value);

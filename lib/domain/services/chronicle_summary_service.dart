@@ -224,6 +224,7 @@ class ChronicleSummaryService {
       config,
     );
 
+    debugPrint('[CHRONICLE] raw response length: ${rawResponse.length}, preview: ${rawResponse.substring(0, rawResponse.length.clamp(0, 200))}');
     return parseSummaryOutput(rawResponse);
   }
 
