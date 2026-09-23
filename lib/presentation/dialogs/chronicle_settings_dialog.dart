@@ -7,6 +7,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kirakira/data/models/vector_storage.dart';
+import 'package:kirakira/data/repositories/chronicle_repository.dart';
 import 'package:kirakira/domain/services/llm_service.dart';
 import 'package:kirakira/presentation/providers/chronicle_providers.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
@@ -226,7 +228,24 @@ class _ChronicleSettingsDialogState
 
   // ═══════════════════ [修改二] 工作原理 WebView 浮窗 ═══════════════════
 
-  void _showPrincipleWebView() {
+  Future<void> _showPrincipleWebView() async {
+    // 注入实时数据：分段数/向量模型/词条累计/重试上限（原理页节点展示用）
+    final cs = ref.read(chronicleSettingsProvider);
+    final vs = ref.read(vectorStorageSettingsProvider);
+    final embeddingLabel =
+        vs.embeddingProvider == EmbeddingProvider.local
+            ? '本地BGE 512维'
+            : (vs.embeddingModel ?? vs.embeddingProvider.defaultModel);
+    int entryCount = 0;
+    try {
+      entryCount = await ref.read(chronicleRepositoryProvider).countAllEntries();
+    } catch (_) {}
+    final html = _kPrincipleHtml
+        .replaceAll('{passes}', '${cs.summaryPasses}')
+        .replaceAll('{embedding_label}', embeddingLabel)
+        .replaceAll('{entry_count}', '$entryCount')
+        .replaceAll('{max_retries}', '${cs.maxRetries}');
+    if (!mounted) return;
     showDialog<void>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.7),
@@ -240,7 +259,7 @@ class _ChronicleSettingsDialogState
             height: MediaQuery.of(context).size.height * 0.85,
             child: InAppWebView(
               initialData: InAppWebViewInitialData(
-                data: _kPrincipleHtml,
+                data: html,
                 mimeType: 'text/html',
                 encoding: 'utf-8',
               ),
@@ -561,6 +580,7 @@ class _MigrationDialog extends ConsumerWidget {
 }
 
 /// [修改二] Chronicle 工作原理 HTML（内联，无网络依赖）
+/// {passes}/{embedding_label}/{entry_count}/{max_retries} 由Dart注入实时数据
 const String _kPrincipleHtml = r'''<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -569,216 +589,498 @@ const String _kPrincipleHtml = r'''<!DOCTYPE html>
 <title>Chronicle 工作原理</title>
 <style>
   :root {
-    --bg: #0f0f0f;
-    --surface: #1a1a1a;
-    --border: #2a2a2a;
-    --accent: #e8956d;
-    --accent-dim: rgba(232,149,109,0.15);
-    --text: #f0ebe4;
-    --muted: #8a8480;
-    --green: #6db86d;
-    --yellow: #d4b85a;
-    --bad: #c46060;
+    --kira-bg-1: #0F1115;
+    --kira-bg-2: #161A22;
+    --kira-bg-3: #20242C;
+    --kira-text-1: #F5F7FA;
+    --kira-text-2: #C8CDD6;
+    --kira-text-3: #8A8A8A;
+    --blue: #4A9EFF;
+    --green: #52C41A;
+    --red: #FF4D4F;
+    --orange: #FA8C16;
+    --border: rgba(255,255,255,0.08);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: var(--bg);
-    color: var(--text);
+    background: var(--kira-bg-1);
+    color: var(--kira-text-1);
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.7;
-    padding: 28px 24px 48px;
+    padding: 24px 18px 48px;
   }
-  .hero { text-align: center; padding: 32px 0 40px; }
-  .hero-icon { font-size: 48px; margin-bottom: 16px; }
-  .hero h1 { font-size: 22px; font-weight: 700; letter-spacing: .08em; color: var(--accent); margin-bottom: 8px; }
-  .hero p { color: var(--muted); font-size: 13px; max-width: 420px; margin: 0 auto; }
-  .compare-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin: 8px 0 40px; }
-  .compare-card { border: 1px solid var(--border); border-radius: 14px; padding: 20px; background: var(--surface); }
-  .compare-card.highlight { border-color: var(--accent); background: linear-gradient(135deg, rgba(232,149,109,0.08), var(--surface)); }
-  .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-  .badge { font-size: 11px; padding: 3px 8px; border-radius: 999px; font-weight: 600; letter-spacing: .04em; }
-  .badge-bad { background: rgba(196,96,96,0.2); color: var(--bad); }
-  .badge-ok { background: rgba(212,184,90,0.2); color: var(--yellow); }
-  .badge-good { background: rgba(109,184,109,0.2); color: var(--green); }
-  .card-title { font-weight: 700; font-size: 15px; }
-  .card-desc { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
-  .flow { display: flex; flex-direction: column; gap: 6px; }
-  .flow-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-  .flow-box { padding: 5px 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); white-space: nowrap; flex-shrink: 0; }
-  .flow-box.accent { border-color: var(--accent); color: var(--accent); }
-  .flow-arrow { color: var(--muted); font-size: 14px; }
-  .flow-note { font-size: 11px; color: var(--muted); margin-left: 4px; flex: 1; }
-  .pros-cons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
-  .tag { font-size: 11px; padding: 3px 8px; border-radius: 6px; }
-  .tag-pro { background: rgba(109,184,109,0.12); color: var(--green); }
-  .tag-con { background: rgba(196,96,96,0.12); color: var(--bad); }
-  .window-demo { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 14px 0; font-size: 11px; text-align: center; }
-  .win-cold { background: rgba(255,255,255,0.03); border: 1px solid #2a2a2a; border-radius: 8px; padding: 8px 4px; color: #555; }
-  .win-warm { background: rgba(232,149,109,0.06); border: 1px solid rgba(232,149,109,0.2); border-radius: 8px; padding: 8px 4px; color: #a07060; }
-  .win-hot  { background: rgba(232,149,109,0.14); border: 1px solid rgba(232,149,109,0.45); border-radius: 8px; padding: 8px 4px; color: var(--accent); }
-  .win-label { font-weight: 700; margin-bottom: 4px; }
-  .win-sub { opacity: .7; font-size: 10px; }
-  .section-title { font-size: 16px; font-weight: 700; margin: 32px 0 16px; color: var(--accent); display: flex; align-items: center; gap: 8px; }
-  .memory-layers { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
-  .layer-row { display: flex; gap: 14px; align-items: flex-start; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); }
-  .layer-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
-  .layer-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
-  .layer-desc { color: var(--muted); font-size: 12px; }
-  .conclusion { background: var(--accent-dim); border: 1px solid rgba(232,149,109,0.3); border-radius: 14px; padding: 20px; text-align: center; font-size: 13px; line-height: 1.8; }
-  .conclusion strong { color: var(--accent); }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .anim { animation: fadeInUp .3s ease-out both; }
+  .d1 { animation-delay: .05s; }
+  .d2 { animation-delay: .12s; }
+  .d3 { animation-delay: .19s; }
+  .d4 { animation-delay: .26s; }
+  .d5 { animation-delay: .33s; }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 26px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::before {
+    content: '';
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--blue);
+    flex-shrink: 0;
+  }
+  @media (hover: hover) {
+    .lift { transition: transform .2s ease, box-shadow .2s ease; }
+    .lift:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+  }
+
+  .chronicle-hero { text-align: center; padding: 12px 0 4px; }
+  .hero-icon { width: 48px; height: 48px; margin-bottom: 10px; }
+  .chronicle-hero h2 { font-size: 14px; font-weight: 600; letter-spacing: .06em; }
+  .hero-subtitle { color: var(--kira-text-3); font-size: 12px; margin-top: 6px; }
+
+  .pipeline-svg { width: 100%; height: auto; display: block; }
+  .pipeline-line {
+    stroke: var(--blue);
+    stroke-width: 2;
+    stroke-dasharray: 6 4;
+    animation: flowDash 1.5s linear infinite;
+  }
+  .pipeline-line.thin { stroke-width: 1.5; }
+  @keyframes flowDash { to { stroke-dashoffset: -10; } }
+  .node-circle { fill: var(--kira-bg-3); stroke-width: 2.5; }
+  .node-pending { stroke: #666666; }
+  .node-running { stroke: var(--blue); animation: pulse 1.2s ease-in-out infinite; will-change: stroke-opacity; }
+  .node-done { stroke: var(--green); }
+  .node-failed { stroke: var(--red); }
+  @keyframes pulse { 0%, 100% { stroke-opacity: .5; } 50% { stroke-opacity: 1; } }
+  .node-icon { fill: none; stroke: var(--kira-text-2); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .node-label { fill: var(--kira-text-1); font-size: 13px; font-weight: 600; text-anchor: middle; }
+  .node-badge { fill: var(--blue); font-size: 11px; font-weight: 600; text-anchor: middle; font-family: monospace; }
+  .node-sub { fill: var(--kira-text-3); font-size: 11px; text-anchor: middle; }
+  .node-desc-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--kira-text-3);
+    line-height: 1.5;
+  }
+
+  details.tl-collapse {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--kira-bg-2);
+    margin-top: 14px;
+    overflow: hidden;
+  }
+  details.tl-collapse summary {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  details.tl-collapse summary::-webkit-details-marker { display: none; }
+  .tl-arrow { color: var(--kira-text-3); font-size: 12px; transition: transform .2s; }
+  details[open] .tl-arrow { transform: rotate(-90deg); }
+  .timeline { padding: 2px 16px 14px 16px; border-top: 1px solid var(--border); }
+  .tl-item { position: relative; padding: 7px 0 7px 20px; font-size: 12px; color: var(--kira-text-2); }
+  .tl-item::before {
+    content: '';
+    position: absolute;
+    left: 3px; top: 0; bottom: 0;
+    width: 1px;
+    background: var(--border);
+  }
+  .tl-dot {
+    position: absolute;
+    left: 0; top: 13px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--kira-bg-3);
+    border: 1.5px solid #666666;
+  }
+  .tl-dot.dot-blue { border-color: var(--blue); }
+  .tl-dot.dot-green { border-color: var(--green); }
+  .tl-item b { color: var(--kira-text-1); font-family: monospace; font-weight: 600; }
+
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .compare-card {
+    background: var(--kira-bg-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .compare-card.good-card { border-color: rgba(82,196,26,.35); }
+  .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .st-ic { width: 16px; height: 16px; flex-shrink: 0; }
+  .card-title { font-size: 14px; font-weight: 600; }
+  .pc-list { list-style: none; font-size: 12px; color: var(--kira-text-2); }
+  .pc-list li { position: relative; padding: 3px 0 3px 14px; }
+  .pc-list li::before {
+    content: '';
+    position: absolute;
+    left: 2px; top: 11px;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--kira-text-3);
+  }
+  .kw-demo, .vec-demo {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: var(--kira-bg-3);
+    border-radius: 8px;
+  }
+  .kw-line { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .kw { padding: 2px 8px; border-radius: 4px; font-family: monospace; }
+  .kw-bad { background: rgba(255,77,79,.2); color: var(--red); }
+  .kw-arrow { color: #666666; }
+  .kw-miss { color: var(--red); display: inline-flex; align-items: center; gap: 4px; }
+  .kw-miss .st-ic { width: 12px; height: 12px; }
+  .kw-explain, .vec-explain { font-size: 11px; color: var(--kira-text-3); margin-top: 6px; }
+  .vec-vis { width: 100%; max-width: 220px; height: auto; display: block; margin-top: 8px; }
+  .vec-line { stroke-width: 2; stroke-linecap: round; }
+  .vec-label { fill: var(--green); font-size: 12px; font-weight: 600; font-family: monospace; }
+  .recall-flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: var(--kira-bg-3);
+    border-radius: 8px;
+  }
+  .rf-step {
+    font-size: 11px;
+    color: var(--kira-text-2);
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
+  .rf-step.rf-hot { color: var(--blue); border-color: rgba(74,158,255,.4); }
+  .rf-conn { width: 18px; height: 8px; flex-shrink: 0; }
+
+  .cmp-table { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .cmp-row {
+    display: grid;
+    grid-template-columns: .8fr 1fr 1.1fr 1.2fr;
+    font-size: 12px;
+    color: var(--kira-text-2);
+    border-top: 1px solid var(--border);
+    align-items: stretch;
+  }
+  .cmp-row:first-child { border-top: none; }
+  .cmp-row > div { padding: 9px 10px; }
+  .cmp-row.cmp-head { background: var(--kira-bg-3); font-weight: 600; color: var(--kira-text-1); }
+  .cmp-dim { color: var(--kira-text-1); font-weight: 600; }
+  .cmp-hl { background: rgba(74,158,255,.10); }
+  .cmp-row.cmp-head .cmp-hl { color: var(--blue); }
+  .cmp-cell .st-ic { width: 13px; height: 13px; }
+  .m-label { display: none; }
+  @media (hover: hover) {
+    .cmp-row:not(.cmp-head):hover { background: rgba(74,158,255,.06); }
+    .cmp-row:not(.cmp-head):hover .cmp-hl { background: rgba(74,158,255,.16); }
+  }
+
+  .guarantee-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .guarantee-item {
+    background: var(--kira-bg-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .g-icon {
+    width: 20px; height: 20px;
+    stroke: var(--blue); fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    margin-bottom: 6px;
+  }
+  .g-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .g-desc { font-size: 12px; color: var(--kira-text-3); line-height: 1.5; }
+
+  @media (max-width: 700px) {
+    .compare-grid, .guarantee-grid { grid-template-columns: 1fr; }
+    .cmp-row { grid-template-columns: 1fr; }
+    .cmp-row.cmp-head { display: none; }
+    .cmp-row > div { padding: 6px 12px; }
+    .cmp-hl { border-left: 2px solid var(--blue); }
+    .m-label {
+      display: inline-block;
+      font-size: 11px;
+      color: var(--kira-text-3);
+      margin-right: 4px;
+    }
+    .node-desc-grid { grid-template-columns: 1fr 1fr; }
+  }
 </style>
 </head>
 <body>
 
-<div class="hero">
-  <div class="hero-icon">📖</div>
-  <h1>Chronicle 工作原理</h1>
-  <p>为什么理论上可以实现永久记忆，以及它与传统方案的本质区别</p>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="ic-ok" viewBox="0 0 24 24">
+      <path d="M20 6 9 17l-5-5" fill="none" stroke="#52C41A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="ic-bad" viewBox="0 0 24 24">
+      <path d="M18 6 6 18M6 6l12 12" fill="none" stroke="#FF4D4F" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ic-warn" viewBox="0 0 24 24">
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="none" stroke="#FA8C16" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="12" y1="9" x2="12" y2="13" stroke="#FA8C16" stroke-width="2" stroke-linecap="round"/>
+      <line x1="12" y1="17" x2="12.01" y2="17" stroke="#FA8C16" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ic-na" viewBox="0 0 24 24">
+      <line x1="6" y1="12" x2="18" y2="12" stroke="#8A8A8A" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="chronicle-hero anim d1">
+  <svg class="hero-icon" viewBox="0 0 48 48">
+    <path d="M8 10 L8 38 L20 38 L20 10 Z" stroke="#4A9EFF" fill="none" stroke-width="2"/>
+    <path d="M28 10 L28 38 L40 38 L40 10 Z" stroke="#52C41A" fill="none" stroke-width="2"/>
+    <path d="M10 16 L18 16 M10 20 L18 20 M10 24 L18 24" stroke="#666666" stroke-width="1.5"/>
+    <path d="M30 16 L38 16 M30 20 L38 20 M30 24 L38 24" stroke="#666666" stroke-width="1.5"/>
+  </svg>
+  <h2>Chronicle 超级记忆原理</h2>
+  <p class="hero-subtitle">语义向量召回 × 渐进式提炼 × 永久记忆 = 真正的长会话解决方案</p>
 </div>
 
-<div class="section-title">⚖️ 三种方案对比</div>
+<div class="section-title anim d1">完整工作流</div>
+<div class="card anim d2 lift" style="background:var(--kira-bg-2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+  <svg class="pipeline-svg" viewBox="0 0 800 150">
+    <line x1="100" y1="58" x2="220" y2="58" class="pipeline-line"/>
+    <line x1="260" y1="58" x2="380" y2="58" class="pipeline-line"/>
+    <line x1="420" y1="58" x2="540" y2="58" class="pipeline-line"/>
+    <line x1="580" y1="58" x2="700" y2="58" class="pipeline-line"/>
 
-<div class="compare-grid">
+    <circle cx="80" cy="58" r="20" class="node-circle node-pending"/>
+    <circle cx="240" cy="58" r="20" class="node-circle node-running"/>
+    <circle cx="400" cy="58" r="20" class="node-circle node-running"/>
+    <circle cx="560" cy="58" r="20" class="node-circle node-done"/>
+    <circle cx="720" cy="58" r="20" class="node-circle node-done"/>
 
-  <div class="compare-card">
-    <div class="card-header">
-      <span class="badge badge-bad">传统方案</span>
-      <span class="card-title">全量注入</span>
-    </div>
-    <div class="card-desc">每次对话都把所有历史记录塞给模型</div>
-    <div class="flow">
-      <div class="flow-row">
-        <div class="flow-box">角色卡</div>
-        <div class="flow-arrow">+</div>
-        <div class="flow-box">第1条消息</div>
-        <div class="flow-arrow">+</div>
-        <div class="flow-box">···</div>
-        <div class="flow-arrow">+</div>
-        <div class="flow-box">第N条</div>
-      </div>
-      <div class="flow-row">
-        <div class="flow-arrow" style="margin-left:8px">↓</div>
-        <div class="flow-note">全部塞入上下文窗口</div>
-      </div>
-    </div>
-    <div class="pros-cons">
-      <span class="tag tag-pro">信息完整</span>
-      <span class="tag tag-con">token暴增</span>
-      <span class="tag tag-con">模型变笨</span>
-      <span class="tag tag-con">费用爆炸</span>
-      <span class="tag tag-con">对话一长就崩</span>
-    </div>
+    <g transform="translate(70,48) scale(0.8333)">
+      <title>消息溢出：热区装不下的最早一批消息进入待归档集合（按轮次或token压力触发）</title>
+      <path class="node-icon" d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/>
+      <path class="node-icon" d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/>
+      <path class="node-icon" d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>
+    </g>
+    <g transform="translate(230,48) scale(0.8333)">
+      <title>入队：异步任务队列，30秒轮询+单飞守卫，绝不阻塞对话</title>
+      <line class="node-icon" x1="8" y1="6" x2="21" y2="6"/>
+      <line class="node-icon" x1="8" y1="12" x2="21" y2="12"/>
+      <line class="node-icon" x1="8" y1="18" x2="21" y2="18"/>
+      <line class="node-icon" x1="3" y1="6" x2="3.01" y2="6"/>
+      <line class="node-icon" x1="3" y1="12" x2="3.01" y2="12"/>
+      <line class="node-icon" x1="3" y1="18" x2="3.01" y2="18"/>
+    </g>
+    <text x="400" y="26" class="node-badge">{passes}-pass</text>
+    <g transform="translate(390,48) scale(0.8333)">
+      <title>一次性总结易遗漏细节，分{passes}段渐进式提炼保证质量；某段JSON解析失败自动降级兜底</title>
+      <circle class="node-icon" cx="6" cy="6" r="3"/>
+      <path class="node-icon" d="M8.12 8.12 12 13"/>
+      <path class="node-icon" d="M20 4 8.12 8.12"/>
+      <path class="node-icon" d="M14.8 14.8 20 20"/>
+      <path class="node-icon" d="M8.12 15.88 12 11"/>
+      <circle class="node-icon" cx="6" cy="18" r="3"/>
+    </g>
+    <g transform="translate(550,48) scale(0.8333)">
+      <title>词条向量化入库，与RAG原文向量共存，供语义召回</title>
+      <circle class="node-icon" cx="18" cy="5" r="3"/>
+      <circle class="node-icon" cx="6" cy="12" r="3"/>
+      <circle class="node-icon" cx="18" cy="19" r="3"/>
+      <line class="node-icon" x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+      <line class="node-icon" x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+    </g>
+    <g transform="translate(710,48) scale(0.8333)">
+      <title>词条/实体/关系/情感增量upsert，原文标记归档（可随时取消归档回滚）</title>
+      <ellipse class="node-icon" cx="12" cy="5" rx="9" ry="3"/>
+      <path class="node-icon" d="M3 5V19A9 3 0 0 0 21 19V5"/>
+      <path class="node-icon" d="M3 12A9 3 0 0 0 21 12"/>
+    </g>
+
+    <text x="80" y="102" class="node-label">消息溢出</text>
+    <text x="240" y="102" class="node-label">入队</text>
+    <text x="400" y="102" class="node-label">分段总结</text>
+    <text x="560" y="102" class="node-label">向量化</text>
+    <text x="720" y="102" class="node-label">入库</text>
+    <text x="560" y="120" class="node-sub">{embedding_label}</text>
+    <text x="720" y="120" class="node-sub">累计 {entry_count} 条词条</text>
+  </svg>
+  <div class="node-desc-grid">
+    <div>热区装不下的最早一批消息进入待归档集合</div>
+    <div>异步任务队列，轮询消费+单飞守卫</div>
+    <div>专属模型分{passes}段渐进提炼，失败降级兜底</div>
+    <div>词条向量化，供语义召回使用</div>
+    <div>词条/实体/关系增量更新，原文标记归档</div>
   </div>
 
-  <div class="compare-card">
-    <div class="card-header">
-      <span class="badge badge-ok">常见方案</span>
-      <span class="card-title">向量 + 总结</span>
+  <details class="tl-collapse">
+    <summary>长会话的实际工作流（默认参数示例）<span class="tl-arrow">▾</span></summary>
+    <div class="timeline">
+      <div class="tl-item"><span class="tl-dot"></span><div><b>第1-20轮</b>：热区全量注入（最近原文，注意力最强位）</div></div>
+      <div class="tl-item"><span class="tl-dot dot-blue"></span><div><b>第21轮</b>：触发总结 → 分{passes}段提炼产出词条 → 第1-20轮归档并向量化</div></div>
+      <div class="tl-item"><span class="tl-dot"></span><div><b>第21-40轮</b>：热区全量注入</div></div>
+      <div class="tl-item"><span class="tl-dot dot-blue"></span><div><b>第41轮</b>：再次触发总结 → 新词条增量更新 → 第21-40轮归档</div></div>
+      <div class="tl-item"><span class="tl-dot"></span><div>循环往复，词条库持续增量更新，token占用稳定不膨胀</div></div>
+      <div class="tl-item"><span class="tl-dot dot-green"></span><div><b>千轮处</b>：热区仍只保留最近20轮原文 + 语义召回最相关5条历史词条（锚点词条始终注入），上下文稳定</div></div>
     </div>
-    <div class="card-desc">把历史压缩成一段总结，加上语义检索</div>
-    <div class="flow">
-      <div class="flow-row">
-        <div class="flow-box">一坨总结文本</div>
-        <div class="flow-arrow">+</div>
-        <div class="flow-box">向量召回原文</div>
-      </div>
-      <div class="flow-row">
-        <div class="flow-arrow" style="margin-left:8px">↓</div>
-        <div class="flow-note">召回的是冗长原文，噪音多</div>
-      </div>
-    </div>
-    <div class="pros-cons">
-      <span class="tag tag-pro">比全量省token</span>
-      <span class="tag tag-con">总结仍然很长</span>
-      <span class="tag tag-con">召回噪音多</span>
-      <span class="tag tag-con">关系不清晰</span>
-    </div>
-  </div>
-
-  <div class="compare-card highlight">
-    <div class="card-header">
-      <span class="badge badge-good">Chronicle</span>
-      <span class="card-title">三窗口 + Wiki召回</span>
-    </div>
-    <div class="card-desc">结构化词条取代叙事总结，精炼摘要入向量库</div>
-
-    <div class="window-demo">
-      <div class="win-cold">
-        <div class="win-label">冷区</div>
-        <div class="win-sub">即将淡出</div>
-        <div class="win-sub">低注意力位</div>
-      </div>
-      <div class="win-warm">
-        <div class="win-label">温区</div>
-        <div class="win-sub">过渡记忆</div>
-        <div class="win-sub">中间区域</div>
-      </div>
-      <div class="win-hot">
-        <div class="win-label">热区</div>
-        <div class="win-sub">最近原文</div>
-        <div class="win-sub">末尾高注意力</div>
-      </div>
-    </div>
-
-    <div class="flow">
-      <div class="flow-row">
-        <div class="flow-box accent">Wiki词条</div>
-        <div class="flow-arrow">+</div>
-        <div class="flow-box">精准召回</div>
-        <div class="flow-arrow">+</div>
-        <div class="flow-box">热区原文</div>
-      </div>
-    </div>
-    <div class="pros-cons">
-      <span class="tag tag-pro">token大幅减少</span>
-      <span class="tag tag-pro">关系清晰</span>
-      <span class="tag tag-pro">召回精准</span>
-      <span class="tag tag-pro">上下文稳定</span>
-      <span class="tag tag-pro">理论永久记忆</span>
-    </div>
-  </div>
-
+  </details>
 </div>
 
-<div class="section-title">♾️ 为什么可以永久记忆</div>
-
-<div class="memory-layers">
-  <div class="layer-row">
-    <div class="layer-icon">⚓</div>
-    <div>
-      <div class="layer-title">锚点层 · 永不遗忘</div>
-      <div class="layer-desc">初次相遇、重大转折等关键时刻被标记为锚点，无论对话多少轮都始终注入，一千轮后模型仍然记得第一次见面。</div>
+<div class="section-title anim d2">语义召回 vs 关键词匹配</div>
+<div class="compare-grid anim d3">
+  <div class="compare-card lift">
+    <div class="card-head">
+      <svg class="st-ic"><use href="#ic-bad"/></svg>
+      <span class="card-title">传统关键词匹配</span>
+    </div>
+    <ul class="pc-list">
+      <li>用户说"树林"，词条写"森林" → 漏召回</li>
+      <li>关键词"长伊"出现100次，无法判断哪条最相关</li>
+      <li>同义词、上下位词无法识别</li>
+    </ul>
+    <div class="kw-demo">
+      <div class="kw-line">
+        <span class="kw kw-bad">森林</span>
+        <span class="kw-arrow">→</span>
+        <span class="kw-miss"><svg class="st-ic"><use href="#ic-bad"/></svg>未匹配</span>
+      </div>
+      <div class="kw-explain">关键词表里没有"树林"，错过召回</div>
     </div>
   </div>
-  <div class="layer-row">
-    <div class="layer-icon">🗂️</div>
-    <div>
-      <div class="layer-title">词条层 · 结构化记忆</div>
-      <div class="layer-desc">每隔N轮，模型将对话提炼为结构化词条——人物当前状态、关系变化、情感节点。词条只增量更新，不叠加膨胀。</div>
+  <div class="compare-card good-card lift">
+    <div class="card-head">
+      <svg class="st-ic"><use href="#ic-ok"/></svg>
+      <span class="card-title">语义向量召回</span>
     </div>
-  </div>
-  <div class="layer-row">
-    <div class="layer-icon">🔍</div>
-    <div>
-      <div class="layer-title">语义召回层 · 按需检索</div>
-      <div class="layer-desc">向量库只存精炼词条（非原文），混合语义相似度+关键词+时间权重召回，相关的事件精准浮现，无关内容不占token。</div>
+    <ul class="pc-list">
+      <li>向量空间中"树林"与"森林"余弦相似度0.91 → 自动召回</li>
+      <li>根据当前话题语义，只召回最相关的条目（topK）</li>
+      <li>理解"疲惫"与"受伤"的关联，跨词汇召回</li>
+    </ul>
+    <div class="vec-demo">
+      <svg viewBox="0 0 100 60" class="vec-vis">
+        <line x1="10" y1="30" x2="50" y2="20" class="vec-line" stroke="#52C41A"/>
+        <line x1="10" y1="30" x2="48" y2="22" class="vec-line" stroke="#4A9EFF"/>
+        <text x="55" y="25" class="vec-label">0.91</text>
+      </svg>
+      <div class="vec-explain">两条向量夹角越小，余弦相似度越高，自动召回</div>
     </div>
-  </div>
-  <div class="layer-row">
-    <div class="layer-icon">🌡️</div>
-    <div>
-      <div class="layer-title">三窗口层 · 渐进淡出</div>
-      <div class="layer-desc">原文按热/温/冷三区排列，利用模型对上下文末尾注意力更强的特性。旧内容渐进淡出而非突然消失，不会突然失忆。</div>
+    <div class="recall-flow">
+      <span class="rf-step">用户消息</span>
+      <svg class="rf-conn" viewBox="0 0 24 8"><line x1="1" y1="4" x2="23" y2="4" class="pipeline-line thin"/></svg>
+      <span class="rf-step">embedding</span>
+      <svg class="rf-conn" viewBox="0 0 24 8"><line x1="1" y1="4" x2="23" y2="4" class="pipeline-line thin"/></svg>
+      <span class="rf-step">相似度计算</span>
+      <svg class="rf-conn" viewBox="0 0 24 8"><line x1="1" y1="4" x2="23" y2="4" class="pipeline-line thin"/></svg>
+      <span class="rf-step">topK排序</span>
+      <svg class="rf-conn" viewBox="0 0 24 8"><line x1="1" y1="4" x2="23" y2="4" class="pipeline-line thin"/></svg>
+      <span class="rf-step rf-hot">注入</span>
     </div>
   </div>
 </div>
 
-<div class="conclusion">
-  结果是：<strong>上下文窗口始终稳定</strong>，不随对话轮数增长。<br>
-  无论聊了多少轮，模型每次拿到的都是<strong>精炼的关键记忆</strong>而非冗长历史。<br>
-  这就是理论上可以实现<strong>永久记忆</strong>的原因。
+<div class="section-title anim d3">三方案对比</div>
+<div class="cmp-table anim d4">
+  <div class="cmp-row cmp-head">
+    <div>维度</div>
+    <div>全量上下文注入</div>
+    <div>长记忆条目总结</div>
+    <div class="cmp-hl">Chronicle 超级记忆</div>
+  </div>
+  <div class="cmp-row" title="信息保留：Chronicle按事件/状态/知识/实体/关系多维度建词条，信息密度高">
+    <div class="cmp-dim">信息保留</div>
+    <div class="cmp-cell"><span class="m-label">全量注入</span><svg class="st-ic"><use href="#ic-ok"/></svg> 原文完整</div>
+    <div class="cmp-cell"><span class="m-label">长记忆总结</span><svg class="st-ic"><use href="#ic-bad"/></svg> 压缩成一条，细节丢失</div>
+    <div class="cmp-cell cmp-hl"><span class="m-label">Chronicle</span><svg class="st-ic"><use href="#ic-ok"/></svg> 结构化多维词条，信息密度高</div>
+  </div>
+  <div class="cmp-row" title="token消耗：默认参数下热区20轮+召回5条约5000token，不随轮数增长">
+    <div class="cmp-dim">token消耗</div>
+    <div class="cmp-cell"><span class="m-label">全量注入</span><svg class="st-ic"><use href="#ic-bad"/></svg> 轮数越多token线性增长</div>
+    <div class="cmp-cell"><span class="m-label">长记忆总结</span><svg class="st-ic"><use href="#ic-warn"/></svg> 单条约500token，累积仍会膨胀</div>
+    <div class="cmp-cell cmp-hl"><span class="m-label">Chronicle</span><svg class="st-ic"><use href="#ic-ok"/></svg> 热区20轮+召回5条，约5000token</div>
+  </div>
+  <div class="cmp-row" title="时序理解：词条content以[第N轮]开头，注入按turnIndex升序">
+    <div class="cmp-dim">时序理解</div>
+    <div class="cmp-cell"><span class="m-label">全量注入</span><svg class="st-ic"><use href="#ic-ok"/></svg> 原文有顺序</div>
+    <div class="cmp-cell"><span class="m-label">长记忆总结</span><svg class="st-ic"><use href="#ic-bad"/></svg> 单条压缩无时序</div>
+    <div class="cmp-cell cmp-hl"><span class="m-label">Chronicle</span><svg class="st-ic"><use href="#ic-ok"/></svg> 每条词条带[第N轮]标记</div>
+  </div>
+  <div class="cmp-row" title="长会话应对：词条只增量更新不膨胀，上下文窗口稳定">
+    <div class="cmp-dim">长会话应对</div>
+    <div class="cmp-cell"><span class="m-label">全量注入</span><svg class="st-ic"><use href="#ic-bad"/></svg> 对话一长必爆上下文</div>
+    <div class="cmp-cell"><span class="m-label">长记忆总结</span><svg class="st-ic"><use href="#ic-bad"/></svg> 条目累积后仍会顶爆</div>
+    <div class="cmp-cell cmp-hl"><span class="m-label">Chronicle</span><svg class="st-ic"><use href="#ic-ok"/></svg> 千轮只注入热区+召回，稳定运行</div>
+  </div>
+  <div class="cmp-row" title="召回精度：混合语义0.5+关键词0.2+时间0.1+情感0.1+重要度0.1打分，取topK">
+    <div class="cmp-dim">召回精度</div>
+    <div class="cmp-cell"><span class="m-label">全量注入</span><svg class="st-ic"><use href="#ic-na"/></svg> 全量注入，无召回概念</div>
+    <div class="cmp-cell"><span class="m-label">长记忆总结</span><svg class="st-ic"><use href="#ic-bad"/></svg> 条目平铺，模型难分辨</div>
+    <div class="cmp-cell cmp-hl"><span class="m-label">Chronicle</span><svg class="st-ic"><use href="#ic-ok"/></svg> 语义相似度排序，只注入最相关条目</div>
+  </div>
+  <div class="cmp-row" title="失败影响：JSON解析失败降级纯文本词条；失败任务退避重试">
+    <div class="cmp-dim">失败影响</div>
+    <div class="cmp-cell"><span class="m-label">全量注入</span><svg class="st-ic"><use href="#ic-na"/></svg> 无总结环节</div>
+    <div class="cmp-cell"><span class="m-label">长记忆总结</span><svg class="st-ic"><use href="#ic-bad"/></svg> 总结失败即丢信息</div>
+    <div class="cmp-cell cmp-hl"><span class="m-label">Chronicle</span><svg class="st-ic"><use href="#ic-ok"/></svg> fallback兜底+分段重试</div>
+  </div>
+  <div class="cmp-row" title="后台运行：30秒轮询+单飞守卫，LLM调用为IO等待不阻塞UI">
+    <div class="cmp-dim">后台运行</div>
+    <div class="cmp-cell"><span class="m-label">全量注入</span><svg class="st-ic"><use href="#ic-na"/></svg> 同步等待</div>
+    <div class="cmp-cell"><span class="m-label">长记忆总结</span><svg class="st-ic"><use href="#ic-warn"/></svg> 阻塞主流程</div>
+    <div class="cmp-cell cmp-hl"><span class="m-label">Chronicle</span><svg class="st-ic"><use href="#ic-ok"/></svg> 异步队列，静默处理</div>
+  </div>
+  <div class="cmp-row" title="可维护性：记忆库面板可查看/编辑/重新总结/全量重建">
+    <div class="cmp-dim">可维护性</div>
+    <div class="cmp-cell"><span class="m-label">全量注入</span><svg class="st-ic"><use href="#ic-bad"/></svg> 原文不可编辑</div>
+    <div class="cmp-cell"><span class="m-label">长记忆总结</span><svg class="st-ic"><use href="#ic-warn"/></svg> 单条修改困难</div>
+    <div class="cmp-cell cmp-hl"><span class="m-label">Chronicle</span><svg class="st-ic"><use href="#ic-ok"/></svg> 词条可查看/编辑/重新总结</div>
+  </div>
+</div>
+
+<div class="section-title anim d4">四大保证</div>
+<div class="guarantee-grid anim d5">
+  <div class="guarantee-item lift">
+    <svg class="g-icon" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
+    <div class="g-title">后台静音</div>
+    <div class="g-desc">总结任务异步执行，不阻塞对话，失败不弹窗</div>
+  </div>
+  <div class="guarantee-item lift">
+    <svg class="g-icon" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
+    <div class="g-title">降级兜底</div>
+    <div class="g-desc">JSON解析失败自动降级为纯文本词条，信息不丢失</div>
+  </div>
+  <div class="guarantee-item lift">
+    <svg class="g-icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+    <div class="g-title">智能重试</div>
+    <div class="g-desc">失败任务自动退避重试（最多{max_retries}次），避免反复报错</div>
+  </div>
+  <div class="guarantee-item lift">
+    <svg class="g-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <div class="g-title">僵尸清理</div>
+    <div class="g-desc">启动时自动重置10分钟前卡住的任务，不留残留</div>
+  </div>
 </div>
 
 </body>
 </html>''';
+

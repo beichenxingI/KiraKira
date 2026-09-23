@@ -260,6 +260,12 @@ class ChronicleRepository {
     return rows.length;
   }
 
+  /// 全部聊天词条总数（工作原理页统计用）
+  Future<int> countAllEntries() async {
+    final rows = await (_db.select(_db.memoryEntries)).get();
+    return rows.length;
+  }
+
   models.MemoryEntry _entryFromRow(db.MemoryEntry row) {
     return models.MemoryEntry(
       id: row.id,
