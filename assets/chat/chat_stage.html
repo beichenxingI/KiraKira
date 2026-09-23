@@ -985,6 +985,9 @@ window.__kiraDebug = __KIRA_DEBUG__;
     background:var(--kira-input-bg,#20242C);border-radius:8px;padding:10px;
     white-space:pre-wrap;word-break:break-word;max-height:220px;overflow-y:auto;
     margin:0;line-height:1.5;font-family:inherit;}
+  .wiki-error-banner{background:rgba(239,83,80,.15);
+    border:1px solid rgba(239,83,80,.4);border-radius:8px;padding:8px 12px;
+    margin-bottom:8px;font-size:12px;color:#EF5350;word-break:break-all;}
 </style>
 </head>
 <body>
@@ -2207,6 +2210,14 @@ __KIRA_CHAT_BRIDGE__
     container.innerHTML = '';
     var d = data || {};
 
+    // 重新总结失败横幅（下次操作后自动消失）
+    if (d.wikiError) {
+      var errBanner = document.createElement('div');
+      errBanner.className = 'wiki-error-banner';
+      errBanner.textContent = '重新总结失败：' + d.wikiError;
+      container.appendChild(errBanner);
+    }
+
     container.appendChild(spTabs([
       {value:'entries', label:'记忆词条'},
       {value:'status', label:'运行状态'}
@@ -2398,6 +2409,28 @@ __KIRA_CHAT_BRIDGE__
       }, false));
     }
 
+    // 重新总结（单条词条，LLM重总结替换旧词条）
+    var resum = document.createElement('div');
+    resum.className = 'wiki-edit-form';
+    resum.style.display = 'none';
+    if (srcIds.length > 0) {
+      var vExtra = '';
+      resum.appendChild(spTextarea('we-resum-' + e.id, '', vExtra,
+        '说明哪里不满意，或者提出额外要求…',
+        function(v) { vExtra = v; }));
+      var rsBtn = document.createElement('button');
+      rsBtn.className = 'sp-btn primary';
+      rsBtn.style.marginTop = '8px';
+      rsBtn.textContent = '重新总结';
+      rsBtn.addEventListener('click', function() {
+        if (rsBtn.disabled) return;
+        rsBtn.disabled = true;
+        rsBtn.textContent = '总结中…';
+        spAction('resummarizeEntry', {entryId: e.id, extraRequirement: vExtra});
+      });
+      resum.appendChild(rsBtn);
+    }
+
     // 操作按钮
     var actions = document.createElement('div');
     actions.className = 'wiki-entry-actions';
@@ -2405,11 +2438,24 @@ __KIRA_CHAT_BRIDGE__
       view.style.display = 'none';
       edit.style.display = 'block';
     }));
+    if (srcIds.length > 0) {
+      actions.appendChild(spButton('重新总结', 'secondary', function() {
+        edit.style.display = 'none';
+        resum.style.display = (resum.style.display === 'none') ? 'block' : 'none';
+      }));
+    } else {
+      var noSrcHint = document.createElement('div');
+      noSrcHint.className = 'wiki-meta-line';
+      noSrcHint.style.cssText = 'flex:1;font-size:12px;color:var(--kira-text-3,#8A8A8A);';
+      noSrcHint.textContent = '该词条无原始消息记录，无法重新总结';
+      actions.appendChild(noSrcHint);
+    }
     actions.appendChild(spButton('删除', 'danger', function() {
       spConfirm('删除词条', '确认删除词条「' + (e.title || '未命名') + '」？此操作不可撤销。', '删除',
         function() { spAction('deleteEntry', {id: e.id}); }, true);
     }));
     body.appendChild(actions);
+    body.appendChild(resum);
     view.appendChild(body);
 
     head.addEventListener('click', function() {
@@ -2646,6 +2692,20 @@ __KIRA_CHAT_BRIDGE__
     sumCard.appendChild(spButton('立即整理记忆', 'primary', function() {
       spAction('manualSummarize', {});
     }));
+    // 全量重新总结（破坏性操作，二次确认）
+    var fullBtn = spButton('重新总结全部历史', 'danger', function() {
+      spConfirm('重新总结全部历史',
+        '将清除本聊天所有现有词条和归档记录，重新对全部消息进行总结。此操作不可撤销。',
+        '确认重新总结', function() {
+          spAction('fullResummarize', {});
+        }, true);
+    });
+    fullBtn.style.marginTop = '8px';
+    sumCard.appendChild(fullBtn);
+    var visibleCount = (d.stats || {}).totalVisibleMessageCount || 0;
+    if (visibleCount > 0) {
+      sumCard.appendChild(spDesc('将对 ' + visibleCount + ' 条消息重新总结'));
+    }
     container.appendChild(sumCard);
 
     // Prompt区
@@ -2662,7 +2722,7 @@ __KIRA_CHAT_BRIDGE__
       d.customPromptSuffix || '', '对总结的额外要求…',
       function(v) { spAction('setCustomPromptSuffix', {value: v}); }));
     promptCard.appendChild(spTextarea('wiki-mature-prompt', '特殊内容补充指令',
-      d.matureContentSuffix || '', '成人内容的额外要求…',
+      d.matureContentSuffix || '', '特殊场景的额外总结要求…',
       function(v) { spAction('setMatureContentSuffix', {value: v}); }));
     promptCard.appendChild(spSlider('wiki-retries', '最大重试次数', d.maxRetries || 3, 1, 10, 1, ' 次',
       function(v) { spAction('setMaxRetries', {value: v}); }));

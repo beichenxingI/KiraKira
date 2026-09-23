@@ -177,6 +177,129 @@ class ChronicleOrchestrator {
   }
 
   // ═══════════════════ 队列消费 ═══════════════════
+
+  /// [全量总结] 一键全量重新总结：跳过所有阈值与幂等守卫，
+  /// 把全部非hidden消息作为一个任务入队（依赖summaryPasses分段总结拆分，
+  /// 避免单次任务消息过多；入队后立即触发一轮消费）。
+  Future<void> forceEnqueueAll(
+      String chatId, List<ChatMessage> messages) async {
+    final visible = messages.where((m) => !m.isHidden).toList();
+    if (visible.isEmpty) return;
+    await _repo.enqueueSummaryTask(
+      chatId: chatId,
+      messageIds: visible.map((m) => m.id).toList(),
+      fromTurn: 0,
+      toTurn: visible.length,
+      forceEnqueue: true,
+    );
+    debugPrint('[CHRONICLE] 全量总结入队：${visible.length}条消息');
+    unawaited(_processPendingTasks());
+  }
+
+  /// [单条重新总结] 针对词条源消息重新总结，替换旧词条。
+  /// 返回错误信息（null=成功，含"无产出保留原词条"场景）。
+  /// 耗时操作（LLM调用），调用方负责loading通知与错误展示。
+  Future<String?> resummarizeEntry(
+    String chatId,
+    String entryId,
+    String extraRequirement,
+  ) async {
+    try {
+      final candidates = await _repo.getEntriesByIds(chatId, [entryId]);
+      if (candidates.isEmpty) return '词条不存在（可能已删除）';
+      final entry = candidates.first;
+      final sourceIds = entry.sourceMessageIds;
+      if (sourceIds.isEmpty) return '该词条无原始消息记录，无法重新总结';
+
+      final messages = await _repo.getMessagesByIds(chatId, sourceIds);
+      if (messages.isEmpty) return '原始消息已删除，无法重新总结';
+
+      final settings = settingsGetter();
+      final summaryConfig = _buildSummaryConfig(settings, llmConfigGetter());
+      final existingWiki = await _buildExistingWikiText(chatId);
+      final (characterName, userName) = _extractNames(messages);
+
+      final output = await _chronicleSummaryService.summarize(
+        messages: messages,
+        existingWikiText: existingWiki,
+        settings: settings,
+        config: summaryConfig,
+        fromTurn: entry.turnIndex,
+        toTurn: entry.turnIndex,
+        characterName: characterName,
+        userName: userName,
+        extraRequirement: extraRequirement,
+      );
+
+      // 空产出（LLM判定无变化）保留原词条，避免误删
+      if (output.isEmpty) {
+        debugPrint('[CHRONICLE] 单条重总结无产出，保留原词条');
+        return null;
+      }
+
+      // 删除旧词条 → 应用新词条（源消息沿用，turnIndex保持原值）
+      await _repo.deleteEntry(entryId);
+      final touchedEntries =
+          await _applySummary(chatId, output, sourceIds, entry.turnIndex);
+      for (final e in touchedEntries) {
+        await _vectorizeEntry(e);
+      }
+      debugPrint('[CHRONICLE] 单条重总结完成：词条${touchedEntries.length}条');
+      return null;
+    } catch (e) {
+      debugPrint('[CHRONICLE] 单条重总结失败: $e');
+      return e.toString();
+    }
+  }
+
+  /// [修改三] Chronicle 专属总结模型配置：三项配置任一非空 → 走专属 openAICompatible，
+  /// 全空则沿用主对话模型（兼容旧 summaryModel 字段）。任务消费与单条重总结共用。
+  LLMConfig _buildSummaryConfig(
+      models.ChronicleSettings settings, LLMConfig config) {
+    final LLMConfig summaryConfig;
+    if (settings.summaryUsesMainModel) {
+      summaryConfig = config.copyWith(
+        temperature: settings.summaryTemperature,
+        maxTokens: 16384,
+        model: settings.summaryModel.isNotEmpty
+            ? settings.summaryModel
+            : config.model,
+      );
+    } else {
+      summaryConfig = config.copyWith(
+        provider: LLMProvider.openAICompatible,
+        apiUrl: settings.summaryBaseUrl.isNotEmpty
+            ? settings.summaryBaseUrl
+            : config.apiUrl,
+        apiKey: settings.summaryApiKey.isNotEmpty
+            ? settings.summaryApiKey
+            : config.apiKey,
+        model: settings.summaryModelName.isNotEmpty
+            ? settings.summaryModelName
+            : config.model,
+        temperature: settings.summaryTemperature,
+        maxTokens: 16384,
+      );
+    }
+    return summaryConfig;
+  }
+
+  /// 从消息中提取角色名/用户名（取不到用默认值，不阻断）
+  static (String, String) _extractNames(List<ChatMessage> messages) {
+    String characterName = 'Char';
+    String userName = 'User';
+    for (final m in messages) {
+      final name = m.characterName;
+      if (name == null || name.isEmpty) continue;
+      if (m.role == MessageRole.assistant) {
+        characterName = name;
+      } else if (m.role == MessageRole.user) {
+        userName = name;
+      }
+    }
+    return (characterName, userName);
+  }
+
   Future<void> _processPendingTasks() async {
     if (_processing) return; // 单飞
     _processing = true;
@@ -199,48 +322,11 @@ class ChronicleOrchestrator {
 
         final settings = settingsGetter();
         final config = llmConfigGetter();
-        // [修改三] Chronicle 专属总结模型：三项配置任一非空 → 走专属 openAICompatible
-        // 全空则沿用主对话模型（兼容旧 summaryModel 字段）
-        final LLMConfig summaryConfig;
-        if (settings.summaryUsesMainModel) {
-          summaryConfig = config.copyWith(
-            temperature: settings.summaryTemperature,
-            maxTokens: 16384,
-            model: settings.summaryModel.isNotEmpty
-                ? settings.summaryModel
-                : config.model,
-          );
-        } else {
-          summaryConfig = config.copyWith(
-            provider: LLMProvider.openAICompatible,
-            apiUrl: settings.summaryBaseUrl.isNotEmpty
-                ? settings.summaryBaseUrl
-                : config.apiUrl,
-            apiKey: settings.summaryApiKey.isNotEmpty
-                ? settings.summaryApiKey
-                : config.apiKey,
-            model: settings.summaryModelName.isNotEmpty
-                ? settings.summaryModelName
-                : config.model,
-            temperature: settings.summaryTemperature,
-            maxTokens: 16384,
-          );
-        }
+        final summaryConfig = _buildSummaryConfig(settings, config);
 
         // 1. [Phase 2] 结构化JSON抽取（失败降级纯文本，H5）
         final existingWiki = await _buildExistingWikiText(task.chatId);
-        // 角色名/用户名（取不到用默认值，不阻断）
-        String characterName = 'Char';
-        String userName = 'User';
-        for (final m in messages) {
-          final name = m.characterName;
-          if (name == null || name.isEmpty) continue;
-          if (m.role == MessageRole.assistant) {
-            characterName = name;
-          } else if (m.role == MessageRole.user) {
-            userName = name;
-          }
-        }
+        final (characterName, userName) = _extractNames(messages);
         final output = await _chronicleSummaryService.summarize(
           messages: messages,
           existingWikiText: existingWiki,

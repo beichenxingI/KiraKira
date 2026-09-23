@@ -26,15 +26,17 @@ class ChronicleRepository {
 
   // ═══════════════════ SummaryTasks ═══════════════════
 
-  /// 入队一个总结任务（幂等：同聊天已有 pending/running 任务则跳过）
+  /// 入队一个总结任务（幂等：同聊天已有 pending/running 任务则跳过；
+  /// forceEnqueue=true时绕过幂等守卫，全量重总结场景用）
   Future<bool> enqueueSummaryTask({
     required String chatId,
     required List<String> messageIds,
     int fromTurn = 0,
     int toTurn = 0,
+    bool forceEnqueue = false,
   }) async {
     if (messageIds.isEmpty) return false;
-    if (await hasActiveTaskForChat(chatId)) return false;
+    if (!forceEnqueue && await hasActiveTaskForChat(chatId)) return false;
 
     await _db.into(_db.summaryTasks).insert(db.SummaryTasksCompanion.insert(
           id: _uuid.v4(),
@@ -121,6 +123,25 @@ class ChronicleRepository {
     await (_db.delete(_db.summaryTasks)
           ..where((t) => t.chatId.equals(chatId) & t.status.equals('failed')))
         .go();
+  }
+
+  /// 删除某聊天所有任务记录（全量重总结用）
+  Future<void> clearTasksForChat(String chatId) async {
+    await (_db.delete(_db.summaryTasks)
+          ..where((t) => t.chatId.equals(chatId)))
+        .go();
+  }
+
+  /// 删除某聊天所有词条（全量重总结用）
+  Future<void> deleteAllEntriesForChat(String chatId) async {
+    await (_db.delete(_db.memoryEntries)
+          ..where((t) => t.chatId.equals(chatId)))
+        .go();
+  }
+
+  /// 清空归档状态（archivedMessageIds重置为空数组）
+  Future<void> clearArchivedMessageIds(String chatId) async {
+    await _saveState(chatId, archivedMessageIds: const <String>[]);
   }
 
   // ═══════════════════ MemoryEntries ═══════════════════

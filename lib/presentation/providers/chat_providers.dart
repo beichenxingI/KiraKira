@@ -2007,14 +2007,24 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     final sections = <String>[];
 
-    // ① 锚点/始终注入词条（importance降序，超预算尾部=低importance自动被裁）
+    // ① 锚点/始终注入词条：先按importance降序裁剪（预算语义不变），再按turnIndex升序排列
+    // 时序修复：注入带轮次前缀，主模型可判断事件先后，避免因果混乱
     if (fixedEntries.isNotEmpty) {
-      final sorted = [...fixedEntries]
+      String turnLabel(int idx) => idx <= 0 ? '早期' : '第$idx轮';
+      String lineOf(MemoryEntry e) =>
+          '· [${turnLabel(e.turnIndex)}] ${e.title}：${e.content}';
+      final byImportance = [...fixedEntries]
         ..sort((a, b) => b.importance.compareTo(a.importance));
-      final lines = <String>[];
-      for (final e in sorted) {
-        lines.add('· ${e.title}：${e.content}');
+      final kept = <MemoryEntry>[];
+      var used = 0;
+      for (final e in byImportance) {
+        final cost = lineOf(e).length + 1; // +1 换行
+        if (kept.isNotEmpty && used + cost > budgetChars) break;
+        kept.add(e);
+        used += cost;
       }
+      kept.sort((a, b) => a.turnIndex.compareTo(b.turnIndex));
+      final lines = <String>[for (final e in kept) lineOf(e)];
       sections.add('【关键记忆】\n${lines.join('\n')}');
     }
 

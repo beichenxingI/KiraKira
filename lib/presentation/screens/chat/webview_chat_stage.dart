@@ -4937,6 +4937,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'entityCount': entities.length,
         'archivedMessageCount': archivedIds.length,
         'totalMessageCount': messages.length,
+        'totalVisibleMessageCount':
+            messages.where((m) => !m.isHidden).length,
         'pendingTaskCount': tasks.where((t) => t.status == 'pending').length,
         'failedTaskCount': tasks.where((t) => t.status == 'failed').length,
       },
@@ -5012,6 +5014,47 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       case 'clearFailedTasks':
         await repo.clearFailedTasksForChat(widget.chatId);
         break;
+      case 'fullResummarize':
+        try {
+          await repo.deleteAllEntriesForChat(widget.chatId);
+          await repo.clearArchivedMessageIds(widget.chatId);
+          await repo.clearTasksForChat(widget.chatId);
+          final messages = ref.read(activeChatProvider).messages;
+          await ref
+              .read(chronicleOrchestratorProvider)
+              .forceEnqueueAll(widget.chatId, messages);
+          _snack('已重新对全部消息入队总结');
+        } catch (e) {
+          _snack('全量总结失败: $e');
+        }
+        break;
+      case 'resummarizeEntry':
+        final rEntryId = data['entryId'] as String? ?? '';
+        if (rEntryId.isEmpty) break;
+        // LLM调用耗时较长，先发loading状态通知HTML（refresh:false不重渲染）
+        _bridge.send(BridgeType.settingsPanelData, {
+          'data': {'loading': true, 'loadingMessage': '正在重新总结，请稍候…'},
+          'refresh': false,
+        });
+        String? resErr;
+        try {
+          resErr = await ref
+              .read(chronicleOrchestratorProvider)
+              .resummarizeEntry(widget.chatId, rEntryId,
+                  data['extraRequirement'] as String? ?? '');
+        } catch (e) {
+          resErr = e.toString();
+        }
+        final wikiData = await _serializeWikiData();
+        if (resErr != null) {
+          wikiData['wikiError'] = resErr;
+          _snack('重新总结失败: $resErr');
+        } else {
+          _snack('重新总结完成');
+        }
+        _bridge.send(BridgeType.settingsPanelData,
+            {'data': wikiData, 'refresh': true});
+        return;
       case 'manualSummarize':
         try {
           final messages = ref.read(activeChatProvider).messages;

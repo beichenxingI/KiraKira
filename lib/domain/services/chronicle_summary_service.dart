@@ -31,6 +31,7 @@ class ChronicleSummaryService {
 - 重点关注：关系转折、情感节点、承诺/欠债、秘密揭露、立场改变、重大事件
 - 不需要关注：日常闲聊、重复场景、无意义对话
 - 词条描述用中文，简洁（单条50-120字）
+- 词条标题建议包含时间锚点，如"第N轮：长伊获得玉石吊坠"，方便后续按时序理解
 - 重要度1-10：关系转折/秘密/重大事件=8-10，普通事件=4-6，日常细节=1-3
 - 如需永久记住（如初次相遇、重大转折），设anchor=true
 
@@ -94,6 +95,7 @@ class ChronicleSummaryService {
     int toTurn = 0,
     String characterName = 'Char',
     String userName = 'User',
+    String extraRequirement = '',
   }) async {
     if (messages.isEmpty) return const models.ChronicleSummaryOutput();
 
@@ -112,6 +114,7 @@ class ChronicleSummaryService {
         totalPasses: 1,
         characterName: characterName,
         userName: userName,
+        extraRequirement: extraRequirement,
       );
     }
 
@@ -143,6 +146,7 @@ class ChronicleSummaryService {
           totalPasses: passes,
           characterName: characterName,
           userName: userName,
+          extraRequirement: extraRequirement,
         );
 
         allEntries.addAll(partialOutput.entries);
@@ -197,6 +201,7 @@ class ChronicleSummaryService {
     required int totalPasses,
     String characterName = 'Char',
     String userName = 'User',
+    String extraRequirement = '',
   }) async {
     final dialogueBuffer = StringBuffer();
     for (final msg in messages) {
@@ -224,13 +229,19 @@ class ChronicleSummaryService {
       settings.matureContentSuffix,
     ].where((s) => s.trim().isNotEmpty).join('\n\n');
 
+    // 本次额外要求（单条重新总结场景，追加在custom_suffix之后）
+    final extraBlock = extraRequirement.trim().isNotEmpty
+        ? '\n## 本次额外要求\n${extraRequirement.trim()}\n'
+        : '';
+
     final prompt = basePrompt
         .replaceAll('{existing_wiki}', fullWikiContext.toString())
         .replaceAll('{from_turn}', fromTurn.toString())
         .replaceAll('{to_turn}', toTurn.toString())
         .replaceAll('{dialogue}', dialogueBuffer.toString())
         .replaceAll('{custom_suffix}', customSuffix)
-        .replaceFirst('## 现有记忆词条', '$progressHint## 现有记忆词条');
+        .replaceFirst('## 现有记忆词条', '$progressHint## 现有记忆词条') +
+        extraBlock;
 
     final rawResponse = await _llmService.generate(
       [{'role': 'user', 'content': prompt}],
