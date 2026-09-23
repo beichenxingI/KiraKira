@@ -178,23 +178,8 @@ class ChronicleOrchestrator {
 
   // ═══════════════════ 队列消费 ═══════════════════
 
-  /// [全量总结] 一键全量重新总结：跳过所有阈值与幂等守卫，
-  /// 把全部非hidden消息作为一个任务入队（依赖summaryPasses分段总结拆分，
-  /// 避免单次任务消息过多；入队后立即触发一轮消费）。
-  Future<void> forceEnqueueAll(
-      String chatId, List<ChatMessage> messages) async {
-    final visible = messages.where((m) => !m.isHidden).toList();
-    if (visible.isEmpty) return;
-    await _repo.enqueueSummaryTask(
-      chatId: chatId,
-      messageIds: visible.map((m) => m.id).toList(),
-      fromTurn: 0,
-      toTurn: visible.length,
-      forceEnqueue: true,
-    );
-    debugPrint('[CHRONICLE] 全量总结入队：${visible.length}条消息');
-    unawaited(_processPendingTasks());
-  }
+  /// 立即触发一轮队列消费（幂等，单飞守卫保护；供面板手动入队后快速执行）
+  void kickProcess() => unawaited(_processPendingTasks());
 
   /// [单条重新总结] 针对词条源消息重新总结，替换旧词条。
   /// 返回错误信息（null=成功，含"无产出保留原词条"场景）。
@@ -509,21 +494,27 @@ class ChronicleOrchestrator {
     }
 
     // ⑥ H5降级：JSON解析失败 → 纯文本词条（与旧总结同等质量）
-    // 固定title"降级总结"便于识别：同一聊天只保留一条fallback词条，upsert覆盖而非新建
+    // tags"降级总结"便于识别：单pass路径同一聊天只保留一条fallback词条，upsert覆盖而非新建；
+    // 多pass路径的降级词条（带轮次title）由summarize聚合循环产出，走上方正常upsert
     if (output.fallbackText != null && output.fallbackText!.isNotEmpty) {
       final all = await _repo.getAllEntries(chatId);
       models.MemoryEntry? existingFallback;
       for (final e in all) {
-        if (e.title == '降级总结' && !e.deprecated) {
+        if (e.tags.contains('降级总结') && !e.deprecated) {
           existingFallback = e;
           break;
         }
       }
+      final fallbackTitle = '第$turnIndex轮附近：降级总结';
       final fallback = existingFallback?.copyWith(
+            title: fallbackTitle,
             content: output.fallbackText!,
-            importance: 5,
+            importance: 4,
             alwaysInject: false,
             anchor: false,
+            tags: existingFallback.tags.contains('降级总结')
+                ? existingFallback.tags
+                : [...existingFallback.tags, '降级总结'],
             sourceMessageIds: sourceMessageIds,
             turnIndex: turnIndex,
             updatedAt: now,
@@ -532,11 +523,12 @@ class ChronicleOrchestrator {
             id: _uuid.v4(),
             chatId: chatId,
             type: models.MemoryEntryType.event,
-            title: '降级总结',
+            title: fallbackTitle,
             content: output.fallbackText!,
-            importance: 5,
+            importance: 4,
             alwaysInject: false,
             anchor: false,
+            tags: const ['降级总结'],
             sourceMessageIds: sourceMessageIds,
             turnIndex: turnIndex,
             createdAt: now,

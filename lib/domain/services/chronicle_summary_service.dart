@@ -131,6 +131,24 @@ class ChronicleSummaryService {
         allEmotions.addAll(partialOutput.emotions);
         allDeprecatedIds.addAll(partialOutput.deprecatedIds);
 
+        // fallback兜底：该段JSON解析失败时，把原文转为词条，不丢弃信息
+        if (partialOutput.entries.isEmpty &&
+            partialOutput.fallbackText != null &&
+            partialOutput.fallbackText!.trim().isNotEmpty) {
+          debugPrint('[CHRONICLE] 第${pass + 1}段JSON解析失败，降级为fallback词条');
+          allEntries.add(models.UpsertEntryInstruction(
+            id: null,
+            type: models.MemoryEntryType.event,
+            title: '第${fromTurn + pass * chunkSize ~/ 2}轮附近：降级总结',
+            content: partialOutput.fallbackText!.trim(),
+            importance: 4,
+            alwaysInject: false,
+            anchor: false,
+            tags: const ['降级总结'],
+            entityNames: const [],
+          ));
+        }
+
         // 把本轮产出拼入临时wiki，供下轮参考
         if (pass < passes - 1) {
           accumulatedTempWiki += '\n\n## 临时词条（第${pass + 1}段产出）\n';
@@ -224,7 +242,7 @@ class ChronicleSummaryService {
       config,
     );
 
-    debugPrint('[CHRONICLE] raw response length: ${rawResponse.length}, preview: ${rawResponse.substring(0, rawResponse.length.clamp(0, 200))}');
+    debugPrint('[CHRONICLE] chunk pass=$currentPass raw=${rawResponse.length}chars preview=${rawResponse.substring(0, rawResponse.length.clamp(0, 100))}');
     return parseSummaryOutput(rawResponse);
   }
 

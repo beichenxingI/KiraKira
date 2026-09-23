@@ -5016,14 +5016,35 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
       case 'fullResummarize':
         try {
+          final settings = ref.read(chronicleSettingsProvider);
+          // 1. 清空现有词条、归档记录、任务队列
           await repo.deleteAllEntriesForChat(widget.chatId);
           await repo.clearArchivedMessageIds(widget.chatId);
           await repo.clearTasksForChat(widget.chatId);
-          final messages = ref.read(activeChatProvider).messages;
-          await ref
-              .read(chronicleOrchestratorProvider)
-              .forceEnqueueAll(widget.chatId, messages);
-          _snack('已重新对全部消息入队总结');
+          // 2. 获取所有可见消息
+          final allMessages = ref.read(activeChatProvider).messages
+              .where((m) => !m.isHidden)
+              .toList();
+          if (allMessages.isEmpty) break;
+          // 3. 按summaryInterval（轮次×2=条数）切割，每批独立入队
+          // （单任务塞全部消息会导致LLM输入过长、JSON格式偶发错误）
+          final batchSize = settings.summaryInterval * 2;
+          for (int i = 0; i < allMessages.length; i += batchSize) {
+            final end = (i + batchSize).clamp(0, allMessages.length);
+            final batchIds =
+                allMessages.sublist(i, end).map((m) => m.id).toList();
+            await repo.enqueueSummaryTask(
+              chatId: widget.chatId,
+              messageIds: batchIds,
+              fromTurn: i ~/ 2,
+              toTurn: end ~/ 2,
+              forceEnqueue: true, // 跳过hasActiveTask检查
+            );
+          }
+          // 入队后立即触发一轮消费（保持原forceEnqueueAll的即时执行）
+          ref.read(chronicleOrchestratorProvider).kickProcess();
+          final batchCount = (allMessages.length / batchSize).ceil();
+          _snack('已重新对全部消息入队总结（$batchCount批）');
         } catch (e) {
           _snack('全量总结失败: $e');
         }
