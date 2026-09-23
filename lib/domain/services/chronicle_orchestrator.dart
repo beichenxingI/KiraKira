@@ -371,18 +371,24 @@ class ChronicleOrchestrator {
     }
   }
 
-  /// 构建现有Wiki快照文本（喂给总结Prompt，供LLM判断增量）
+  /// 构建现有Wiki快照文本（喂给总结Prompt，供LLM判断增量）。
+  /// 时序修复：按turnIndex升序排列，格式带轮次标记，id供deprecated_ids引用。
   Future<String> _buildExistingWikiText(String chatId) async {
     final buffer = StringBuffer();
     final activeEntries = (await _repo.getAllEntries(chatId))
         .where((e) => !e.deprecated)
-        .toList();
-    // 最近30条即可（控制prompt体积）
+        .toList()
+      ..sort((a, b) => a.turnIndex.compareTo(b.turnIndex));
+    // 最近30条即可（控制prompt体积）；已按turnIndex升序，取最新的30条
     final recent = activeEntries.length > 30
         ? activeEntries.sublist(activeEntries.length - 30)
         : activeEntries;
     for (final e in recent) {
-      buffer.writeln('[${e.id}] ${e.title}（重要度${e.importance}${e.anchor ? ',锚点' : ''}）：${e.content}');
+      final turnLabel = e.turnIndex <= 0 ? '早期' : '第${e.turnIndex}轮';
+      buffer.writeln(
+          '[id:${e.id} | $turnLabel | ${e.type.name}] ${e.title}（重要度${e.importance}${e.anchor ? '，锚点' : ''}）');
+      buffer.writeln(e.content);
+      buffer.writeln('---');
     }
     final entities = await _repo.getMainEntities(chatId, limit: 10);
     for (final ent in entities) {

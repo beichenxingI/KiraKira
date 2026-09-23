@@ -15,71 +15,47 @@ class ChronicleSummaryService {
 
   ChronicleSummaryService(this._llmService);
 
-  /// 总结Prompt模板（内置高质量版本，{custom_suffix}承接用户自定义指令）
+  /// 总结Prompt模板（内置专业记忆提取版本，{custom_suffix}承接用户自定义指令）。
+  /// 设计参考：Zep/Graphiti时序知识图谱（时序标记+事实失效）、MemGPT分层记忆、
+  /// A-MEM结构化笔记。硬性约束前置+编号列表+正反例，提升中端模型遵循率。
   static const String basePrompt = '''
-你是角色扮演记忆整理助手。请基于以下新增对话，更新现有记忆词条。
+你是角色扮演记忆整理助手。从新增对话中提取记忆词条，更新现有词条库；没有值得记录的内容就输出空数组，宁缺毋滥。
 
-## 现有记忆词条
-{existing_wiki}
+## 硬性规则
+1. 每段对话提炼3-8条词条，按维度分条：事件经过/关系变化/人物状态/世界信息/重要承诺，禁止把不同场景压进同一条
+2. content必须以时序标记开头（[第N轮]或[剧情时间点]），全程第三人称+角色名描述，禁止"用户/AI"
+3. 单条content为100-500字，写清时间/地点/言行/因果/后果，信息密度优先；超过500字必须拆成多条
+4. anchor=true仅限不可逆转折点（初次相遇/死亡/关系确立），alwaysInject=true仅限角色核心身份（姓名/阵营/核心能力），其余一律false
+5. 直接跳过不建词条：闲聊、重复日常（同场景第三次出现）、纯环境描写、无情节转折的NSFW动作描写
+6. 新词条完全覆盖旧词条内容时，才把旧词条id放入deprecated_ids；不确定是否覆盖就共存
 
-## 新增对话（第{from_turn}轮到第{to_turn}轮）
-{dialogue}
-
-## 任务规则
-- 只输出有变化的内容，没变化的词条不输出
-- 用deprecated_ids标记已过时的旧词条id
-- 重点关注：关系转折、情感节点、承诺/欠债、秘密揭露、立场改变、重大事件
-- 不需要关注：日常闲聊、重复场景、无意义对话
-- 词条描述用中文，简洁（单条50-120字）
-- 词条标题建议包含时间锚点，如"第N轮：长伊获得玉石吊坠"，方便后续按时序理解
-- 重要度1-10：关系转折/秘密/重大事件=8-10，普通事件=4-6，日常细节=1-3
-- 如需永久记住（如初次相遇、重大转折），设anchor=true
+## importance评分标准
+9-10：不可逆转折点（初次相遇/死亡/重大背叛/关系确立）
+7-8：明显推进剧情（秘密揭露/承诺/立场改变/关系深化）
+5-6：有意义的互动（情感表达/重要对话/能力展示）
+3-4：日常但有记录价值（习惯/偏好/轻微冲突）
+1-2：纯粹闲聊或重复，不建词条
 
 ## 输出格式
 严格输出JSON，不要任何解释：
 {
-  "upsert_entries": [
-    {
-      "id": "已有词条id（更新）或null（新建）",
-      "type": "event|state|knowledge",
-      "title": "简短标题",
-      "content": "50-120字描述",
-      "importance": 5,
-      "always_inject": false,
-      "anchor": false,
-      "tags": ["关键词"],
-      "entity_ids": ["关联实体名"]
-    }
-  ],
-  "upsert_entities": [
-    {
-      "name": "实体名",
-      "type": "person|place|item|concept",
-      "description": "身份描述",
-      "current_state": "当前状态",
-      "aliases": []
-    }
-  ],
-  "upsert_relationships": [
-    {
-      "from": "实体名",
-      "to": "实体名",
-      "type": "trust|friendship|romantic|hostile|family|mentor",
-      "strength": 0,
-      "description": "关系描述"
-    }
-  ],
-  "upsert_emotions": [
-    {
-      "entity": "实体名",
-      "emotion": "情感类型",
-      "intensity": 5,
-      "trigger": "触发原因",
-      "active": true
-    }
-  ],
-  "deprecated_ids": ["过时词条id"]
+"upsert_entries": [{"id": "旧词条id（更新）或null（新建）", "type": "event|state|knowledge", "title": "含时序的简短标题", "content": "100-500字描述", "importance": 5, "always_inject": false, "anchor": false, "tags": ["关键词"], "entity_ids": ["关联实体名"]}],
+"upsert_entities": [{"name": "实体名", "type": "person|place|item|concept", "description": "身份描述", "current_state": "当前状态", "aliases": ["别名"]}],
+"upsert_relationships": [{"from": "实体名", "to": "实体名", "type": "trust|friendship|romantic|hostile|family|mentor", "strength": 0, "description": "关系描述"}],
+"upsert_emotions": [{"entity": "实体名", "emotion": "情感类型", "intensity": 5, "trigger": "触发原因", "active": true}],
+"deprecated_ids": []
 }
+正例：
+{"type":"event","title":"第12轮：长伊救下墨雨","content":"[第12轮] 墨雨在山崖边被追杀，长伊以御剑术拦截刺客，以一敌三险胜。战后墨雨沉默片刻，第一次正视长伊，低声道谢。此前两人关系处于敌对/戒备阶段，此事件构成关系转折的直接起点。长伊右臂受剑伤，战斗力暂时削弱。","importance":8,"anchor":false,"always_inject":false,"tags":["关系转折","战斗","长伊受伤"]}
+❌ 反例（禁止输出此类）：
+{"title":"两人交流","content":"长伊和墨雨进行了一次对话，气氛有些紧张。","importance":5,"anchor":true}
+反例问题：无时序无细节无信息量、评分随意、日常对话不应标anchor。
+
+## 现有记忆词条（方括号内id供deprecated_ids引用）
+{existing_wiki}
+
+## 新增对话（第{from_turn}轮到第{to_turn}轮）
+{dialogue}
 
 {custom_suffix}''';
 
