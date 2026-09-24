@@ -196,6 +196,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
               DropdownMenuItem(value: ImageGenProvider.openaiChat, child: Text('☁️ OpenAI-Chat（云端）')),
               DropdownMenuItem(value: ImageGenProvider.gemini, child: Text('☁️ Gemini（云端）')),
               DropdownMenuItem(value: ImageGenProvider.novelai, child: Text('💻 NovelAI')),
+              DropdownMenuItem(value: ImageGenProvider.latentMoe, child: Text('💻 Latent.moe')),
               DropdownMenuItem(value: ImageGenProvider.automatic1111, child: Text('💻 Stable Diffusion (A1111)')),
               DropdownMenuItem(value: ImageGenProvider.comfyui, child: Text('💻 ComfyUI')),
               DropdownMenuItem(value: ImageGenProvider.localDream, child: Text('💻 Local Dream')),
@@ -510,7 +511,32 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
               color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
             )),
         const SizedBox(height: 12),
-        if (settings.provider == ImageGenProvider.novelai) ...[
+        // [latent.moe] 专属配置:API key + 可选 Base URL;无模型名(站点 GPU 池固定)
+        if (settings.provider == ImageGenProvider.latentMoe) ...[
+          _buildTextField(
+            label: 'Latent.moe API Key',
+            value: settings.apiKey ?? '',
+            hint: 'lat_sk_...',
+            obscureText: true,
+            isDark: isDark,
+            onChanged: (v) => ref.read(imageGenSettingsProvider.notifier).setApiKey(v),
+          ),
+          const SizedBox(height: 12),
+          _buildTextField(
+            label: 'Base URL（可选）',
+            value: settings.effectiveEndpoint,
+            hint: settings.provider.defaultEndpoint,
+            isDark: isDark,
+            onChanged: (v) => ref.read(imageGenSettingsProvider.notifier).setApiEndpoint(v),
+          ),
+          const SizedBox(height: 12),
+          Text('异步队列生图（提交→排队→轮询→拉图），模型固定，steps 8–12，每周额度',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93),
+              )),
+        ]
+        else if (settings.provider == ImageGenProvider.novelai) ...[
           _buildTextField(
             label: 'NovelAI API Key',
             value: settings.apiKey ?? '',

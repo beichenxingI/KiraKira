@@ -230,6 +230,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                   // value 必须在 items 中或为 null,否则 assert 崩溃
                   value: [
                     ImageGenProvider.novelai,
+                    ImageGenProvider.latentMoe,
                     ImageGenProvider.automatic1111,
                     ImageGenProvider.comfyui,
                     ImageGenProvider.localDream,
@@ -247,6 +248,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                   // 只显示非云端提供商(openai/gemini 走卡片)
                   items: [
                     ImageGenProvider.novelai,
+                    ImageGenProvider.latentMoe,
                     ImageGenProvider.automatic1111,
                     ImageGenProvider.comfyui,
                     ImageGenProvider.localDream,
@@ -260,6 +262,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
               ),
               // 本地/其他提供商需要手动配 endpoint
               if (settings.provider == ImageGenProvider.novelai ||
+                  settings.provider == ImageGenProvider.latentMoe ||
                   settings.provider == ImageGenProvider.automatic1111 ||
                   settings.provider == ImageGenProvider.comfyui ||
                   settings.provider == ImageGenProvider.localDream)
@@ -517,6 +520,36 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                           ref.read(imageGenSettingsProvider.notifier).setNovelaiVarietyBoost(value);
                         }
                       : null,
+                ),
+              ],
+            ),
+          ],
+
+          // Latent.moe specific info(异步队列生图,无 NovelAI 专有参数)
+          if (settings.provider == ImageGenProvider.latentMoe) ...[
+            const SizedBox(height: 16),
+            _buildSection(
+              context: context,
+              title: 'Latent.moe 说明',
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text('• 异步队列生图：提交 → 排队 → 轮询 → 拉取图片（可能需等待数分钟）',
+                          style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                      SizedBox(height: 6),
+                      Text('• 模型由站点 GPU 池决定，无法选择',
+                          style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                      SizedBox(height: 6),
+                      Text('• steps 限制 8–12，分辨率仅三档（方/竖/横），会自动映射',
+                          style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                      SizedBox(height: 6),
+                      Text('• 每周生图额度 + 并发任务上限；429/409 报错即额度或并发用尽',
+                          style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                    ],
+                  ),
                 ),
               ],
             ),

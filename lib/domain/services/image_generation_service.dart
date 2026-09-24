@@ -81,6 +81,7 @@ enum ImageGenProvider {
   openaiChat('openai_chat', 'OpenAI-Chat', 'https://api.openai.com/v1'),
   gemini('gemini', 'Gemini', 'https://generativelanguage.googleapis.com/v1beta'),
   novelai('novelai', 'NovelAI', 'https://image.novelai.net'),
+  latentMoe('latent_moe', 'Latent.moe', 'https://latent.moe'),
   
   // Local SD backends
   automatic1111('automatic1111', 'Automatic1111', 'http://localhost:7860'),
@@ -109,6 +110,7 @@ enum ImageGenProvider {
     openaiChat,
     gemini,
     novelai,
+    latentMoe,
   ].contains(this);
 
   bool get isLocalProvider => [
@@ -128,6 +130,8 @@ enum ImageGenProvider {
         return 'gemini-2.5-flash-image';
       case novelai:
         return 'nai-diffusion-4-5-curated';
+      case latentMoe:
+        return ''; // 站点 GPU 池固定模型,无 model 字段
       case automatic1111:
       case comfyui:
       case localDream:
@@ -172,6 +176,8 @@ enum ImageGenProvider {
           'nai-diffusion-3',
           'nai-diffusion-furry-3',
         ];
+      case latentMoe:
+        return []; // 站点 GPU 池固定模型,无模型列表 API
       case automatic1111:
       case comfyui:
       case localDream:
@@ -941,6 +947,8 @@ class ImageGenerationService {
           return await _generateGemini(request, model);
         case ImageGenProvider.novelai:
           return await _generateNovelAI(request, model);
+        case ImageGenProvider.latentMoe:
+          return await _generateLatentMoe(request);
         case ImageGenProvider.automatic1111:
           return await _generateAutomatic1111(request);
         case ImageGenProvider.comfyui:
@@ -1535,6 +1543,208 @@ class ImageGenerationService {
       }
       rethrow;
     }
+  }
+
+  /// Generate image using Latent.moe (异步队列生图)
+  /// 协议(方案C,独立实现,与 NovelAI 同步 ZIP 完全不同):
+  /// 1. POST /api/generate → 202 + GenerationJob(id)
+  /// 2. 每 2s 轮询 GET /api/generate/{id} 直到 succeeded/failed/cancelled
+  /// 3. succeeded → GET /api/media/{artworkId}?size=original 拉图片字节
+  /// 限制: resolution 三档枚举(square 1024²/portrait 920×1536/landscape 1536×920),
+  /// steps 8-12, 无 model/CFG 字段, 每周额度 + GENERATION_CONCURRENCY 并发。
+  /// 文档: https://latent.moe/docs/api + /openapi.json
+  Future<ImageGenResult?> _generateLatentMoe(ImageGenRequest request) async {
+    final apiKey = _settings.apiKey;
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('Latent.moe API key is required (lat_sk_...)');
+    }
+
+    final rawEndpoint = _settings.effectiveEndpoint;
+    final endpoint = rawEndpoint.endsWith('/')
+        ? rawEndpoint.substring(0, rawEndpoint.length - 1)
+        : rawEndpoint;
+
+    // 参数映射(文档枚举):
+    // 宽高比 → resolution: ≈1 → square, <1 → portrait, >1 → landscape
+    final ratio = request.width / request.height;
+    final resolution = ratio > 1.25
+        ? 'landscape'
+        : ratio < 0.8
+            ? 'portrait'
+            : 'square';
+    // steps clamp 8-12(文档限制)
+    final steps = request.steps < 8 ? 8 : (request.steps > 12 ? 12 : request.steps);
+    // sampler 映射: 枚举 euler/res_multistep/er_sde,不在枚举内用默认 euler
+    const latentSamplers = {'euler', 'res_multistep', 'er_sde'};
+    final sampler =
+        latentSamplers.contains(request.sampler) ? request.sampler : 'euler';
+    // scheduler 映射: 枚举 sgm_uniform/beta/beta57/linear_quadratic,默认 sgm_uniform
+    const latentSchedulers = {'sgm_uniform', 'beta', 'beta57', 'linear_quadratic'};
+    final scheduler = latentSchedulers.contains(_settings.defaultScheduler)
+        ? _settings.defaultScheduler
+        : 'sgm_uniform';
+
+    final body = <String, dynamic>{
+      'prompt': request.prompt,
+      'resolution': resolution,
+      'steps': steps,
+      'sampler': sampler,
+      'scheduler': scheduler,
+      // negativePrompt 省略时不发送负面且站点默认不应用 → 用户配了默认负面就带上
+      if ((request.negativePrompt ?? _settings.defaultNegativePrompt)
+              ?.trim()
+              .isNotEmpty ==
+          true)
+        'negativePrompt': request.negativePrompt ?? _settings.defaultNegativePrompt,
+      if (request.seed != null) 'seed': request.seed,
+    };
+
+    onProgress?.call(0.1);
+    debugPrint('Latent.moe: POST $endpoint/api/generate');
+    debugPrint('Latent.moe: ${const JsonEncoder.withIndent('  ').convert(body)}');
+
+    // 1. 提交任务(202 + GenerationJob; 401/409/422/429/503 友好报错)
+    final submit = await _dio.post<Map<String, dynamic>>(
+      '$endpoint/api/generate',
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+        },
+        validateStatus: (status) => true, // 读错误体
+      ),
+      data: body,
+    );
+
+    if (submit.statusCode != 202 || submit.data == null) {
+      throw Exception(_latentError('Latent.moe', submit.statusCode, submit.data));
+    }
+    final jobId = submit.data!['id'] as String?;
+    if (jobId == null || jobId.isEmpty) {
+      throw Exception('Latent.moe: 提交成功但未返回任务 id');
+    }
+    debugPrint('Latent.moe: job=$jobId queued');
+
+    // 2. 轮询(官方建议 2s 一次; 超时 10 分钟保护,超时尝试取消避免占并发名额)
+    const pollInterval = Duration(seconds: 2);
+    const pollTimeout = Duration(minutes: 10);
+    final deadline = DateTime.now().add(pollTimeout);
+    Map<String, dynamic> job = submit.data!;
+    while (DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(pollInterval);
+      final poll = await _dio.get<Map<String, dynamic>>(
+        '$endpoint/api/generate/$jobId',
+        options: Options(
+          headers: {'Authorization': 'Bearer $apiKey'},
+          validateStatus: (status) => true,
+        ),
+      );
+      if (poll.statusCode != 200 || poll.data == null) {
+        // 404 = 任务不属于此 designer;其他非 200 视为暂时故障,重试
+        if (poll.statusCode == 404) {
+          throw Exception('Latent.moe: 任务不存在或已被清理(404)');
+        }
+        debugPrint('Latent.moe: poll HTTP ${poll.statusCode}, retry');
+        continue;
+      }
+      job = poll.data!;
+      final status = job['status'] as String?;
+      final progress = (job['progress'] as num?)?.toInt() ?? 0;
+      // progress 0-100 映射到 0.2-0.9 进度回调
+      if (status == 'running') {
+        onProgress?.call(0.3 + (progress / 100.0) * 0.6);
+      } else if (status == 'queued' || status == 'leased') {
+        onProgress?.call(0.2);
+      }
+      debugPrint('Latent.moe: status=$status progress=$progress');
+      if (status == 'succeeded') break;
+      if (status == 'failed') {
+        throw Exception(
+            'Latent.moe: 生成失败 (errorCode: ${job['errorCode'] ?? 'unknown'})');
+      }
+      if (status == 'cancelled') {
+        throw Exception('Latent.moe: 任务已取消');
+      }
+    }
+    if ((job['status'] as String?) != 'succeeded') {
+      try {
+        await _dio.post('$endpoint/api/generate/$jobId/cancel',
+            options: Options(headers: {'Authorization': 'Bearer $apiKey'}));
+      } catch (_) {}
+      throw Exception('Latent.moe: 轮询超时(10分钟),任务已尝试取消');
+    }
+
+    final artworkId = job['artworkId'] as String?;
+    if (artworkId == null || artworkId.isEmpty) {
+      throw Exception('Latent.moe: 任务成功但未返回 artworkId');
+    }
+
+    // 3. 拉取图片字节(文档: /api/media/{artworkId}?size=original;size 枚举 thumb/preview/original)
+    onProgress?.call(0.95);
+    final media = await _dio.get<List<int>>(
+      '$endpoint/api/media/$artworkId?size=original',
+      options: Options(
+        headers: {'Authorization': 'Bearer $apiKey'},
+        responseType: ResponseType.bytes,
+        validateStatus: (status) => true,
+      ),
+    );
+    if (media.statusCode != 200 || media.data == null) {
+      throw Exception(_latentError('Latent.moe media', media.statusCode, media.data));
+    }
+    final bytes = Uint8List.fromList(media.data as List<int>);
+    if (_looksLikeNonImageData(bytes)) {
+      throw Exception('Latent.moe: media 返回非图片内容');
+    }
+
+    onProgress?.call(1.0);
+    final seed =
+        (job['seed'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch;
+    return ImageGenResult(
+      images: [bytes],
+      prompt: request.prompt,
+      seed: seed,
+      format: 'png',
+      metadata: {
+        'provider': 'latent_moe',
+        'jobId': jobId,
+        'artworkId': artworkId,
+        'resolution': job['resolution'],
+        'sampler': job['sampler'],
+        'scheduler': job['scheduler'],
+      },
+    );
+  }
+
+  /// latent.moe 错误体解析(结构: {error:{code,message}} 或 {error:string,message};
+  /// 状态码语义: 401 key 无效/409 并发满/422 参数越界/429 周额度/503 队列满)
+  String _latentError(String prefix, int? statusCode, dynamic data) {
+    String detail = '';
+    if (data is Map) {
+      final err = data['error'];
+      if (err is Map) {
+        detail = '${err['code'] ?? ''} ${err['message'] ?? ''}'.trim();
+      } else if (err is String) {
+        detail = err;
+      }
+    } else if (data is List) {
+      try {
+        detail = utf8.decode(data as List<int>);
+      } catch (_) {}
+    } else if (data is String) {
+      detail = data;
+    }
+    final hint = switch (statusCode) {
+      401 => 'API key 无效或已撤销',
+      409 => '并发任务已满(too_many_active),请稍后再试',
+      422 => '参数越界,请检查设置',
+      429 => '本周生图额度已用完(quota_exhausted)',
+      503 => '队列已满(queue_full),请稍后再试',
+      _ => '',
+    };
+    return '$prefix error: ${statusCode ?? '??'}'
+        '${hint.isNotEmpty ? ' - $hint' : ''}'
+        '${detail.isNotEmpty ? ' ($detail)' : ''}';
   }
 
   /// Calculate skip_cfg_above_sigma for NovelAI Variety+
