@@ -4521,7 +4521,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'rate': settings.rate,
         'pitch': settings.pitch,
         'volume': settings.volume,
-        'apiKey': settings.apiKey ?? '',
+        'apiKey': (settings.apiKey?.isNotEmpty ?? false) ? '***REDACTED***' : '',
         'apiEndpoint': settings.apiEndpoint ?? '',
         'availableVoices': voices,
       },
@@ -4578,7 +4578,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         notifier.setVolume((data['volume'] as num).toDouble());
         break;
       case 'setApiKey':
-        notifier.setApiKey(data['value'] as String);
+        final ttsKeyValue = data['value'] as String;
+        // [密钥安全] 面板回显脱敏值时忽略,防止覆盖真实密钥
+        if (ttsKeyValue == '***REDACTED***') break;
+        notifier.setApiKey(ttsKeyValue);
         break;
       case 'setApiEndpoint':
         notifier.setApiEndpoint(data['value'] as String);
@@ -6141,7 +6144,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       'provider': settings.provider.id,
       'model': settings.model,
       'availableModels': models,
-      'apiKey': settings.apiKey ?? '',
+      'apiKey': (settings.apiKey?.isNotEmpty ?? false) ? '***REDACTED***' : '',
       'apiEndpoint': settings.effectiveEndpoint,
       'requiresApiKey': settings.provider.requiresApiKey,
       'isLocalProvider': settings.provider.isLocalProvider,
@@ -6195,7 +6198,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         notifier.setModel(data['model'] as String);
         break;
       case 'setApiKey':
-        notifier.setApiKey(data['key'] as String?);
+        final imageGenKey = data['key'] as String?;
+        // [密钥安全] 面板回显脱敏值时忽略,防止覆盖真实密钥
+        if (imageGenKey == '***REDACTED***') break;
+        notifier.setApiKey(imageGenKey);
         break;
       case 'setApiEndpoint':
         notifier.setApiEndpoint(data['endpoint'] as String?);
