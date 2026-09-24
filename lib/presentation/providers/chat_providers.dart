@@ -29,6 +29,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:kirakira/presentation/providers/image_gen_providers.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
+import 'package:kirakira/presentation/providers/tts_providers.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 import 'package:kirakira/data/models/vector_storage.dart'
     show EmbeddingProvider, EmbeddingProviderExtension;
@@ -602,6 +603,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
       // 自动生图（不阻塞主流程，失败也不影响对话）
       _maybeAutoGenerateImage(finalMessage, config);
+      // [autoPlay接线] 新 AI 回复落库后自动朗读（不阻塞主流程）
+      _maybeAutoSpeak(finalMessage);
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProvider sendMessage error: $e\n$stackTrace');
       // 失败（503/400/网络等）时删掉还在"思考中"的空壳消息，避免永远转圈。
@@ -732,6 +735,23 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       debugPrint('[自动生图] 失败: $e');
       state = state.copyWith(
           imageGenError: '配图生成失败，请检查 Local Dream 是否已加载模型');
+    }
+  }
+
+  /// [autoPlay接线] 新 AI 回复落库后自动朗读。
+  /// 仅在 ttsSettings.autoPlay 开启且消息为非空 assistant 消息时触发；
+  /// 朗读中再来新回复时 speakByStyle 内部先 stop，自动读最新一条。
+  /// 不阻塞主流程，任何异常静默忽略（TTS 失败不影响对话）。
+  void _maybeAutoSpeak(ChatMessage msg) {
+    try {
+      final ttsSettings = _ref.read(ttsSettingsProvider);
+      if (!ttsSettings.autoPlay) return;
+      if (!ttsSettings.enabled) return;
+      if (msg.role != MessageRole.assistant) return;
+      if (msg.content.trim().isEmpty) return;
+      _ref.read(ttsSpeakProvider)(msg.content);
+    } catch (e) {
+      debugPrint('[autoPlay] 自动朗读失败: $e');
     }
   }
 
@@ -1434,6 +1454,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       // 重新生成：删掉该消息的旧自动图，再重新生图
       await _clearAutoImages(finalMessage);
       _maybeAutoGenerateImage(finalMessage, config);
+      // [autoPlay接线] 重新生成的回复也自动朗读
+      _maybeAutoSpeak(finalMessage);
     } catch (e, stackTrace) {
       debugPrint(
           '❌ ChatProvider _generateAssistantResponse error: $e\n$stackTrace');
