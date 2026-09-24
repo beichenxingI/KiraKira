@@ -196,4 +196,91 @@ void main() {
     expect((book['entries'] as List).length, 1);
     expect(book['scan_depth'], 3);
   });
+
+  test('AICC-Chat 卡(spec=aicc_card)导入成功[Bastet结构化字段修复]', () async {
+    // Bastet.aicc.png 同构：aicharactercards.com 的 AICC-Chat 格式(Rin Card Forge 导出)
+    final card = {
+      'spec': 'aicc_card',
+      'spec_version': '1.0',
+      'id': '29aa91ee-test',
+      'data': {
+        'name': 'Bastet',
+        'general_description': 'Egyptian Goddess of Home',
+        'appearance': 'cat-headed woman',
+        'personality': {
+          'core': 'Creature of comfort',
+          'behavior_rules': ['Expects worship', 'Curious'],
+          'speech_style': {
+            'tone': 'Regal',
+            'verbosity': 'high',
+            'format': 'Dialogue in quotes',
+            'patterns': ['We/Us royal we'],
+          },
+        },
+        'background_history': 'Millennia ago',
+        'world_setting_context': 'Museum manifestation',
+        'dialogue': {
+          'greetings': ['Greeting 0', 'Greeting 1', 'Greeting 2'],
+          'dialogue_examples': ['{{char}}: ex1', '{{char}}: ex2'],
+          'group_only_greetings': <String>[],
+        },
+        'prompts': {
+          'system_prompt': '',
+          'post_history_instructions': '',
+          'depth_prompt': {'text': '', 'depth': 4, 'role': 'system'},
+        },
+        'world': {'worldbook_name': '', 'worldbook_entries': []},
+        'metadata': {
+          'card_format': 'AICC-Chat',
+          'char_ui_name': '',
+          'creator': 'tester',
+          'notes': 'AICC notes',
+          'version': '1.0',
+          'tags': <String>[],
+          'features': {'aicc-site-card-id': 'AICC-1'},
+        },
+      },
+      'aicc_id': '3f3fee06-test',
+      'aicc_version': {'id': 2955, 'number': 1},
+    };
+    final imported = await service.importFromPngBytes(buildCardPng(card));
+
+    expect(imported.name, 'Bastet');
+    expect(imported.description, 'Egyptian Goddess of Home');
+    expect(imported.scenario, 'Museum manifestation');
+    // personality 结构化 Map → 可读文本(含 core/behavior_rules/speech_style)
+    expect(imported.personality, contains('Creature of comfort'));
+    expect(imported.personality, contains('Expects worship'));
+    expect(imported.personality, contains('Speech style'));
+    // greetings[0] → first_mes, greetings[1..] → alternate_greetings
+    expect(imported.firstMessage, 'Greeting 0');
+    expect(imported.alternateGreetings, ['Greeting 1', 'Greeting 2']);
+    // dialogue_examples → mes_example(<START> 分隔)
+    expect(imported.exampleMessages, contains('<START>'));
+    expect(imported.exampleMessages, contains('{{char}}: ex1'));
+    // metadata → creator/notes/version
+    expect(imported.creator, 'tester');
+    expect(imported.creatorNotes, 'AICC notes');
+    expect(imported.version, '1.0');
+    // AICC 专有字段透传 extensions['aicc']
+    final aiccExt = imported.extensions['aicc'] as Map<String, dynamic>;
+    expect(aiccExt['spec'], 'aicc_card');
+    expect(aiccExt['appearance'], 'cat-headed woman');
+    expect(aiccExt['depth_prompt'], isNotNull);
+    expect(aiccExt['aicc_id'], '3f3fee06-test');
+  });
+
+  test('V3 卡 personality 为 Map 时 stringify 不炸[AICC兼容]', () async {
+    final card = v3Card(entries: [entryJson(0)]);
+    (card['data'] as Map)['personality'] = {'core': 'brave', 'quirks': ['x']};
+    final imported = await service.importFromPngBytes(buildCardPng(card));
+    expect(imported.personality, contains('brave'));
+  });
+
+  test('tags String 逗号分隔转数组[AICC兼容]', () async {
+    final card = v3Card(entries: [entryJson(0)]);
+    (card['data'] as Map)['tags'] = 'fantasy, magic';
+    final imported = await service.importFromPngBytes(buildCardPng(card));
+    expect(imported.tags, ['fantasy', 'magic']);
+  });
 }

@@ -183,23 +183,101 @@ class ImportService {
     Map<String, dynamic> extensions = {};
     CharacterBook? characterBook;
 
+    // AICC-Chat format (spec='aicc_card'，aicharactercards.com 专用，如 Rin Card Forge 导出)。
+    // 结构化字段：personality/dialogue/prompts/world/metadata 均为 Map，平铺 cast 会炸裂。
+    if (json['spec'] == 'aicc_card' && json.containsKey('data')) {
+      final data = json['data'] is Map ? Map<String, dynamic>.from(json['data'] as Map) : <String, dynamic>{};
+      name = _castStringSafe(data['name']);
+      // AICC: general_description 为主描述; appearance/background_history 为 AICC 扩展(透传 extensions)
+      description = _castStringSafe(data['general_description']);
+      scenario = _castStringSafe(data['world_setting_context']);
+      // AICC: personality(core/behavior_rules/speech_style 结构化) → 可读文本
+      final personalityRaw = data['personality'];
+      if (personalityRaw is Map) {
+        personality = _aiccPersonalityToString(personalityRaw);
+      } else {
+        personality = _castStringSafe(personalityRaw);
+      }
+      // AICC: dialogue.greetings[0] = first_mes, greetings[1..] = alternate_greetings
+      final dialogue = data['dialogue'] is Map ? Map<String, dynamic>.from(data['dialogue'] as Map) : null;
+      final greetings = dialogue?['greetings'];
+      if (greetings is List) {
+        final gList = greetings.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+        if (gList.isNotEmpty) {
+          firstMessage = gList.first;
+          if (gList.length > 1) alternateGreetings = gList.sublist(1);
+        }
+      }
+      // AICC: dialogue.dialogue_examples → mes_example(ST 语义: <START> 分隔示例对话)
+      final examples = dialogue?['dialogue_examples'];
+      if (examples is List) {
+        final exList = examples.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+        if (exList.isNotEmpty) exampleMessages = exList.join('\n<START>\n');
+      }
+      // AICC: prompts.system_prompt / post_history_instructions
+      final prompts = data['prompts'] is Map ? Map<String, dynamic>.from(data['prompts'] as Map) : null;
+      systemPrompt = _castStringSafe(prompts?['system_prompt']);
+      postHistoryInstructions = _castStringSafe(prompts?['post_history_instructions']);
+      // AICC: metadata.creator/notes/version/tags(tags 兼容 String 逗号分隔)
+      final metadata = data['metadata'] is Map ? Map<String, dynamic>.from(data['metadata'] as Map) : null;
+      creator = _castStringSafe(metadata?['creator']);
+      creatorNotes = _castStringSafe(metadata?['notes']);
+      version = _castStringSafe(metadata?['version']);
+      tags = _parseTagsSafe(metadata?['tags']);
+      // AICC: world.worldbook_entries → character_book(空则不建)
+      final world = data['world'] is Map ? Map<String, dynamic>.from(data['world'] as Map) : null;
+      final wbEntries = world?['worldbook_entries'];
+      final hasWbEntries = (wbEntries is List && wbEntries.isNotEmpty) ||
+          (wbEntries is Map && wbEntries.isNotEmpty);
+      if (hasWbEntries) {
+        characterBook = _parseCharacterBook({
+          'name': _castStringSafe(world?['worldbook_name']),
+          'entries': wbEntries,
+          'extensions': <String, dynamic>{},
+        });
+      }
+      // AICC 专有字段透传 extensions(规范: 应用自有数据存 extensions 并命名空间化)
+      final aiccExt = <String, dynamic>{};
+      void keep(String key, dynamic v) {
+        if (v != null && (v is! String || v.isNotEmpty)) aiccExt[key] = v;
+      }
+      keep('appearance', data['appearance']);
+      keep('background_history', data['background_history']);
+      keep('group_only_greetings', dialogue?['group_only_greetings']);
+      keep('depth_prompt', prompts?['depth_prompt']);
+      keep('card_format', metadata?['card_format']);
+      keep('features', metadata?['features']);
+      keep('aicc_id', json['aicc_id']);
+      keep('aicc_version', json['aicc_version']);
+      aiccExt['spec'] = 'aicc_card';
+      final dataExtensions = data['extensions'];
+      extensions = dataExtensions is Map
+          ? {...Map<String, dynamic>.from(dataExtensions), 'aicc': aiccExt}
+          : {'aicc': aiccExt};
+      print('[IMP-1] AICC-Chat card: name=$name greetings=${greetings is List ? greetings.length : 0} '
+          'examples=${examples is List ? examples.length : 0}');
+    }
     // Check for V3 format (also matches V2 with spec field)
-    if (json.containsKey('spec') && json.containsKey('data')) {
+    else if (json.containsKey('spec') && json.containsKey('data')) {
       final data = json['data'] as Map<String, dynamic>? ?? {};
-      name = data['name'] as String? ?? '';
-      description = data['description'] as String? ?? '';
-      personality = data['personality'] as String? ?? '';
-      scenario = data['scenario'] as String? ?? '';
-      firstMessage = data['first_mes'] as String? ?? '';
-      alternateGreetings = (data['alternate_greetings'] as List<dynamic>?)?.cast<String>() ?? [];
-      exampleMessages = data['mes_example'] as String? ?? '';
-      systemPrompt = data['system_prompt'] as String? ?? '';
-      postHistoryInstructions = data['post_history_instructions'] as String? ?? '';
-      creatorNotes = data['creator_notes'] as String? ?? '';
-      tags = (data['tags'] as List<dynamic>?)?.cast<String>() ?? [];
-      creator = data['creator'] as String? ?? '';
-      version = data['character_version'] as String? ?? '';
-      extensions = data['extensions'] as Map<String, dynamic>? ?? {};
+      name = _castStringSafe(data['name']);
+      description = _castStringSafe(data['description']);
+      // [AICC兼容] V2核心字段容错：Map/List(如结构化 personality) stringify 透传
+      personality = _castStringSafe(data['personality']);
+      scenario = _castStringSafe(data['scenario']);
+      firstMessage = _castStringSafe(data['first_mes']);
+      alternateGreetings = _parseStringList(data['alternate_greetings']);
+      exampleMessages = _castStringSafe(data['mes_example']);
+      systemPrompt = _castStringSafe(data['system_prompt']);
+      postHistoryInstructions = _castStringSafe(data['post_history_instructions']);
+      creatorNotes = _castStringSafe(data['creator_notes']);
+      // [AICC兼容] tags 容错：数组元素逐个 toString；String 逗号分隔转数组
+      tags = _parseTagsSafe(data['tags']);
+      creator = _castStringSafe(data['creator']);
+      version = _castStringSafe(data['character_version']);
+      extensions = data['extensions'] is Map
+          ? Map<String, dynamic>.from(data['extensions'] as Map)
+          : {};
       
       // Parse character book (embedded lorebook)
       if (data['character_book'] != null) {
@@ -235,20 +313,26 @@ class ImportService {
     // Check for V2 format
     else if (json.containsKey('data')) {
       final data = json['data'] as Map<String, dynamic>? ?? {};
-      name = data['name'] as String? ?? json['name'] as String? ?? '';
-      description = data['description'] as String? ?? '';
-      personality = data['personality'] as String? ?? '';
-      scenario = data['scenario'] as String? ?? '';
-      firstMessage = data['first_mes'] as String? ?? '';
-      alternateGreetings = (data['alternate_greetings'] as List<dynamic>?)?.cast<String>() ?? [];
-      exampleMessages = data['mes_example'] as String? ?? '';
-      systemPrompt = data['system_prompt'] as String? ?? '';
-      postHistoryInstructions = data['post_history_instructions'] as String? ?? '';
-      creatorNotes = data['creator_notes'] as String? ?? '';
-      tags = (data['tags'] as List<dynamic>?)?.cast<String>() ?? [];
-      creator = data['creator'] as String? ?? '';
-      version = data['character_version'] as String? ?? '';
-      extensions = data['extensions'] as Map<String, dynamic>? ?? {};
+      name = _castStringSafe(data['name']) != ''
+          ? _castStringSafe(data['name'])
+          : _castStringSafe(json['name']);
+      description = _castStringSafe(data['description']);
+      // [AICC兼容] V2核心字段容错：Map/List stringify 透传
+      personality = _castStringSafe(data['personality']);
+      scenario = _castStringSafe(data['scenario']);
+      firstMessage = _castStringSafe(data['first_mes']);
+      alternateGreetings = _parseStringList(data['alternate_greetings']);
+      exampleMessages = _castStringSafe(data['mes_example']);
+      systemPrompt = _castStringSafe(data['system_prompt']);
+      postHistoryInstructions = _castStringSafe(data['post_history_instructions']);
+      creatorNotes = _castStringSafe(data['creator_notes']);
+      // [AICC兼容] tags 容错
+      tags = _parseTagsSafe(data['tags']);
+      creator = _castStringSafe(data['creator']);
+      version = _castStringSafe(data['character_version']);
+      extensions = data['extensions'] is Map
+          ? Map<String, dynamic>.from(data['extensions'] as Map)
+          : {};
       
       // Parse character book (embedded lorebook)
       if (data['character_book'] != null) {
@@ -257,12 +341,23 @@ class ImportService {
     }
     // V1 format
     else {
-      name = json['name'] as String? ?? json['char_name'] as String? ?? '';
-      description = json['description'] as String? ?? json['char_persona'] as String? ?? '';
-      personality = json['personality'] as String? ?? '';
-      scenario = json['scenario'] as String? ?? json['world_scenario'] as String? ?? '';
-      firstMessage = json['first_mes'] as String? ?? json['char_greeting'] as String? ?? '';
-      exampleMessages = json['mes_example'] as String? ?? json['example_dialogue'] as String? ?? '';
+      name = _castStringSafe(json['name']) != ''
+          ? _castStringSafe(json['name'])
+          : _castStringSafe(json['char_name']);
+      description = _castStringSafe(json['description']) != ''
+          ? _castStringSafe(json['description'])
+          : _castStringSafe(json['char_persona']);
+      // [AICC兼容] V1核心字段容错
+      personality = _castStringSafe(json['personality']);
+      scenario = _castStringSafe(json['scenario']) != ''
+          ? _castStringSafe(json['scenario'])
+          : _castStringSafe(json['world_scenario']);
+      firstMessage = _castStringSafe(json['first_mes']) != ''
+          ? _castStringSafe(json['first_mes'])
+          : _castStringSafe(json['char_greeting']);
+      exampleMessages = _castStringSafe(json['mes_example']) != ''
+          ? _castStringSafe(json['mes_example'])
+          : _castStringSafe(json['example_dialogue']);
     }
 
     final now = DateTime.now();
@@ -366,6 +461,62 @@ class ImportService {
   int? _parseScanDepthSafe(dynamic value) {
     if (value is bool) return value ? 1 : 0;
     return _parseIntSafe(value);
+  }
+
+  /// [AICC兼容] Safely cast a dynamic value to String:
+  /// V2核心字段容错——Map/List(结构化字段) stringify 透传，其余 toString
+  String _castStringSafe(dynamic value) {
+    if (value == null) return '';
+    if (value is String) return value;
+    if (value is Map || value is List) {
+      try {
+        return jsonEncode(value);
+      } catch (_) {
+        return value.toString();
+      }
+    }
+    return value.toString();
+  }
+
+  /// [AICC兼容] Safely parse tags: List(元素逐个 toString) 或 String(逗号分隔转数组)
+  List<String> _parseTagsSafe(dynamic value) {
+    if (value is List) {
+      return value.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+    }
+    if (value is String && value.isNotEmpty) {
+      return value.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    }
+    return [];
+  }
+
+  /// [AICC兼容] AICC 结构化 personality(core/behavior_rules/speech_style) → 可读文本
+  String _aiccPersonalityToString(Map<dynamic, dynamic> personality) {
+    final buf = StringBuffer();
+    final core = personality['core'];
+    if (core != null && '$core'.isNotEmpty) buf.writeln('$core');
+    final rules = personality['behavior_rules'];
+    if (rules is List && rules.isNotEmpty) {
+      buf.writeln();
+      buf.writeln('Behavior rules:');
+      for (final r in rules) {
+        final line = r?.toString() ?? '';
+        if (line.isNotEmpty) buf.writeln('- $line');
+      }
+    }
+    final style = personality['speech_style'];
+    if (style is Map) {
+      buf.writeln();
+      buf.writeln('Speech style:');
+      style.forEach((k, v) {
+        if (v is List) {
+          final items = v.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).join('; ');
+          if (items.isNotEmpty) buf.writeln('- $k: $items');
+        } else if (v != null && '$v'.isNotEmpty) {
+          buf.writeln('- $k: $v');
+        }
+      });
+    }
+    return buf.toString().trim();
   }
 
   /// Safely parse a list of strings from dynamic value
