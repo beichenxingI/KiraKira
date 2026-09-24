@@ -68,6 +68,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
   String _personality = '';
   String _scenario = '';
   String _firstMessage = '';
+  String _exampleMessages = '';
   String _systemPrompt = '';
   String _creatorNotes = '';
   List<String> _tags = [];
@@ -91,6 +92,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     _personality = c?.personality ?? '';
     _scenario = c?.scenario ?? '';
     _firstMessage = c?.firstMessage ?? '';
+    _exampleMessages = c?.exampleMessages ?? '';
     _systemPrompt = c?.systemPrompt ?? '';
     _creatorNotes = c?.creatorNotes ?? '';
     _tags = List.from(c?.tags ?? []);
@@ -224,6 +226,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
           personality: _personality,
           scenario: _scenario,
           firstMessage: _firstMessage,
+          exampleMessages: _exampleMessages,
           systemPrompt: _systemPrompt,
           creatorNotes: _creatorNotes,
           tags: _tags,
@@ -240,7 +243,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
           scenario: _scenario,
           firstMessage: _firstMessage,
           alternateGreetings: _alternateGreetings,
-          exampleMessages: '',
+          exampleMessages: _exampleMessages,
           systemPrompt: _systemPrompt,
           creatorNotes: _creatorNotes,
           tags: _tags,
@@ -357,10 +360,15 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
                           title: '对话示例',
                           icon: Icons.forum_outlined,
                           color: KiraDialogTheme.dialogue,
-                          value: widget.character?.exampleMessages ?? '',
+                          value: _exampleMessages,
                           placeholder: '点击输入对话示例...',
                           maxLength: 2000,
-                          onChanged: (v) => _isDirty = true,
+                          onChanged: (v) {
+                            setState(() {
+                              _exampleMessages = v;
+                              _isDirty = true;
+                            });
+                          },
                           storeKey: 'exampleMessages',
                         ),
                         const SizedBox(height: DesignTokens.spaceSm),
