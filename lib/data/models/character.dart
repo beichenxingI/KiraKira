@@ -209,7 +209,8 @@ class CharacterAssets {
 class CharacterBook {
   final String? name;
   final String? description;
-  final bool scanDepth;
+  /// V2/V3 spec requires int; legacy bool values map true→1, false→0. null = unspecified
+  final int? scanDepth;
   final int tokenBudget;
   final bool recursiveScanning;
   final List<CharacterBookEntry> entries;
@@ -218,7 +219,7 @@ class CharacterBook {
   const CharacterBook({
     this.name,
     this.description,
-    this.scanDepth = true,
+    this.scanDepth,
     this.tokenBudget = 2048,
     this.recursiveScanning = false,
     this.entries = const [],
@@ -228,7 +229,7 @@ class CharacterBook {
   CharacterBook copyWith({
     String? name,
     String? description,
-    bool? scanDepth,
+    int? scanDepth,
     int? tokenBudget,
     bool? recursiveScanning,
     List<CharacterBookEntry>? entries,
@@ -248,7 +249,7 @@ class CharacterBook {
   Map<String, dynamic> toJson() => {
         'name': name,
         'description': description,
-        'scan_depth': scanDepth,
+        if (scanDepth != null) 'scan_depth': scanDepth,
         'token_budget': tokenBudget,
         'recursive_scanning': recursiveScanning,
         'entries': entries.map((e) => e.toJson()).toList(),
@@ -258,7 +259,9 @@ class CharacterBook {
   factory CharacterBook.fromJson(Map<String, dynamic> json) => CharacterBook(
         name: json['name'] as String?,
         description: json['description'] as String?,
-        scanDepth: json['scan_depth'] as bool? ?? true,
+        scanDepth: json['scan_depth'] is bool
+            ? ((json['scan_depth'] as bool) ? 1 : 0)
+            : (json['scan_depth'] as num?)?.toInt(),
         tokenBudget: json['token_budget'] as int? ?? 2048,
         recursiveScanning: json['recursive_scanning'] as bool? ?? false,
         entries: (json['entries'] as List<dynamic>?)

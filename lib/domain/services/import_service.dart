@@ -332,7 +332,7 @@ class ImportService {
     return CharacterBook(
       name: json['name']?.toString(),
       description: json['description']?.toString(),
-      scanDepth: _parseBoolSafe(json['scan_depth']) ?? true,
+      scanDepth: _parseScanDepthSafe(json['scan_depth']),
       tokenBudget: _parseIntSafe(json['token_budget']) ?? 2048,
       recursiveScanning: _parseBoolSafe(json['recursive_scanning']) ?? false,
       entries: entries,
@@ -360,6 +360,12 @@ class ImportService {
       if (lower == 'false' || lower == '0') return false;
     }
     return null;
+  }
+
+  /// Safely parse scan_depth: spec requires int; legacy bool values map true→1, false→0
+  int? _parseScanDepthSafe(dynamic value) {
+    if (value is bool) return value ? 1 : 0;
+    return _parseIntSafe(value);
   }
 
   /// Safely parse a list of strings from dynamic value
@@ -405,7 +411,7 @@ class ImportService {
     return {
       'name': book.name,
       'description': book.description,
-      'scan_depth': book.scanDepth,
+      if (book.scanDepth != null) 'scan_depth': book.scanDepth,
       'token_budget': book.tokenBudget,
       'recursive_scanning': book.recursiveScanning,
       'extensions': book.extensions,
