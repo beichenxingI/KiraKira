@@ -290,23 +290,27 @@ class ImportService {
 
   CharacterBook _parseCharacterBook(Map<String, dynamic> json) {
     final rawEntries = json['entries'];
-    // [IMP-3] 条目形态判定(List / Map / null —— 字典形态会被静默吞成 0 条)
+    // [IMP-3] 条目形态判定：数组直接用；字典形态(ST 部分导出/旧卡)取 values 转数组
     print('[IMP-3] book=${json['name']} entriesRawType=${rawEntries?.runtimeType} '
         'count=${rawEntries is List ? rawEntries.length : (rawEntries is Map ? rawEntries.length : 'null')}');
-    if (rawEntries is Map) {
-      print('[IMP-3] !! DICT-FORM ENTRIES detected keys=${rawEntries.keys.take(5).toList()} -> 当前解析只认数组,将得 0 条');
+    List<dynamic> entriesJson;
+    if (rawEntries is List) {
+      entriesJson = rawEntries;
+    } else if (rawEntries is Map) {
+      entriesJson = rawEntries.values.toList();
+    } else {
+      entriesJson = [];
     }
-    final entriesJson = json['entries'] as List<dynamic>? ?? [];
     for (final e in entriesJson.take(10)) {
-      if (e is Map<String, dynamic>) {
+      if (e is Map) {
         final k = e['keys'];
         print('[IMP-3] entry id=${e['id']} keys=${k is List ? k.take(3).toList() : k} '
             'constant=${e['constant']} contentLen=${(e['content']?.toString() ?? '').length} '
             'content40=${(e['content']?.toString() ?? '').substring(0, (e['content']?.toString() ?? '').length > 40 ? 40 : (e['content']?.toString() ?? '').length)}');
       }
     }
-    final entries = entriesJson.map((e) {
-      final entry = e as Map<String, dynamic>;
+    final entries = entriesJson.whereType<Map>().map((e) {
+      final entry = Map<String, dynamic>.from(e);
       return CharacterBookEntry(
         id: _parseIntSafe(entry['id']) ?? 0,
         keys: _parseStringList(entry['keys']),
