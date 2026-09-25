@@ -529,6 +529,12 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
             isDark: isDark,
             onChanged: (v) => ref.read(imageGenSettingsProvider.notifier).setApiEndpoint(v),
           ),
+          const SizedBox(height: 6),
+          Text('留空使用默认（https://latent.moe）；自定义时仅填域名，如 https://example.com（误填路径如 /api/novelai 会自动移除）',
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93),
+              )),
           const SizedBox(height: 12),
           Text('异步队列生图（提交→排队→轮询→拉图），模型固定，steps 8–12，每周额度',
               style: TextStyle(

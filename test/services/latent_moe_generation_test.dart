@@ -21,6 +21,8 @@ class _LatentMockServer {
   List<Map<String, dynamic>> pollResponses;
   // 提交响应(默认 202 成功)
   ({int status, Map<String, dynamic> body}) submitResponse;
+  // [误填URL] 404 HTML 错误页(模拟 Base URL 误填路径后的服务端响应)
+  bool submitHtml = false;
 
   _LatentMockServer(this.server)
       : pollResponses = [
@@ -53,6 +55,14 @@ class _LatentMockServer {
   Future<void> handle(HttpRequest req) async {
     authHeaders.add(req.headers.value('Authorization') ?? '');
     if (req.method == 'POST' && req.uri.path == '/api/generate') {
+      if (submitHtml) {
+        req.response.statusCode = 404;
+        req.response.headers.contentType =
+            ContentType('text', 'html', charset: 'utf-8');
+        req.response.write('<html><body>404 Not Found</body></html>');
+        await req.response.close();
+        return;
+      }
       // join() 完整读取并排空请求体(只读 first 会留下未消费字节导致连接中断)
       final body =
           jsonDecode(await utf8.decoder.bind(req).join()) as Map<String, dynamic>;
@@ -217,6 +227,44 @@ void main() {
 
     expect(result, isNull);
     expect(errorMsg, contains('API key is required'));
+  });
+
+  test('Base URL 误填路径(/api/novelai)自动规范化,仍命中正确端点', () async {
+    final mock = await _startMock();
+    // 误填完整路径 → 规范化后去掉 /api/novelai,请求应落到 {base}/api/generate
+    final service = ImageGenerationService();
+    service.updateSettings(const ImageGenSettings(
+      enabled: true,
+      provider: ImageGenProvider.latentMoe,
+      apiKeys: {'latent_moe': 'lat_sk_test_key'},
+    ).withApiEndpoint('${mock.baseUrl}/api/novelai'));
+
+    final result = await service.generate(const ImageGenRequest(
+      prompt: 'normalize test',
+      width: 1024,
+      height: 1024,
+    ));
+
+    expect(result, isNotNull);
+    expect(result!.images.length, 1);
+    expect(mock.generateBodies.length, 1); // 命中正确端点(未规范化会 404 拿不到图)
+    expect(mock.generateBodies.first['prompt'], 'normalize test');
+    await mock.close();
+  });
+
+  test('404 HTML 错误页 → 提示 Base URL 填写错误', () async {
+    final mock = await _startMock();
+    mock.submitHtml = true;
+    final service = _service(mock.baseUrl);
+
+    String? errorMsg;
+    service.onError = (msg) => errorMsg = msg;
+    final result = await service.generate(const ImageGenRequest(prompt: 'x'));
+
+    expect(result, isNull);
+    expect(errorMsg, contains('收到HTML响应'));
+    expect(errorMsg, contains('Base URL 填写错误'));
+    await mock.close();
   });
 
   test('settings 往返:latentMoe provider 持久化保留', () {

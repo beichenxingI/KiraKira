@@ -1565,10 +1565,17 @@ class ImageGenerationService {
       throw Exception('Latent.moe API key is required (lat_sk_...)');
     }
 
+    // 规范化 base URL：去尾部斜杠 + 移除用户可能误填的路径后缀
+    // (如 /api/novelai、/api/generate、/api —— 拼接时变成 {base}/api/generate 导致 404)
     final rawEndpoint = _settings.effectiveEndpoint;
-    final endpoint = rawEndpoint.endsWith('/')
-        ? rawEndpoint.substring(0, rawEndpoint.length - 1)
-        : rawEndpoint;
+    var baseUrl = rawEndpoint.trim().isNotEmpty ? rawEndpoint.trim() : 'https://latent.moe';
+    baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), '');
+    baseUrl = baseUrl
+        .replaceAll(RegExp(r'/api/novelai$'), '')
+        .replaceAll(RegExp(r'/api/generate$'), '')
+        .replaceAll(RegExp(r'/api$'), '');
+    final endpoint = baseUrl;
+    debugPrint('[LATENT] 规范化后Base URL=$baseUrl');
 
     debugPrint('[LATENT] 开始生成 provider=${_settings.provider.id}');
     debugPrint('[LATENT] API Key长度=${apiKey.length}');
@@ -1618,14 +1625,15 @@ class ImageGenerationService {
     try {
       // 1. 提交任务(202 + GenerationJob; 401/409/422/429/503 友好报错)
       debugPrint('[LATENT] 提交任务：prompt=${request.prompt.length > 50 ? request.prompt.substring(0, 50) : request.prompt}...');
-      final submit = await _dio.post<Map<String, dynamic>>(
+      final submit = await _dio.post<dynamic>(
         '$endpoint/api/generate',
         options: Options(
           headers: {
             'Authorization': 'Bearer $apiKey',
             'Content-Type': 'application/json',
           },
-          validateStatus: (status) => true, // 读错误体
+          responseType: ResponseType.json, // 明确期望JSON
+          validateStatus: (status) => true, // 允许非202，手动处理
         ),
         data: body,
       );
@@ -1634,7 +1642,13 @@ class ImageGenerationService {
       if (submit.statusCode != 202 || submit.data == null) {
         throw Exception(_latentError('Latent.moe', submit.statusCode, submit.data));
       }
-      final jobId = submit.data!['id'] as String?;
+      // [类型检查] 404/HTML 错误页时 data 是 String,直接取 ['id'] 会炸出难懂 TypeError
+      final taskData = submit.data;
+      if (taskData is! Map) {
+        throw Exception(
+            'Latent.moe 提交响应格式错误：期望JSON对象，收到${taskData.runtimeType}');
+      }
+      final jobId = taskData['id'] as String?;
       if (jobId == null || jobId.isEmpty) {
         throw Exception('Latent.moe: 提交成功但未返回任务 id');
       }
@@ -1644,16 +1658,17 @@ class ImageGenerationService {
       const pollInterval = Duration(seconds: 2);
       const pollTimeout = Duration(minutes: 10);
       final deadline = DateTime.now().add(pollTimeout);
-      Map<String, dynamic> job = submit.data!;
+      Map<String, dynamic> job = Map<String, dynamic>.from(taskData);
       int pollN = 0;
       while (DateTime.now().isBefore(deadline)) {
         await Future<void>.delayed(pollInterval);
         pollN++;
         debugPrint('[LATENT] 轮询第$pollN次，任务ID=$jobId');
-        final poll = await _dio.get<Map<String, dynamic>>(
+        final poll = await _dio.get<dynamic>(
           '$endpoint/api/generate/$jobId',
           options: Options(
             headers: {'Authorization': 'Bearer $apiKey'},
+            responseType: ResponseType.json,
             validateStatus: (status) => true,
           ),
         );
@@ -1666,7 +1681,12 @@ class ImageGenerationService {
           debugPrint('[LATENT] 轮询 HTTP ${poll.statusCode}, 重试');
           continue;
         }
-        job = poll.data!;
+        // [类型检查] 200 但非 JSON(代理/网关返回 HTML) → 视为暂时故障重试
+        if (poll.data is! Map) {
+          debugPrint('[LATENT] 轮询响应非JSON对象(${poll.data.runtimeType}), 重试');
+          continue;
+        }
+        job = Map<String, dynamic>.from(poll.data as Map);
         final status = job['status'] as String?;
         final progress = (job['progress'] as num?)?.toInt() ?? 0;
         // progress 0-100 映射到 0.2-0.9 进度回调
@@ -1742,8 +1762,17 @@ class ImageGenerationService {
   }
 
   /// latent.moe 错误体解析(结构: {error:{code,message}} 或 {error:string,message};
-  /// 状态码语义: 401 key 无效/409 并发满/422 参数越界/429 周额度/503 队列满)
+  /// 状态码语义: 401 key 无效/409 并发满/422 参数越界/429 周额度/503 队列满;
+  /// HTML 错误页 → 明确提示 Base URL 填写错误)
   String _latentError(String prefix, int? statusCode, dynamic data) {
+    // [Fix 3] HTML 错误页(很可能是 Base URL 误填路径,拼出 404) → 明确指引
+    if (data is String && data.trim().toLowerCase().startsWith('<')) {
+      final body = data.trim();
+      final excerpt = body.length > 200 ? '${body.substring(0, 200)}...' : body;
+      return '$prefix: 收到HTML响应而非JSON (HTTP ${statusCode ?? '??'})。\n'
+          '可能原因：Base URL 填写错误（应填 https://latent.moe，不含路径）或服务端问题。\n'
+          '原始响应：$excerpt';
+    }
     String detail = '';
     if (data is Map) {
       final err = data['error'];
