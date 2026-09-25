@@ -99,6 +99,16 @@ class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
     _saveSettings();
   }
 
+  void setSherpaModelName(String? modelName) {
+    state = state.copyWith(sherpaModelName: modelName);
+    _saveSettings();
+  }
+
+  void setQwenModel(String? model) {
+    state = state.copyWith(qwenModel: model);
+    _saveSettings();
+  }
+
   // ── 三音色 setter：正文/对话/旁白 ──
   void setNarrationVoice(VoiceStyle style) {
     state = state.copyWith(narrationVoice: style);
