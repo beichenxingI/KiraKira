@@ -930,7 +930,12 @@ class ImageGenerationService {
     if (!_settings.enabled) return null;
 
     final model = request.model ?? _settings.model;
-    
+    final apiKey = _settings.apiKey;
+
+    debugPrint('[IMAGE_GEN] provider=${_settings.provider.id}');
+    debugPrint('[IMAGE_GEN] apiKey=${(apiKey == null || apiKey.isEmpty) ? "" : "非空(${apiKey.length}字符)"}');
+    debugPrint('[IMAGE_GEN] endpoint=${_settings.effectiveEndpoint}');
+
     try {
       debugPrint('Image Generation [${_settings.provider.displayName}]');
       debugPrint('  Model: $model');
@@ -948,6 +953,7 @@ class ImageGenerationService {
         case ImageGenProvider.novelai:
           return await _generateNovelAI(request, model);
         case ImageGenProvider.latentMoe:
+          debugPrint('[IMAGE_GEN] 进入latent.moe分支');
           return await _generateLatentMoe(request);
         case ImageGenProvider.automatic1111:
           return await _generateAutomatic1111(request);
@@ -1564,6 +1570,10 @@ class ImageGenerationService {
         ? rawEndpoint.substring(0, rawEndpoint.length - 1)
         : rawEndpoint;
 
+    debugPrint('[LATENT] 开始生成 provider=${_settings.provider.id}');
+    debugPrint('[LATENT] API Key长度=${apiKey.length}');
+    debugPrint('[LATENT] Base URL=$endpoint');
+
     // 参数映射(文档枚举):
     // 宽高比 → resolution: ≈1 → square, <1 → portrait, >1 → landscape
     final ratio = request.width / request.height;
@@ -1600,120 +1610,135 @@ class ImageGenerationService {
     };
 
     onProgress?.call(0.1);
-    debugPrint('Latent.moe: POST $endpoint/api/generate');
-    debugPrint('Latent.moe: ${const JsonEncoder.withIndent('  ').convert(body)}');
+    debugPrint('[LATENT] POST $endpoint/api/generate');
+    debugPrint('[LATENT] 请求体(映射后)：resolution=$resolution steps=$steps sampler=$sampler scheduler=$scheduler');
+    debugPrint('[LATENT] ${const JsonEncoder.withIndent('  ').convert(body)}');
 
-    // 1. 提交任务(202 + GenerationJob; 401/409/422/429/503 友好报错)
-    final submit = await _dio.post<Map<String, dynamic>>(
-      '$endpoint/api/generate',
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $apiKey',
-          'Content-Type': 'application/json',
-        },
-        validateStatus: (status) => true, // 读错误体
-      ),
-      data: body,
-    );
+    // [LATENT] 主流程:提交 → 轮询 → 拉图,异常日志后 rethrow(由 generate() 统一 onError)
+    try {
+      // 1. 提交任务(202 + GenerationJob; 401/409/422/429/503 友好报错)
+      debugPrint('[LATENT] 提交任务：prompt=${request.prompt.length > 50 ? request.prompt.substring(0, 50) : request.prompt}...');
+      final submit = await _dio.post<Map<String, dynamic>>(
+        '$endpoint/api/generate',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $apiKey',
+            'Content-Type': 'application/json',
+          },
+          validateStatus: (status) => true, // 读错误体
+        ),
+        data: body,
+      );
+      debugPrint('[LATENT] 提交响应：status=${submit.statusCode}, body=${submit.data}');
 
-    if (submit.statusCode != 202 || submit.data == null) {
-      throw Exception(_latentError('Latent.moe', submit.statusCode, submit.data));
-    }
-    final jobId = submit.data!['id'] as String?;
-    if (jobId == null || jobId.isEmpty) {
-      throw Exception('Latent.moe: 提交成功但未返回任务 id');
-    }
-    debugPrint('Latent.moe: job=$jobId queued');
+      if (submit.statusCode != 202 || submit.data == null) {
+        throw Exception(_latentError('Latent.moe', submit.statusCode, submit.data));
+      }
+      final jobId = submit.data!['id'] as String?;
+      if (jobId == null || jobId.isEmpty) {
+        throw Exception('Latent.moe: 提交成功但未返回任务 id');
+      }
+      debugPrint('[LATENT] 任务已入队：任务ID=$jobId');
 
-    // 2. 轮询(官方建议 2s 一次; 超时 10 分钟保护,超时尝试取消避免占并发名额)
-    const pollInterval = Duration(seconds: 2);
-    const pollTimeout = Duration(minutes: 10);
-    final deadline = DateTime.now().add(pollTimeout);
-    Map<String, dynamic> job = submit.data!;
-    while (DateTime.now().isBefore(deadline)) {
-      await Future<void>.delayed(pollInterval);
-      final poll = await _dio.get<Map<String, dynamic>>(
-        '$endpoint/api/generate/$jobId',
+      // 2. 轮询(官方建议 2s 一次; 超时 10 分钟保护,超时尝试取消避免占并发名额)
+      const pollInterval = Duration(seconds: 2);
+      const pollTimeout = Duration(minutes: 10);
+      final deadline = DateTime.now().add(pollTimeout);
+      Map<String, dynamic> job = submit.data!;
+      int pollN = 0;
+      while (DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(pollInterval);
+        pollN++;
+        debugPrint('[LATENT] 轮询第$pollN次，任务ID=$jobId');
+        final poll = await _dio.get<Map<String, dynamic>>(
+          '$endpoint/api/generate/$jobId',
+          options: Options(
+            headers: {'Authorization': 'Bearer $apiKey'},
+            validateStatus: (status) => true,
+          ),
+        );
+        debugPrint('[LATENT] 状态：status=${poll.statusCode}, body=${poll.data}');
+        if (poll.statusCode != 200 || poll.data == null) {
+          // 404 = 任务不属于此 designer;其他非 200 视为暂时故障,重试
+          if (poll.statusCode == 404) {
+            throw Exception('Latent.moe: 任务不存在或已被清理(404)');
+          }
+          debugPrint('[LATENT] 轮询 HTTP ${poll.statusCode}, 重试');
+          continue;
+        }
+        job = poll.data!;
+        final status = job['status'] as String?;
+        final progress = (job['progress'] as num?)?.toInt() ?? 0;
+        // progress 0-100 映射到 0.2-0.9 进度回调
+        if (status == 'running') {
+          onProgress?.call(0.3 + (progress / 100.0) * 0.6);
+        } else if (status == 'queued' || status == 'leased') {
+          onProgress?.call(0.2);
+        }
+        if (status == 'succeeded') break;
+        if (status == 'failed') {
+          throw Exception(
+              'Latent.moe: 生成失败 (errorCode: ${job['errorCode'] ?? 'unknown'})');
+        }
+        if (status == 'cancelled') {
+          throw Exception('Latent.moe: 任务已取消');
+        }
+      }
+      if ((job['status'] as String?) != 'succeeded') {
+        try {
+          await _dio.post('$endpoint/api/generate/$jobId/cancel',
+              options: Options(headers: {'Authorization': 'Bearer $apiKey'}));
+        } catch (_) {}
+        throw Exception('Latent.moe: 轮询超时(10分钟),任务已尝试取消');
+      }
+
+      final artworkId = job['artworkId'] as String?;
+      if (artworkId == null || artworkId.isEmpty) {
+        throw Exception('Latent.moe: 任务成功但未返回 artworkId');
+      }
+
+      // 3. 拉取图片字节(文档: /api/media/{artworkId}?size=original;size 枚举 thumb/preview/original)
+      debugPrint('[LATENT] 下载图片：artworkId=$artworkId');
+      onProgress?.call(0.95);
+      final media = await _dio.get<List<int>>(
+        '$endpoint/api/media/$artworkId?size=original',
         options: Options(
           headers: {'Authorization': 'Bearer $apiKey'},
+          responseType: ResponseType.bytes,
           validateStatus: (status) => true,
         ),
       );
-      if (poll.statusCode != 200 || poll.data == null) {
-        // 404 = 任务不属于此 designer;其他非 200 视为暂时故障,重试
-        if (poll.statusCode == 404) {
-          throw Exception('Latent.moe: 任务不存在或已被清理(404)');
-        }
-        debugPrint('Latent.moe: poll HTTP ${poll.statusCode}, retry');
-        continue;
+      if (media.statusCode != 200 || media.data == null) {
+        throw Exception(_latentError('Latent.moe media', media.statusCode, media.data));
       }
-      job = poll.data!;
-      final status = job['status'] as String?;
-      final progress = (job['progress'] as num?)?.toInt() ?? 0;
-      // progress 0-100 映射到 0.2-0.9 进度回调
-      if (status == 'running') {
-        onProgress?.call(0.3 + (progress / 100.0) * 0.6);
-      } else if (status == 'queued' || status == 'leased') {
-        onProgress?.call(0.2);
+      final bytes = Uint8List.fromList(media.data as List<int>);
+      debugPrint('[LATENT] 图片大小=${bytes.length} bytes');
+      if (_looksLikeNonImageData(bytes)) {
+        throw Exception('Latent.moe: media 返回非图片内容');
       }
-      debugPrint('Latent.moe: status=$status progress=$progress');
-      if (status == 'succeeded') break;
-      if (status == 'failed') {
-        throw Exception(
-            'Latent.moe: 生成失败 (errorCode: ${job['errorCode'] ?? 'unknown'})');
-      }
-      if (status == 'cancelled') {
-        throw Exception('Latent.moe: 任务已取消');
-      }
-    }
-    if ((job['status'] as String?) != 'succeeded') {
-      try {
-        await _dio.post('$endpoint/api/generate/$jobId/cancel',
-            options: Options(headers: {'Authorization': 'Bearer $apiKey'}));
-      } catch (_) {}
-      throw Exception('Latent.moe: 轮询超时(10分钟),任务已尝试取消');
-    }
 
-    final artworkId = job['artworkId'] as String?;
-    if (artworkId == null || artworkId.isEmpty) {
-      throw Exception('Latent.moe: 任务成功但未返回 artworkId');
+      onProgress?.call(1.0);
+      final seed =
+          (job['seed'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch;
+      return ImageGenResult(
+        images: [bytes],
+        prompt: request.prompt,
+        seed: seed,
+        format: 'png',
+        metadata: {
+          'provider': 'latent_moe',
+          'jobId': jobId,
+          'artworkId': artworkId,
+          'resolution': job['resolution'],
+          'sampler': job['sampler'],
+          'scheduler': job['scheduler'],
+        },
+      );
+    } catch (e, stack) {
+      debugPrint('[LATENT] ❌ 异常：$e');
+      debugPrint('[LATENT] Stack: $stack');
+      rethrow;
     }
-
-    // 3. 拉取图片字节(文档: /api/media/{artworkId}?size=original;size 枚举 thumb/preview/original)
-    onProgress?.call(0.95);
-    final media = await _dio.get<List<int>>(
-      '$endpoint/api/media/$artworkId?size=original',
-      options: Options(
-        headers: {'Authorization': 'Bearer $apiKey'},
-        responseType: ResponseType.bytes,
-        validateStatus: (status) => true,
-      ),
-    );
-    if (media.statusCode != 200 || media.data == null) {
-      throw Exception(_latentError('Latent.moe media', media.statusCode, media.data));
-    }
-    final bytes = Uint8List.fromList(media.data as List<int>);
-    if (_looksLikeNonImageData(bytes)) {
-      throw Exception('Latent.moe: media 返回非图片内容');
-    }
-
-    onProgress?.call(1.0);
-    final seed =
-        (job['seed'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch;
-    return ImageGenResult(
-      images: [bytes],
-      prompt: request.prompt,
-      seed: seed,
-      format: 'png',
-      metadata: {
-        'provider': 'latent_moe',
-        'jobId': jobId,
-        'artworkId': artworkId,
-        'resolution': job['resolution'],
-        'sampler': job['sampler'],
-        'scheduler': job['scheduler'],
-      },
-    );
   }
 
   /// latent.moe 错误体解析(结构: {error:{code,message}} 或 {error:string,message};

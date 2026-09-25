@@ -334,6 +334,7 @@ class _ImageGenerationDialogState extends ConsumerState<ImageGenerationDialog> {
     };
 
     service.onError = (error) {
+      debugPrint('[UI] 生图错误回调：$error');
       if (mounted) {
         setState(() {
           _error = error;
@@ -365,7 +366,8 @@ class _ImageGenerationDialogState extends ConsumerState<ImageGenerationDialog> {
           });
         } else {
           setState(() {
-            _error = 'No image generated';
+            // onError 已写入具体错误(如 latent.moe 429/401)时不覆盖成笼统提示
+            _error ??= 'No image generated';
             _isGenerating = false;
           });
         }
