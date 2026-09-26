@@ -81,6 +81,7 @@ import 'package:kirakira/presentation/providers/image_gen_providers.dart';
 import 'package:kirakira/data/models/chat_background.dart';
 import 'package:kirakira/data/models/vector_storage.dart';
 import 'package:kirakira/domain/services/tts_service.dart';
+import 'package:kirakira/domain/services/tts_model_service.dart';
 import 'package:kirakira/domain/services/llm_service.dart';
 import 'package:kirakira/presentation/providers/mvu_settings_providers.dart';
 import 'package:kirakira/domain/services/debug_log_service.dart';
@@ -4523,6 +4524,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'volume': settings.volume,
         'apiKey': (settings.apiKey?.isNotEmpty ?? false) ? '***REDACTED***' : '',
         'apiEndpoint': settings.apiEndpoint ?? '',
+        'sherpaModelName': settings.sherpaModelName ?? '',
+        'qwenModel': settings.qwenModel ?? '',
         'availableVoices': voices,
       },
     });
@@ -4585,6 +4588,27 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
       case 'setApiEndpoint':
         notifier.setApiEndpoint(data['value'] as String);
+        break;
+      case 'setSherpaModelName':
+        notifier.setSherpaModelName(data['value'] as String?);
+        break;
+      case 'setQwenModel':
+        notifier.setQwenModel(data['value'] as String?);
+        break;
+      case 'importTtsModel':
+        try {
+          final name = await TtsModelService.instance.importModel();
+          if (name != null) {
+            notifier.setSherpaModelName(name);
+            ref.refresh(availableVoicesProvider);
+            _bridge.send(BridgeType.settingsPanelData, {
+              'data': <String, dynamic>{
+                'sherpaModelName': name,
+              },
+              'refresh': true,
+            });
+          }
+        } catch (_) {}
         break;
       case 'testTts':
         final speak = ref.read(ttsSpeakProvider);

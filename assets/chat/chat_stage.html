@@ -1970,20 +1970,46 @@ __KIRA_CHAT_BRIDGE__
     card2.appendChild(spSection('引擎'));
     card2.appendChild(spSelect('tts-provider', '语音引擎', [
       {value:'system', label:'系统语音合成'},
+      {value:'sherpaOnnx', label:'本地离线 TTS'},
+      {value:'mimoTts', label:'小米 MiMo'},
+      {value:'qwenTts', label:'阿里通义 TTS'},
+      {value:'baiduTts', label:'百度语音合成'},
       {value:'elevenlabs', label:'ElevenLabs'},
       {value:'azure', label:'Azure TTS'}
     ], d.provider || 'system',
     function(v){ spAction('setProvider',{provider:v}); }));
 
-    if (d.provider === 'elevenlabs' || d.provider === 'azure') {
+    // 云端引擎显示 API Key；sherpa 显示模型名 + 导入按钮
+    if (['elevenlabs','azure','qwenTts','baiduTts','mimoTts'].indexOf(d.provider) !== -1) {
       card2.appendChild(spInput('tts-api-key', 'API Key',
         d.apiKey || '', 'API 密钥', 'password',
-        function(v){ spAction('setApiKey',{value:v}); }));
+        function(v){ if(v && v !== '***REDACTED***') spAction('setApiKey',{value:v}); }));
     }
-    if (d.provider === 'azure') {
+    if (d.provider === 'baiduTts') {
+      card2.appendChild(spInput('tts-api-url', 'Secret Key (SK)',
+        d.apiEndpoint || '', '百度 SK', 'password',
+        function(v){ spAction('setApiEndpoint',{value:v}); }));
+    } else if (d.provider === 'azure') {
       card2.appendChild(spInput('tts-api-url', 'API 地址',
         d.apiEndpoint || '', 'https://…', 'text',
         function(v){ spAction('setApiEndpoint',{value:v}); }));
+    }
+    if (d.provider === 'sherpaOnnx') {
+      card2.appendChild(spInput('tts-model', '已选模型',
+        d.sherpaModelName || '', '模型名称', 'text',
+        function(v){ spAction('setSherpaModelName',{value:v}); }));
+      var importBtn = spButton('导入模型 (.tar.bz2)', 'secondary', function(){
+        spAction('importTtsModel',{});
+      });
+      card2.appendChild(importBtn);
+    }
+    if (d.provider === 'qwenTts') {
+      card2.appendChild(spSelect('tts-qwen-model', 'Qwen 模型', [
+        {value:'qwen3-tts-flash', label:'qwen3-tts-flash（便宜）'},
+        {value:'cosyvoice-v3-flash', label:'cosyvoice-v3-flash（支持速率/音调）'},
+        {value:'cosyvoice-v3-plus', label:'cosyvoice-v3-plus'}
+      ], d.qwenModel || 'qwen3-tts-flash',
+      function(v){ spAction('setQwenModel',{value:v}); }));
     }
 
     var voices = d.availableVoices || [];

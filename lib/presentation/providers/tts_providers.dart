@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kirakira/domain/services/tts_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -18,7 +19,9 @@ final ttsSettingsProvider = StateNotifierProvider<TTSSettingsNotifier, TTSSettin
 /// Notifier for TTS settings
 class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
   static const _prefsKey = 'tts_settings';
+  static const _secureKeyApiKey = 'tts_api_key'; // apiKey 单独存 secure storage
   final TTSService _service;
+  final FlutterSecureStorage _secure = const FlutterSecureStorage();
 
   TTSSettingsNotifier(this._service) : super(const TTSSettings()) {
     _loadSettings();
@@ -30,6 +33,20 @@ class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
       final jsonStr = prefs.getString(_prefsKey);
       if (jsonStr != null) {
         final json = jsonDecode(jsonStr) as Map<String, dynamic>;
+        // [密钥安全] apiKey 优先从 secure storage 读取；legacy 明文一次性迁移
+        final legacyKey = json['apiKey'] as String?;
+        String? secureKey;
+        try {
+          secureKey = await _secure.read(key: _secureKeyApiKey);
+          if (secureKey == null && legacyKey != null && legacyKey.isNotEmpty) {
+            await _secure.write(key: _secureKeyApiKey, value: legacyKey);
+            json['apiKey'] = null;
+            await prefs.setString(_prefsKey, jsonEncode(json));
+          }
+        } catch (_) {
+          // secure storage 不可用（测试环境/无安全模块）→ 回退明文
+        }
+        json['apiKey'] = secureKey ?? legacyKey;
         state = TTSSettings.fromJson(json);
         _service.updateSettings(state);
       }
@@ -41,8 +58,18 @@ class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
   Future<void> _saveSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonStr = jsonEncode(state.toJson());
-      await prefs.setString(_prefsKey, jsonStr);
+      final json = state.toJson();
+      // [密钥安全] apiKey 优先存 secure storage；失败则保留明文（测试环境兼容）
+      final apiKey = json['apiKey'] as String?;
+      if (apiKey != null && apiKey.isNotEmpty) {
+        try {
+          await _secure.write(key: _secureKeyApiKey, value: apiKey);
+          json.remove('apiKey'); // secure 可用 → prefs 不存 key
+        } catch (_) {
+          // secure 不可用 → 保留明文在 prefs（兼容测试环境）
+        }
+      }
+      await prefs.setString(_prefsKey, jsonEncode(json));
       _service.updateSettings(state);
     } catch (e) {
       // Ignore save errors

@@ -7,7 +7,6 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../tts_service.dart' show TTSProvider;
 import 'tts_backend.dart';
 
 /// 小米 MiMo TTS 后端。
