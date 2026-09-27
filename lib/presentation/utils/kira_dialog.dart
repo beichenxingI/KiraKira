@@ -1,5 +1,5 @@
 // lib/presentation/utils/kira_dialog.dart
-/// 统一浮窗显示函数(PiuPiu 风格动画)
+/// 统一浮窗显示函数(弱回弹缩放动画)
 ///
 /// 入场:scale 0.92→1.0 弱回弹 cubic(0.34,1.56,0.64,1) + opacity 0→1(前60%),
 /// 280ms;退场:scale 1.0→0.95 + opacity 1→0 easeIn,280ms 快速收起。
@@ -9,7 +9,7 @@ library;
 
 import 'package:flutter/material.dart';
 
-/// 弹一个 PiuPiu 风格动画浮窗。
+/// 弹一个 带缩放回弹动画的浮窗。
 ///
 /// [dialog] 为浮窗根 Widget(通常已是 Center+Material+Container 结构)。
 /// 默认 useRootNavigator=true,与 showDialog 一致,从 Shell 内页面打开
@@ -42,7 +42,7 @@ Future<T?> showKiraDialog<T>({
         );
       }
       // ── 入场:弱回弹 + 淡入 ──
-      // scale 经 PiuPiu 弱回弹 cubic(0.34,1.56,0.64,1),末端轻微过冲到 >1 再回 1
+      // scale 经 cubic(0.34,1.56,0.64,1),末端轻微过冲到 >1 再回 1
       const enterCurve = Cubic(0.34, 1.56, 0.64, 1);
       final scaleV = enterCurve.transform(animation.value);
       // opacity 前 60% 完成淡入,避免回弹阶段还在半透明

@@ -35,6 +35,7 @@ dependencies:
   
   # Networking
   dio: ^5.4.0
+  crypto: ^3.0.3
 
   # 本地 embedding 推理（ONNX）
   onnxruntime: ^1.4.1
@@ -103,7 +104,6 @@ flutter:
     - assets/live2d/
     - assets/
     - assets/models/bge-small-zh/
-    - assets/models/stt/
     - assets/images/
     - assets/icon/
     - assets/world_info/

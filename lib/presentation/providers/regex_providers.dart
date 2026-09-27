@@ -225,7 +225,8 @@ class CharacterRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
             character.copyWith(extensions: updatedExtensions),
           );
     } catch (e) {
-      print('Error saving character regex scripts: $e');
+    print('❌ 正则保存失败: $e');
+    rethrow;
     }
   }
 

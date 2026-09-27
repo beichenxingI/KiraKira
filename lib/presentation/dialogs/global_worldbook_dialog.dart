@@ -17,8 +17,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:kirakira/data/models/world_info.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import '../utils/export_delivery.dart';
 import 'core_dialog.dart';
 import 'worldbook_entry_edit_dialog.dart';
 
@@ -310,10 +309,14 @@ class _GlobalWorldbookDialogState
     final date = DateTime.now().toIso8601String().split('T')[0];
     final fileName =
         'worldbook_${book.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}_$date.json';
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsString(json);
-    await Share.shareXFiles([XFile(file.path)], subject: fileName);
+    // [问题1] 统一导出交付:分享 / 保存到文件
+    await deliverExportFile(
+      context: context,
+      fileName: fileName,
+      bytes: utf8.encode(json),
+      subject: fileName,
+      ext: 'json',
+    );
   }
 
   @override

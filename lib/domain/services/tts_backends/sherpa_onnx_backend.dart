@@ -49,12 +49,11 @@ class SherpaOnnxBackend implements TtsBackend {
     }
 
     final config = _buildConfig(entry);
-    // OfflineTts 构造是同步 FFI（模型加载可达数秒），用 Isolate.run 避免卡 UI。
-    // Pointer 可跨 isolate 发送（Dart FFI 语义），GeneratedAudio 含 TypedData 可传回。
-    _tts = await Isolate.run(() => sherpa.OfflineTts(config));
+    // sherpa_onnx 的 FFI 绑定不能跨 isolate，必须在主 isolate 创建
+    _tts = sherpa.OfflineTts(config);
 
     // 生成 sid 音色列表
-    final numSpeakers = _tts!.numSpeakers;
+    final numSpeakers = entry.numSpeakers;
     _voices = List.generate(
       numSpeakers,
       (i) => {
@@ -148,10 +147,8 @@ class SherpaOnnxBackend implements TtsBackend {
     final speed = rate.clamp(0.5, 2.0);
     final player = _player ??= AudioPlayer();
 
-    // generate 是同步 FFI 调用（阻塞），必须 Isolate.run 包裹
-    final audio = await Isolate.run(
-      () => tts.generate(text: text, sid: sid, speed: speed),
-    );
+    // generate 是同步 FFI 调用，但必须在主 isolate（因为绑定不能跨 isolate）
+    final audio = tts.generate(text: text, sid: sid, speed: speed);
     if (audio.samples.isEmpty) {
       throw Exception('sherpa TTS 合成结果为空（文本或 sid 无效）');
     }

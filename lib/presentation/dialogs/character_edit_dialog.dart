@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../data/models/character.dart';
 import '../../data/models/regex_script.dart';
@@ -18,9 +17,11 @@ import '../components/kira_dialog_widgets.dart';
 import '../components/kira_input_dialog.dart';
 import '../components/kira_toast.dart';
 import '../providers/character_providers.dart';
+import '../../data/repositories/character_repository.dart';
 import '../providers/regex_providers.dart';
 import '../providers/world_info_providers.dart';
 import '../theme/design_tokens.dart';
+import '../utils/export_delivery.dart';
 import '../widgets/common/character_avatar_image.dart';
 import 'character_regex_dialog.dart';
 import 'regex_rule_edit_dialog.dart';
@@ -220,7 +221,12 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
           ? CharacterAssets(avatarPath: _avatarPath)
           : widget.character?.assets;
       if (_isEdit) {
-        await notifier.updateCharacter(widget.character!.copyWith(
+      // 保存前读取 DB 最新角色，避免覆盖会话期间的 extensions 变化（正则/置顶等）
+      final repo = ref.read(characterRepositoryProvider);
+      final latest = await repo.getCharacter(_characterId!);
+      final base = latest ?? widget.character!;  // DB 读失败兜底
+
+        await notifier.updateCharacter(base.copyWith(
           name: name,
           description: _description,
           personality: _personality,
@@ -332,7 +338,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
                           color: KiraDialogTheme.description,
                           value: _description,
                           placeholder: '点击输入角色描述...',
-                          maxLength: 2000,
+                          maxLength: null,
                           onChanged: (v) => setState(() {
                             _description = v;
                             _isDirty = true;
@@ -346,7 +352,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
                           color: KiraDialogTheme.opening,
                           value: _firstMessage,
                           placeholder: '点击输入开场白...',
-                          maxLength: 1000,
+                          maxLength: null,
                           onChanged: (v) => setState(() {
                             _firstMessage = v;
                             _isDirty = true;
@@ -362,7 +368,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
                           color: KiraDialogTheme.dialogue,
                           value: _exampleMessages,
                           placeholder: '点击输入对话示例...',
-                          maxLength: 2000,
+                          maxLength: null,
                           onChanged: (v) {
                             setState(() {
                               _exampleMessages = v;
@@ -609,7 +615,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     required Color color,
     required String value,
     required String placeholder,
-    int maxLength = 2000,
+    int? maxLength,
     required ValueChanged<String> onChanged,
     String? storeKey,
   }) {
@@ -689,7 +695,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
                       title: '编辑备选开场白 #${i + 1}',
                       initialValue: _alternateGreetings[i],
                       multiline: true,
-                      maxLength: 1000,
+                      maxLength: null,
                       placeholder: '请输入备选开场白...',
                     );
                     if (v != null) {
@@ -721,19 +727,19 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
   // ── 更多设定卡片（性格/场景/系统提示/创作者注释） ──
   Widget _buildMoreCard(bool isDark) {
     final List<({String key, String title, IconData icon, String value,
-      String placeholder, int maxLength, String storeKey})> fields = [
+      String placeholder, int? maxLength, String storeKey})> fields = [
       (key: 'personality', title: '性格', icon: Icons.psychology_outlined,
         value: _personality, placeholder: '点击输入性格...',
-        maxLength: 1000, storeKey: 'personality'),
+        maxLength: null, storeKey: 'personality'),
       (key: 'scenario', title: '场景', icon: Icons.place_outlined,
         value: _scenario, placeholder: '点击输入场景...',
-        maxLength: 2000, storeKey: 'scenario'),
+        maxLength: null, storeKey: 'scenario'),
       (key: 'systemPrompt', title: '系统提示词', icon: Icons.terminal,
         value: _systemPrompt, placeholder: '点击输入系统提示词...',
-        maxLength: 2000, storeKey: 'systemPrompt'),
+        maxLength: null, storeKey: 'systemPrompt'),
       (key: 'creatorNotes', title: '创作者注释', icon: Icons.edit_note,
         value: _creatorNotes, placeholder: '点击输入创作者注释...',
-        maxLength: 500, storeKey: 'creatorNotes'),
+        maxLength: null, storeKey: 'creatorNotes'),
     ];
     return KiraAccordionCard(
       title: '更多设定',
@@ -1255,10 +1261,14 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     final date = DateTime.now().toIso8601String().split('T')[0];
     final fileName =
         'worldbook_${widget.character?.name ?? 'character'}_$date.json';
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsString(json);
-    await Share.shareXFiles([XFile(file.path)], subject: fileName);
+    // [问题1] 统一导出交付:分享 / 保存到文件
+    await deliverExportFile(
+      context: context,
+      fileName: fileName,
+      bytes: utf8.encode(json),
+      subject: fileName,
+      ext: 'json',
+    );
   }
 
   Future<void> _importRegex() async {
@@ -1355,10 +1365,14 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
         scripts.map((s) => s.toJson()).toList());
     final date = DateTime.now().toIso8601String().split('T')[0];
     final fileName = 'regex_${widget.character?.name ?? 'character'}_$date.json';
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsString(json);
-    await Share.shareXFiles([XFile(file.path)], subject: fileName);
+    // [问题1] 统一导出交付:分享 / 保存到文件
+    await deliverExportFile(
+      context: context,
+      fileName: fileName,
+      bytes: utf8.encode(json),
+      subject: fileName,
+      ext: 'json',
+    );
   }
 }
 

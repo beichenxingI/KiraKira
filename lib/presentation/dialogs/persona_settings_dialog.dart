@@ -130,21 +130,18 @@ class _PersonaSettingsDialog extends ConsumerWidget {
   }
 
   void _showCreatePersonaDialog(BuildContext context, WidgetRef ref) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const PersonaEditorScreen(),
-      ),
+    // [问题5] 编辑浮窗化:全屏页 → 居中浮窗(编辑器内容包 CoreDialogShell)
+    showKiraDialog(
+      context: context,
+      dialog: const PersonaEditorScreen(),
     );
   }
 
   void _showEditPersonaDialog(
       BuildContext context, WidgetRef ref, Persona persona) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PersonaEditorScreen(persona: persona),
-      ),
+    showKiraDialog(
+      context: context,
+      dialog: PersonaEditorScreen(persona: persona),
     );
   }
 

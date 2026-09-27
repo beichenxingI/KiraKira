@@ -1,6 +1,8 @@
-﻿import 'package:flutter/cupertino.dart';
+﻿import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/utils/export_delivery.dart';
 import 'package:kirakira/presentation/widgets/common/kira_search_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -723,12 +725,19 @@ class _ChatListTile extends ConsumerWidget {
       if (context.mounted) {
         _showActionResultSnackBar(context, '正在导出 ${messages.length} 条消息...');
       }
-      await exportService.exportAndShare(
+      // [问题1] 统一导出交付:分享 / 保存到文件(命名与 exportToFile 一致)
+      final content = await exportService.exportToJsonl(
         chat,
         messages,
         character,
         userName: userName,
-        useJsonl: true,
+      );
+      await deliverExportFile(
+        context: context,
+        fileName: '${character.name}_${chat.id}.jsonl',
+        bytes: utf8.encode(content),
+        subject: 'Chat with ${character.name}',
+        ext: 'jsonl',
       );
     } catch (e) {
       if (context.mounted) {

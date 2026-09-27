@@ -61,7 +61,7 @@ class CoreDialogPalette {
 /// useRootNavigator 默认 true,与 showDialog 及 ai_config 基准一致:
 /// 从 Shell 内页面(设置/API服务)打开也全屏覆盖,不被底栏遮挡。
 ///
-/// 内部委派 [showKiraDialog](PiuPiu 风格入场/退场动画);所有调用本函数的
+/// 内部委派 [showKiraDialog](弱回弹缩放动画);所有调用本函数的
 /// 迁移浮窗自动获得 scale+fade 动效。遮罩沿用 0.6(原 ai_config 基准)。
 Future<void> showCoreDialog(
   BuildContext context, {

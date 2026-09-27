@@ -1,21 +1,25 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kirakira/data/models/announcement.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/utils/kira_dialog.dart';
+import 'package:kirakira/presentation/dialogs/core_dialog.dart';
 
 /// 弹出公告对话框
 ///
+/// 走 showKiraDialog 获得 PiuPiu 弱回弹动画，与项目统一浮窗手感一致。
 /// 半透明毛玻璃 + 星星点缀，与 app 整体清新美学统一。
 /// 图片、下载按钮按内容有无自动显隐，全部可降级。
 Future<void> showAnnouncementDialog(
   BuildContext context,
   Announcement announcement,
 ) {
-  return showDialog(
+  return showKiraDialog(
     context: context,
-    barrierColor: Colors.black.withValues(alpha: 0.55),
-    builder: (ctx) => _AnnouncementCard(announcement: announcement),
+    barrierColor: Colors.black54,
+    dialog: _AnnouncementCard(announcement: announcement),
   );
 }
 
@@ -23,6 +27,13 @@ class _AnnouncementCard extends StatelessWidget {
   final Announcement announcement;
 
   const _AnnouncementCard({required this.announcement});
+
+  /// 类型主题：update=橙色🚀 / daily=珊瑚粉✨
+  (IconData, Color) get _typeTheme => switch (announcement.type) {
+        AnnouncementType.update =>
+          (Icons.rocket_launch, DesignTokens.statusWarning),
+        AnnouncementType.daily => (Icons.auto_awesome, DesignTokens.primary),
+      };
 
   Future<void> _openDownload(BuildContext context) async {
     final uri = Uri.tryParse(announcement.downloadUrl);
@@ -35,6 +46,7 @@ class _AnnouncementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final (icon, accent) = _typeTheme;
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -68,7 +80,7 @@ class _AnnouncementCard extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: DesignTokens.primary.withValues(alpha: 0.2),
+                    color: accent.withValues(alpha: 0.2),
                     blurRadius: 30,
                     spreadRadius: 2,
                   ),
@@ -87,16 +99,49 @@ class _AnnouncementCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _buildTitle(),
+                              _buildTitle(icon, accent),
                               const SizedBox(height: 14),
                               if (announcement.content.trim().isNotEmpty)
-                                Text(
-                                  announcement.content,
-                                  style: TextStyle(
-                                    color:
-                                        Colors.white.withValues(alpha: 0.85),
-                                    fontSize: 14,
-                                    height: 1.6,
+                                MarkdownBody(
+                                  data: announcement.content,
+                                  shrinkWrap: true,
+                                  softLineBreak: true,
+                                  styleSheet:
+                                      MarkdownStyleSheet.fromTheme(
+                                              Theme.of(context))
+                                          .copyWith(
+                                    p: TextStyle(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.85),
+                                      fontSize: 14,
+                                      height: 1.6,
+                                    ),
+                                    h1: TextStyle(
+                                      color: accent,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    h2: TextStyle(
+                                      color: accent,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    h3: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    listBullet: TextStyle(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.7),
+                                    ),
+                                    strong: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    a: TextStyle(
+                                      color: accent,
+                                    ),
                                   ),
                                 ),
                             ],
@@ -166,10 +211,10 @@ class _AnnouncementCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTitle() {
+  Widget _buildTitle(IconData icon, Color accent) {
     return Row(
       children: [
-        const Icon(Icons.auto_awesome, color: DesignTokens.primary, size: 20),
+        Icon(icon, color: accent, size: 20),
         const SizedBox(width: DesignTokens.spaceSm),
         Expanded(
           child: Text(
@@ -187,26 +232,24 @@ class _AnnouncementCard extends StatelessWidget {
 
   Widget _buildActions(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceXs, DesignTokens.spaceMd, DesignTokens.spaceMd),
+      padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd,
+          DesignTokens.spaceXs, DesignTokens.spaceMd, DesignTokens.spaceMd),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
         children: [
           if (announcement.hasDownload)
-            TextButton.icon(
-              onPressed: () => _openDownload(context),
-              icon: const Icon(Icons.download, size: 18),
-              label: const Text('前往下载'),
-              style: TextButton.styleFrom(
-                foregroundColor: DesignTokens.primary,
+            Expanded(
+              child: CorePrimaryButton(
+                label: '前往下载',
+                icon: Icons.download,
+                onPressed: () => _openDownload(context),
               ),
             ),
-          const SizedBox(width: DesignTokens.spaceSm),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white.withValues(alpha: 0.8),
+          if (announcement.hasDownload) const SizedBox(width: DesignTokens.spaceSm),
+          Expanded(
+            child: CoreSecondaryButton(
+              label: '知道了',
+              onPressed: () => Navigator.of(context).pop(),
             ),
-            child: const Text('知道了'),
           ),
         ],
       ),

@@ -12,8 +12,7 @@ import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:kirakira/presentation/utils/export_delivery.dart';
 
 /// Log a message to the console
 void _log(String message, {String? error, StackTrace? stackTrace}) {
@@ -571,15 +570,15 @@ class _WorldInfoCard extends StatelessWidget {
       final json = worldInfo.toJson();
       final jsonString = const JsonEncoder.withIndent('  ').convert(json);
 
-      final tempDir = await getTemporaryDirectory();
       final fileName = '${worldInfo.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.json';
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsString(jsonString);
 
-      // ignore: deprecated_member_use
-      await Share.shareXFiles(
-        [XFile(file.path)],
+      // [问题1] 统一导出交付:分享 / 保存到文件
+      await deliverExportFile(
+        context: context,
+        fileName: fileName,
+        bytes: utf8.encode(jsonString),
         subject: 'KiraKira World Info: ${worldInfo.name}',
+        ext: 'json',
       );
     } catch (e) {
       if (context.mounted) {

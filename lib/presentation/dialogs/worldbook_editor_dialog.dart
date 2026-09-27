@@ -3,14 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../data/models/world_info.dart';
 import '../components/kira_dialog_theme.dart';
 import '../components/kira_dialog_widgets.dart';
 import '../components/kira_toast.dart';
 import '../providers/world_info_providers.dart';
 import '../theme/design_tokens.dart';
+import '../utils/export_delivery.dart';
 import 'worldbook_entry_edit_dialog.dart';
 
 /// 世界书完整编辑浮窗（一个角色对应一本世界书，直接编辑）
@@ -177,10 +176,14 @@ class _WorldBookEditorDialogState
         .convert(entries.map((e) => e.toJson()).toList());
     final date = DateTime.now().toIso8601String().split('T')[0];
     final fileName = 'worldbook_$date.json';
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsString(json);
-    await Share.shareXFiles([XFile(file.path)], subject: fileName);
+    // [问题1] 统一导出交付:分享 / 保存到文件
+    await deliverExportFile(
+      context: context,
+      fileName: fileName,
+      bytes: utf8.encode(json),
+      subject: fileName,
+      ext: 'json',
+    );
   }
 
   @override
@@ -405,67 +408,61 @@ class _WorldBookEditorDialogState
                 ),
                 child: Row(
                   children: [
-                    KiraDashedButton(
-                      label: '导入世界书',
-                      icon: Icons.file_download_outlined,
-                      color: KiraDialogTheme.importColor,
-                      onTap: () => _importWorldBook(),
+                    Expanded(
+                      child: KiraDashedButton(
+                        label: '导入',
+                        icon: Icons.file_download_outlined,
+                        color: KiraDialogTheme.importColor,
+                        onTap: () => _importWorldBook(),
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    KiraDashedButton(
-                      label: '导出世界书',
-                      icon: Icons.file_upload_outlined,
-                      color: KiraDialogTheme.exportColor,
-                      onTap: () => _exportWorldBook(),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: KiraDashedButton(
+                        label: '导出',
+                        icon: Icons.file_upload_outlined,
+                        color: KiraDialogTheme.exportColor,
+                        onTap: () => _exportWorldBook(),
+                      ),
                     ),
-                    const Spacer(),
-                    Flexible(
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusMd),
+                          borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                           onTap: () async {
-                            final books = ref.read(characterWorldInfosProvider(
-                                    widget.characterId))
-                                .valueOrNull;
+                            final books = ref.read(characterWorldInfosProvider(widget.characterId)).valueOrNull;
                             if (books == null || books.isEmpty) {
-                              KiraToast.show(context, '请先保存角色以创建世界书',
-                                  type: KiraToastType.warning);
+                              KiraToast.show(context, '请先保存角色以创建世界书', type: KiraToastType.warning);
                               return;
                             }
-                            await showWorldBookEntryEditDialog(
-                              context, ref,
-                              worldInfoId: books.first.id,
-                            );
+                            await showWorldBookEntryEditDialog(context, ref, worldInfoId: books.first.id);
                           },
                           child: Container(
                             height: 44,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20),
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF6C5CE7),
-                                  Color(0xFFA855F7),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                  DesignTokens.radiusMd),
+                              gradient: const LinearGradient(colors: [Color(0xFF6C5CE7), Color(0xFFA855F7)]),
+                              borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                             ),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.add,
-                                    size: 18, color: Colors.white),
-                                SizedBox(width: 6),
-                                Text('添加条目',
+                                Icon(Icons.add, size: 18, color: Colors.white),
+                                SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    '添加条目',
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: DesignTokens.fontSizeBodyMedium,
-                                        fontWeight:
-                                            DesignTokens.weightSemibold)),
+                                      color: Colors.white,
+                                      fontSize: DesignTokens.fontSizeBodyMedium,
+                                      fontWeight: DesignTokens.weightSemibold,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),

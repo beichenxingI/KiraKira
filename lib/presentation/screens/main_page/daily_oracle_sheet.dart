@@ -9,6 +9,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/utils/kira_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'daily_oracle_data.dart';
 
@@ -191,13 +192,11 @@ class DailyOracleEntry extends StatelessWidget {
   }
 }
 
-/// 运势面板(modal 底部抽屉,竖版卡片)
+/// 运势浮窗(居中卡片;竖版内容不变)
 Future<void> showDailyOracleSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
+  return showKiraDialog(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => const _OracleSheet(),
+    dialog: const _OracleSheet(),
   );
 }
 
@@ -265,35 +264,56 @@ class _OracleSheetState extends State<_OracleSheet> {
   @override
   Widget build(BuildContext context) {
     final o = _oracle;
-    if (o == null) {
-      return const SizedBox(
-        height: 320,
-        child: Center(child: CupertinoActivityIndicator()),
-      );
-    }
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bg = isDark ? DesignTokens.darkSurface : DesignTokens.lightSurface;
     final cardBg = isDark ? DesignTokens.darkCard : Colors.white;
-    final accent = o.holiday?.accent ?? DesignTokens.primary;
+    final accent = o?.holiday?.accent ?? DesignTokens.primary;
     final tertiary = theme.textTheme.bodySmall?.color;
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.92,
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(DesignTokens.radiusBottomSheet),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-              DesignTokens.spaceLg, DesignTokens.spaceLg, DesignTokens.spaceLg, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
+    // [问题9浮窗化] 居中卡片容器(四角圆角/限宽限高/阴影),内容区块不变;
+
+    Widget card(Widget child) => Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              constraints: BoxConstraints(
+                maxWidth: 460,
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
+              ),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius:
+                    BorderRadius.circular(DesignTokens.radiusBottomSheet),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 40,
+                    offset: const Offset(0, 20),
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: child,
+            ),
+          ),
+        );
+
+    if (o == null) {
+      return card(const SizedBox(
+        height: 320,
+        child: Center(child: CupertinoActivityIndicator()),
+      ));
+    }
+
+    return card(
+      SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(DesignTokens.spaceLg,
+            DesignTokens.spaceLg, DesignTokens.spaceLg, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
               // ── 1 标题区 ──
               Row(
                 children: [
@@ -512,8 +532,7 @@ class _OracleSheetState extends State<_OracleSheet> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _luckyCell(String label, String value, Color? tertiary) => Column(

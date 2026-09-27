@@ -464,15 +464,22 @@ class AppDatabase extends _$AppDatabase {
           // per-swipe MVU variable data
           await m.addColumn(messages, messages.swipesDataJson);
         }
-        if (from < 16) {
-          // [空会话] 用户发过消息的持久标记,用于退出丢弃与启动清扫
-          await m.addColumn(chats, chats.hasUserMessage);
-          // 回填:存量会话若已有用户消息,立即置位——否则旧有效会话会被误判为空而清除
-          await customStatement(
-            'UPDATE chats SET has_user_message = 1 WHERE id IN '
-            '(SELECT DISTINCT chat_id FROM messages WHERE role = \'user\')',
-          );
-        }
+       if (from < 16) {
+         // [空会话] 用户发过消息的持久标记,用于退出丢弃与启动清扫
+         // 容错：addColumn 若列已存在会抛 SqliteException(1)，捕获后继续（防重复迁移）
+         try {
+           await m.addColumn(chats, chats.hasUserMessage);
+         } catch (e) {
+           // 列已存在时静默忽略（duplicate column name）
+           if (!e.toString().toLowerCase().contains('duplicate')) rethrow;
+         }
+         // 回填:存量会话若已有用户消息,立即置位——否则旧有效会话会被误判为空而清除
+         // （即使列已存在，回填仍安全执行——幂等操作）
+         await customStatement(
+           'UPDATE chats SET has_user_message = 1 WHERE id IN '
+           '(SELECT DISTINCT chat_id FROM messages WHERE role = \'user\')',
+         );
+       }
         if (from < 17) {
           // [CHRONICLE Phase 1] 超级记忆：总结任务队列 + Wiki词条 + 每聊天窗口状态
           await m.createTable(summaryTasks);

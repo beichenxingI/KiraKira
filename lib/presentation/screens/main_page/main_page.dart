@@ -10,13 +10,13 @@ import 'package:kirakira/presentation/providers/home_music_service.dart';
 import 'package:kirakira/presentation/widgets/home/time_greeting.dart';
 import 'package:kirakira/presentation/widgets/home/video_background.dart';
 import 'package:kirakira/data/models/chat_background.dart';
-import 'package:kirakira/domain/services/announcement_service.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/screens/splash/announcement_dialog.dart';
 import 'package:kirakira/presentation/providers/announcement_provider.dart';
 import 'daily_oracle_sheet.dart';
+import 'announcement_center_dialog.dart';
 import 'package:kirakira/presentation/screens/terms_dialog.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 
@@ -29,7 +29,6 @@ class MainPage extends ConsumerStatefulWidget {
 class _MainPageState extends ConsumerState<MainPage> {
   DateTime _now = DateTime.now();
   Timer? _timer;
-bool _loadingAnnouncement = false;
   HeadlessInAppWebView? _warmupWebView;
 
   @override
@@ -58,11 +57,17 @@ bool _loadingAnnouncement = false;
       await maybeShowTermsDialog(context, prefs);
       debugPrint('[协议] maybeShowTermsDialog 返回');
 
-      // 读取转圈页拉好的待弹公告（若有），弹完清空避免重复
+      // 读取转圈页拉好的待弹公告（若有），弹完写已读并清空避免重复
       if (!mounted) return;
       final pending = ref.read(pendingAnnouncementProvider);
       if (pending != null) {
-        showAnnouncementDialog(context, pending);
+        await showAnnouncementDialog(context, pending);
+        // 弹窗关闭后写入已读哈希（不在拉取时写，避免用户没看到就标记）
+        final pendingHash = prefs.getString('_pending_announcement_hash');
+        if (pendingHash != null) {
+          await prefs.setString('seen_announcement_hash', pendingHash);
+          await prefs.remove('_pending_announcement_hash');
+        }
         ref.read(pendingAnnouncementProvider.notifier).state = null;
       }
     });
@@ -158,21 +163,11 @@ bool _loadingAnnouncement = false;
                     width: 1,
                   ),
                 ),
-                child: _loadingAnnouncement
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation(DesignTokens.primary),
-                        ),
-                      )
-                    : const Icon(
-                        Icons.campaign_outlined,
-                        color: DesignTokens.primary,
-                        size: 22,
-                      ),
+                child: const Icon(
+                  Icons.campaign_outlined,
+                  color: DesignTokens.primary,
+                  size: 22,
+                ),
               ),
             ),
           ),
@@ -182,29 +177,10 @@ bool _loadingAnnouncement = false;
     );
   }
 
-  /// 手动打开公告：无视已读记录，主动拉取并弹窗。
-  /// 用户手误点掉或想回看时用，拉不到给轻提示。
+  /// 手动打开公告中心：Tab 布局（更新公告 + 日常公告）。
+  /// 无视已读记录，主动拉取并展示。
   Future<void> _openAnnouncementManually() async {
-    if (_loadingAnnouncement) return;
-    setState(() => _loadingAnnouncement = true);
-    try {
-      final announcement = await AnnouncementService().fetch();
-      if (!mounted) return;
-      if (announcement != null && announcement.hasContent) {
-        showAnnouncementDialog(context, announcement);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('暂时没有拉取到公告')),
-        );
-      }
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('公告拉取失败，请检查网络')),
-      );
-    } finally {
-      if (mounted) setState(() => _loadingAnnouncement = false);
-    }
+    await showAnnouncementCenter(context);
   }
 
   /// 根据当前时间选四时海景背景图（时段对齐 TimeGreeting 语义）

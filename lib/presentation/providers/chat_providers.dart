@@ -1775,7 +1775,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     // 变量状态注入：从消息 swipesData 回溯取最后一条有效 stat_data，
     // 与 MVU getLastValidVariable 的读取语义一致。
-    // 格式对齐 PiuPiu Pl() 的 [当前已持久化变量状态] 系统块。
+    // 格式对齐 酒馆 MVU 变量持久化格式。
     final statData = _getLatestStatData(chatMessages);
     if (statData != null && statData.isNotEmpty) {
       const maxLen = 5000;
@@ -2748,7 +2748,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         documentId: messageId,
         content: text,
         embedding: vec,
-        metadata: {'messageId': messageId},
+        metadata: {'type': 'message', 'messageId': messageId},
       );
       _ref.read(vectorCollectionsProvider.notifier).refresh();
     } catch (e) {

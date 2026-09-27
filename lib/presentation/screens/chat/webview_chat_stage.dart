@@ -59,6 +59,7 @@ import 'package:kirakira/domain/services/image_generation_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:kirakira/presentation/utils/export_delivery.dart';
 import 'package:path/path.dart' as p;
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
@@ -4332,10 +4333,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
       case 'exportRegex':
         final json = ref.read(globalRegexScriptsProvider.notifier).exportScripts();
-        final tempDir = await getTemporaryDirectory();
-        final file = File('${tempDir.path}/regex_scripts_${DateTime.now().millisecondsSinceEpoch}.json');
-        await file.writeAsString(json);
-        await Share.shareXFiles([XFile(file.path)], subject: '正则规则导出');
+        // [问题1] 统一导出交付:分享 / 保存到文件
+        await deliverExportFile(
+          context: context,
+          fileName: 'regex_scripts_${DateTime.now().millisecondsSinceEpoch}.json',
+          bytes: utf8.encode(json),
+          subject: '正则规则导出',
+          ext: 'json',
+        );
         break;
     }
   }
@@ -5807,11 +5812,15 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           return;
         }
         final exportJson = jsonEncode(active.toExportJson());
-        final tempDir = await getTemporaryDirectory();
-        final file = File(
-            '${tempDir.path}/${active.name}_${DateTime.now().millisecondsSinceEpoch}.json');
-        await file.writeAsString(exportJson);
-        await Share.shareXFiles([XFile(file.path)], subject: '预设导出');
+        // [问题1] 统一导出交付:分享 / 保存到文件
+        await deliverExportFile(
+          context: context,
+          fileName:
+              '${active.name}_${DateTime.now().millisecondsSinceEpoch}.json',
+          bytes: utf8.encode(exportJson),
+          subject: '预设导出',
+          ext: 'json',
+        );
         break;
     }
   }

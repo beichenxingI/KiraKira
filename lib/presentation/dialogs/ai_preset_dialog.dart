@@ -21,8 +21,7 @@ import 'package:kirakira/presentation/providers/ai_preset_providers.dart';
 import 'package:kirakira/presentation/providers/prompt_manager_providers.dart';
 import 'package:kirakira/presentation/providers/regex_providers.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:kirakira/presentation/utils/export_delivery.dart';
 import 'package:uuid/uuid.dart';
 import 'core_dialog.dart';
 
@@ -304,16 +303,15 @@ class _AIPresetDialog extends ConsumerWidget {
           await ref.read(aiPresetManagerProvider).exportCurrentSettings(name);
       final jsonString = const JsonEncoder.withIndent('  ').convert(json);
 
-      final tempDir = await getTemporaryDirectory();
       final fileName =
           '${name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.json';
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsString(jsonString);
-
-      // ignore: deprecated_member_use
-      await Share.shareXFiles(
-        [XFile(file.path)],
+      // [问题1] 统一导出交付:分享 / 保存到文件
+      await deliverExportFile(
+        context: context,
+        fileName: fileName,
+        bytes: utf8.encode(jsonString),
         subject: 'KiraKira AI Preset: $name',
+        ext: 'json',
       );
     } catch (e) {
       if (context.mounted) {
@@ -369,16 +367,15 @@ class _AIPresetDialog extends ConsumerWidget {
       final json = preset.toExportJson();
       final jsonString = const JsonEncoder.withIndent('  ').convert(json);
 
-      final tempDir = await getTemporaryDirectory();
       final fileName =
           '${preset.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.json';
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsString(jsonString);
-
-      // ignore: deprecated_member_use
-      await Share.shareXFiles(
-        [XFile(file.path)],
+      // [问题1] 统一导出交付:分享 / 保存到文件
+      await deliverExportFile(
+        context: context,
+        fileName: fileName,
+        bytes: utf8.encode(jsonString),
         subject: 'KiraKira AI Preset: ${preset.name}',
+        ext: 'json',
       );
     } catch (e) {
       if (context.mounted) {

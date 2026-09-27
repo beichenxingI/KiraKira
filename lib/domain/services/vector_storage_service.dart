@@ -156,10 +156,15 @@ class VectorStorageService {
       throw Exception('Collection not found: $collectionId');
     }
 
+    // [问题4修复] 无 type 的文档会被 legacy 清理误伤，手动知识库默认补 kb
+    final meta = <String, dynamic>{
+      ...?metadata,
+      if (!(metadata?.containsKey('type') ?? false)) 'type': 'kb',
+    };
     final document = VectorDocument.create(
       content: content,
       embedding: embedding,
-      metadata: metadata,
+      metadata: meta,
     );
 
     final updatedCollection = collection.copyWith(
@@ -186,11 +191,17 @@ class VectorStorageService {
     // 先移除同 id 旧文档（内存）
     final pruned =
         collection.documents.where((d) => d.id != documentId).toList();
+    // [问题4修复] 无 type 的文档会被 legacy 清理误伤，消息向量默认补 message
+    // （chronicle 词条自带 type='chronicle_entry'，不受影响）
+    final meta = <String, dynamic>{
+      ...?metadata,
+      if (!(metadata?.containsKey('type') ?? false)) 'type': 'message',
+    };
     final document = VectorDocument(
       id: documentId,
       content: content,
       embedding: embedding,
-      metadata: metadata ?? {},
+      metadata: meta,
       createdAt: DateTime.now(),
     );
     _collections[collectionId] =
@@ -336,29 +347,40 @@ class VectorStorageService {
   }
 
   /// [CHRONICLE UI整合·迁移检测] 是否存在旧版RAG向量数据。
-  /// 旧数据定义：非 chronicle_entry 类型的文档（消息原文向量/手动上传的知识库向量）。
+  /// 旧数据定义：迁移前入库、metadata 无 type 键的历史文档。
+  /// 新数据均带 type（消息 type='message' / 词条 type='chronicle_entry' /
+  /// 知识库 type='kb'），不会被误判——避免清理后新向量又被算作"旧向量"
+  /// 导致删除反复触发（问题4）。
   bool get hasLegacyVectors {
     return collections
-        .any((c) => c.documents.any((d) => d.metadata['type'] != 'chronicle_entry'));
+        .any((c) => c.documents.any((d) => d.metadata['type'] == null));
   }
 
-  /// [CHRONICLE UI整合·迁移清理] 删除所有旧版RAG向量（保留chronicle词条向量）。
+  /// [CHRONICLE UI整合·迁移清理] 删除所有旧版RAG向量（保留带 type 的新数据）。
   /// 用户选择"开启Chronicle，删除旧数据"时调用；消息原文向量后续仍会按需重建
   /// （新消息照常入库，服务话题切换检测）。
+  /// [问题4修复] 一次性批量删除（单条 DELETE WHERE id IN）+ 事务包裹，
+  /// 替代逐条 fire-and-forget，避免内存与 DB 双源不一致。
   Future<void> removeLegacyVectors() async {
+    final legacyIds = <String>[];
     for (final collection in _collections.values.toList()) {
       final legacy = collection.documents
-          .where((d) => d.metadata['type'] != 'chronicle_entry')
+          .where((d) => d.metadata['type'] == null)
           .map((d) => d.id)
           .toList();
       if (legacy.isEmpty) continue;
-      final kept =
-          collection.documents.where((d) => d.metadata['type'] == 'chronicle_entry').toList();
+      legacyIds.addAll(legacy);
+      final kept = collection.documents
+          .where((d) => d.metadata['type'] != null)
+          .toList();
       _collections[collection.id] = collection.copyWith(documents: kept);
-      for (final id in legacy) {
-        _deleteDocumentRow(id);
-      }
     }
+    if (legacyIds.isEmpty) return;
+    await _db.transaction(() async {
+      await (_db.delete(_db.vectorDocuments)
+            ..where((t) => t.id.isIn(legacyIds)))
+          .go();
+    });
   }
 
   /// Chunk text into smaller pieces

@@ -337,8 +337,10 @@ class TTSService {
           .where((v) => v.id.isNotEmpty)
           .toList();
       _isInitialized = true;
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[TTS] 初始化失败: $e\n$stack');
       onError?.call('Failed to initialize TTS: $e');
+      rethrow;
     }
   }
 
@@ -410,18 +412,23 @@ class TTSService {
         if (!_hasReadable(seg.text)) continue; // 纯标点会卡住引擎，跳过
 
         // 换装：每段读前按类型重设（三声音的关键）
-        await _backend!.speak(
-          seg.text,
-          voiceId: style.voiceId,
-          rate: style.rate,
-          pitch: style.pitch,
-          volume: _settings.volume,
-        ).timeout(
-          Duration(seconds: 5 + seg.text.length ~/ 3),
-          onTimeout: () {
-            debugPrint('[TTS] speak超时跳过: "${seg.text}"'); // 保留：卡死兜底提示
-          },
-        );
+        try {
+          await _backend!.speak(
+            seg.text,
+            voiceId: style.voiceId,
+            rate: style.rate,
+            pitch: style.pitch,
+            volume: _settings.volume,
+          ).timeout(
+            Duration(seconds: 5 + seg.text.length ~/ 3),
+            onTimeout: () {
+              debugPrint('[TTS] speak超时跳过: "${seg.text}"');
+            },
+          );
+        } catch (e) {
+          debugPrint('[TTS] 单段合成失败(${seg.type})，跳过: $e');
+          // 继续下一段
+        }
       }
     } catch (e, s) {
       debugPrint('[TTS异常] $e\n$s');

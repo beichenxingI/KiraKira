@@ -2,6 +2,7 @@
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kirakira/data/models/persona.dart';
@@ -14,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/dialogs/core_dialog.dart';
 
 /// Enhanced Persona Editor Screen with all new fields
 class PersonaEditorScreen extends ConsumerStatefulWidget {
@@ -82,10 +84,15 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.persona == null ? 'Create Persona' : 'Edit Persona'),
-        actions: [
+    // [问题5浮窗化] 全屏 Scaffold → CoreDialogShell 浮窗(maxWidth 800,
+    // 编辑器类惯例),收藏/保存迁到标题栏 trailing,TabBar 迁入 body。
+    return CoreDialogShell(
+      title: widget.persona == null ? 'Create Persona' : 'Edit Persona',
+      icon: CupertinoIcons.person_crop_circle,
+      maxWidth: 800,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           IconButton(
             icon: Icon(_isFavorite ? Icons.star : Icons.star_border),
             tooltip: 'Favorite',
@@ -97,19 +104,26 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
             onPressed: _isSaving ? null : _save,
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: '角色设定', icon: Icon(Icons.person)),
-            Tab(text: '绑定角色卡', icon: Icon(Icons.link)),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      disableScroll: true,
+      body: Column(
         children: [
-          _buildBasicTab(),
-          _buildConnectionsTab(),
+          TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: '角色设定', icon: Icon(Icons.person)),
+              Tab(text: '绑定角色卡', icon: Icon(Icons.link)),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildBasicTab(),
+                _buildConnectionsTab(),
+              ],
+            ),
+          ),
         ],
       ),
     );

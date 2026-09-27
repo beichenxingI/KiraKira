@@ -138,13 +138,17 @@ class TtsModelService {
   /// 返回模型名；取消选择返回 null。
   Future<String?> importModel() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['bz2'],
-      dialogTitle: '选择 sherpa-onnx TTS 模型包（.tar.bz2）',
+      type: FileType.any,
+      dialogTitle: '选择 sherpa-onnx TTS 模型包.tar.bz2）',
     );
     if (result == null || result.files.single.path == null) return null;
 
     final archivePath = result.files.single.path!;
+    
+    // 验证文件名后缀
+    if (!archivePath.toLowerCase().endsWith('.tar.bz2')) {
+      throw Exception('仅支持 .tar.bz2 格式的模型包');
+    }
     final baseName = p.basenameWithoutExtension(archivePath);
     // xxx.tar.bz2 → xxx
     final modelName =
@@ -207,6 +211,24 @@ class TtsModelService {
         }
       }
 
+   // 检测是否为 ncnn 格式
+   // 检测是否为 ncnn 格式
+   final hasNcnn = modelDir
+       .listSync()
+       .any((f) => f.path.endsWith('.ncnn.param'));
+   if (hasNcnn && modelPath == null) {
+     throw Exception(
+       '检测到 ncnn 格式模型包，当前版本仅支持 onnx 格式。\n'
+       '请从以下地址下载 onnx 模型：\n'
+       'https://github.com/k2-fsa/sherpa-onnx/releases\n'
+       '选择文件名包含 "onnx" 的模型包（如 vits-piper-zh_CN）'
+     );
+   }
+   
+   if (modelPath == null || tokensPath == null) {
+     throw Exception('模型包不完整：缺少 .onnx 模型或 tokens.txt');
+   }
+
       // 校验必需文件
       if (modelPath == null || tokensPath == null) {
         throw Exception('模型包不完整：缺少 .onnx 模型或 tokens.txt');
@@ -218,6 +240,23 @@ class TtsModelService {
         modelType = 'kokoro';
       } else if (vocoderPath != null) {
         modelType = 'matcha';
+      }
+
+      // 读取模型元数据（numSpeakers/sampleRate）
+      int numSpeakers = 1;
+      int sampleRate = 16000;
+      
+      // 尝试读取 .onnx.json 配置文件
+      final jsonFile = File(p.join(modelDir.path, '$modelName.onnx.json'));
+      if (await jsonFile.exists()) {
+        try {
+          final jsonContent = await jsonFile.readAsString();
+          final meta = jsonDecode(jsonContent) as Map<String, dynamic>;
+          numSpeakers = (meta['num_speakers'] as int?) ?? 1;
+          sampleRate = (meta['sample_rate'] as int?) ?? 16000;
+        } catch (e) {
+          // JSON 解析失败，使用默认值
+        }
       }
 
       final entry = TtsModelEntry(
@@ -232,6 +271,8 @@ class TtsModelService {
         dataDir: dataDir,
         ruleFsts: ruleFsts,
         ruleFars: ruleFars,
+        numSpeakers: numSpeakers,
+        sampleRate: sampleRate, 
         importedAt: DateTime.now(),
       );
 

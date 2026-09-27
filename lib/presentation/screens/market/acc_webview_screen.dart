@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -8,7 +9,7 @@ import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/presentation/screens/import/import_screen.dart'
-    show urlImportServiceProvider;
+    show importServiceProvider, urlImportServiceProvider;
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 
 /// AI Character Cards (aicharactercards.com) 全屏沉浸式浏览器
@@ -472,6 +473,57 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
     }
   }
 
+  /// 从字节直接导入（用于 blob URL）
+  Future<void> _importFromBytes(Uint8List bytes) async {
+    if (_isImporting) return;
+    setState(() => _isImporting = true);
+
+    if (!mounted) return;
+    _showImportingDialog();
+
+    try {
+      final importService = ref.read(importServiceProvider);
+      var character;
+      try {
+        character = await importService.importFromPngBytes(bytes);
+      } catch (e) {
+        final jsonString = utf8.decode(bytes);
+        character = await importService.importFromJson(jsonDecode(jsonString));
+      }
+
+      final repo = ref.read(characterRepositoryProvider);
+      final created = await repo.createCharacter(character);
+
+      if (character.characterBook != null &&
+          character.characterBook!.entries.isNotEmpty) {
+        final worldInfoRepo = ref.read(worldInfoRepositoryProvider);
+        await importEmbeddedLorebook(
+          worldInfoRepo,
+          created.id,
+          character.characterBook!,
+          created.name,
+        );
+      }
+
+      ref.read(characterListProvider.notifier).refresh();
+
+      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        _showSuccessDialog(
+          created.name,
+          character.characterBook?.entries.length,
+        );
+      }
+    } catch (e) {
+      debugPrint('[AccWebView] Bytes import failed: $e');
+      if (mounted) Navigator.of(context).pop();
+      final msg = e.toString().replaceAll('Exception: ', '');
+      if (mounted) _showErrorDialog('导入失败：$msg');
+    } finally {
+      if (mounted) setState(() => _isImporting = false);
+    }
+  }
+
   Future<void> _updateNavState() async {
     final back = await _controller?.canGoBack() ?? false;
     final fwd = await _controller?.canGoForward() ?? false;
@@ -521,6 +573,28 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
           _handleDownload(url);
         } else {
           _showErrorDialog('无法获取角色链接，请确保已打开角色详情页');
+        }
+      },
+    );
+
+    // 处理 blob URL（base64 内容）
+    _controller?.addJavaScriptHandler(
+      handlerName: 'kiraDownloadCharacterBlob',
+      callback: (args) async {
+        if (args.isEmpty || args[0] == null) {
+          if (mounted) _showErrorDialog('下载失败：数据为空');
+          return;
+        }
+
+        final base64String = args[0].toString();
+        debugPrint('[AccWebView] Received base64 blob, length: ${base64String.length}');
+
+        try {
+          final bytes = base64Decode(base64String);
+          await _importFromBytes(bytes);
+        } catch (e) {
+          debugPrint('[AccWebView] Blob import failed: $e');
+          if (mounted) _showErrorDialog('导入失败：${e.toString().replaceAll('Exception: ', '')}');
         }
       },
     );
@@ -587,6 +661,32 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
 
               if (isDownloadButton) {
                 console.log('[Kira] Download button detected, tag:', el.tagName);
+                e.preventDefault();
+                e.stopPropagation();
+
+                var downloadUrl = el.href || el.getAttribute('href');
+
+                if (downloadUrl && downloadUrl.startsWith('blob:')) {
+                  console.log('[Kira] Detected blob URL, fetching content...');
+                  fetch(downloadUrl)
+                    .then(response => response.blob())
+                    .then(blob => {
+                      var reader = new FileReader();
+                      reader.onloadend = function() {
+                        var base64 = reader.result.split(',')[1];
+                        console.log('[Kira] Blob read success, size:', base64.length);
+                        window.flutter_inappwebview.callHandler('kiraDownloadCharacterBlob', base64);
+                      };
+                      reader.readAsDataURL(blob);
+                    })
+                    .catch(err => {
+                      console.error('[Kira] Blob fetch failed:', err);
+                      var currentUrl = window.location.href;
+                      window.flutter_inappwebview.callHandler('kiraDownloadCharacter', currentUrl);
+                    });
+                  return false;
+                }
+
                 // 传递当前页面URL（而非href），由Flutter端构造CDN链接
                 var currentUrl = window.location.href;
                 console.log('[Kira] Passing page URL:', currentUrl);
@@ -595,11 +695,41 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
                 } catch(err) {
                   console.error('[Kira] Handler call failed:', err);
                 }
-                e.preventDefault();
-                e.stopPropagation();
                 return false;
               }
 
+              el = el.parentElement;
+            }
+          }, true);
+
+          // [暴力兜底] 拦截所有 blob URL 点击（不判断是否为下载按钮）
+          document.addEventListener('click', function(e) {
+            var el = e.target;
+            for (var i = 0; i < 5; i++) {
+              if (!el) break;
+              var href = el.href || (el.getAttribute && el.getAttribute('href')) || '';
+              if (href.startsWith('blob:')) {
+                console.log('[Kira Fallback] Blob URL clicked:', href);
+                e.preventDefault();
+                e.stopPropagation();
+                
+                fetch(href)
+                  .then(response => response.blob())
+                  .then(blob => {
+                    var reader = new FileReader();
+                    reader.onloadend = function() {
+                      var base64 = reader.result.split(',')[1];
+                      console.log('[Kira Fallback] Blob read OK, size:', base64.length);
+                      window.flutter_inappwebview.callHandler('kiraDownloadCharacterBlob', base64);
+                    };
+                    reader.readAsDataURL(blob);
+                  })
+                  .catch(err => {
+                    console.error('[Kira Fallback] Blob fetch error:', err);
+                  });
+                
+                return false;
+              }
               el = el.parentElement;
             }
           }, true);

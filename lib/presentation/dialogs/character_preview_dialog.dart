@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -5,8 +6,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../core/utils/path_utils.dart';
 import '../../data/models/character.dart';
 import '../../data/repositories/character_repository.dart';
@@ -19,6 +18,7 @@ import '../screens/import/import_screen.dart' show importServiceProvider;
 import '../theme/design_tokens.dart';
 import '../components/kira_dialog_theme.dart';
 import '../widgets/common/character_avatar_image.dart';
+import '../utils/export_delivery.dart';
 import 'character_edit_dialog.dart';
 
 /// 轻量预览浮窗入口（点击角色卡触发）
@@ -362,9 +362,8 @@ class _CharacterPreviewDialog extends ConsumerWidget {
     }
   }
 
-  // ── 导出（格式选择 + 分享）──
+  // ── 导出（格式选择 + 分享/保存选择,随后关闭预览并执行）──
   Future<void> _export(BuildContext context, WidgetRef ref) async {
-    Navigator.pop(context);
     final format = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -390,7 +389,12 @@ class _CharacterPreviewDialog extends ConsumerWidget {
     );
     if (format == null || !context.mounted) return;
 
+    // [问题1] 分享 / 保存到文件 —— 趁 context 未失效先问,再关预览浮窗
+    final mode = await askExportDelivery(context, '导出格式: $format');
+    if (mode == null || !context.mounted) return;
+
     final messenger = ScaffoldMessenger.of(context);
+    Navigator.pop(context);
     try {
       final importService = ref.read(importServiceProvider);
 
@@ -404,30 +408,38 @@ class _CharacterPreviewDialog extends ConsumerWidget {
       }
 
       final safeName = character.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-      final dir = await getTemporaryDirectory();
 
-      late final File file;
+      final Uint8List bytes;
+      final String ext;
       switch (format) {
         case 'json':
-          file = File('${dir.path}/$safeName.json');
-          await file.writeAsString(importService.exportToJson(character));
+          bytes = utf8.encode(importService.exportToJson(character));
+          ext = 'json';
           break;
         case 'charx':
-          final bytes = await importService.exportToCharX(character, avatarData);
-          file = File('${dir.path}/$safeName.charx');
-          await file.writeAsBytes(bytes);
+          bytes = await importService.exportToCharX(character, avatarData);
+          ext = 'charx';
           break;
         case 'png':
         default:
-          final bytes = await importService.exportToPng(character, avatarData);
-          file = File('${dir.path}/$safeName.png');
-          await file.writeAsBytes(bytes);
+          bytes = await importService.exportToPng(character, avatarData);
+          ext = 'png';
           break;
       }
 
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(file.path)], subject: character.name),
+      // [问题1] 统一导出交付(mode 已选定,不依赖 context)
+      final savedPath = await deliverExportFile(
+        fileName: '$safeName.$ext',
+        bytes: bytes,
+        subject: character.name,
+        ext: ext,
+        mode: mode,
       );
+      if (savedPath != null &&
+          mode == ExportDeliveryMode.save &&
+          messenger != null) {
+        messenger.showSnackBar(SnackBar(content: Text('已保存到: $savedPath')));
+      }
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(

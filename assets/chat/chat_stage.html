@@ -109,7 +109,7 @@ window.__kiraDebug = __KIRA_DEBUG__;
      借鉴成熟聊天端的经验:大面积轻阴影(0 4px 16px .08)比小阴影更"浮",
      配 1px 半透白边形成卡片层次感。气泡宽度仍 max-width:78%。 */
   .msg {
-    display: inline-block; max-width: 78%;
+    display: inline-block; max-width: 90%;
     position: relative;
     margin: 14px 0; padding: 12px 16px 34px; border-radius: 18px;
     word-wrap: break-word; overflow-wrap: break-word;
@@ -1617,8 +1617,14 @@ __KIRA_CHAT_BRIDGE__
     if (p.refresh && __currentPanel) {
       var cEl = document.getElementById('sp-content');
       if (cEl) {
-        cEl.innerHTML = '';
-        __renderPanel(cEl, __currentPanel, __panelData);
+        try {
+          cEl.innerHTML = '';
+          __renderPanel(cEl, __currentPanel, __panelData);
+        } catch (e) {
+          // 与 openSettingsPanel 一致:渲染异常兜底在面板内,不冒到 bridge 层
+          cEl.innerHTML = '';
+          cEl.appendChild(spEmpty('面板渲染失败: ' + e));
+        }
       }
     }
   });
@@ -2761,7 +2767,7 @@ __KIRA_CHAT_BRIDGE__
     container.innerHTML = '';
     container.appendChild(spSection('基础'));
     container.appendChild(spToggle('stt-enable', '启用语音识别',
-      '长按输入栏麦克风按钮开始识别', data.enabled,
+      '长按输入框开始识别', data.enabled,
       function(v) { spAction('toggleEnabled', {enabled: v}); }));
     container.appendChild(spSelect('stt-engine', '识别引擎', [
       {value:'sherpa', label:'本地离线识别（免费）'},
@@ -2789,12 +2795,12 @@ __KIRA_CHAT_BRIDGE__
         data.apiKey || '', 'sk-...', 'password',
         function(v) { spAction('setApiKey', {value: v}); }));
     }
-    if (d.provider === 'sherpa' && d.available === false) {
+    if (data.provider === 'sherpa' && data.available === false) {
       var unavailCard = document.createElement('div');
       unavailCard.className = 'sp-warn-card';
       unavailCard.textContent = '本地模型未就绪，请检查模型文件是否存在。';
       container.appendChild(unavailCard);
-    } else if (d.provider !== 'whisper' && d.provider !== 'azure') {
+    } else if (data.provider !== 'whisper' && data.provider !== 'azure') {
       container.appendChild(spDesc('本地/系统引擎无需 API 配置。'));
     }
     container.appendChild(spSection('行为'));
@@ -5398,7 +5404,7 @@ function injectBridge(html, id, floorIdx) {
   function __escHtml(s){
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
-  // 统计未闭合的 ``` 围栏（行级），奇数则补一个闭合围栏；等价于 PiuPiu 流式期间 ce() 的作用。
+  // 统计未闭合的 ``` 围栏（行级），奇数则补一个闭合围栏。
   function completeCodeBlocks(text){
     if(!text) return text;
     var lines = String(text).split('\n');
@@ -6061,6 +6067,7 @@ function injectBridge(html, id, floorIdx) {
         if (_isVoiceMode) _exitVoiceMode();
       });
     }
+
     // 图片按钮:切换小浮层(发送图片/会话图片)
     var imagePickerPopup = document.getElementById('imagePickerPopup');
     var btnPickImage = document.getElementById('btnPickImage');

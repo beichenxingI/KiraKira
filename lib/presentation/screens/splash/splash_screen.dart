@@ -8,8 +8,14 @@ import 'package:kirakira/domain/services/announcement_service.dart';
 import 'package:kirakira/presentation/providers/announcement_provider.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 
-/// 已读公告版本的存储键
-const String _kSeenKey = 'seen_announcement_version';
+/// 已读公告哈希的存储键（弹窗关闭后写入）
+const String _kSeenHashKey = 'seen_announcement_hash';
+
+/// 拉取阶段临时存储哈希，供弹窗关闭后写入已读
+const String _kPendingHashKey = '_pending_announcement_hash';
+
+/// 旧版本号 key（已弃用，首次启动时删除避免混淆）
+const String _kLegacyVersionKey = 'seen_announcement_version';
 
 /// 启动转圈页
 ///
@@ -46,7 +52,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Future<void> _bootstrap() async {
     // 先并行等最短停留，再单独取公告结果，避免类型混用
     final announcementFuture = _resolveAnnouncement();
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
     final announcement = await announcementFuture;
 
     if (!mounted) return;
@@ -57,21 +63,35 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   /// 拉取并判断是否需要展示，返回待弹公告或 null
+  ///
+  /// 哈希对比：内容变化才弹。不在此处写已读标记，
+  /// 改在弹窗关闭后写（由 main_page 调用方处理）。
+  /// 同时迁移删除旧的 seen_announcement_version key。
   Future<Announcement?> _resolveAnnouncement() async {
     try {
-      final a = await AnnouncementService().fetch();
-      if (a == null || !a.hasContent) {
+      final (a, hash) = await AnnouncementService().fetchUpdate();
+
+      if (a == null || hash == null || !a.hasContent) {
         KiraLogger().info('公告', '无可展示内容，跳过');
         return null;
       }
+
       final prefs = await SharedPreferences.getInstance();
-      final seen = prefs.getString(_kSeenKey);
-      if (seen == a.version) {
-        KiraLogger().info('公告', '版本 ${a.version} 已读过，跳过');
+
+      // 迁移：删除旧版本号 key（仅首次执行）
+      if (prefs.containsKey(_kLegacyVersionKey)) {
+        await prefs.remove(_kLegacyVersionKey);
+      }
+
+      final seenHash = prefs.getString(_kSeenHashKey);
+      if (seenHash == hash) {
+        KiraLogger().info('公告', '哈希 ${hash.substring(0, 8)} 已读，跳过');
         return null;
       }
-      await prefs.setString(_kSeenKey, a.version);
-      KiraLogger().info('公告', '待展示 版本 ${a.version}');
+
+      // ⚠️ 关键：不在这里写已读标记！临时存储哈希，供弹窗关闭后使用
+      await prefs.setString(_kPendingHashKey, hash);
+      KiraLogger().info('公告', '待展示 哈希 ${hash.substring(0, 8)}');
       return a;
     } catch (e) {
       KiraLogger().error('公告', '处理异常: $e');

@@ -13,7 +13,7 @@ final ttsServiceProvider = Provider<TTSService>((ref) {
 
 /// Provider for TTS settings
 final ttsSettingsProvider = StateNotifierProvider<TTSSettingsNotifier, TTSSettings>((ref) {
-  return TTSSettingsNotifier(ref.watch(ttsServiceProvider));
+  return TTSSettingsNotifier(ref.watch(ttsServiceProvider), ref);
 });
 
 /// Notifier for TTS settings
@@ -21,9 +21,10 @@ class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
   static const _prefsKey = 'tts_settings';
   static const _secureKeyApiKey = 'tts_api_key'; // apiKey 单独存 secure storage
   final TTSService _service;
+  final Ref _ref;
   final FlutterSecureStorage _secure = const FlutterSecureStorage();
 
-  TTSSettingsNotifier(this._service) : super(const TTSSettings()) {
+  TTSSettingsNotifier(this._service, this._ref) : super(const TTSSettings()) {
     _loadSettings();
   }
 
@@ -83,9 +84,10 @@ class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
 
   void setProvider(TTSProvider provider) {
     state = state.copyWith(provider: provider);
-    _saveSettings();
+    _service.updateSettings(state);  // 立刻同步更新 service
+    _saveSettings();  // 异步保存到本地
+    _ref.invalidate(availableVoicesProvider);  // 刷新音色列表
   }
-
   void setVoiceId(String? voiceId) {
     state = state.copyWith(voiceId: voiceId);
     _saveSettings();
@@ -260,6 +262,7 @@ final ttsSpeakingProvider = StateProvider<bool>((ref) => false);
 /// Provider for available voices
 final availableVoicesProvider = FutureProvider<List<TTSVoice>>((ref) async {
   final service = ref.watch(ttsServiceProvider);
+  ref.watch(ttsSettingsProvider); // 强制依赖 settings，切换供应商时重新查询
   await service.initialize();
   return service.availableVoices;
 });

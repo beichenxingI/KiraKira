@@ -159,16 +159,21 @@ class ChatExportService {
     final fileName = '${character.name}_${chat.id}.$extension';
 
     // Let user choose save location
+    // [问题1修复] file_picker 8.3.7:移动端 saveFile 必传 bytes(否则抛
+    // "Bytes are required");桌面端只返回路径不写文件,需自行写入。
+    final isMobile = Platform.isAndroid || Platform.isIOS;
     final result = await FilePicker.platform.saveFile(
       dialogTitle: 'Save Chat Export',
       fileName: fileName,
+      bytes: isMobile ? utf8.encode(content) : null,
       type: FileType.custom,
       allowedExtensions: [extension],
     );
 
     if (result != null) {
-      final file = File(result);
-      await file.writeAsString(content);
+      if (!isMobile) {
+        await File(result).writeAsString(content);
+      }
       return result;
     }
 
@@ -299,7 +304,7 @@ class ChatExportService {
   // ═══════════════════ [CHRONICLE Phase 2] 聊天文件内嵌 ═══════════════════
 
   /// 构建kira_chronicle bundle（词条/实体/关系/情感 + gzip向量 + 窗口状态）。
-  /// 向量只存wiki词条向量，不存消息原文向量（解决PiuPiu 20MB问题）。
+  /// 向量只存wiki词条向量，不存消息原文向量（解决聊天导出体积过大问题）。
   /// 返回null = 无Chronicle数据或未注入repo。
   Future<Map<String, dynamic>?> _buildChronicleBundle(String chatId) async {
     final repo = chronicleRepo;

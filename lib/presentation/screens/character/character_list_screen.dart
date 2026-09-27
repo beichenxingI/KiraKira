@@ -14,13 +14,13 @@ import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart
 import 'package:kirakira/presentation/widgets/common/kira_search_bar.dart';
 import 'package:kirakira/presentation/dialogs/character_preview_dialog.dart';
 import 'package:kirakira/presentation/dialogs/character_edit_dialog.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:kirakira/presentation/utils/export_delivery.dart';
 import 'package:kirakira/presentation/screens/import/import_screen.dart'
     show importServiceProvider;
 import 'dart:convert';
-import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
@@ -195,15 +195,17 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
       final ts = DateTime.now();
       final stamp = '${ts.year}${_two(ts.month)}${_two(ts.day)}_'
           '${_two(ts.hour)}${_two(ts.minute)}${_two(ts.second)}';
-      final dir = await getTemporaryDirectory();
-      final zipFile = File('${dir.path}/KiraKira_$stamp.zip');
-      await zipFile.writeAsBytes(zipBytes);
 
       closeLoading(); // 先关 loading
       _exitSelection();
 
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(zipFile.path)], subject: 'KiraKira_$stamp'),
+      // [问题1] 统一导出交付:分享 / 保存到文件
+      await deliverExportFile(
+        context: context,
+        fileName: 'KiraKira_$stamp.zip',
+        bytes: Uint8List.fromList(zipBytes),
+        subject: 'KiraKira_$stamp',
+        ext: 'zip',
       );
     } catch (e, st) {
       debugPrint('❌ 批量导出ZIP失败: $e\n$st');
@@ -1114,7 +1116,18 @@ class _SegmentedHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.tab != tab || oldDelegate.trailing != trailing;
 }
 
-/// 角色市场（双站架构：Kira官方站 + ACC国际站）
+// ============================================================
+// [2026-09 已关闭] 角色市场功能
+// 
+// 关闭原因：
+// 1. ACC 国际站：技术不稳定（blob URL 导入失败率高）
+// 2. Chub.ai：NSFW 内容存在法律风险，不符合国内法规
+// 3. 官方站点：暂无合适的托管方案
+// 
+// 保留代码以备未来恢复。用户可通过"本地导入"功能导入角色卡。
+// ============================================================
+
+/// 角色市场（双站：Kira官方站 + ACC国际站）
 class _CharacterMarketView extends ConsumerStatefulWidget {
   final VoidCallback onSwitchToMyCharacters;
 
@@ -1132,7 +1145,7 @@ class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 1, vsync: this);  // [2026-09] 关闭国际站，仅保留 Kira 官方
   }
 
   @override
@@ -1179,10 +1192,11 @@ class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
                 icon: Icon(Icons.home_outlined, size: 18),
                 text: 'Kira官方',
               ),
-              Tab(
-                icon: Icon(Icons.public, size: 18),
-                text: 'ACC国际',
-              ),
+              // [2026-09 已关闭] ACC 国际站（技术不稳定 + 法律风险）
+              // Tab(
+              //   icon: Icon(Icons.public, size: 18),
+              //   text: 'ACC国际',
+              // ),
             ],
           ),
         ),
@@ -1192,9 +1206,10 @@ class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
             controller: _tabController,
             children: [
               const _KiraMarketTab(),
-              _AccMarketTab(
-                onSwitchToMyCharacters: widget.onSwitchToMyCharacters,
-              ),
+              // [2026-09 已关闭] ACC 国际站
+              // _AccMarketTab(
+              //   onSwitchToMyCharacters: widget.onSwitchToMyCharacters,
+              // ),
             ],
           ),
         ),
@@ -1283,7 +1298,7 @@ class _KiraMarketTab extends StatelessWidget {
             ),
             const SizedBox(height: DesignTokens.spaceLg),
             Text(
-              '暂时请使用 ACC国际站 浏览角色卡',
+              'ACC国际站 因技术不稳定与法律风险已关闭入口，代码暂未删除。',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

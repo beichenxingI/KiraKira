@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/data/models/world_info.dart';
@@ -13,6 +12,7 @@ import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/domain/services/url_import_service.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
+import 'package:kirakira/presentation/screens/chat/image_picker_sheet.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:path/path.dart' as p;
@@ -105,7 +105,6 @@ class ImportState {
 class ImportNotifier extends StateNotifier<ImportState> {
   final ImportService _importService;
   final UrlImportService _urlImportService;
-  final ImagePicker _imagePicker = ImagePicker();
 
   ImportNotifier(this._importService, this._urlImportService) : super(const ImportState());
 
@@ -126,26 +125,47 @@ class ImportNotifier extends StateNotifier<ImportState> {
   }
 
       /// Pick character card image from photo gallery (for mobile)
-  Future<void> pickFromGallery() async {
-    try {
-      // 不用 Photo Picker（Android 13+ 会剥离 PNG 元数据）
-      // 改走 FilePicker 文件管理器，拿原始字节
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['png'],
-        allowMultiple: true,
+  /// [问题8修复] 应用内相册(photo_manager)选图,读 originBytes 保留 PNG
+  /// tEXt chunk 内嵌的角色卡数据(Android 13+ Photo Picker 会剥离元数据,
+  /// 故不走 image_picker/系统相册)。
+  Future<void> loadPickedImages(List<PickedImage> images) async {
+    if (images.isEmpty) return;
+    state = state.copyWith(isLoading: true, error: null);
+    final results = images.map((img) {
+      return ImportResult(
+        fileName: img.name,
+        filePath: img.name,
+        isProcessing: true,
       );
-      if (result != null && result.files.isNotEmpty) {
-        await loadFiles(
-          result.files.where((f) => f.path != null).map((f) => f.path!).toList(),
+    }).toList();
+
+    state = state.copyWith(
+      results: results,
+      totalFiles: images.length,
+      processedFiles: 0,
+    );
+
+    for (int i = 0; i < images.length; i++) {
+      try {
+        final character =
+            await _importService.importFromPngBytes(images[i].bytes);
+        final updatedResults = List<ImportResult>.from(state.results);
+        updatedResults[i] = updatedResults[i].copyWith(
+          character: character,
+          isProcessing: false,
         );
+        state = state.copyWith(results: updatedResults, processedFiles: i + 1);
+      } catch (e) {
+        final updatedResults = List<ImportResult>.from(state.results);
+        updatedResults[i] = updatedResults[i].copyWith(
+          error: e.toString(),
+          isProcessing: false,
+        );
+        state = state.copyWith(results: updatedResults, processedFiles: i + 1);
       }
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Failed to pick from gallery: $e',
-      );
     }
+
+    state = state.copyWith(isLoading: false);
   }
 
   Future<void> loadFiles(List<String> paths) async {
@@ -336,7 +356,16 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               isLoading: importState.isLoading,
               error: importState.error,
               onPickFile: () => ref.read(importStateProvider.notifier).pickFile(),
-              onPickFromGallery: () => ref.read(importStateProvider.notifier).pickFromGallery(),
+              onPickFromGallery: () async {
+                // [问题8修复] 应用内相册(photo_manager)选图,originBytes
+                // 保留 PNG tEXt chunk 内嵌角色卡数据
+                final picked = await showImagePickerSheet(context);
+                if (picked == null || picked.isEmpty) return;
+                if (!context.mounted) return;
+                await ref
+                    .read(importStateProvider.notifier)
+                    .loadPickedImages(picked);
+              },
               onImportUrl: (url) => ref.read(importStateProvider.notifier).importFromUrl(url),
             ),
     );
