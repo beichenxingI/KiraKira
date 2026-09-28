@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:archive/archive.dart';
 import 'package:image/image.dart' as img;
+import 'package:uuid/uuid.dart';
 
 /// 裸 RGB(top-down, w×h×3, 无 padding) → PNG 字节。
 /// 放 isolate 跑(compute),避免大图编码阻塞主线程。
@@ -2000,10 +2001,319 @@ class ImageGenerationService {
     );
   }
 
-  /// Generate image using ComfyUI (placeholder)
+  /// ComfyUI 文生图（SD1.5/SDXL 通用）
+  /// 流程：构建 workflow → POST /prompt → 轮询 /history/{prompt_id} → GET /view 拉图
+  /// 提示词约定：与 A1111/Local Dream 后端一致，Service 内不重复拼接
+  /// （positivePromptPrefix 已由调用方拼进 request.prompt，negative 用 request 或默认值）
   Future<ImageGenResult?> _generateComfyUI(ImageGenRequest request) async {
-    // ComfyUI requires workflow-based generation
-    throw UnimplementedError('ComfyUI generation requires workflow configuration');
+    final endpoint = _settings.apiEndpoints['comfyui']?.trim();
+    if (endpoint == null || endpoint.isEmpty) {
+      throw Exception('ComfyUI endpoint 未配置');
+    }
+
+    // 1. 提示词（遵循现有约定：前缀已由调用方拼好，Service 内原样使用）
+    final finalPrompt = request.prompt;
+    final finalNegative =
+        request.negativePrompt ?? _settings.defaultNegativePrompt ?? '';
+
+    // 2. 模型名（优先 request.model，否则用设置的默认）
+    final model = request.model ??
+        _settings.models['comfyui'] ??
+        'v1-5-pruned-emaonly.safetensors';
+
+    // 3. 采样器名映射（A1111 → ComfyUI）
+    final samplerName = _mapComfyUISampler(request.sampler);
+
+    // 4. 随机 seed（防止 ComfyUI 部分图缓存：相同 workflow+seed 第二次直接返回缓存）
+    final seed = request.seed ?? DateTime.now().millisecondsSinceEpoch;
+
+    // 5. 构建 workflow JSON（SD1.5/SDXL 通用 6 节点模板）
+    final workflow = _buildComfyUITxt2ImgWorkflow(
+      prompt: finalPrompt,
+      negativePrompt: finalNegative,
+      width: request.width,
+      height: request.height,
+      steps: request.steps,
+      cfg: request.cfgScale,
+      samplerName: samplerName,
+      scheduler: request.scheduler ?? _settings.defaultScheduler,
+      seed: seed,
+      model: model,
+    );
+
+    // 6. 生成 client_id（WebSocket 订阅用，本阶段占位）
+    final clientId = 'kira-${const Uuid().v4()}';
+
+    onProgress?.call(0.1);
+    debugPrint('[ComfyUI] POST $endpoint/prompt');
+    debugPrint('[ComfyUI] model=$model sampler=$samplerName '
+        'size=${request.width}x${request.height} steps=${request.steps}');
+
+    // 7. 提交任务（validateStatus 手动处理，400 时解析 node_errors）
+    try {
+      final response = await _dio.post<dynamic>(
+        '$endpoint/prompt',
+        data: {
+          'prompt': workflow,
+          'client_id': clientId,
+        },
+        options: Options(
+          validateStatus: (_) => true, // 手动处理错误
+        ),
+      );
+      debugPrint('[ComfyUI] 提交响应：status=${response.statusCode}');
+
+      if (response.statusCode != 200) {
+        final error = response.data;
+        if (error is Map && error.containsKey('node_errors')) {
+          // [类型检查] node_errors 可能为空 Map（如 no_prompt），.first 会抛 StateError
+          final nodeErrors = error['node_errors'] as Map? ?? {};
+          if (nodeErrors.isNotEmpty) {
+            final firstError = nodeErrors.values.first;
+            if (firstError is Map) {
+              final errors = firstError['errors'];
+              throw Exception(
+                  'ComfyUI workflow 错误: ${errors is List && errors.isNotEmpty ? errors.first : firstError}');
+            }
+            throw Exception('ComfyUI workflow 错误: $firstError');
+          }
+        }
+        throw Exception('ComfyUI 提交失败: ${response.statusCode} ${response.data}');
+      }
+
+      // [类型检查] 非 JSON 响应（代理/网关返回 HTML）时 data 是 String
+      final submitData = response.data;
+      if (submitData is! Map) {
+        throw Exception(
+            'ComfyUI 提交响应格式错误：期望JSON对象，收到${submitData.runtimeType}');
+      }
+      final promptId = submitData['prompt_id'] as String?;
+      if (promptId == null || promptId.isEmpty) {
+        throw Exception('ComfyUI: 提交成功但未返回 prompt_id');
+      }
+      debugPrint('[ComfyUI] 任务已提交: prompt_id=$promptId');
+
+      // 8. 轮询任务完成（参考 _generateLatentMoe 的轮询循环）
+      // ⚠️ history 只在任务执行完成后才写入记录：排队/运行中查询返回 {}（空对象）
+      final startTime = DateTime.now();
+      const maxWaitMinutes = 10;
+      const pollInterval = Duration(seconds: 2);
+
+      Map<String, dynamic>? result;
+      while (true) {
+        // 超时检查
+        if (DateTime.now().difference(startTime).inMinutes >= maxWaitMinutes) {
+          throw Exception('ComfyUI 生成超时（$maxWaitMinutes分钟）');
+        }
+
+        await Future<void>.delayed(pollInterval);
+
+        // 查询 history
+        final historyResp = await _dio.get<dynamic>(
+          '$endpoint/history/$promptId',
+          options: Options(validateStatus: (_) => true),
+        );
+
+        if (historyResp.statusCode != 200) {
+          throw Exception('ComfyUI 查询状态失败: ${historyResp.statusCode}');
+        }
+
+        // [类型检查] 非 JSON 响应视为暂时故障，重试
+        if (historyResp.data is! Map) {
+          debugPrint(
+              '[ComfyUI] history 响应非JSON(${historyResp.data.runtimeType}), 重试');
+          continue;
+        }
+        final history = historyResp.data as Map<String, dynamic>;
+
+        // history 为空 = 还在队列/执行中 → 更新进度回调后继续轮询
+        if (!history.containsKey(promptId)) {
+          final progress = 0.2 +
+              (DateTime.now().difference(startTime).inSeconds /
+                  (maxWaitMinutes * 60)) *
+                  0.7;
+          onProgress?.call(progress.clamp(0.2, 0.9));
+          continue;
+        }
+
+        // 任务完成
+        result = history[promptId] as Map<String, dynamic>;
+        final status = result['status'] as Map<String, dynamic>?;
+
+        if (status?['status_str'] != 'success') {
+          final messages = status?['messages'] as List? ?? [];
+          throw Exception('ComfyUI 生成失败: ${messages.join(', ')}');
+        }
+        break;
+      }
+
+      // 9. 提取图片信息（遍历所有节点输出，找第一个有 images 的）
+      final outputs = result['outputs'] as Map<String, dynamic>? ?? {};
+      String? filename;
+      String subfolder = '';
+      String type = 'output';
+
+      for (final output in outputs.values) {
+        if (output is Map && output.containsKey('images')) {
+          final images = output['images'] as List?;
+          if (images != null && images.isNotEmpty) {
+            final img = images.first as Map<String, dynamic>;
+            filename = img['filename'] as String?;
+            subfolder = img['subfolder'] as String? ?? '';
+            type = img['type'] as String? ?? 'output';
+            break;
+          }
+        }
+      }
+
+      if (filename == null) {
+        throw Exception('ComfyUI 返回结果中未找到图片');
+      }
+
+      debugPrint('[ComfyUI] 图片文件: $filename');
+
+      // 10. 下载图片（GET /view?filename=&subfolder=&type=）
+      onProgress?.call(0.95);
+      final imageUrl =
+          '$endpoint/view?filename=$filename&subfolder=$subfolder&type=$type';
+      final imageResp = await _dio.get<List<int>>(
+        imageUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+
+      if (imageResp.statusCode != 200 || imageResp.data == null) {
+        throw Exception('ComfyUI 下载图片失败: ${imageResp.statusCode}');
+      }
+
+      final imageBytes = Uint8List.fromList(imageResp.data!);
+      if (_looksLikeNonImageData(imageBytes)) {
+        throw Exception('ComfyUI: /view 返回非图片内容');
+      }
+      onProgress?.call(1.0);
+
+      debugPrint('[ComfyUI] 生成成功: ${imageBytes.length} bytes');
+
+      return ImageGenResult(
+        images: [imageBytes],
+        imageUrls: [imageUrl],
+        prompt: finalPrompt,
+        seed: seed,
+        format: 'png',
+        metadata: {
+          'provider': 'comfyui',
+          'prompt_id': promptId,
+          'model': model,
+          'sampler': samplerName,
+          'steps': request.steps,
+          'cfg': request.cfgScale,
+        },
+      );
+    } catch (e, stack) {
+      debugPrint('[ComfyUI] ❌ 异常：$e');
+      debugPrint('[ComfyUI] Stack: $stack');
+      rethrow;
+    }
+  }
+
+  /// 构建 ComfyUI txt2img workflow（SD1.5/SDXL 通用 6 节点模板）
+  /// CheckpointLoaderSimple 输出 [MODEL(0), CLIP(1), VAE(2)]；
+  /// 连接方式 ["node_id", output_index]
+  Map<String, dynamic> _buildComfyUITxt2ImgWorkflow({
+    required String prompt,
+    required String negativePrompt,
+    required int width,
+    required int height,
+    required int steps,
+    required double cfg,
+    required String samplerName,
+    required String scheduler,
+    required int seed,
+    required String model,
+  }) {
+    return {
+      '3': {
+        'class_type': 'KSampler',
+        'inputs': {
+          'seed': seed,
+          'steps': steps,
+          'cfg': cfg,
+          'sampler_name': samplerName,
+          'scheduler': scheduler,
+          'denoise': 1.0,
+          'model': ['4', 0],
+          'positive': ['6', 0],
+          'negative': ['7', 0],
+          'latent_image': ['5', 0],
+        },
+      },
+      '4': {
+        'class_type': 'CheckpointLoaderSimple',
+        'inputs': {'ckpt_name': model},
+      },
+      '5': {
+        'class_type': 'EmptyLatentImage',
+        'inputs': {
+          'width': width,
+          'height': height,
+          'batch_size': 1,
+        },
+      },
+      '6': {
+        'class_type': 'CLIPTextEncode',
+        'inputs': {
+          'text': prompt,
+          'clip': ['4', 1],
+        },
+      },
+      '7': {
+        'class_type': 'CLIPTextEncode',
+        'inputs': {
+          'text': negativePrompt,
+          'clip': ['4', 1],
+        },
+      },
+      '8': {
+        'class_type': 'VAEDecode',
+        'inputs': {
+          'samples': ['3', 0],
+          'vae': ['4', 2],
+        },
+      },
+      '9': {
+        'class_type': 'SaveImage',
+        'inputs': {
+          'filename_prefix': 'kira',
+          'images': ['8', 0],
+        },
+      },
+    };
+  }
+
+  /// A1111 采样器名 → ComfyUI 采样器名映射
+  /// （ComfyUI SAMPLER_NAMES 见 comfy/samplers.py:971-975+1356）
+  String _mapComfyUISampler(String a1111Sampler) {
+    const mapping = {
+      'euler': 'euler',
+      'euler_a': 'euler_ancestral',
+      'heun': 'heun',
+      'dpm_2': 'dpm_2',
+      'dpm_2_a': 'dpm_2_ancestral',
+      'lms': 'lms',
+      'dpm_fast': 'dpm_fast',
+      'dpm_adaptive': 'dpm_adaptive',
+      'dpmpp_2s_a': 'dpmpp_2s_ancestral',
+      'dpmpp_sde': 'dpmpp_sde',
+      'dpmpp_2m': 'dpmpp_2m',
+      'ddim': 'ddim',
+      'plms': 'dpmpp_2m', // PLMS 在 ComfyUI 不存在，映射到 dpmpp_2m
+      'uni_pc': 'uni_pc',
+      // NovelAI k_ 前缀系列
+      'k_euler': 'euler',
+      'k_euler_a': 'euler_ancestral',
+      'k_euler_ancestral': 'euler_ancestral',
+    };
+
+    return mapping[a1111Sampler] ?? 'euler'; // 默认 euler
   }
 
   /// Extract image URLs from AI response text (base feature for all channels)

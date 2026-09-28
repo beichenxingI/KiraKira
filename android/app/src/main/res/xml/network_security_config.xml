@@ -1,1 +1,2 @@
-<?xml version="1.0" encoding="utf-8"?><network-security-config><domain-config cleartextTrafficPermitted="true"><domain includeSubdomains="true">localhost</domain><domain includeSubdomains="true">127.0.0.1</domain></domain-config></network-security-config>
+<?xml version="1.0" encoding="utf-8"?><!-- 允许所有明文 HTTP（用于局域网 ComfyUI 连接） -->
+<network-security-config><base-config cleartextTrafficPermitted="true"/></network-security-config>

@@ -255,7 +255,19 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                   ].map((provider) {
                     return DropdownMenuItem(
                       value: provider,
-                      child: Text(provider.displayName),
+                      child: provider == ImageGenProvider.comfyui
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(provider.displayName),
+                                Text('（仅支持 SD1.5/SDXL）',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Theme.of(context).hintColor)),
+                              ],
+                            )
+                          : Text(provider.displayName),
                     );
                   }).toList(),
                 ),

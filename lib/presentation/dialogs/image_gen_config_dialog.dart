@@ -2,8 +2,10 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import '../../domain/services/image_generation_service.dart';
 import '../../domain/services/llm_service.dart';
+import '../components/kira_toast.dart';
 import '../providers/image_gen_providers.dart';
 import '../providers/settings_providers.dart';
 import '../theme/design_tokens.dart';
@@ -578,6 +580,49 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
               },
             ),
           ),
+        ]
+        else if (settings.provider == ImageGenProvider.comfyui) ...[
+          // ComfyUI 专属配置：地址 + 测试连接 + 模型下拉（SD1.5/SDXL）
+          _buildTextField(
+            label: 'ComfyUI 地址',
+            value: settings.apiEndpoints['comfyui'] ?? '',
+            hint: 'http://192.168.1.100:8188',
+            isDark: isDark,
+            onChanged: (v) => ref.read(imageGenSettingsProvider.notifier).setApiEndpoint(v),
+          ),
+          const SizedBox(height: 12),
+          _buildComfyUITestButton(settings),
+          const SizedBox(height: 12),
+          Text('模型 (Checkpoint)',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+              )),
+          const SizedBox(height: 8),
+          _buildComfyUIModelSelector(settings, isDark),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: DesignTokens.statusWarning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: DesignTokens.statusWarning.withValues(alpha: 0.3)),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.warning_amber, size: 18, color: DesignTokens.statusWarning),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'HTTP 明文传输可能不安全，请注意保护数据安全。\n目前仅支持 SD1.5 和 SDXL 模型。',
+                    style: TextStyle(fontSize: 12, color: DesignTokens.statusWarning),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ] else ...[
           _buildTextField(
             label: 'Endpoint 地址',
@@ -596,6 +641,127 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
           ),
         ],
       ],
+    );
+  }
+
+  // ========== ComfyUI 专属组件 ==========
+
+  /// 测试连接按钮：GET /system_stats 显示 GPU 名称与显存
+  Widget _buildComfyUITestButton(ImageGenSettings settings) {
+    return ElevatedButton.icon(
+      icon: const Icon(Icons.wifi_tethering, size: 18),
+      label: const Text('测试连接'),
+      onPressed: () async {
+        final endpoint = settings.apiEndpoints['comfyui']?.trim();
+        if (endpoint == null || endpoint.isEmpty) {
+          KiraToast.show(context, '请先填写 ComfyUI 地址',
+              type: KiraToastType.warning);
+          return;
+        }
+
+        try {
+          // 获取系统信息（5s 超时，防不可达主机挂起）
+          final dio = Dio(BaseOptions(
+            connectTimeout: const Duration(seconds: 5),
+            receiveTimeout: const Duration(seconds: 5),
+          ));
+          final response = await dio.get<Map<String, dynamic>>(
+            '$endpoint/system_stats',
+          );
+          final stats = response.data;
+          if (stats == null) {
+            if (mounted) {
+              KiraToast.show(context, '✅ 已连接（无系统信息）',
+                  type: KiraToastType.success);
+            }
+            return;
+          }
+          final devices = stats['devices'] as List? ?? [];
+
+          if (devices.isEmpty) {
+            if (mounted) {
+              KiraToast.show(context, '✅ 已连接（未检测到 GPU）',
+                  type: KiraToastType.success);
+            }
+            return;
+          }
+
+          final gpu = devices.first as Map<String, dynamic>;
+          final name = gpu['name'] as String? ?? '未知设备';
+          final vramTotal = ((gpu['vram_total'] as num?) ?? 0) / (1024 * 1024 * 1024); // 转 GB
+          final vramFree = ((gpu['vram_free'] as num?) ?? 0) / (1024 * 1024 * 1024);
+
+          if (mounted) {
+            KiraToast.show(
+              context,
+              '✅ 已连接\nGPU: $name\n显存: ${vramFree.toStringAsFixed(1)}GB / ${vramTotal.toStringAsFixed(1)}GB',
+              type: KiraToastType.success,
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            KiraToast.show(context, '❌ 连接失败: $e', type: KiraToastType.error);
+          }
+        }
+      },
+    );
+  }
+
+  /// 模型下拉（复用 fetchedModelsProvider：
+  /// provider==comfyui 时自动 GET /object_info/CheckpointLoaderSimple 拉取）
+  Widget _buildComfyUIModelSelector(ImageGenSettings settings, bool isDark) {
+    final fetched = ref.watch(fetchedModelsProvider);
+    final models = fetched.models ?? const <String>[];
+    final currentModel = settings.model;
+    final mutedColor =
+        isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93);
+
+    if (fetched.isLoading) {
+      return Row(
+        children: [
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 8),
+          Text('正在获取模型...',
+              style: TextStyle(fontSize: 12, color: mutedColor)),
+        ],
+      );
+    }
+
+    if (models.isEmpty) {
+      return Text(
+        fetched.error != null
+            ? '获取模型失败，请确认地址正确且 ComfyUI 已启动'
+            : '未获取到模型，请填写地址后等待自动获取',
+        style: TextStyle(fontSize: 12, color: mutedColor),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButton<String>(
+        value: models.contains(currentModel) ? currentModel : models.first,
+        isExpanded: true,
+        underline: const SizedBox(),
+        items: models
+            .map((m) => DropdownMenuItem(
+                  value: m,
+                  child: Text(m, overflow: TextOverflow.ellipsis),
+                ))
+            .toList(),
+        onChanged: (m) {
+          if (m != null) {
+            ref.read(imageGenSettingsProvider.notifier).setModel(m);
+          }
+        },
+      ),
     );
   }
 
