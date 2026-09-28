@@ -13,11 +13,11 @@ import 'dart:convert';
 import 'dart:io';
 
 void main() {
-  final dartFile = 'lib/presentation/screens/chat/webview_chat_stage.dart';
-  final bridgeFile = 'lib/presentation/screens/chat/chat_bridge_js.dart';
-  final outStage = 'assets/chat/chat_stage.html';
-  final outBridge = 'assets/chat/chat_bridge.js';
-  final standardP02 = 'build/shell_extracted.html';
+  const dartFile = 'lib/presentation/screens/chat/webview_chat_stage.dart';
+  const bridgeFile = 'lib/presentation/screens/chat/chat_bridge_js.dart';
+  const outStage = 'assets/chat/chat_stage.html';
+  const outBridge = 'assets/chat/chat_bridge.js';
+  const standardP02 = 'build/shell_extracted.html';
 
   final shellRaw = _extractTripleQuoted(dartFile, 'String _htmlShell() {');
   final bridgeBody = _extractTripleQuoted(bridgeFile, "const String kChatBridgeJs = r'''");
@@ -57,7 +57,7 @@ void main() {
   // 按行归一化 P0-2 产物 → 占位符形态,与资产逐字比对:
   //   颜色占位名 __DART_INTERP_* -> __KIRA_*;
   //   桥标记块(注释行+内联桥) -> 单行 __KIRA_CHAT_BRIDGE__
-  var normLines = standard
+  final normLines = standard
       .split('\n')
       .map((l) => l
           .replaceAll('__DART_INTERP_QUOTE_Q_COLOR__', '__KIRA_QUOTE_Q_COLOR__')

@@ -136,7 +136,7 @@ class FingerprintResultWidget extends StatelessWidget {
           Container(height: 6, decoration: BoxDecoration(color: DesignTokens.darkCard, borderRadius: BorderRadius.circular(3))),
           FractionallySizedBox(widthFactor: val / 100, child: Container(height: 6, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)))),
         ]),
-        Text('${val.round()}分', style: TextStyle(color: DesignTokens.darkTextPrimary, fontSize: DesignTokens.fontSizeCaption)),
+        Text('${val.round()}分', style: const TextStyle(color: DesignTokens.darkTextPrimary, fontSize: DesignTokens.fontSizeCaption)),
       ]));
     }).toList());
   }

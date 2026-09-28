@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -439,7 +439,7 @@ class SpriteGrid extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  AppLocalizations.of(context)!.noSpritesAddedYet,
+                  AppLocalizations.of(context).noSpritesAddedYet,
                   style: const TextStyle(color: AppTheme.textMuted),
                 ),
               ],
@@ -473,7 +473,7 @@ class SpriteGrid extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(
         child: Text(
-          '${AppLocalizations.of(context)!.errorLoadingSprites}: $error',
+          '${AppLocalizations.of(context).errorLoadingSprites}: $error',
           style: const TextStyle(color: Colors.red),
         ),
       ),

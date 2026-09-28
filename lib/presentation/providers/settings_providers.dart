@@ -10,8 +10,6 @@ import 'package:kirakira/domain/services/tokenizer_service.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:kirakira/data/database/database.dart';
 import 'package:kirakira/core/services/initialization_service.dart';
-import 'package:kirakira/presentation/screens/terms_dialog.dart';
-import 'package:kirakira/presentation/providers/settings_providers.dart';
 
 /// Log a message to the console
 void _log(String message, {String? error, StackTrace? stackTrace}) {
@@ -263,7 +261,7 @@ class LLMConfigNotifier extends StateNotifier<LLMConfig> {
     // Save to DB
     await _db.into(_db.globalStates).insert(
       GlobalStatesCompanion(
-        key: drift.Value(_configKey),
+        key: const drift.Value(_configKey),
         value: drift.Value(jsonStr),
         updatedAt: drift.Value(DateTime.now()),
       ),
@@ -682,7 +680,7 @@ class AppSettingsNotifier extends StateNotifier<AppSettings> {
     // Save to DB
     await _db.into(_db.globalStates).insert(
       GlobalStatesCompanion(
-        key: drift.Value(_settingsKey),
+        key: const drift.Value(_settingsKey),
         value: drift.Value(jsonStr),
         updatedAt: drift.Value(DateTime.now()),
       ),

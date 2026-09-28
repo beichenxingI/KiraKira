@@ -234,7 +234,7 @@ class ProbabilityColorCalculator {
     // High probability = green, low probability = red
     final r = ((1 - p) * 255 * intensity).round();
     final g = (p * 255 * intensity).round();
-    final b = 0;
+    const b = 0;
     final a = (intensity * 255).round();
 
     return (a << 24) | (r << 16) | (g << 8) | b;

@@ -1,8 +1,6 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/database/database.dart';
-import 'package:kirakira/data/models/character.dart' as models;
-import 'package:kirakira/data/repositories/character_repository.dart';
 import 'package:kirakira/data/repositories/chat_repository.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:path_provider/path_provider.dart';

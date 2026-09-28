@@ -188,7 +188,7 @@ class EmotionDetectionService {
   /// Detect emotion with confidence score (0.0 - 1.0)
   EmotionResult detectEmotionWithConfidence(String content) {
     if (content.isEmpty) {
-      return EmotionResult(SpriteEmotion.neutral, 0.0);
+      return const EmotionResult(SpriteEmotion.neutral, 0.0);
     }
 
     final scores = <SpriteEmotion, int>{};
@@ -213,7 +213,7 @@ class EmotionDetectionService {
     }
 
     if (scores.isEmpty) {
-      return EmotionResult(SpriteEmotion.neutral, 0.0);
+      return const EmotionResult(SpriteEmotion.neutral, 0.0);
     }
 
     // Find the emotion with the highest score
@@ -229,7 +229,7 @@ class EmotionDetectionService {
   /// Detect all emotions present in the content with their scores
   List<EmotionResult> detectAllEmotions(String content) {
     if (content.isEmpty) {
-      return [EmotionResult(SpriteEmotion.neutral, 1.0)];
+      return [const EmotionResult(SpriteEmotion.neutral, 1.0)];
     }
 
     final scores = <SpriteEmotion, int>{};
@@ -254,7 +254,7 @@ class EmotionDetectionService {
     }
 
     if (scores.isEmpty) {
-      return [EmotionResult(SpriteEmotion.neutral, 1.0)];
+      return [const EmotionResult(SpriteEmotion.neutral, 1.0)];
     }
 
     // Convert to results with confidence

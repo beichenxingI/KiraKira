@@ -70,7 +70,7 @@ class _TokenizerDialogState extends ConsumerState<_TokenizerDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── 设置 ──
-          CoreSectionLabel('设置'),
+          const CoreSectionLabel('设置'),
           const SizedBox(height: 4),
           _Group(
             palette: palette,
@@ -141,7 +141,7 @@ class _TokenizerDialogState extends ConsumerState<_TokenizerDialog> {
           const SizedBox(height: 20),
 
           // ── Token 可视化 ──
-          CoreSectionLabel('Token 可视化'),
+          const CoreSectionLabel('Token 可视化'),
           const SizedBox(height: 8),
           CoreTextField(
             controller: _textController,

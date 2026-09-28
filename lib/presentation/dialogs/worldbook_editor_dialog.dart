@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -41,13 +42,14 @@ class _WorldBookEditorDialog extends ConsumerStatefulWidget {
 class _WorldBookEditorDialogState
     extends ConsumerState<_WorldBookEditorDialog> {
   final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
   String _search = '';
   String _filter = 'all'; // all | enabled | constant | disabled
-  String _sort = 'order'; // order | created
   bool _nameDirty = false;
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -69,12 +71,8 @@ class _WorldBookEditorDialogState
       case 'constant':
         result = result.where((e) => e.constant).toList();
     }
-    if (_sort == 'created') {
-      // insertionOrder 稳定排序的近似：按 keys 长度次序回退
-      result = [...result]..sort((a, b) => a.insertionOrder.compareTo(b.insertionOrder));
-    } else {
-      result = [...result]..sort((a, b) => a.insertionOrder.compareTo(b.insertionOrder));
-    }
+    // 统一按 insertionOrder 排序（创建时间排序功能暂未实现，保持现有行为）
+    result = [...result]..sort((a, b) => a.insertionOrder.compareTo(b.insertionOrder));
     return result;
   }
 
@@ -240,7 +238,7 @@ class _WorldBookEditorDialogState
                                   fontSize: DesignTokens.fontSizeHeadline,
                                   fontWeight: DesignTokens.weightBold,
                                   color: titleColor),
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 isDense: true,
                                 border: InputBorder.none,
                                 contentPadding: EdgeInsets.zero,
@@ -296,7 +294,14 @@ class _WorldBookEditorDialogState
                         children: [
                           TextField(
                             controller: _searchCtrl,
-                            onChanged: (v) => setState(() => _search = v),
+                            onChanged: (value) {
+                              _searchDebounce?.cancel();
+                              _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+                                if (mounted) {
+                                  setState(() => _search = value);
+                                }
+                              });
+                            },
                             cursorColor: KiraDialogTheme.primary,
                             style: TextStyle(
                                 fontSize: DesignTokens.fontSizeSm,
@@ -609,17 +614,17 @@ class _WorldBookEntryCard extends StatelessWidget {
                             if (extraCount > 0) ...[
                               const SizedBox(width: 4),
                               Text('+$extraCount',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                       fontSize: DesignTokens.fontSizeXs,
                                       color: KiraDialogTheme.primary)),
                             ],
                             if (entry.constant) ...[
                               const SizedBox(width: 6),
-                              _StatusTag(label: '常量', color: KiraDialogTheme.worldbook),
+                              const _StatusTag(label: '常量', color: KiraDialogTheme.worldbook),
                             ],
                             if (entry.secondaryKeys.isNotEmpty) ...[
                               const SizedBox(width: 6),
-                              _StatusTag(label: '二次匹配', color: KiraDialogTheme.opening),
+                              const _StatusTag(label: '二次匹配', color: KiraDialogTheme.opening),
                             ],
                           ],
                         ),

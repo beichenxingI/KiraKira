@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/domain/services/png_character_card_parser.dart';
@@ -22,17 +21,17 @@ class ImportService {
     final bytes = await file.readAsBytes();
 
     // DIAGNOSTIC: log file info and dump to temp
-    debugPrint('[PNG-FILE] path=' + filePath);
-    debugPrint('[PNG-FILE] size=' + bytes.length.toString());
-    debugPrint('[PNG-FILE] exists=' + (await file.exists()).toString());
+    debugPrint('[PNG-FILE] path=$filePath');
+    debugPrint('[PNG-FILE] size=${bytes.length}');
+    debugPrint('[PNG-FILE] exists=${await file.exists()}');
     if (bytes.isNotEmpty) {
       final sig = String.fromCharCodes(bytes.take(8));
-      debugPrint('[PNG-FILE] first8bytes=' + sig);
-      final tempPath = filePath + '.dump.bin';
+      debugPrint('[PNG-FILE] first8bytes=$sig');
+      final tempPath = '$filePath.dump.bin';
       await File(tempPath).writeAsBytes(bytes);
-      debugPrint('[PNG-FILE] dumped to=' + tempPath);
+      debugPrint('[PNG-FILE] dumped to=$tempPath');
     try {
-      File(filePath + '.diagnostic.txt').writeAsStringSync('PNG file at: ' + filePath + '\nSize: ' + bytes.length.toString() + ' bytes\nFirst 8 bytes: ' + bytes.take(8).toList().toString());
+      File('$filePath.diagnostic.txt').writeAsStringSync('PNG file at: $filePath\nSize: ${bytes.length} bytes\nFirst 8 bytes: ${bytes.take(8).toList()}');
       debugPrint('[PNG-FILE] diagnostic info saved');
     } catch (_) {}
     }
@@ -283,29 +282,29 @@ class ImportService {
       if (data['character_book'] != null) {
         print('[ImportService] Found character_book in data, parsing...');
         characterBook = _parseCharacterBook(data['character_book'] as Map<String, dynamic>);
-        print('[ImportService] Parsed character_book with ${characterBook?.entries.length ?? 0} entries');
+        print('[ImportService] Parsed character_book with ${characterBook.entries.length ?? 0} entries');
       } else {
         print('[ImportService] No character_book found in data. Data keys: ${data.keys.toList()}');
       }
 
       // [IMP-2] data 字段普查(非空即报)
-      void _f(String k, dynamic v) {
+      void f(String k, dynamic v) {
         final ok = v != null && ('$v'.isNotEmpty);
         print('[IMP-2] $k=${ok ? (v is List ? 'list(${v.length})' : (v is String ? 'len=${v.length}' : v)) : 'EMPTY'}');
       }
-      _f('name', name);
-      _f('description', description.isEmpty ? null : description);
-      _f('personality', personality.isEmpty ? null : personality);
-      _f('scenario', scenario.isEmpty ? null : scenario);
-      _f('first_mes', firstMessage.isEmpty ? null : firstMessage);
-      _f('alternate_greetings', alternateGreetings);
-      _f('mes_example', exampleMessages.isEmpty ? null : exampleMessages);
-      _f('system_prompt', systemPrompt.isEmpty ? null : systemPrompt);
-      _f('post_history_instructions', postHistoryInstructions.isEmpty ? null : postHistoryInstructions);
-      _f('creator_notes', creatorNotes.isEmpty ? null : creatorNotes);
-      _f('tags', tags);
-      _f('creator', creator.isEmpty ? null : creator);
-      _f('character_version', version.isEmpty ? null : version);
+      f('name', name);
+      f('description', description.isEmpty ? null : description);
+      f('personality', personality.isEmpty ? null : personality);
+      f('scenario', scenario.isEmpty ? null : scenario);
+      f('first_mes', firstMessage.isEmpty ? null : firstMessage);
+      f('alternate_greetings', alternateGreetings);
+      f('mes_example', exampleMessages.isEmpty ? null : exampleMessages);
+      f('system_prompt', systemPrompt.isEmpty ? null : systemPrompt);
+      f('post_history_instructions', postHistoryInstructions.isEmpty ? null : postHistoryInstructions);
+      f('creator_notes', creatorNotes.isEmpty ? null : creatorNotes);
+      f('tags', tags);
+      f('creator', creator.isEmpty ? null : creator);
+      f('character_version', version.isEmpty ? null : version);
 
       // [IMP-4] extensions 顶层 key + regex_scripts 有无
       print('[IMP-4] extKeys=${extensions.keys.toList()} regexScriptsCount=${(extensions['regex_scripts'] as List<dynamic>?)?.length ?? 'null'}');
@@ -605,21 +604,21 @@ class ImportService {
 
   /// Dump all PNG text chunk keys + content preview
   void _dumpPngInfo(Uint8List bytes) {
-    debugPrint("[PNG-DUMP] size=" + bytes.length.toString());
+    debugPrint('[PNG-DUMP] size=${bytes.length}');
     int off = 8; int n = 0;
     while (off + 8 <= bytes.length) {
       final len = (bytes[off] << 24) | (bytes[off + 1] << 16) | (bytes[off + 2] << 8) | bytes[off + 3]; off += 4;
       final tp = String.fromCharCodes(bytes.sublist(off, off + 4)); off += 4; n++;
-      if (tp == "tEXt" || tp == "iTXt" || tp == "zTXt") {
+      if (tp == 'tEXt' || tp == 'iTXt' || tp == 'zTXt') {
         int ke = off; while (ke < off + len && bytes[ke] != 0) { ke++; }
         final key = String.fromCharCodes(bytes.sublist(off, ke));
-        String prev = ""; if (ke + 1 < off + len) { final mx = (ke + 1 + 200) > (off + len) ? (off + len) : (ke + 1 + 200); prev = String.fromCharCodes(bytes.sublist(ke + 1, mx)); }
-        debugPrint("[PNG-DUMP] #" + n.toString() + " " + tp + " key=" + key + " len=" + len.toString());
-        debugPrint("[PNG-DUMP]   preview=" + prev);
+        String prev = ''; if (ke + 1 < off + len) { final mx = (ke + 1 + 200) > (off + len) ? (off + len) : (ke + 1 + 200); prev = String.fromCharCodes(bytes.sublist(ke + 1, mx)); }
+        debugPrint('[PNG-DUMP] #$n $tp key=$key len=$len');
+        debugPrint('[PNG-DUMP]   preview=$prev');
       }
       off += len + 4;
     }
-    debugPrint("[PNG-DUMP] Done: " + n.toString() + " chunks");
+    debugPrint('[PNG-DUMP] Done: $n chunks');
   }
 
   /// Extract text chunk from PNG

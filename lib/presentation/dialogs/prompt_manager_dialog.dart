@@ -33,7 +33,7 @@ class _PromptManagerDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
     final config = ref.watch(promptManagerProvider);
@@ -52,7 +52,7 @@ class _PromptManagerDialog extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             minSize: 0,
             onPressed: () => _showCreatePromptSheet(context, ref),
-            child: Icon(CupertinoIcons.add_circled,
+            child: const Icon(CupertinoIcons.add_circled,
                 size: 22, color: DesignTokens.primary),
           ),
           // 菜单
@@ -148,7 +148,7 @@ class _PromptManagerDialog extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline,
+                const Icon(Icons.info_outline,
                     color: DesignTokens.primary, size: 18),
                 const SizedBox(width: 10),
                 Expanded(
@@ -212,7 +212,7 @@ class _PromptManagerDialog extends ConsumerWidget {
   void _showCreatePromptSheet(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final nameController = TextEditingController();
     final contentController = TextEditingController();
     String role = 'system';
@@ -358,7 +358,7 @@ class _PromptManagerDialog extends ConsumerWidget {
       BuildContext context, WidgetRef ref, List<PromptManagerPreset> presets) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -379,7 +379,7 @@ class _PromptManagerDialog extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Icon(Icons.list, color: DesignTokens.primary, size: 20),
+                  const Icon(Icons.list, color: DesignTokens.primary, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     l10n.loadPreset,
@@ -455,7 +455,7 @@ class _PromptManagerDialog extends ConsumerWidget {
   }
 
   Future<void> _importPreset(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -500,7 +500,7 @@ class _PromptManagerDialog extends ConsumerWidget {
   }
 
   Future<void> _exportPreset(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
     final nameController = TextEditingController(text: 'My Prompt Preset');
@@ -584,7 +584,7 @@ class _PromptManagerDialog extends ConsumerWidget {
   }
 
   Future<void> _saveAsPreset(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
     final nameController = TextEditingController();
@@ -689,7 +689,7 @@ class _PromptManagerDialog extends ConsumerWidget {
   }
 
   void _showResetConfirmation(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     showCupertinoDialog<void>(
       context: context,
       builder: (dialogCtx) => CupertinoAlertDialog(
@@ -716,7 +716,7 @@ class _PromptManagerDialog extends ConsumerWidget {
   }
 
   void _showHelpSheet(BuildContext context, CoreDialogPalette palette) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -737,7 +737,7 @@ class _PromptManagerDialog extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.help_outline,
+                const Icon(Icons.help_outline,
                     color: DesignTokens.primary, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
@@ -753,47 +753,47 @@ class _PromptManagerDialog extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Column(
+            const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'What is the Prompt Manager?',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 8),
-                const Text(
+                SizedBox(height: 8),
+                Text(
                   'The Prompt Manager controls how the system prompt is '
                   'built when sending messages to the AI. '
                   'You can customize the order of different sections and '
                   'enable/disable them.',
                 ),
-                const SizedBox(height: 16),
-                const Text(
+                SizedBox(height: 16),
+                Text(
                   'Section Types:',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 8),
-                const Text('• System Prompt: Base roleplay instructions'),
-                const Text('• User Persona: Your character information'),
-                const Text(
+                SizedBox(height: 8),
+                Text('• System Prompt: Base roleplay instructions'),
+                Text('• User Persona: Your character information'),
+                Text(
                     '• Character Description: The AI character\'s details'),
-                const Text('• Character Personality: Personality traits'),
-                const Text('• Scenario: Current situation and setting'),
-                const Text(
+                Text('• Character Personality: Personality traits'),
+                Text('• Scenario: Current situation and setting'),
+                Text(
                     '• World Info: Contextual lore from lorebooks'),
-                const Text('• Example Messages: Sample dialogue for style'),
-                const Text('• Author\'s Note: Dynamic instructions'),
-                const Text('• Post-History: Instructions after chat'),
-                const SizedBox(height: 16),
-                const Text(
+                Text('• Example Messages: Sample dialogue for style'),
+                Text('• Author\'s Note: Dynamic instructions'),
+                Text('• Post-History: Instructions after chat'),
+                SizedBox(height: 16),
+                Text(
                   'Tips:',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 8),
-                const Text('• Sections at the top have higher priority'),
-                const Text(
+                SizedBox(height: 8),
+                Text('• Sections at the top have higher priority'),
+                Text(
                     '• Disable sections you don\'t need to save tokens'),
-                const Text('• Experiment with order for different results'),
+                Text('• Experiment with order for different results'),
               ],
             ),
             const SizedBox(height: 16),
@@ -980,7 +980,7 @@ class _PromptSectionTile extends StatelessWidget {
                       ? DesignTokens.primary
                       : palette.textTertiary),
               onPressed: section.enabled ? onEdit : null,
-              tooltip: AppLocalizations.of(context)!.edit,
+              tooltip: AppLocalizations.of(context).edit,
             ),
           Padding(
             padding: const EdgeInsets.only(right: 10),
@@ -1102,7 +1102,7 @@ class _PromptSectionEditDialogState
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
@@ -1138,7 +1138,7 @@ class _PromptSectionEditDialogState
                 borderRadius: BorderRadius.circular(10),
                 onPressed: () => Navigator.pop(context),
                 child: Text(
-                  AppLocalizations.of(context)!.cancel,
+                  AppLocalizations.of(context).cancel,
                   style: TextStyle(fontSize: 15, color: palette.textPrimary),
                 ),
               ),
@@ -1150,7 +1150,7 @@ class _PromptSectionEditDialogState
                 color: DesignTokens.primary,
                 borderRadius: BorderRadius.circular(10),
                 onPressed: _save,
-                child: Text(AppLocalizations.of(context)!.save,
+                child: Text(AppLocalizations.of(context).save,
                     style: const TextStyle(fontSize: 15, color: Colors.white)),
               ),
             ),
@@ -1162,7 +1162,7 @@ class _PromptSectionEditDialogState
         children: [
           // ── 自定义段落:名称 ──
           if (_section.isCustom) ...[
-            CoreSectionLabel('提示词名称'),
+            const CoreSectionLabel('提示词名称'),
             const SizedBox(height: 8),
             CoreTextField(
               controller: _nameController,
@@ -1173,7 +1173,7 @@ class _PromptSectionEditDialogState
           ],
 
           // ── 内容(大文本域) ──
-          CoreSectionLabel('内容'),
+          const CoreSectionLabel('内容'),
           const SizedBox(height: 8),
           CupertinoTextField(
             controller: _contentController,

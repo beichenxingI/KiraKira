@@ -59,7 +59,7 @@ class CustomProvider implements LlmProvider {
   Future<ConnectionTestResult> testConnection(ApiCredential credential) async {
     final start = DateTime.now();
     try {
-      final stream = await sendMessage(LlmRequest(messages: [{'role':'user','content':'Hi'}], maxTokens: 5), credential);
+      final stream = await sendMessage(const LlmRequest(messages: [{'role':'user','content':'Hi'}], maxTokens: 5), credential);
       final completer = Completer<int>();
       stream.listen((_) { if (!completer.isCompleted) completer.complete(DateTime.now().difference(start).inMilliseconds); },
         onDone: () { if (!completer.isCompleted) completer.complete(0); },

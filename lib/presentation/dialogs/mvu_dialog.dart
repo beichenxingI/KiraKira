@@ -101,7 +101,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── 引擎行为 ──
-          CoreSectionLabel('引擎行为'),
+          const CoreSectionLabel('引擎行为'),
           const SizedBox(height: 4),
           _Group(
             palette: palette,
@@ -176,7 +176,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.download,
+                  const Icon(Icons.download,
                       size: 16, color: DesignTokens.primary),
                   const SizedBox(width: 4),
                   Text(
@@ -191,7 +191,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
           const SizedBox(height: 16),
 
           // ── API 配置 ──
-          CoreSectionLabel('API 配置'),
+          const CoreSectionLabel('API 配置'),
           const SizedBox(height: 4),
           _Group(
             palette: palette,
@@ -268,7 +268,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
           const SizedBox(height: 20),
 
           // ── 提示词配置 ──
-          CoreSectionLabel('提示词配置'),
+          const CoreSectionLabel('提示词配置'),
           const SizedBox(height: 4),
           _Group(
             palette: palette,
@@ -291,16 +291,16 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
                       color: const Color(0xFFFF453A).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Row(
+                    child: const Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.warning_amber_rounded,
+                        Icon(Icons.warning_amber_rounded,
                             size: 16, color: Color(0xFFFF453A)),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             '自定义提示词可能导致模型输出不符合内容政策的结果，风险由使用者自行承担。',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 12, color: Color(0xFFFF453A)),
                           ),
                         ),
@@ -358,7 +358,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
           const SizedBox(height: 20),
 
           // ── 关于 ──
-          CoreSectionLabel('关于'),
+          const CoreSectionLabel('关于'),
           const SizedBox(height: 4),
           CoreInfoRow(
             icon: CupertinoIcons.cube_box,
@@ -394,7 +394,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
               Navigator.pop(dialogCtx);
               notifier.resetToDefaults();
               // 同步 TextField
-              final defaults = const MvuSettings();
+              const defaults = MvuSettings();
               _apiUrlController.text = defaults.apiUrl;
               _apiKeyController.text = defaults.apiKey;
               _modelNameController.text = defaults.modelName;
@@ -587,7 +587,7 @@ class _SliderTile extends StatelessWidget {
               ),
               Text(
                 valueLabel ?? value.toStringAsFixed(0),
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: DesignTokens.primary,

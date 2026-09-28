@@ -689,7 +689,7 @@ class _SwitchRow extends StatelessWidget {
   }
 }
 
-class _NumberField extends StatelessWidget {
+class _NumberField extends StatefulWidget {
   final String label;
   final int value;
   final int max;
@@ -701,12 +701,40 @@ class _NumberField extends StatelessWidget {
     required this.onChanged,
   });
   @override
+  State<_NumberField> createState() => _NumberFieldState();
+}
+
+class _NumberFieldState extends State<_NumberField> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value.toString());
+  }
+
+  @override
+  void didUpdateWidget(covariant _NumberField old) {
+    super.didUpdateWidget(old);
+    // 仅在外部值变化且与当前文本不同时同步，避免打断输入光标
+    if (widget.value.toString() != _controller.text) {
+      _controller.text = widget.value.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
+        Text(widget.label,
             style: TextStyle(
                 fontSize: DesignTokens.fontSizeSm,
                 color: Theme.of(context)
@@ -718,7 +746,7 @@ class _NumberField extends StatelessWidget {
         SizedBox(
           width: 120,
           child: TextField(
-            controller: TextEditingController(text: value.toString()),
+            controller: _controller,
             keyboardType: TextInputType.number,
             cursorColor: KiraDialogTheme.primary,
             style: TextStyle(
@@ -743,7 +771,7 @@ class _NumberField extends StatelessWidget {
             onChanged: (v) {
               final n = int.tryParse(v.trim());
               if (n != null) {
-                onChanged(n.clamp(0, max));
+                widget.onChanged(n.clamp(0, widget.max));
               }
             },
           ),

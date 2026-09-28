@@ -128,7 +128,7 @@ class _LogViewerDialogState extends State<_LogViewerDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             minSize: 0,
             onPressed: _clear,
-            child: Icon(CupertinoIcons.delete,
+            child: const Icon(CupertinoIcons.delete,
                 size: 20, color: DesignTokens.statusError),
           ),
           CupertinoButton(

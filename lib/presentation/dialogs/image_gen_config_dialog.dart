@@ -164,7 +164,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
           ),
           CupertinoSwitch(
             value: settings.enabled,
-            activeColor: DesignTokens.primary,
+            activeTrackColor: DesignTokens.primary,
             onChanged: (v) => ref.read(imageGenSettingsProvider.notifier).setEnabled(v),
           ),
         ],
@@ -938,7 +938,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
               ),
               CupertinoSwitch(
                 value: settings.enableAutoPromptGeneration,
-                activeColor: DesignTokens.primary,
+                activeTrackColor: DesignTokens.primary,
                 onChanged: (v) => ref.read(imageGenSettingsProvider.notifier).setEnableAutoPromptGeneration(v),
               ),
             ],
@@ -1328,7 +1328,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
               ],
             ),
           ),
-          CupertinoSwitch(value: value, activeColor: DesignTokens.primary, onChanged: onChanged),
+          CupertinoSwitch(value: value, activeTrackColor: DesignTokens.primary, onChanged: onChanged),
         ],
       ),
     );

@@ -1,9 +1,8 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/world_info.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:kirakira/core/services/initialization_service.dart';
-import 'package:flutter/foundation.dart';
 
 /// isolate 参数打包（compute 只能传一个参数）
 class _MatchParams {

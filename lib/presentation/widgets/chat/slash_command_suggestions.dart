@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/services/slash_command_service.dart';
@@ -56,7 +56,7 @@ class SlashCommandSuggestions extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  AppLocalizations.of(context)!.commands,
+                  AppLocalizations.of(context).commands,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: AppTheme.textMuted,
                   ),
@@ -141,7 +141,7 @@ class _CommandSuggestionTile extends StatelessWidget {
                   ),
                   if (command.aliases.isNotEmpty)
                     Text(
-                      AppLocalizations.of(context)!.aliasesLabel(command.aliases.map((a) => '/$a').join(', ')),
+                      AppLocalizations.of(context).aliasesLabel(command.aliases.map((a) => '/$a').join(', ')),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppTheme.textMuted,
                         fontSize: 10,
@@ -170,7 +170,7 @@ class SlashCommandHelpDialog extends ConsumerWidget {
         children: [
           const Icon(Icons.terminal, color: AppTheme.accentColor),
           const SizedBox(width: 8),
-          Text(AppLocalizations.of(context)!.slashCommands),
+          Text(AppLocalizations.of(context).slashCommands),
         ],
       ),
       content: SizedBox(
@@ -235,7 +235,7 @@ class SlashCommandHelpDialog extends ConsumerWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(AppLocalizations.of(context)!.close),
+          child: Text(AppLocalizations.of(context).close),
         ),
       ],
     );

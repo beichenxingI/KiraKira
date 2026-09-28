@@ -716,49 +716,49 @@ class BuiltInPromptPresets {
     id: 'character_focused',
     name: 'Character Focused',
     description: 'Prioritizes character information',
-    config: PromptManagerConfig(
+    config: const PromptManagerConfig(
       sections: [
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.characterDescription,
           name: 'Character Description',
           order: 0,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.characterPersonality,
           name: 'Character Personality',
           order: 1,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.characterScenario,
           name: 'Scenario',
           order: 2,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.systemPrompt,
           name: 'System Prompt',
           order: 3,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.persona,
           name: 'User Persona',
           order: 4,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.worldInfo,
           name: 'World Info / Lorebook',
           order: 5,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.exampleMessages,
           name: 'Example Messages',
           order: 6,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.authorNote,
           name: "Author's Note",
           order: 7,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.postHistoryInstructions,
           name: 'Post-History Instructions',
           order: 8,
@@ -774,49 +774,49 @@ class BuiltInPromptPresets {
     id: 'world_info_first',
     name: 'World Info First',
     description: 'Prioritizes world building and lore',
-    config: PromptManagerConfig(
+    config: const PromptManagerConfig(
       sections: [
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.worldInfo,
           name: 'World Info / Lorebook',
           order: 0,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.systemPrompt,
           name: 'System Prompt',
           order: 1,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.characterDescription,
           name: 'Character Description',
           order: 2,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.characterPersonality,
           name: 'Character Personality',
           order: 3,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.characterScenario,
           name: 'Scenario',
           order: 4,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.persona,
           name: 'User Persona',
           order: 5,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.exampleMessages,
           name: 'Example Messages',
           order: 6,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.authorNote,
           name: "Author's Note",
           order: 7,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.postHistoryInstructions,
           name: 'Post-History Instructions',
           order: 8,
@@ -832,57 +832,57 @@ class BuiltInPromptPresets {
     id: 'minimal',
     name: 'Minimal',
     description: 'Only essential prompts enabled',
-    config: PromptManagerConfig(
+    config: const PromptManagerConfig(
       sections: [
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.systemPrompt,
           name: 'System Prompt',
           order: 0,
           enabled: true,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.characterDescription,
           name: 'Character Description',
           order: 1,
           enabled: true,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.characterPersonality,
           name: 'Character Personality',
           order: 2,
           enabled: false,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.characterScenario,
           name: 'Scenario',
           order: 3,
           enabled: false,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.persona,
           name: 'User Persona',
           order: 4,
           enabled: false,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.worldInfo,
           name: 'World Info / Lorebook',
           order: 5,
           enabled: false,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.exampleMessages,
           name: 'Example Messages',
           order: 6,
           enabled: false,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.authorNote,
           name: "Author's Note",
           order: 7,
           enabled: false,
         ),
-        const PromptSection(
+        PromptSection(
           type: PromptSectionType.postHistoryInstructions,
           name: 'Post-History Instructions',
           order: 8,

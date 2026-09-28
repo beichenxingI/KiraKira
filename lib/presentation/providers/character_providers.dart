@@ -24,7 +24,7 @@ class CharacterListNotifier extends AsyncNotifier<List<Character>> {
   }
 
   Future<void> refresh() async {
-    state = const AsyncLoading();
+    // 保留旧数据，避免每次保存/删除时列表页闪骨架屏
     state = await AsyncValue.guard(() async {
       final repo = ref.read(characterRepositoryProvider);
       final list = await repo.getAllCharacters();

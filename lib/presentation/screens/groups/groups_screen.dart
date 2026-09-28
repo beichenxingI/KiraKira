@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,7 +21,7 @@ class GroupsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.groupChats),
+        title: Text(AppLocalizations.of(context).groupChats),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -55,7 +54,7 @@ class GroupsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: DesignTokens.spaceMd),
                   Text(
-                    AppLocalizations.of(context)!.noGroupChatsYet,
+                    AppLocalizations.of(context).noGroupChatsYet,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontSize: DesignTokens.fontSizeBodyLarge,
                           fontWeight: DesignTokens.weightMedium,
@@ -63,7 +62,7 @@ class GroupsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: DesignTokens.spaceSm),
                   Text(
-                    AppLocalizations.of(context)!.createGroupDescription,
+                    AppLocalizations.of(context).createGroupDescription,
                     style: const TextStyle(
                       fontSize: DesignTokens.fontSizeXs,
                       color: DesignTokens.darkTextSecondary,
@@ -73,7 +72,7 @@ class GroupsScreen extends ConsumerWidget {
                   ElevatedButton.icon(
                     onPressed: () => _showCreateGroupDialog(context, ref),
                     icon: const Icon(Icons.add),
-                    label: Text(AppLocalizations.of(context)!.createGroup),
+                    label: Text(AppLocalizations.of(context).createGroup),
                   ),
                 ],
               ),
@@ -98,11 +97,11 @@ class GroupsScreen extends ConsumerWidget {
             children: [
               const Icon(Icons.error_outline, size: 48, color: Colors.red),
               const SizedBox(height: 16),
-              Text('${AppLocalizations.of(context)!.error}: $error'),
+              Text('${AppLocalizations.of(context).error}: $error'),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => ref.read(groupListProvider.notifier).refresh(),
-                child: Text(AppLocalizations.of(context)!.retry),
+                child: Text(AppLocalizations.of(context).retry),
               ),
             ],
           ),
@@ -111,7 +110,7 @@ class GroupsScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateGroupDialog(context, ref),
         icon: const Icon(Icons.add),
-        label: Text(AppLocalizations.of(context)!.newGroup),
+        label: Text(AppLocalizations.of(context).newGroup),
       ),
     );
   }
@@ -252,7 +251,7 @@ class _GroupCard extends ConsumerWidget {
                           ),
                         const SizedBox(height: 4),
                         Text(
-                          AppLocalizations.of(context)!.membersAndMode(group.members.length, (group.settings.responseMode ?? GroupResponseMode.natural).name),
+                          AppLocalizations.of(context).membersAndMode(group.members.length, (group.settings.responseMode ?? GroupResponseMode.natural).name),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: AppTheme.textMuted,
                               ),
@@ -267,7 +266,7 @@ class _GroupCard extends ConsumerWidget {
                         onTap: () => _startGroupChat(context, ref),
                         child: ListTile(
                           leading: const Icon(Icons.chat),
-                          title: Text(AppLocalizations.of(context)!.startChat),
+                          title: Text(AppLocalizations.of(context).startChat),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
@@ -276,7 +275,7 @@ class _GroupCard extends ConsumerWidget {
                         onTap: () => context.push('/groups/${group.id}/edit'),
                         child: ListTile(
                           leading: const Icon(Icons.edit),
-                          title: Text(AppLocalizations.of(context)!.edit),
+                          title: Text(AppLocalizations.of(context).edit),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
@@ -285,7 +284,7 @@ class _GroupCard extends ConsumerWidget {
                         onTap: () => _confirmDelete(context, ref),
                         child: ListTile(
                           leading: const Icon(Icons.delete, color: Colors.red),
-                          title: Text(AppLocalizations.of(context)!.delete, style: const TextStyle(color: Colors.red)),
+                          title: Text(AppLocalizations.of(context).delete, style: const TextStyle(color: Colors.red)),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
@@ -311,7 +310,7 @@ class _GroupCard extends ConsumerWidget {
           color: AppTheme.primaryColor.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
         ),
-      child: Center(
+      child: const Center(
         child: Icon(
           Icons.groups,
           size: 28,
@@ -392,7 +391,7 @@ class _GroupCard extends ConsumerWidget {
     // TODO: Create group chat and navigate to it
     // TRACKED: recorded in DiaoYan/18 (phase-6 tech-debt)
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)!.groupChatWillBeImplemented)),
+      SnackBar(content: Text(AppLocalizations.of(context).groupChatWillBeImplemented)),
     );
   }
 
@@ -400,23 +399,23 @@ class _GroupCard extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteGroup),
-        content: Text(AppLocalizations.of(context)!.deleteGroupConfirmation(group.name)),
+        title: Text(AppLocalizations.of(context).deleteGroup),
+        content: Text(AppLocalizations.of(context).deleteGroupConfirmation(group.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               ref.read(groupListProvider.notifier).deleteGroup(group.id);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)!.groupDeleted(group.name))),
+                SnackBar(content: Text(AppLocalizations.of(context).groupDeleted(group.name))),
               );
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(AppLocalizations.of(context)!.delete),
+            child: Text(AppLocalizations.of(context).delete),
           ),
         ],
       ),
@@ -449,7 +448,7 @@ class _CreateGroupDialogState extends ConsumerState<_CreateGroupDialog> {
     final charactersAsync = ref.watch(characterListProvider);
 
     return AlertDialog(
-      title: Text(AppLocalizations.of(context)!.createGroup),
+      title: Text(AppLocalizations.of(context).createGroup),
       content: SizedBox(
         width: 400,
         child: Column(
@@ -459,8 +458,8 @@ class _CreateGroupDialogState extends ConsumerState<_CreateGroupDialog> {
             TextField(
               controller: _nameController,
               decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.groupNameRequired,
-                hintText: AppLocalizations.of(context)!.enterGroupName,
+                labelText: AppLocalizations.of(context).groupNameRequired,
+                hintText: AppLocalizations.of(context).enterGroupName,
                 border: const OutlineInputBorder(),
               ),
             ),
@@ -468,15 +467,15 @@ class _CreateGroupDialogState extends ConsumerState<_CreateGroupDialog> {
             TextField(
               controller: _descriptionController,
               decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.description,
-                hintText: AppLocalizations.of(context)!.optionalDescription,
+                labelText: AppLocalizations.of(context).description,
+                hintText: AppLocalizations.of(context).optionalDescription,
                 border: const OutlineInputBorder(),
               ),
               maxLines: 2,
             ),
             const SizedBox(height: 16),
             Text(
-              AppLocalizations.of(context)!.selectCharacters,
+              AppLocalizations.of(context).selectCharacters,
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
@@ -486,7 +485,7 @@ class _CreateGroupDialogState extends ConsumerState<_CreateGroupDialog> {
                 data: (characters) {
                   if (characters.isEmpty) {
                     return Center(
-                      child: Text(AppLocalizations.of(context)!.noCharactersAvailable),
+                      child: Text(AppLocalizations.of(context).noCharactersAvailable),
                     );
                   }
                   return ListView.builder(
@@ -528,7 +527,7 @@ class _CreateGroupDialogState extends ConsumerState<_CreateGroupDialog> {
               Padding(
                 padding: const EdgeInsets.only(top: DesignTokens.spaceSm),
                 child: Text(
-                  AppLocalizations.of(context)!.charactersSelected(_selectedCharacterIds.length),
+                  AppLocalizations.of(context).charactersSelected(_selectedCharacterIds.length),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppTheme.accentColor,
                       ),
@@ -540,7 +539,7 @@ class _CreateGroupDialogState extends ConsumerState<_CreateGroupDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(AppLocalizations.of(context)!.cancel),
+          child: Text(AppLocalizations.of(context).cancel),
         ),
         ElevatedButton(
           onPressed: _isCreating || _nameController.text.isEmpty || _selectedCharacterIds.length < 2
@@ -552,7 +551,7 @@ class _CreateGroupDialogState extends ConsumerState<_CreateGroupDialog> {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(AppLocalizations.of(context)!.create),
+              : Text(AppLocalizations.of(context).create),
         ),
       ],
     );
@@ -562,7 +561,7 @@ class _CreateGroupDialogState extends ConsumerState<_CreateGroupDialog> {
     if (_nameController.text.isEmpty) return;
     if (_selectedCharacterIds.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.selectAtLeast2Characters)),
+        SnackBar(content: Text(AppLocalizations.of(context).selectAtLeast2Characters)),
       );
       return;
     }
@@ -579,13 +578,13 @@ class _CreateGroupDialogState extends ConsumerState<_CreateGroupDialog> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.groupCreatedSuccessfully)),
+          SnackBar(content: Text(AppLocalizations.of(context).groupCreatedSuccessfully)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.failedToCreateGroup(e.toString()))),
+          SnackBar(content: Text(AppLocalizations.of(context).failedToCreateGroup(e.toString()))),
         );
       }
     } finally {

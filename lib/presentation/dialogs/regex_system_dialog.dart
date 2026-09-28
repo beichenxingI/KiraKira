@@ -230,7 +230,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
     final settings = ref.watch(regexSettingsProvider);
@@ -559,7 +559,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
   /// 右侧空状态:提示 + 全局应用范围设置(原设置页全局开关完整保留)
   Widget _buildEmptyPane(
       BuildContext context, WidgetRef ref, CoreDialogPalette palette) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final settings = ref.watch(regexSettingsProvider);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -658,7 +658,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
   /// 右侧编辑表单(字段与 regex_script_edit_screen 一致)
   Widget _buildEditPane(
       BuildContext context, WidgetRef ref, CoreDialogPalette palette) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -666,7 +666,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── 脚本名(必填) + 启用开关 ──
-          CoreSectionLabel('脚本名（必填）'),
+          const CoreSectionLabel('脚本名（必填）'),
           const SizedBox(height: 6),
           CoreTextField(
             controller: _nameController,
@@ -690,7 +690,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           const SizedBox(height: 12),
 
           // ── 应用范围(多选Chips) ──
-          CoreSectionLabel('应用范围 Apply To'),
+          const CoreSectionLabel('应用范围 Apply To'),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -746,7 +746,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           const SizedBox(height: 16),
 
           // ── 查找正则(单行,代码字体) ──
-          CoreSectionLabel('查找模式 Find Regex'),
+          const CoreSectionLabel('查找模式 Find Regex'),
           const SizedBox(height: 6),
           CupertinoTextField(
             controller: _findController,
@@ -770,7 +770,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           const SizedBox(height: 12),
 
           // ── 替换内容(多行) ──
-          CoreSectionLabel('替换为 Replace With'),
+          const CoreSectionLabel('替换为 Replace With'),
           const SizedBox(height: 6),
           CupertinoTextField(
             controller: _replaceController,
@@ -806,7 +806,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           const SizedBox(height: 16),
 
           // ── 选项开关 ──
-          CoreSectionLabel('选项 Options'),
+          const CoreSectionLabel('选项 Options'),
           const SizedBox(height: 4),
           _Group(
             palette: palette,
@@ -847,7 +847,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           const SizedBox(height: 16),
 
           // ── 高级:深度限制 + 去除字符串 ──
-          CoreSectionLabel('高级 Advanced'),
+          const CoreSectionLabel('高级 Advanced'),
           const SizedBox(height: 6),
           Row(
             children: [
@@ -918,7 +918,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
                 ),
               ),
               IconButton(
-                icon: Icon(CupertinoIcons.add_circled_solid,
+                icon: const Icon(CupertinoIcons.add_circled_solid,
                     color: DesignTokens.primary, size: 22),
                 onPressed: _addTrimString,
               ),
@@ -1012,7 +1012,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
         }).toList(),
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.pop(sheetCtx),
-          child: Text(AppLocalizations.of(context)!.cancel),
+          child: Text(AppLocalizations.of(context).cancel),
         ),
       ),
     );
@@ -1021,7 +1021,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
 
   void _handleMenuAction(
       BuildContext context, WidgetRef ref, String action) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     switch (action) {
       case 'add_presets':
         ref.read(globalRegexScriptsProvider.notifier).addPresets();
@@ -1033,7 +1033,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
 
   void _confirmDelete(
       BuildContext context, WidgetRef ref, RegexScript script) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     showCupertinoDialog<void>(
       context: context,
       builder: (dialogCtx) => CupertinoAlertDialog(
@@ -1066,7 +1066,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
   }
 
   void _confirmClearAll(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     showCupertinoDialog<void>(
       context: context,
       builder: (dialogCtx) => CupertinoAlertDialog(
@@ -1096,7 +1096,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
 
   Future<void> _showImportDialog(
       BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -1124,7 +1124,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
   }
 
   void _showExportSheet(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
     final json = ref.read(globalRegexScriptsProvider.notifier).exportScripts();

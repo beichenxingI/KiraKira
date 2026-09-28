@@ -7,7 +7,6 @@ import 'package:kirakira/domain/services/slash_command/commands/variable_command
 import 'package:kirakira/domain/services/slash_command/slash_ast.dart';
 import 'package:kirakira/domain/services/slash_command/slash_command.dart';
 import 'package:kirakira/domain/services/slash_command/slash_parser.dart';
-import 'package:kirakira/domain/services/slash_command/slash_runner.dart';
 import 'package:kirakira/domain/services/variables_service.dart';
 
 /// [P6-3] 斜杠命令解析器/执行器单测。

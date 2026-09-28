@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -90,7 +90,7 @@ class ExtractedImagesWidget extends StatelessWidget {
                 children: [
                   const Icon(Icons.broken_image, color: AppTheme.textMuted),
                   const SizedBox(height: 8),
-                  Text(
+                  const Text(
                     'Failed to load image',
                     style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
                   ),

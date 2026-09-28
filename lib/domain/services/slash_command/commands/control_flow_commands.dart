@@ -54,8 +54,8 @@ bool evalBooleanRule(String? rule, Object? a, Object? b) {
   }
 
   if (aNum && bNum) {
-    final x = a as num;
-    final y = b as num;
+    final x = a;
+    final y = b;
     switch (r) {
       case 'gt':
         return x > y;
@@ -129,7 +129,7 @@ Future<SlashResult> _runBody(
         initialMacros: macros);
   }
   final text = body?.toString() ?? '';
-  if (text.trim().isEmpty) return SlashResult();
+  if (text.trim().isEmpty) return const SlashResult();
   return SlashRunner.execute(text,
       scope: args.scope, env: args.env, pipeIn: slashPipeString(args.scope.pipe));
 }
@@ -145,7 +145,7 @@ void registerControlFlowSlashCommands() {
       final b = _resolveOperand(args.namedString('right'), args);
       final result = evalBooleanRule(args.namedString('rule'), a, b);
 
-      Object? thenBody = args.unnamed.isNotEmpty ? args.unnamed.first : null;
+      final Object? thenBody = args.unnamed.isNotEmpty ? args.unnamed.first : null;
       // 兼容 ST 官方命名参数 else= 与社区双闭包写法 {:then:} {:else:}
       Object? elseBody = args.named['else'];
       if (args.unnamed.length > 1) {

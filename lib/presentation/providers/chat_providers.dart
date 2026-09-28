@@ -26,7 +26,6 @@ import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:uuid/uuid.dart';
 import 'package:kirakira/presentation/providers/image_gen_providers.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
 import 'package:kirakira/presentation/providers/tts_providers.dart';
@@ -1652,7 +1651,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     List<WorldInfoEntry> worldInfoEntries = [];
     if (character != null) {
       worldInfoEntries =
-          await _findMatchingWorldInfoEntries(character!, chatMessages);
+          await _findMatchingWorldInfoEntries(character, chatMessages);
     }
     // [Chronicle已接管上下文注入，旧RAG检索块已移除]
 
@@ -2811,7 +2810,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         existingSummaries: chat.summaries,
         config: config,
         characterName: character?.name,
-        userName: persona?.name?.isNotEmpty == true ? persona!.name : 'User',
+        userName: persona?.name.isNotEmpty == true ? persona!.name : 'User',
       );
 
       // Add summary to chat
@@ -2860,7 +2859,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         existingSummaries: const [],
         config: summaryConfig,
         characterName: character?.name,
-        userName: persona?.name?.isNotEmpty == true ? persona!.name : 'User',
+        userName: persona?.name.isNotEmpty == true ? persona!.name : 'User',
       );
 
       // 替换（而非追加）：手动总结推倒重来，只保留这一份

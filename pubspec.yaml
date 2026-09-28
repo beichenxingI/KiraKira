@@ -96,6 +96,8 @@ dev_dependencies:
   go_router_builder: ^2.4.1
   flutter_launcher_icons: ^0.14.4
 
+  path_provider_platform_interface: any
+  plugin_platform_interface: any
 flutter:
   uses-material-design: true
   generate: true

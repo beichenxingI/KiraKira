@@ -368,18 +368,6 @@ class LLMService {
     }
     
     _log('───────────────────────────────────────────────────────────────');
-    //   _log('Full Request JSON:');
-    //   try {
-    //     final encoder = const JsonEncoder.withIndent('  ');
-    //     final jsonStr = encoder.convert(data);
-    //     // Split into lines for better readability
-    //     for (final line in jsonStr.split('\n')) {
-    //       _log(line);
-    //     }
-    //   } catch (e) {
-    //     _log('(Could not serialize request: $e)');
-    //   }
-    //   _log('═══════════════════════════════════════════════════════════════');
   }
 
   /// Log response details
@@ -397,7 +385,7 @@ class LLMService {
     _log('Full Response:');
     try {
       if (responseData is Map || responseData is List) {
-        final encoder = const JsonEncoder.withIndent('  ');
+        const encoder = JsonEncoder.withIndent('  ');
         final jsonStr = encoder.convert(responseData);
         for (final line in jsonStr.split('\n')) {
           _log(line);
@@ -485,7 +473,7 @@ class LLMService {
         }
 
         try {
-          final renderedContent = await _ejsRenderer!.render(content);
+          final renderedContent = await _ejsRenderer.render(content);
           _ejsEffectCache.add(hash);
           _log('[EJSD-2r] i=$i role=$role outLen=${renderedContent.length} '
               'outTags=${'<%'.allMatches(renderedContent).length}');

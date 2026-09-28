@@ -1,4 +1,4 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -125,8 +125,8 @@ class _MessageContentWidgetState extends ConsumerState<MessageContentWidget> {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(AppLocalizations.of(context)!.copiedToClipboard),
-        duration: Duration(seconds: 1),
+        content: Text(AppLocalizations.of(context).copiedToClipboard),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -153,7 +153,7 @@ class _MessageContentWidgetState extends ConsumerState<MessageContentWidget> {
             children: [
               const Icon(Icons.copy, size: 20),
               const SizedBox(width: 8),
-              Text(AppLocalizations.of(context)!.copy),
+              Text(AppLocalizations.of(context).copy),
             ],
           ),
         ),
@@ -163,7 +163,7 @@ class _MessageContentWidgetState extends ConsumerState<MessageContentWidget> {
             children: [
               const Icon(Icons.select_all, size: 20),
               const SizedBox(width: 8),
-              Text(AppLocalizations.of(context)!.copyAll),
+              Text(AppLocalizations.of(context).copyAll),
             ],
           ),
         ),
@@ -426,11 +426,11 @@ class _MessageContentWidgetState extends ConsumerState<MessageContentWidget> {
                 errorWidget: (context, url, error) => Container(
                   height: 150,
                   color: AppTheme.darkBackground,
-                  child: Column(
+                  child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.broken_image, color: AppTheme.textMuted),
-                      const SizedBox(height: 4),
+                      Icon(Icons.broken_image, color: AppTheme.textMuted),
+                      SizedBox(height: 4),
                       Text(
                         'Image failed to load',
                         style: TextStyle(
@@ -473,11 +473,11 @@ class _MessageContentWidgetState extends ConsumerState<MessageContentWidget> {
             borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
           ),
           codeblockPadding: const EdgeInsets.all(12),
-          blockquote: TextStyle(
+          blockquote: const TextStyle(
             color: AppTheme.textSecondary,
             fontStyle: FontStyle.italic,
           ),
-          blockquoteDecoration: BoxDecoration(
+          blockquoteDecoration: const BoxDecoration(
             border: Border(
               left: BorderSide(
                 color: AppTheme.primaryColor,
@@ -516,14 +516,14 @@ class _MessageContentWidgetState extends ConsumerState<MessageContentWidget> {
             fontSize: effectiveFontSize * 0.9,
             fontWeight: FontWeight.bold,
           ),
-          a: TextStyle(
+          a: const TextStyle(
             color: AppTheme.primaryColor,
             decoration: TextDecoration.underline,
           ),
           listBullet: TextStyle(
             color: widget.textColor,
           ),
-          horizontalRuleDecoration: BoxDecoration(
+          horizontalRuleDecoration: const BoxDecoration(
             border: Border(
               bottom: BorderSide(
                 color: AppTheme.darkDivider,

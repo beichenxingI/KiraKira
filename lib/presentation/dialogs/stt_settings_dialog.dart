@@ -26,7 +26,7 @@ class _SttSettingsDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
     final settings = ref.watch(sttSettingsProvider);
@@ -348,7 +348,7 @@ class _SttSettingsDialog extends ConsumerWidget {
     STTSettings settings,
     CoreDialogPalette palette,
   ) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController(text: settings.apiKey);
 
     showModalBottomSheet<void>(

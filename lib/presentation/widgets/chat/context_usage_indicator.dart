@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/domain/services/context_usage_service.dart';
@@ -47,7 +47,7 @@ class ContextUsageIndicator extends ConsumerWidget {
             height: 16,
             child: Stack(
               children: [
-                CircularProgressIndicator(
+                const CircularProgressIndicator(
                   value: 1.0,
                   strokeWidth: 2,
                   backgroundColor: AppTheme.darkDivider,

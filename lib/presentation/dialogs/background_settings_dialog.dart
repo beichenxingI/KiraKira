@@ -92,7 +92,7 @@ class _BackgroundSettingsDialogState
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               minSize: 0,
               onPressed: () => _saveBackground(ChatBackground.none),
-              child: Icon(CupertinoIcons.delete,
+              child: const Icon(CupertinoIcons.delete,
                   size: 20, color: DesignTokens.statusError),
             )
           : null,
@@ -249,8 +249,8 @@ class _BackgroundSettingsDialogState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: const [
+          const Row(
+            children: [
               Icon(Icons.format_quote, color: AppTheme.accentColor),
               SizedBox(width: 8),
               Text('对话染色',

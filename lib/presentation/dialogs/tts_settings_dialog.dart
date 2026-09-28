@@ -138,7 +138,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
           ],
         ),
         const SizedBox(height: 20),
-        CoreSectionLabel('音量'),
+        const CoreSectionLabel('音量'),
         const SizedBox(height: 4),
         _Group(
           palette: palette,
@@ -315,7 +315,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CoreSectionLabel('已导入模型'),
+            const CoreSectionLabel('已导入模型'),
             const SizedBox(height: 4),
             if (models.isEmpty)
               _Group(
@@ -716,7 +716,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CoreSectionLabel('引擎信息'),
+        const CoreSectionLabel('引擎信息'),
         const SizedBox(height: 4),
         _Group(
           palette: palette,
@@ -739,7 +739,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
           ),
         ),
         const SizedBox(height: 20),
-        CoreSectionLabel('维护'),
+        const CoreSectionLabel('维护'),
         const SizedBox(height: 4),
         _Group(
           palette: palette,

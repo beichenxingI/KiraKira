@@ -1,5 +1,6 @@
 /// Regex script model for find/replace patterns in messages
 /// Based on SillyTavern's regex extension
+library;
 
 /// Where the regex script should be applied
 enum RegexPlacement {

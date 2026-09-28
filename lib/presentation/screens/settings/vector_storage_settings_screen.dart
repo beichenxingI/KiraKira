@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -26,7 +25,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
         slivers: [
           SliverAppBar.large(
             title: Text(
-              AppLocalizations.of(context)!.vectorStorageRag,
+              AppLocalizations.of(context).vectorStorageRag,
               style: Theme.of(context).textTheme.displayLarge,
             ),
             actions: [
@@ -361,7 +360,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
                         width: double.infinity,
                         child: FilledButton(
                           onPressed: () => Navigator.pop(dialogCtx),
-                          child: Text(AppLocalizations.of(context)!.close),
+                          child: Text(AppLocalizations.of(context).close),
                         ),
                       ),
                     ),

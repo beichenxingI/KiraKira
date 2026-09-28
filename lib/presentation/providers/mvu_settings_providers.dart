@@ -67,7 +67,7 @@ if (jsonStr != null) {
     debugPrint('[MVU存储] 写入: apiUrl=${state.apiUrl}, model=${state.modelName}');
     await _db.into(_db.globalStates).insert(
           GlobalStatesCompanion(
-            key: drift.Value(_settingsKey),
+            key: const drift.Value(_settingsKey),
             value: drift.Value(jsonStr),
             updatedAt: drift.Value(DateTime.now()),
           ),

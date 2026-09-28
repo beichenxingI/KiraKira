@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
-import 'dart:ui';
 import '../../widgets/common/glass_container.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,7 +17,6 @@ import 'package:kirakira/domain/services/regex_service.dart';
 import 'package:kirakira/data/models/regex_script.dart';
 import 'package:kirakira/data/models/chat.dart';
 import 'package:kirakira/presentation/screens/chat/chat_bridge.dart';
-import 'package:kirakira/presentation/screens/chat/chat_bridge_js.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:go_router/go_router.dart';
@@ -28,7 +26,6 @@ import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:uuid/uuid.dart';
 import 'package:kirakira/presentation/providers/chat_export_provider.dart' show chatExportServiceProvider;
 import 'package:kirakira/presentation/providers/prompt_manager_providers.dart';
-import 'package:kirakira/presentation/widgets/chat/context_usage_indicator.dart';
 import '../../providers/quote_color_providers.dart';
 import 'package:kirakira/presentation/providers/llm_configs_provider.dart';
 import 'dart:io';
@@ -40,7 +37,6 @@ import 'package:kirakira/core/logger/logger.dart';
 import 'package:flutter/gestures.dart';
 import 'package:kirakira/domain/services/variables_service.dart';
 import 'package:kirakira/domain/services/slash_command/slash_command.dart';
-import 'package:kirakira/domain/services/slash_command/slash_runner.dart';
 import 'package:kirakira/domain/services/slash_command/commands/basic_commands.dart';
 import 'package:kirakira/domain/services/slash_command/commands/variable_commands.dart';
 import 'package:kirakira/domain/services/slash_command/commands/control_flow_commands.dart';
@@ -58,7 +54,6 @@ import 'package:kirakira/presentation/screens/chat/chat_images_screen.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:kirakira/presentation/utils/export_delivery.dart';
 import 'package:path/path.dart' as p;
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
@@ -440,7 +435,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       scripts.addAll((raw['scripts'] as List).whereType<Map>().map(Map<String, dynamic>.from));
     }
     final enabledScripts = scripts.where((s) => s['enabled'] == true && s['content'] is String).toList();
-    final authKey = 'tavern_scripts_auth_${character?.id ?? 'none'}_${preset?.id ?? 'none'}';
+    final authKey = 'tavern_scripts_auth_${character.id ?? 'none'}_${preset?.id ?? 'none'}';
     var allowed = prefs.getBool(authKey);
     if (enabledScripts.isNotEmpty && allowed == null && mounted) {
       final names = enabledScripts.map((s) => '• ${s['name'] ?? '未命名脚本'}').join('\n');
@@ -1175,14 +1170,16 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         fit: StackFit.expand,
         children: [
           ChatBackgroundWidget(
-        characterId: ref.watch(activeChatProvider).character?.id,
+        // [P-Opt] select 精准订阅 character.id：ActiveChatState 含全量 messages，
+        // 直接 watch 会使整个聊天外壳在每条消息/生成状态变化时全量 rebuild
+        characterId: ref.watch(activeChatProvider.select((s) => s.character?.id)),
         child: Stack(
         children: [
                 // WebView 下移到顶栏下方：顶栏后面只剩壁纸(Flutter层)，
                 // blur 采样不到 WebView，毛玻璃安全、不卡。
                 Positioned.fill(
                   child: Padding(
-                  padding: EdgeInsets.only(
+                  padding: const EdgeInsets.only(
                     // [顶栏] 全出血:WebView 恒定铺满(top:0),消息起始位置由 body
                     // padding-top 决定(桥 topBarInsets 驱动)。顶栏收起时改 CSS 让出
                     // 那 32px,而不是 resize 平台视图 —— 守住 HC 合成性能红线,
@@ -1982,7 +1979,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       showButtons: (labels) async {
         if (!mounted) return null;
         final result = await _showHtmlBottomSheet([
-          for (final label in labels) {'text': '$label', 'value': '$label'},
+          for (final label in labels) {'text': label, 'value': label},
         ]);
         return result;
       },
@@ -2305,7 +2302,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       while (DateTime.now().isBefore(end)) {
         await Future<void>.delayed(pollInterval);
         final pollJs =
-            "(function(){var r=window.__krRes&&window.__krRes[$idNum];"
+            '(function(){var r=window.__krRes&&window.__krRes[$idNum];'
             "if(r){delete window.__krRes[$idNum];return JSON.stringify(r);}return 'null';})()";
         final raw = await controller.evaluateJavascript(source: pollJs);
         final rawStr = raw?.toString();
@@ -2490,11 +2487,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           final recent =
               history.length > n ? history.sublist(history.length - n) : history;
           
-          for (var _h = 0; _h < recent.length; _h++) {
-            final _m = recent[_h];
-            final _sw = _m.swipes;
-            final _si = _m.currentSwipeIndex;
-            final _c = (_sw.isNotEmpty && _si >= 0 && _si < _sw.length) ? _sw[_si] : _m.content;
+          for (var h = 0; h < recent.length; h++) {
+            final m0 = recent[h];
+            final sw0 = m0.swipes;
+            final si = m0.currentSwipeIndex;
+            final c = (sw0.isNotEmpty && si >= 0 && si < sw0.length) ? sw0[si] : m0.content;
           }
 
           for (int i = 0; i < recent.length; i++) {
@@ -2521,7 +2518,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             if (isLast) prefix = '[本轮最新剧情] ';
 
             String content = mContent;
-            if (i > 0) content = '\n\n' + content;
+            if (i > 0) content = '\n\n$content';
 
             messages.add({'role': r, 'content': prefix + content});
           }
@@ -3212,7 +3209,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       final names = books.map((b) => b.name).whereType<String>().toList();
       String? primary;
       for (final b in books) {
-        if (b.enabled && b.entries.isNotEmpty && b.name != null) {
+        if (b.enabled && b.entries.isNotEmpty) {
           primary = b.name;
           break;
         }
@@ -3464,7 +3461,6 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     var primaryDecided = false;
     for (final b in books) {
       final n = b.name;
-      if (n == null) continue;
       if (!primaryDecided && b.enabled && b.entries.isNotEmpty) {
         primary = n;
         primaryDecided = true;
@@ -3626,7 +3622,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final avatarUrl = character?.assets?.avatarUrl;
 
     // [顶栏] 头像 32→24:适配 32dp 矮顶栏
-    Widget fallback = const CircleAvatar(
+    const Widget fallback = CircleAvatar(
       radius: 12,
       backgroundColor: Colors.white12,
       child: Icon(Icons.person, size: 14, color: Colors.white54),
@@ -6541,7 +6537,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
       // 落库：显式传 widget.chatId，不依赖 state.chat
       final chatNotifier = ref.read(activeChatProvider.notifier);
-      final uuid = const Uuid();
+      const uuid = Uuid();
       final importedCount = await chatNotifier.importMessages(
         result.messages.map((m) => m.toChatMessage(widget.chatId, uuid.v4())).toList(),
         chatId: widget.chatId,
@@ -7202,7 +7198,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'docCount=$docCount peeled=$codeBlockPeeled rich=$looksLikeHtml');
     // [WV-2] 各步骤长度轨迹(raw→regex→fenceUnwrap→split→render),定位转义/吞内容步。
     // afterRegex 改打剥壳(<codeBlockMatch>)之前的真实正则产物长度,否则与 afterUnwrap 恒等。
-    print('[WV-2] id=${m.id} raw=${m.content.length} afterRegex=${afterRegexPrePeel} '
+    print('[WV-2] id=${m.id} raw=${m.content.length} afterRegex=$afterRegexPrePeel '
         'afterUnwrap=${processed.length} body=${bodyForRender.length} rendered=${rendered.length}');
     // [WV-3] segs 产出审计：产没产、几段、每段 type+长度；null 时给原因(禁止静默)。
     if (segs != null) {
@@ -7303,7 +7299,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         final flags = <String, dynamic>{
           if (prepend) 'prepend': true,
           if (initial && !firstSent) 'initial': true,
-          if (avatars != null && !firstSent) 'avatars': avatars!,
+          if (avatars != null && !firstSent) 'avatars': avatars,
         };
         _bridge.send(BridgeType.setMessages, {'data': b64, ...flags});
         firstSent = true;
@@ -7441,7 +7437,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     debugPrint('[图片诊断] _pushMessages 开始执行 epoch=$epoch');
     final chatState = ref.read(activeChatProvider);
     final character = chatState.character;
-    var persona = await ref.read(activePersonaProvider.future)
+    final persona = await ref.read(activePersonaProvider.future)
         .timeout(const Duration(seconds: 3))
         .catchError((e) {
       debugPrint('[卡点] activePersona 超时/出错: $e');
@@ -7712,14 +7708,13 @@ class _CircleActionButton extends StatelessWidget {
   final Color background;
   final Color foreground;
   final String tooltip;
-  final VoidCallback? onTap;
+  final VoidCallback? onTap = null;
 
   const _CircleActionButton({
     required this.icon,
     required this.background,
     required this.foreground,
     required this.tooltip,
-    this.onTap,
   });
 
   @override

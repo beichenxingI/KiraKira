@@ -7,7 +7,6 @@ import 'package:kirakira/data/repositories/chronicle_repository.dart';
 import 'package:kirakira/domain/services/chronicle_orchestrator.dart';
 import 'package:kirakira/domain/services/chronicle_recall_service.dart';
 import 'package:kirakira/domain/services/chronicle_summary_service.dart';
-import 'package:kirakira/domain/services/chat_summarization_service.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 

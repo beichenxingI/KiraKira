@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 
 /// [Phase 0.1/0.2] character_book 字典 entries 导入 + scanDepth int 解析 + round-trip。

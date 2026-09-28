@@ -50,10 +50,10 @@ class RegexService {
         final pattern = regexString.substring(1, lastSlash);
         final flags = regexString.substring(lastSlash + 1);
         
-        bool caseSensitive = !flags.contains('i');
-        bool multiLine = flags.contains('m');
-        bool dotAll = flags.contains('s');
-        bool unicode = flags.contains('u');
+        final bool caseSensitive = !flags.contains('i');
+        final bool multiLine = flags.contains('m');
+        final bool dotAll = flags.contains('s');
+        final bool unicode = flags.contains('u');
         
         return RegExp(
           pattern,
@@ -120,7 +120,7 @@ class RegexService {
           final groupName = m.group(1);
           if (groupName != null && match is RegExpMatch) {
             try {
-              final regExpMatch = match as RegExpMatch;
+              final regExpMatch = match;
               final groupValue = regExpMatch.namedGroup(groupName) ?? '';
               return _filterString(groupValue, script.trimStrings);
             } catch (_) {

@@ -229,11 +229,6 @@ class TtsModelService {
      throw Exception('模型包不完整：缺少 .onnx 模型或 tokens.txt');
    }
 
-      // 校验必需文件
-      if (modelPath == null || tokensPath == null) {
-        throw Exception('模型包不完整：缺少 .onnx 模型或 tokens.txt');
-      }
-
       // 推断模型类型：有 voices.bin → kokoro；有 vocoder → matcha；否则 vits
       String modelType = 'vits';
       if (voicesPath != null) {

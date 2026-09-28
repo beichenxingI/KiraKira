@@ -1,6 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
-import 'package:flutter/services.dart';
 import 'package:kirakira/domain/services/markdown_hotkey_service.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 
@@ -398,7 +397,7 @@ class MarkdownToolbar extends StatelessWidget {
           onTap: () => _applyFormat(MarkdownFormat.inlineCode),
         ),
         PopupMenuButton<MarkdownFormat>(
-          icon: Icon(
+          icon: const Icon(
             Icons.more_horiz,
             size: 18,
             color: AppTheme.textMuted,
@@ -433,7 +432,7 @@ class MarkdownToolbar extends StatelessWidget {
             const Spacer(),
             Text(
               format.shortcutHint!,
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppTheme.textMuted,
                 fontSize: 12,
               ),

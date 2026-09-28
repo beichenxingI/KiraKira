@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/widgets/common/kira_glass_bar.dart';
-import 'package:kirakira/presentation/widgets/common/kira_pressable.dart';
 import 'package:go_router/go_router.dart';
 
 class AppShell extends StatelessWidget {

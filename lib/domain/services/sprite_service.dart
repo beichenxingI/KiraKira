@@ -180,7 +180,7 @@ class SpriteService {
         if (['.png', '.jpg', '.jpeg', '.gif', '.webp'].contains(ext)) {
           // Try to determine emotion from filename
           final filename = p.basenameWithoutExtension(entity.path).toLowerCase();
-          String? emotion = _matchEmotionFromFilename(filename);
+          final String? emotion = _matchEmotionFromFilename(filename);
           
           if (emotion != null) {
             // Copy file to sprites directory

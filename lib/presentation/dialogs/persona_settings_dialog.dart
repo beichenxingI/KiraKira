@@ -31,7 +31,7 @@ class _PersonaSettingsDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final personasAsync = ref.watch(personaNotifierProvider);
     final activePersonaAsync = ref.watch(activePersonaProvider);
 
@@ -43,7 +43,7 @@ class _PersonaSettingsDialog extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         minSize: 0,
         onPressed: () => _showCreatePersonaDialog(context, ref),
-        child: Icon(CupertinoIcons.add_circled,
+        child: const Icon(CupertinoIcons.add_circled,
             size: 22, color: DesignTokens.primary),
       ),
       body: personasAsync.when(
@@ -97,7 +97,7 @@ class _PersonaSettingsDialog extends ConsumerWidget {
   }
 
   Widget _buildEmptyState(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 24),
@@ -147,7 +147,7 @@ class _PersonaSettingsDialog extends ConsumerWidget {
 
   void _showDeleteConfirmation(
       BuildContext context, WidgetRef ref, Persona persona) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -306,7 +306,7 @@ class _PersonaCard extends StatelessWidget {
                       value: 'edit',
                       child: ListTile(
                         leading: const Icon(Icons.edit),
-                        title: Text(AppLocalizations.of(context)!.edit),
+                        title: Text(AppLocalizations.of(context).edit),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -316,7 +316,7 @@ class _PersonaCard extends StatelessWidget {
                         child: ListTile(
                           leading: const Icon(Icons.star),
                           title: Text(
-                              AppLocalizations.of(context)!.setAsDefault),
+                              AppLocalizations.of(context).setAsDefault),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
@@ -325,7 +325,7 @@ class _PersonaCard extends StatelessWidget {
                         value: 'delete',
                         child: ListTile(
                           leading: const Icon(Icons.delete, color: Colors.red),
-                          title: Text(AppLocalizations.of(context)!.delete,
+                          title: Text(AppLocalizations.of(context).delete,
                               style: const TextStyle(color: Colors.red)),
                           contentPadding: EdgeInsets.zero,
                         ),

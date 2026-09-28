@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
@@ -483,12 +484,12 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
 
     try {
       final importService = ref.read(importServiceProvider);
-      var character;
+      Character? character;
       try {
         character = await importService.importFromPngBytes(bytes);
       } catch (e) {
         final jsonString = utf8.decode(bytes);
-        character = await importService.importFromJson(jsonDecode(jsonString));
+        character = await importService.importFromJson(jsonString);
       }
 
       final repo = ref.read(characterRepositoryProvider);

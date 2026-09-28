@@ -36,11 +36,11 @@ void main() {
 
     final restored = MvuSettings.fromJson(json);
     expect(restored.webRaw, isNotNull);
-    expect(restored.webRaw!.length, webRaw.length);
-    final internal = restored.webRaw!['internal'] as Map;
+    expect(restored.webRaw.length, webRaw.length);
+    final internal = restored.webRaw['internal'] as Map;
     expect(internal['已提醒自动清理旧变量功能'], true);
     expect(
-        (restored.webRaw!['自动清理变量'] as Map)['启用'], true);
+        (restored.webRaw['自动清理变量'] as Map)['启用'], true);
     // 已知字段不受影响
     expect(restored.updateMode, '随AI输出');
   });

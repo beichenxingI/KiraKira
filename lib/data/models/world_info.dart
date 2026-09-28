@@ -336,12 +336,12 @@ class WorldInfoTimedEffectsManager {
       final state = _entryStates[entryId]!;
       
       // Decrement sticky counter
-      int newStickyCounter = state.stickyCounter > 0 ? state.stickyCounter - 1 : 0;
-      bool newIsSticky = newStickyCounter > 0;
+      final int newStickyCounter = state.stickyCounter > 0 ? state.stickyCounter - 1 : 0;
+      final bool newIsSticky = newStickyCounter > 0;
       
       // Decrement cooldown counter
-      int newCooldownCounter = state.cooldownCounter > 0 ? state.cooldownCounter - 1 : 0;
-      bool newIsOnCooldown = newCooldownCounter > 0;
+      final int newCooldownCounter = state.cooldownCounter > 0 ? state.cooldownCounter - 1 : 0;
+      final bool newIsOnCooldown = newCooldownCounter > 0;
       
       _entryStates[entryId] = state.copyWith(
         stickyCounter: newStickyCounter,

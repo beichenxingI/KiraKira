@@ -137,7 +137,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      extensions: [const GlassThemeExtension()],
+      extensions: const [GlassThemeExtension()],
       // 全局去水波纹:按压手感由 KiraPressable 提供(宪法 §四.1)
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
@@ -267,7 +267,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      extensions: [const GlassThemeExtension()],
+      extensions: const [GlassThemeExtension()],
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
       colorScheme: const ColorScheme.light(

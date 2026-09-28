@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -493,7 +493,7 @@ class WorldInfoRepository {
                   extensionsJson: Value(entry['extensions'] != null ? jsonEncode(entry['extensions']) : '{}'),
                 ),
               );
-            } catch (entryError, entryStack) {
+            } catch (entryError) {
               debugPrint('  ❌ Failed to insert entry ${entry['id']}: $entryError');
               debugPrint('  Entry data: ${jsonEncode(entry)}');
             }

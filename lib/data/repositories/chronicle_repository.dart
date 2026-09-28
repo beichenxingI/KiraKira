@@ -71,7 +71,7 @@ class ChronicleRepository {
     final cutoff = DateTime.now().subtract(const Duration(minutes: 10));
     await (_db.update(_db.summaryTasks)
           ..where((t) => t.status.equals('running') & t.createdAt.isSmallerThanValue(cutoff)))
-        .write(db.SummaryTasksCompanion(status: Value('pending')));
+        .write(const db.SummaryTasksCompanion(status: Value('pending')));
   }
 
   /// 取待处理任务（先进先出）

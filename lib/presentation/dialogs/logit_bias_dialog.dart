@@ -46,7 +46,7 @@ class _LogitBiasDialogState extends ConsumerState<_LogitBiasDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
     final settings = ref.watch(logitBiasSettingsProvider);
@@ -281,7 +281,7 @@ class _LogitBiasDialogState extends ConsumerState<_LogitBiasDialog> {
     LogitBiasService service,
     CoreDialogPalette palette,
   ) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -345,7 +345,7 @@ class _LogitBiasDialogState extends ConsumerState<_LogitBiasDialog> {
     required CoreDialogPalette palette,
     LogitBiasPreset? preset,
   }) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final isJson = mode == _PresetEditMode.importJson;
     final controller = TextEditingController(text: preset?.name ?? '');
 
@@ -517,17 +517,17 @@ class _BiasEntriesList extends StatelessWidget {
             Icon(Icons.tune, size: 40, color: palette.textTertiary),
             const SizedBox(height: 12),
             Text(
-              AppLocalizations.of(context)!.noBiasEntries,
+              AppLocalizations.of(context).noBiasEntries,
               style: TextStyle(fontSize: 14, color: palette.textPrimary),
             ),
             const SizedBox(height: 4),
             Text(
-              AppLocalizations.of(context)!.addEntriesToAdjust,
+              AppLocalizations.of(context).addEntriesToAdjust,
               style: TextStyle(fontSize: 12, color: palette.textSecondary),
             ),
             const SizedBox(height: 12),
             CorePrimaryButton(
-              label: AppLocalizations.of(context)!.addEntry,
+              label: AppLocalizations.of(context).addEntry,
               icon: CupertinoIcons.add,
               onPressed: onAddEntry,
             ),
@@ -558,7 +558,7 @@ class _BiasEntriesList extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         CoreSecondaryButton(
-          label: AppLocalizations.of(context)!.addEntry,
+          label: AppLocalizations.of(context).addEntry,
           icon: CupertinoIcons.add,
           onPressed: onAddEntry,
         ),
@@ -620,7 +620,7 @@ class _BiasEntryCardState extends ConsumerState<_BiasEntryCard> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
     final validation = ref.watch(logitBiasValidationProvider(widget.entry));
@@ -751,7 +751,7 @@ class _BiasEntryCardState extends ConsumerState<_BiasEntryCard> {
               padding: const EdgeInsets.only(left: 48),
               child: Text(
                 validation.errors.first,
-                style: TextStyle(
+                style: const TextStyle(
                     fontSize: 11, color: DesignTokens.statusError),
               ),
             ),
@@ -761,7 +761,7 @@ class _BiasEntryCardState extends ConsumerState<_BiasEntryCard> {
             Row(
               children: [
                 const SizedBox(width: 48),
-                Icon(
+                const Icon(
                   Icons.warning_amber,
                   size: 14,
                   color: DesignTokens.statusWarning,
@@ -770,7 +770,7 @@ class _BiasEntryCardState extends ConsumerState<_BiasEntryCard> {
                 Expanded(
                   child: Text(
                     validation.warnings.first,
-                    style: TextStyle(
+                    style: const TextStyle(
                         fontSize: 11, color: DesignTokens.statusWarning),
                   ),
                 ),

@@ -33,7 +33,7 @@ class _VariablesDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
     final globalVars = ref.watch(globalVariablesProvider);
@@ -57,7 +57,7 @@ class _VariablesDialog extends ConsumerWidget {
               chatId: chatId,
               allowScopeChoice: chatId != null,
             ),
-            child: Icon(CupertinoIcons.add_circled,
+            child: const Icon(CupertinoIcons.add_circled,
                 size: 22, color: DesignTokens.primary),
           ),
           // 清除菜单
@@ -189,7 +189,7 @@ class _VariablesDialog extends ConsumerWidget {
           ],
 
           // ── 测试 ──
-          CoreSectionLabel('测试'),
+          const CoreSectionLabel('测试'),
           const SizedBox(height: 8),
           _VariableTestWidget(palette: palette, chatId: chatId),
         ],
@@ -379,7 +379,7 @@ class _VariableTile extends StatelessWidget {
             padding: const EdgeInsets.all(4),
             minSize: 0,
             onPressed: onEdit,
-            child: Icon(CupertinoIcons.pencil,
+            child: const Icon(CupertinoIcons.pencil,
                 size: 16, color: DesignTokens.primary),
           ),
           CupertinoButton(
@@ -655,7 +655,7 @@ class _VariableEditDialogState extends ConsumerState<_VariableEditDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── 变量信息 ──
-          CoreSectionLabel('变量信息'),
+          const CoreSectionLabel('变量信息'),
           const SizedBox(height: 8),
           CoreTextField(
             controller: _nameController,
@@ -675,7 +675,7 @@ class _VariableEditDialogState extends ConsumerState<_VariableEditDialog> {
 
           // ── 作用域(仅添加模式且在有 chatId 时可选) ──
           if (!_isEditing && widget.allowScopeChoice) ...[
-            CoreSectionLabel('作用域'),
+            const CoreSectionLabel('作用域'),
             const SizedBox(height: 4),
             CoreTile(
               title: '全局',

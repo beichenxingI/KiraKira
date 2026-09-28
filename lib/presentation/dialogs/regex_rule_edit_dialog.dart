@@ -345,7 +345,9 @@ class _RegexRuleEditDialogState extends ConsumerState<_RegexRuleEditDialog> {
                                       placeholder: '输入字符串',
                                     );
                                     if (v == null ||
-                                        v.trim().isEmpty) return;
+                                        v.trim().isEmpty) {
+                                      return;
+                                    }
                                     setState(() =>
                                         _trimStrings.add(v.trim()));
                                   },
@@ -360,14 +362,14 @@ class _RegexRuleEditDialogState extends ConsumerState<_RegexRuleEditDialog> {
                                       borderRadius: BorderRadius.circular(
                                           DesignTokens.radiusChip),
                                     ),
-                                    child: Row(
+                                    child: const Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(Icons.add,
                                             size: 14,
                                             color:
                                                 KiraDialogTheme.regex),
-                                        const SizedBox(width: 4),
+                                        SizedBox(width: 4),
                                         Text('添加',
                                             style: TextStyle(
                                                 color:
@@ -650,7 +652,7 @@ class _PlacementChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (selected)
-              Icon(Icons.check, size: 14, color: KiraDialogTheme.primary),
+              const Icon(Icons.check, size: 14, color: KiraDialogTheme.primary),
             if (selected) const SizedBox(width: 4),
             Text(label,
                 style: TextStyle(

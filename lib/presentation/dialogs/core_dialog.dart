@@ -406,7 +406,7 @@ class CoreSliderRow extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final p = CoreDialogPalette(isDark: isDark);
     final theme = Theme.of(context);
-    final color = DesignTokens.primary;
+    const color = DesignTokens.primary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -420,7 +420,7 @@ class CoreSliderRow extends StatelessWidget {
             ),
             Text(
               display,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: color,
@@ -531,7 +531,7 @@ class CorePrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget button = CupertinoButton(
+    final Widget button = CupertinoButton(
       padding: const EdgeInsets.symmetric(vertical: 12),
       color: DesignTokens.primary,
       borderRadius: BorderRadius.circular(10),
@@ -579,7 +579,7 @@ class CoreSecondaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final p = CoreDialogPalette(isDark: isDark);
-    Widget button = CupertinoButton(
+    final Widget button = CupertinoButton(
       padding: const EdgeInsets.symmetric(vertical: 12),
       color: p.fill,
       borderRadius: BorderRadius.circular(10),
@@ -629,7 +629,7 @@ class CoreDangerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget button = CupertinoButton(
+    final Widget button = CupertinoButton(
       padding: const EdgeInsets.symmetric(vertical: 12),
       color: const Color(0xFFF44336),
       borderRadius: BorderRadius.circular(10),

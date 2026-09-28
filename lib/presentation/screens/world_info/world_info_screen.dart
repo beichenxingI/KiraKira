@@ -57,12 +57,12 @@ class WorldInfoScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.file_download),
-            tooltip: AppLocalizations.of(context)!.import,
+            tooltip: AppLocalizations.of(context).import,
             onPressed: () => _importWorldInfo(context, ref),
           ),
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)!.createLorebook,
+            tooltip: AppLocalizations.of(context).createLorebook,
             onPressed: () => _showCreateDialog(context, ref),
           ),
         ],
@@ -79,7 +79,7 @@ class WorldInfoScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => ref.read(worldInfoNotifierProvider.notifier).refresh(),
-                child: Text(AppLocalizations.of(context)!.retry),
+                child: Text(AppLocalizations.of(context).retry),
               ),
             ],
           ),
@@ -124,7 +124,7 @@ class WorldInfoScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            AppLocalizations.of(context)!.noLorebooksYet,
+            AppLocalizations.of(context).noLorebooksYet,
             style: const TextStyle(
               fontSize: 18,
               color: AppTheme.textSecondary,
@@ -134,7 +134,7 @@ class WorldInfoScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              AppLocalizations.of(context)!.lorebooksInjectContext,
+              AppLocalizations.of(context).lorebooksInjectContext,
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppTheme.textMuted),
             ),
@@ -143,7 +143,7 @@ class WorldInfoScreen extends ConsumerWidget {
           ElevatedButton.icon(
             onPressed: () => _showCreateDialog(context, ref),
             icon: const Icon(Icons.add),
-            label: Text(AppLocalizations.of(context)!.createLorebook),
+            label: Text(AppLocalizations.of(context).createLorebook),
           ),
         ],
       ),
@@ -155,7 +155,7 @@ class WorldInfoScreen extends ConsumerWidget {
       context: context,
       builder: (context) => _WorldInfoDialog(
         ref: ref,
-        title: AppLocalizations.of(context)!.createLorebook,
+        title: AppLocalizations.of(context).createLorebook,
         initialCharacterId: characterId,
         initialIsGlobal: isGlobal,
         lockToGlobal: isGlobal,
@@ -177,7 +177,7 @@ class WorldInfoScreen extends ConsumerWidget {
       context: context,
       builder: (context) => _WorldInfoDialog(
         ref: ref,
-        title: AppLocalizations.of(context)!.editGroup,
+        title: AppLocalizations.of(context).editGroup,
         initialName: worldInfo.name,
         initialDescription: worldInfo.description,
         initialIsGlobal: worldInfo.isGlobal,
@@ -201,12 +201,12 @@ class WorldInfoScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteGroup),
-        content: Text(AppLocalizations.of(context)!.deleteLorebookConfirmation(worldInfo.name)),
+        title: Text(AppLocalizations.of(context).deleteGroup),
+        content: Text(AppLocalizations.of(context).deleteLorebookConfirmation(worldInfo.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           TextButton(
             onPressed: () {
@@ -214,7 +214,7 @@ class WorldInfoScreen extends ConsumerWidget {
               ref.read(worldInfoNotifierProvider.notifier).deleteWorldInfo(worldInfo.id);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(AppLocalizations.of(context)!.delete),
+            child: Text(AppLocalizations.of(context).delete),
           ),
         ],
       ),
@@ -304,14 +304,14 @@ class WorldInfoScreen extends ConsumerWidget {
       
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n!.importedAndApplied(name))),
+          SnackBar(content: Text(l10n.importedAndApplied(name))),
         );
       }
     } catch (e, st) {
       _log('Import failed', error: e.toString(), stackTrace: st);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)!.importFailed(e.toString())}')),
+          SnackBar(content: Text(AppLocalizations.of(context).importFailed(e.toString()))),
         );
       }
     }
@@ -477,7 +477,7 @@ class _WorldInfoCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              AppLocalizations.of(context)!.globalScope,
+                              AppLocalizations.of(context).globalScope,
                               style: const TextStyle(
                                 fontSize: 10,
                                 color: AppTheme.accentColor,
@@ -489,7 +489,7 @@ class _WorldInfoCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      AppLocalizations.of(context)!.entriesCount(worldInfo.entries.length),
+                      AppLocalizations.of(context).entriesCount(worldInfo.entries.length),
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 14,
@@ -536,7 +536,7 @@ class _WorldInfoCard extends StatelessWidget {
                     value: 'edit',
                     child: ListTile(
                       leading: const Icon(Icons.edit),
-                      title: Text(AppLocalizations.of(context)!.edit),
+                      title: Text(AppLocalizations.of(context).edit),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -544,7 +544,7 @@ class _WorldInfoCard extends StatelessWidget {
                     value: 'export',
                     child: ListTile(
                       leading: const Icon(Icons.file_upload),
-                      title: Text(AppLocalizations.of(context)!.export),
+                      title: Text(AppLocalizations.of(context).export),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -552,7 +552,7 @@ class _WorldInfoCard extends StatelessWidget {
                     value: 'delete',
                     child: ListTile(
                       leading: const Icon(Icons.delete, color: Colors.red),
-                      title: Text(AppLocalizations.of(context)!.delete, style: const TextStyle(color: Colors.red)),
+                      title: Text(AppLocalizations.of(context).delete, style: const TextStyle(color: Colors.red)),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -584,7 +584,7 @@ class _WorldInfoCard extends StatelessWidget {
       if (context.mounted) {
         final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n!.exportFailed(e.toString()))),
+          SnackBar(content: Text(l10n.exportFailed(e.toString()))),
         );
       }
     }
@@ -657,7 +657,7 @@ class _WorldInfoDialogState extends State<_WorldInfoDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     
     // Get character list from provider
     final charactersAsync = widget.ref.watch(characterListProvider);
@@ -818,7 +818,7 @@ class _WorldInfoDialogState extends State<_WorldInfoDialog> {
   }
 
   Future<void> _save() async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -905,7 +905,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)!.addEntry,
+            tooltip: AppLocalizations.of(context).addEntry,
             onPressed: () => _showEntryDialog(context, ref, null),
           ),
         ],
@@ -949,7 +949,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
           ),
           const SizedBox(height: 16),
           Text(
-            AppLocalizations.of(context)!.noEntriesYet,
+            AppLocalizations.of(context).noEntriesYet,
             style: TextStyle(
               fontSize: 18,
               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
@@ -957,14 +957,14 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            AppLocalizations.of(context)!.addEntriesWithKeywords,
+            AppLocalizations.of(context).addEntriesWithKeywords,
             style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () => _showEntryDialog(context, ref, null),
             icon: const Icon(Icons.add),
-            label: Text(AppLocalizations.of(context)!.addEntry),
+            label: Text(AppLocalizations.of(context).addEntry),
           ),
         ],
       ),
@@ -986,12 +986,12 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteEntry),
-        content: Text(AppLocalizations.of(context)!.deleteEntryConfirmation(entry.keys.join(", "))),
+        title: Text(AppLocalizations.of(context).deleteEntry),
+        content: Text(AppLocalizations.of(context).deleteEntryConfirmation(entry.keys.join(', '))),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           TextButton(
             onPressed: () {
@@ -999,7 +999,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
               ref.read(worldInfoNotifierProvider.notifier).deleteEntry(entry.id);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(AppLocalizations.of(context)!.delete),
+            child: Text(AppLocalizations.of(context).delete),
           ),
         ],
       ),
@@ -1030,7 +1030,7 @@ class _WorldInfoEntryCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${l10n!.copiedToClipboard}: ${entry.keys.join(", ")}'),
+        content: Text('${l10n.copiedToClipboard}: ${entry.keys.join(", ")}'),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -1038,7 +1038,7 @@ class _WorldInfoEntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: Theme.of(context).cardColor,
@@ -1135,7 +1135,7 @@ class _WorldInfoEntryCard extends StatelessWidget {
 /// Dialog for creating/editing World Info Entry
 class _WorldInfoEntryDialog extends StatefulWidget {
   final String title;
-  final WorldInfoEntry? entry;
+  final WorldInfoEntry? entry = null;
   final Future<void> Function(
     List<String> keys,
     String content,
@@ -1149,7 +1149,6 @@ class _WorldInfoEntryDialog extends StatefulWidget {
 
   const _WorldInfoEntryDialog({
     required this.title,
-    this.entry,
     required this.onSave,
   });
 
@@ -1203,7 +1202,7 @@ class _WorldInfoEntryDialogState extends State<_WorldInfoEntryDialog> {
   }
 
   String _getPositionLabel(BuildContext context, WorldInfoPosition position) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     switch (position) {
       case WorldInfoPosition.before:
         return l10n.beforeCharacterDefinition;  // ↑Char
@@ -1226,7 +1225,7 @@ class _WorldInfoEntryDialogState extends State<_WorldInfoEntryDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
       title: Text(widget.title),
       content: SizedBox(
@@ -1348,7 +1347,7 @@ class _WorldInfoEntryDialogState extends State<_WorldInfoEntryDialog> {
   }
 
   Future<void> _save() async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final keys = _keysController.text
         .split(',')
         .map((k) => k.trim())

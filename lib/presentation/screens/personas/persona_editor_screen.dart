@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +14,6 @@ import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
-import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/dialogs/core_dialog.dart';
 
 /// Enhanced Persona Editor Screen with all new fields
@@ -174,19 +173,19 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
                   .withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
             ),
-            child: Column(
+            child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  children: const [
+                  children: [
                     Icon(Icons.info_outline, size: 18),
                     SizedBox(width: 6),
                     Text('人设生效规则',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
-                const SizedBox(height: 8),
-                const Text(
+                SizedBox(height: 8),
+                Text(
                   '进入聊天时，按以下优先级决定使用哪个人设：\n'
                   '1. 你在聊天里手动选择的人设（最优先）\n'
                   '2. 当前角色卡在"绑定角色卡"里指定的人设\n'

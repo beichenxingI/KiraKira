@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,7 +7,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kirakira/data/models/character.dart';
-import 'package:kirakira/data/models/world_info.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/domain/services/url_import_service.dart';
@@ -15,8 +14,6 @@ import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/screens/chat/image_picker_sheet.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 /// Import service provider
 final importServiceProvider = Provider<ImportService>((ref) {
@@ -330,7 +327,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   @override
   Widget build(BuildContext context) {
     final importState = ref.watch(importStateProvider);
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -375,7 +372,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     final importState = ref.read(importStateProvider);
     if (!importState.hasResults) return;
 
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     int successCount = 0;
     int errorCount = 0;
 
@@ -551,7 +548,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                         ElevatedButton.icon(
                           onPressed: widget.onPickFile,
                           icon: const Icon(Icons.folder_open),
-                          label: Text(AppLocalizations.of(context)!.browseFiles),
+                          label: Text(AppLocalizations.of(context).browseFiles),
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(200, 48),
                           ),
@@ -560,7 +557,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                         OutlinedButton.icon(
                           onPressed: widget.onPickFromGallery,
                           icon: const Icon(Icons.photo_library),
-                          label: Text(AppLocalizations.of(context)!.chooseFromGallery),
+                          label: Text(AppLocalizations.of(context).chooseFromGallery),
                           style: OutlinedButton.styleFrom(
                             minimumSize: const Size(200, 48),
                           ),
@@ -569,7 +566,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                         ElevatedButton.icon(
                           onPressed: widget.onPickFile,
                           icon: const Icon(Icons.folder_open),
-                          label: Text(AppLocalizations.of(context)!.browseFiles),
+                          label: Text(AppLocalizations.of(context).browseFiles),
                         ),
                     ],
                   ],
@@ -650,11 +647,11 @@ class _FilePickerViewState extends State<_FilePickerView> {
                             ),
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
+                      const Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         alignment: WrapAlignment.center,
-                        children: const [
+                        children: [
                           _CommunityChip(name: 'KiraKira', url: 'https://KiraKira.com', isPrimary: true),
                           _CommunityChip(name: 'AICharacterCards', url: 'https://aicharactercards.com'),
                           _CommunityChip(name: 'JanitorAI', url: 'https://janitorai.com'),
@@ -710,7 +707,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          AppLocalizations.of(context)!.supportedFormats,
+          AppLocalizations.of(context).supportedFormats,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: Theme.of(context).colorScheme.tertiary,
               ),
@@ -718,20 +715,20 @@ class _FilePickerViewState extends State<_FilePickerView> {
         const SizedBox(height: 12),
         _FormatTile(
           icon: Icons.image,
-          title: AppLocalizations.of(context)!.pngCharacterCard,
-          description: AppLocalizations.of(context)!.characterDataEmbeddedInImage,
+          title: AppLocalizations.of(context).pngCharacterCard,
+          description: AppLocalizations.of(context).characterDataEmbeddedInImage,
         ),
         const SizedBox(height: 8),
         _FormatTile(
           icon: Icons.archive,
-          title: AppLocalizations.of(context)!.charxArchive,
-          description: AppLocalizations.of(context)!.zipArchiveWithCharacterData,
+          title: AppLocalizations.of(context).charxArchive,
+          description: AppLocalizations.of(context).zipArchiveWithCharacterData,
         ),
         const SizedBox(height: 8),
         _FormatTile(
           icon: Icons.code,
-          title: AppLocalizations.of(context)!.json,
-          description: AppLocalizations.of(context)!.plainCharacterCardJson,
+          title: AppLocalizations.of(context).json,
+          description: AppLocalizations.of(context).plainCharacterCardJson,
         ),
         const SizedBox(height: 8),
         const _FormatTile(
@@ -840,7 +837,7 @@ class _BatchImportResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final successCount = results.where((r) => r.character != null).length;
     final errorCount = results.where((r) => r.error != null).length;
     final processingCount = results.where((r) => r.isProcessing).length;
@@ -1157,7 +1154,7 @@ class _CharacterPreview extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      AppLocalizations.of(context)!.tags,
+                      AppLocalizations.of(context).tags,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             color: Theme.of(context).colorScheme.tertiary,
                           ),
@@ -1222,7 +1219,7 @@ class _CharacterPreview extends StatelessWidget {
                         Icon(Icons.format_list_bulleted, size: 20, color: Theme.of(context).colorScheme.tertiary),
                         const SizedBox(width: 8),
                         Text(
-                          AppLocalizations.of(context)!.alternateGreetingsCount(character.alternateGreetings.length),
+                          AppLocalizations.of(context).alternateGreetingsCount(character.alternateGreetings.length),
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 color: Theme.of(context).colorScheme.tertiary,
                               ),
@@ -1258,7 +1255,7 @@ class _CharacterPreview extends StatelessWidget {
                         Icon(Icons.auto_stories, size: 20, color: Theme.of(context).colorScheme.tertiary),
                         const SizedBox(width: 8),
                         Text(
-                          AppLocalizations.of(context)!.embeddedLorebookEntries(character.characterBook!.entries.length),
+                          AppLocalizations.of(context).embeddedLorebookEntries(character.characterBook!.entries.length),
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 color: Theme.of(context).colorScheme.tertiary,
                               ),
@@ -1300,7 +1297,7 @@ class _CharacterPreview extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: onImport,
             icon: const Icon(Icons.download),
-            label: Text(AppLocalizations.of(context)!.importCharacter),
+            label: Text(AppLocalizations.of(context).importCharacter),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.all(16),
             ),

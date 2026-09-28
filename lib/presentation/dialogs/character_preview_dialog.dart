@@ -436,8 +436,7 @@ class _CharacterPreviewDialog extends ConsumerWidget {
         mode: mode,
       );
       if (savedPath != null &&
-          mode == ExportDeliveryMode.save &&
-          messenger != null) {
+          mode == ExportDeliveryMode.save) {
         messenger.showSnackBar(SnackBar(content: Text('已保存到: $savedPath')));
       }
     } catch (e) {

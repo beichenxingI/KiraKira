@@ -81,7 +81,7 @@ List<String> _toLines(String text) =>
     text.split('\n').map((l) => l.endsWith('\r') ? l.substring(0, l.length - 1) : l).toList();
 
 void _write(String path, String text, bool hasBOM) {
-  File(path).writeAsStringSync(hasBOM ? '\uFEFF$text' : text, encoding: Utf8Codec());
+  File(path).writeAsStringSync(hasBOM ? '\uFEFF$text' : text, encoding: const Utf8Codec());
 }
 
 void _surgeryStage() {
@@ -136,7 +136,7 @@ void _surgeryBridge() {
   if (idx < 0) throw 'bridge anchor not found';
   // 找到该行行首,在其上方插一行注释
   final lineStart = text.lastIndexOf('\n', idx - 1) + 1;
-  final out = text.substring(0, lineStart) + bridgeComment + '\n' + text.substring(lineStart);
+  final out = '${text.substring(0, lineStart)}$bridgeComment\n${text.substring(lineStart)}';
   _write(bridgePath, out, hasBOM);
   stdout.writeln('[bridge] comment inserted, eol=${eol == '\r\n' ? 'CRLF' : 'LF'}, BOM=$hasBOM');
 }

@@ -25,17 +25,17 @@ class ImageGenSettingsScreen extends ConsumerWidget {
         slivers: [
           SliverAppBar.large(
             title: Text(
-              AppLocalizations.of(context)!.imageGeneration,
+              AppLocalizations.of(context).imageGeneration,
               style: Theme.of(context).textTheme.displayLarge,
             ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.restore),
-                tooltip: AppLocalizations.of(context)!.resetToDefaults,
+                tooltip: AppLocalizations.of(context).resetToDefaults,
                 onPressed: () {
                   ref.read(imageGenSettingsProvider.notifier).reset();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(AppLocalizations.of(context)!.settingsResetToDefaults)),
+                    SnackBar(content: Text(AppLocalizations.of(context).settingsResetToDefaults)),
                   );
                 },
               ),
@@ -46,11 +46,11 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           // Enable/Disable toggle
           _buildSection(
             context: context,
-            title: AppLocalizations.of(context)!.general,
+            title: AppLocalizations.of(context).general,
             children: [
               KiraSwitchTile(
-                  title: AppLocalizations.of(context)!.enableImageGeneration,
-                  subtitle: AppLocalizations.of(context)!.generateImagesUsingAi,
+                  title: AppLocalizations.of(context).enableImageGeneration,
+                  subtitle: AppLocalizations.of(context).generateImagesUsingAi,
                   value: settings.enabled,
                 onChanged: (value) {
                   ref.read(imageGenSettingsProvider.notifier).setEnabled(value);
@@ -280,13 +280,13 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                   settings.provider == ImageGenProvider.localDream)
                 ListTile(
                   title: Text(settings.provider.requiresApiKey
-                      ? AppLocalizations.of(context)!.apiKey
-                      : AppLocalizations.of(context)!.apiEndpoint),
+                      ? AppLocalizations.of(context).apiKey
+                      : AppLocalizations.of(context).apiEndpoint),
                   subtitle: Text(
                     settings.provider.requiresApiKey
                         ? (settings.apiKey?.isNotEmpty == true
                             ? '••••${settings.apiKey!.substring(settings.apiKey!.length - 4)}'
-                            : AppLocalizations.of(context)!.notConfigured)
+                            : AppLocalizations.of(context).notConfigured)
                         : (settings.apiEndpoint?.isNotEmpty == true
                             ? settings.apiEndpoint!
                             : settings.provider.defaultEndpoint),
@@ -310,7 +310,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           // Default parameters
           _buildSection(
             context: context,
-            title: AppLocalizations.of(context)!.defaultParameters,
+            title: AppLocalizations.of(context).defaultParameters,
             children: [
               // 分辨率: 快捷按钮 + 自定义输入
               Padding(
@@ -402,7 +402,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
 
               // Steps slider
               ListTile(
-                title: Text(AppLocalizations.of(context)!.steps),
+                title: Text(AppLocalizations.of(context).steps),
                 subtitle: Slider(
                   value: settings.defaultSteps.toDouble(),
                   min: 1,
@@ -423,7 +423,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
 
               // CFG Scale slider
               ListTile(
-                title: Text(AppLocalizations.of(context)!.cfgScale),
+                title: Text(AppLocalizations.of(context).cfgScale),
                 subtitle: Slider(
                   value: settings.defaultCfgScale,
                   min: 1.0,
@@ -444,7 +444,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
 
               // Sampler dropdown
               ListTile(
-                title: Text(AppLocalizations.of(context)!.sampler),
+                title: Text(AppLocalizations.of(context).sampler),
                 subtitle: Text(
                   ImageGenSampler.samplers
                       .firstWhere(
@@ -544,11 +544,11 @@ class ImageGenSettingsScreen extends ConsumerWidget {
               context: context,
               title: 'Latent.moe 说明',
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                const Padding(
+                  padding: EdgeInsets.all(DesignTokens.spaceMd),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text('• 异步队列生图：提交 → 排队 → 轮询 → 拉取图片（可能需等待数分钟）',
                           style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
                       SizedBox(height: 6),
@@ -623,7 +623,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           // Test section
           _buildSection(
             context: context,
-            title: AppLocalizations.of(context)!.test,
+            title: AppLocalizations.of(context).test,
             children: [
               _ImageGenTestWidget(enabled: settings.enabled),
             ],
@@ -634,29 +634,29 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           // Info section
           _buildSection(
             context: context,
-            title: AppLocalizations.of(context)!.information,
+            title: AppLocalizations.of(context).information,
             children: [
               ListTile(
                 leading: const Icon(Icons.info_outline, color: AppTheme.accentColor),
-                title: Text(AppLocalizations.of(context)!.aboutImageGeneration),
-                subtitle: Text(AppLocalizations.of(context)!.aboutImageGenerationDescription),
+                title: Text(AppLocalizations.of(context).aboutImageGeneration),
+                subtitle: Text(AppLocalizations.of(context).aboutImageGenerationDescription),
               ),
               ListTile(
                 leading: const Icon(Icons.terminal, color: AppTheme.textMuted),
-                title: Text(AppLocalizations.of(context)!.imagineCommand),
-                subtitle: Text(AppLocalizations.of(context)!.imagineCommandUsage),
+                title: Text(AppLocalizations.of(context).imagineCommand),
+                subtitle: Text(AppLocalizations.of(context).imagineCommandUsage),
               ),
               if (settings.provider == ImageGenProvider.automatic1111)
                 ListTile(
                   leading: const Icon(Icons.computer, color: AppTheme.textMuted),
-                  title: Text(AppLocalizations.of(context)!.stableDiffusion),
-                  subtitle: Text(AppLocalizations.of(context)!.stableDiffusionDescription),
+                  title: Text(AppLocalizations.of(context).stableDiffusion),
+                  subtitle: Text(AppLocalizations.of(context).stableDiffusionDescription),
                 ),
               if (settings.provider == ImageGenProvider.openai)
                 ListTile(
                   leading: const Icon(Icons.cloud, color: AppTheme.textMuted),
-                  title: Text(AppLocalizations.of(context)!.dalle),
-                  subtitle: Text(AppLocalizations.of(context)!.dalleDescription),
+                  title: Text(AppLocalizations.of(context).dalle),
+                  subtitle: Text(AppLocalizations.of(context).dalleDescription),
                 ),
               if (settings.provider == ImageGenProvider.openaiChat)
                 const ListTile(
@@ -1021,7 +1021,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
         // 标题 + 刷新按钮
         Row(
           children: [
-            Text(AppLocalizations.of(context)!.model,
+            Text(AppLocalizations.of(context).model,
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             const Spacer(),
             IconButton(
@@ -1097,7 +1097,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 8),
             child: Text('该 API 返回了 ${fetchState.models.length} 个模型,但未识别出生图模型',
-                style: TextStyle(color: DesignTokens.statusWarning, fontSize: 12)),
+                style: const TextStyle(color: DesignTokens.statusWarning, fontSize: 12)),
           ),
         ],
 
@@ -1106,7 +1106,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 8),
             child: Text('模型列表拉取失败: ${fetchState.errorMessage}',
-                style: TextStyle(color: DesignTokens.statusWarning, fontSize: 12)),
+                style: const TextStyle(color: DesignTokens.statusWarning, fontSize: 12)),
           ),
         ],
 
@@ -1155,7 +1155,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
 
   void _showApiKeyDialog(BuildContext context, WidgetRef ref, ImageGenSettings settings) {
     final controller = TextEditingController(text: settings.apiKey);
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
 
     // D-T2 规则 2:单字段输入 → 底部 Sheet(键盘顶起)
     showModalBottomSheet<void>(
@@ -1218,7 +1218,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
 
   void _showEndpointDialog(BuildContext context, WidgetRef ref, ImageGenSettings settings) {
     final controller = TextEditingController(text: settings.apiEndpoint);
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
 
     // D-T2 规则 2:单字段输入 → 底部 Sheet
     showModalBottomSheet<void>(
@@ -1330,8 +1330,8 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
           TextField(
             controller: _controller,
             decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.prompt,
-              hintText: AppLocalizations.of(context)!.enterPromptToGenerate,
+              labelText: AppLocalizations.of(context).prompt,
+              hintText: AppLocalizations.of(context).enterPromptToGenerate,
               border: const OutlineInputBorder(),
             ),
             maxLines: 3,
@@ -1368,7 +1368,7 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.image),
-            label: Text(genState.isGenerating ? AppLocalizations.of(context)!.generating : AppLocalizations.of(context)!.generate),
+            label: Text(genState.isGenerating ? AppLocalizations.of(context).generating : AppLocalizations.of(context).generate),
           ),
           
           // Progress bar
@@ -1401,7 +1401,7 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
                       const Icon(Icons.check, size: 16, color: AppTheme.accentColor),
                       const SizedBox(width: 8),
                       Text(
-                        AppLocalizations.of(context)!.generationComplete,
+                        AppLocalizations.of(context).generationComplete,
                         style: const TextStyle(
                           fontSize: DesignTokens.fontSizeXs,
                           color: AppTheme.accentColor,
@@ -1446,10 +1446,10 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
                                   imageData,
                                   fit: BoxFit.contain,
                                   errorBuilder: (context, error, stackTrace) {
-                                    return Container(
+                                    return const SizedBox(
                                       width: 200,
                                       height: 200,
-                                      child: const Center(
+                                      child: Center(
                                         child: Icon(Icons.broken_image, color: AppTheme.textMuted),
                                       ),
                                     );

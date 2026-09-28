@@ -22,11 +22,11 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.tags),
+        title: Text(AppLocalizations.of(context).tags),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)!.createTag,
+            tooltip: AppLocalizations.of(context).createTag,
             onPressed: () => _showCreateTagDialog(context),
           ),
         ],
@@ -43,7 +43,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => ref.read(tagNotifierProvider.notifier).refresh(),
-                child: Text(AppLocalizations.of(context)!.retry),
+                child: Text(AppLocalizations.of(context).retry),
               ),
             ],
           ),
@@ -79,14 +79,14 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.label_outline,
             size: 64,
             color: AppTheme.textMuted,
           ),
           const SizedBox(height: 16),
           Text(
-            AppLocalizations.of(context)!.noTagsYet,
+            AppLocalizations.of(context).noTagsYet,
             style: const TextStyle(
               fontSize: DesignTokens.fontSizeXl, fontWeight: DesignTokens.weightSemibold,
               color: AppTheme.textSecondary,
@@ -94,7 +94,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            AppLocalizations.of(context)!.createTagsToOrganize,
+            AppLocalizations.of(context).createTagsToOrganize,
             style: const TextStyle(
               color: AppTheme.textMuted,
             ),
@@ -103,7 +103,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           ElevatedButton.icon(
             onPressed: () => _showCreateTagDialog(context),
             icon: const Icon(Icons.add),
-            label: Text(AppLocalizations.of(context)!.createTag),
+            label: Text(AppLocalizations.of(context).createTag),
           ),
         ],
       ),
@@ -143,12 +143,12 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteTag),
-        content: Text(AppLocalizations.of(context)!.deleteTagConfirmation(tag.name)),
+        title: Text(AppLocalizations.of(context).deleteTag),
+        content: Text(AppLocalizations.of(context).deleteTagConfirmation(tag.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -156,7 +156,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
               await ref.read(tagNotifierProvider.notifier).deleteTag(tag.id);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(AppLocalizations.of(context)!.delete),
+            child: Text(AppLocalizations.of(context).delete),
           ),
         ],
       ),
@@ -204,7 +204,7 @@ class _TagListItem extends StatelessWidget {
         ),
         title: Text(tag.name),
         subtitle: Text(
-          AppLocalizations.of(context)!.characterCount(usageCount, usageCount == 1 ? '' : 's'),
+          AppLocalizations.of(context).characterCount(usageCount, usageCount == 1 ? '' : 's'),
           style: const TextStyle(color: AppTheme.textMuted),
         ),
         trailing: Row(
@@ -235,7 +235,7 @@ class _TagListItem extends StatelessWidget {
                   value: 'edit',
                   child: ListTile(
                     leading: const Icon(Icons.edit),
-                    title: Text(AppLocalizations.of(context)!.edit),
+                    title: Text(AppLocalizations.of(context).edit),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -243,7 +243,7 @@ class _TagListItem extends StatelessWidget {
                   value: 'delete',
                   child: ListTile(
                     leading: const Icon(Icons.delete, color: Colors.red),
-                    title: Text(AppLocalizations.of(context)!.delete, style: const TextStyle(color: Colors.red)),
+                    title: Text(AppLocalizations.of(context).delete, style: const TextStyle(color: Colors.red)),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -296,7 +296,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
     final isEditing = widget.tag != null;
 
     return AlertDialog(
-      title: Text(isEditing ? AppLocalizations.of(context)!.editTag : AppLocalizations.of(context)!.createTag),
+      title: Text(isEditing ? AppLocalizations.of(context).editTag : AppLocalizations.of(context).createTag),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -305,8 +305,8 @@ class _TagEditDialogState extends State<_TagEditDialog> {
             TextField(
               controller: _nameController,
               decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.tagName,
-                hintText: AppLocalizations.of(context)!.enterTagName,
+                labelText: AppLocalizations.of(context).tagName,
+                hintText: AppLocalizations.of(context).enterTagName,
               ),
               autofocus: true,
               textCapitalization: TextCapitalization.words,
@@ -315,14 +315,14 @@ class _TagEditDialogState extends State<_TagEditDialog> {
             TextField(
               controller: _iconController,
               decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.iconEmoji,
-                hintText: AppLocalizations.of(context)!.enterEmojiOptional,
+                labelText: AppLocalizations.of(context).iconEmoji,
+                hintText: AppLocalizations.of(context).enterEmojiOptional,
               ),
               maxLength: 2,
             ),
             const SizedBox(height: 16),
             Text(
-              AppLocalizations.of(context)!.color,
+              AppLocalizations.of(context).color,
               style: const TextStyle(
                 fontSize: DesignTokens.fontSizeXs,
                 fontWeight: FontWeight.w500,
@@ -372,7 +372,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
               ),
               child: Row(
                 children: [
-                  Text('${AppLocalizations.of(context)!.preview}: '),
+                  Text('${AppLocalizations.of(context).preview}: '),
                   const SizedBox(width: 8),
                   _buildTagChip(),
                 ],
@@ -384,7 +384,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
       actions: [
         TextButton(
           onPressed: _isSaving ? null : () => Navigator.pop(context),
-          child: Text(AppLocalizations.of(context)!.cancel),
+          child: Text(AppLocalizations.of(context).cancel),
         ),
         ElevatedButton(
           onPressed: _isSaving ? null : _save,
@@ -394,7 +394,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(isEditing ? AppLocalizations.of(context)!.save : AppLocalizations.of(context)!.create),
+              : Text(isEditing ? AppLocalizations.of(context).save : AppLocalizations.of(context).create),
         ),
       ],
     );
@@ -434,7 +434,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.pleaseEnterTagName)),
+        SnackBar(content: Text(AppLocalizations.of(context).pleaseEnterTagName)),
       );
       return;
     }
@@ -453,7 +453,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)!.error}: $e')),
+          SnackBar(content: Text('${AppLocalizations.of(context).error}: $e')),
         );
       }
     } finally {

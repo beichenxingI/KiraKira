@@ -348,7 +348,7 @@ class _AdvancedSamplingDialog extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ── CFG Scale(LLM全局级) ──
-          CoreSectionLabel('CFG Scale（LLM 全局级）'),
+          const CoreSectionLabel('CFG Scale（LLM 全局级）'),
           const SizedBox(height: 4),
           _Group(
             palette: palette,
@@ -633,7 +633,7 @@ class _SliderTile extends StatelessWidget {
               ),
               Text(
                 display ?? value.toStringAsFixed(2),
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: DesignTokens.primary,
@@ -684,7 +684,7 @@ class _IntInputTile extends StatelessWidget {
       subtitle: subtitle,
       trailing: Text(
         value.toString(),
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: DesignTokens.primary,

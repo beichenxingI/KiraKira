@@ -7,6 +7,7 @@
 /// 条目编辑复用角色世界书的 worldbook_entry_edit_dialog.dart(字段完全一样)。
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -40,12 +41,14 @@ class _GlobalWorldbookDialogState
     extends ConsumerState<_GlobalWorldbookDialog> {
   String? _selectedBookId;
   final _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
   String _search = '';
   String _filter = 'all'; // all | enabled | constant | disabled
   String _sort = 'order'; // order | created
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -513,7 +516,14 @@ class _GlobalWorldbookDialogState
                 borderRadius: BorderRadius.circular(8),
               ),
               style: TextStyle(fontSize: 14, color: palette.textPrimary),
-              onChanged: (v) => setState(() => _search = v),
+              onChanged: (value) {
+                _searchDebounce?.cancel();
+                _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+                  if (mounted) {
+                    setState(() => _search = value);
+                  }
+                });
+              },
             ),
           ),
         ),
@@ -688,8 +698,8 @@ class _BookTab extends StatelessWidget {
             GestureDetector(
               onTap: onDelete,
               behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.all(2),
+              child: const Padding(
+                padding: EdgeInsets.all(2),
                 child: Icon(CupertinoIcons.trash,
                     size: 14, color: DesignTokens.statusError),
               ),

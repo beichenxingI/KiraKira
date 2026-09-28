@@ -349,7 +349,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     CupertinoIcons.slider_horizontal_3,
                     size: 18,
                     color: DesignTokens.primary,
@@ -1955,7 +1955,7 @@ class _MiniSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = DesignTokens.primary;
+    const color = DesignTokens.primary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1972,7 +1972,7 @@ class _MiniSlider extends StatelessWidget {
             ),
             Text(
               display,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: color,

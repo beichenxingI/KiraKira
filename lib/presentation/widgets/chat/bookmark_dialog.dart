@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/bookmark.dart';
@@ -63,15 +63,15 @@ class _CreateBookmarkDialogState extends ConsumerState<CreateBookmarkDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(AppLocalizations.of(context)!.createBookmark),
+      title: Text(AppLocalizations.of(context).createBookmark),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
             controller: _nameController,
             decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.bookmarkName,
-              hintText: AppLocalizations.of(context)!.enterNameForCheckpoint,
+              labelText: AppLocalizations.of(context).bookmarkName,
+              hintText: AppLocalizations.of(context).enterNameForCheckpoint,
               border: const OutlineInputBorder(),
             ),
             autofocus: true,
@@ -80,15 +80,15 @@ class _CreateBookmarkDialogState extends ConsumerState<CreateBookmarkDialog> {
           TextField(
             controller: _descriptionController,
             decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.descriptionOptional,
-              hintText: AppLocalizations.of(context)!.addDescription,
+              labelText: AppLocalizations.of(context).descriptionOptional,
+              hintText: AppLocalizations.of(context).addDescription,
               border: const OutlineInputBorder(),
             ),
             maxLines: 2,
           ),
           const SizedBox(height: 8),
           Text(
-            AppLocalizations.of(context)!.createCheckpointAtMessage(widget.messageIndex + 1),
+            AppLocalizations.of(context).createCheckpointAtMessage(widget.messageIndex + 1),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppTheme.textMuted,
             ),
@@ -98,7 +98,7 @@ class _CreateBookmarkDialogState extends ConsumerState<CreateBookmarkDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(AppLocalizations.of(context)!.cancel),
+          child: Text(AppLocalizations.of(context).cancel),
         ),
         ElevatedButton(
           onPressed: _isCreating ? null : _createBookmark,
@@ -108,7 +108,7 @@ class _CreateBookmarkDialogState extends ConsumerState<CreateBookmarkDialog> {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(AppLocalizations.of(context)!.create),
+              : Text(AppLocalizations.of(context).create),
         ),
       ],
     );
@@ -130,7 +130,7 @@ class BookmarksListDialog extends ConsumerWidget {
         children: [
           const Icon(Icons.bookmark, color: AppTheme.accentColor),
           const SizedBox(width: 8),
-          Text(AppLocalizations.of(context)!.bookmarks),
+          Text(AppLocalizations.of(context).bookmarks),
           const Spacer(),
           Text(
             '${bookmarkState.bookmarks.length}',
@@ -150,19 +150,19 @@ class BookmarksListDialog extends ConsumerWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.bookmark_border,
                           size: 64,
                           color: AppTheme.textMuted,
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          AppLocalizations.of(context)!.noBookmarksYet,
+                          AppLocalizations.of(context).noBookmarksYet,
                           style: const TextStyle(color: AppTheme.textMuted),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          AppLocalizations.of(context)!.longPressMessageToBookmark,
+                          AppLocalizations.of(context).longPressMessageToBookmark,
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppTheme.textMuted,
                           ),
@@ -185,7 +185,7 @@ class BookmarksListDialog extends ConsumerWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(AppLocalizations.of(context)!.close),
+          child: Text(AppLocalizations.of(context).close),
         ),
       ],
     );
@@ -195,18 +195,18 @@ class BookmarksListDialog extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.branchFromBookmark),
+        title: Text(AppLocalizations.of(context).branchFromBookmark),
         content: Text(
-          AppLocalizations.of(context)!.branchFromBookmarkWarning(bookmark.name),
+          AppLocalizations.of(context).branchFromBookmarkWarning(bookmark.name),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(AppLocalizations.of(context)!.branch),
+            child: Text(AppLocalizations.of(context).branch),
           ),
         ],
       ),
@@ -217,7 +217,7 @@ class BookmarksListDialog extends ConsumerWidget {
       if (context.mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.branchedFrom(bookmark.name))),
+          SnackBar(content: Text(AppLocalizations.of(context).branchedFrom(bookmark.name))),
         );
       }
     }
@@ -227,17 +227,17 @@ class BookmarksListDialog extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteBookmark),
-        content: Text(AppLocalizations.of(context)!.deleteBookmarkConfirmation(bookmark.name)),
+        title: Text(AppLocalizations.of(context).deleteBookmark),
+        content: Text(AppLocalizations.of(context).deleteBookmarkConfirmation(bookmark.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(AppLocalizations.of(context)!.delete),
+            child: Text(AppLocalizations.of(context).delete),
           ),
         ],
       ),
@@ -276,7 +276,7 @@ class _BookmarkTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             Text(
-              AppLocalizations.of(context)!.messageIndexAndDate(bookmark.messageIndex + 1, _formatDate(bookmark.createdAt)),
+              AppLocalizations.of(context).messageIndexAndDate(bookmark.messageIndex + 1, _formatDate(bookmark.createdAt)),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: AppTheme.textMuted,
               ),
@@ -288,12 +288,12 @@ class _BookmarkTile extends StatelessWidget {
           children: [
             IconButton(
               icon: const Icon(Icons.call_split, color: AppTheme.primaryColor),
-              tooltip: AppLocalizations.of(context)!.branchFromHere,
+              tooltip: AppLocalizations.of(context).branchFromHere,
               onPressed: onTap,
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red),
-              tooltip: AppLocalizations.of(context)!.delete,
+              tooltip: AppLocalizations.of(context).delete,
               onPressed: onDelete,
             ),
           ],
@@ -337,7 +337,7 @@ class BookmarkPreviewDialog extends ConsumerWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              AppLocalizations.of(context)!.previewBookmark(bookmark.name),
+              AppLocalizations.of(context).previewBookmark(bookmark.name),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -349,8 +349,8 @@ class BookmarkPreviewDialog extends ConsumerWidget {
         child: previewMessages.isEmpty
             ? Center(
                 child: Text(
-                  AppLocalizations.of(context)!.messageNotFoundInChat,
-                  style: TextStyle(color: AppTheme.textMuted),
+                  AppLocalizations.of(context).messageNotFoundInChat,
+                  style: const TextStyle(color: AppTheme.textMuted),
                 ),
               )
             : ListView.builder(
@@ -373,8 +373,8 @@ class BookmarkPreviewDialog extends ConsumerWidget {
                       children: [
                         Text(
                           isUser
-                              ? AppLocalizations.of(context)!.you
-                              : (message.characterName ?? chatState.character?.name ?? AppLocalizations.of(context)!.assistant),
+                              ? AppLocalizations.of(context).you
+                              : (message.characterName ?? chatState.character?.name ?? AppLocalizations.of(context).assistant),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: isUser ? AppTheme.accentColor : AppTheme.primaryColor,
@@ -396,7 +396,7 @@ class BookmarkPreviewDialog extends ConsumerWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(AppLocalizations.of(context)!.close),
+          child: Text(AppLocalizations.of(context).close),
         ),
         ElevatedButton.icon(
           onPressed: () {
@@ -404,7 +404,7 @@ class BookmarkPreviewDialog extends ConsumerWidget {
             ref.read(activeChatProvider.notifier).branchFromBookmark(bookmark);
           },
           icon: const Icon(Icons.call_split),
-          label: Text(AppLocalizations.of(context)!.branchFromHere),
+          label: Text(AppLocalizations.of(context).branchFromHere),
         ),
       ],
     );

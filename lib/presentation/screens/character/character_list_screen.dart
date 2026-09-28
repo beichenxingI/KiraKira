@@ -26,7 +26,6 @@ import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
-import 'package:kirakira/presentation/screens/market/acc_webview_screen.dart';
 
 /// Character list screen
 class CharacterListScreen extends ConsumerStatefulWidget {
@@ -556,8 +555,11 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
                                   }
                                 },
                                 onLongPress: () {
-                                  if (!_selectionMode) _enterSelection(c.id);
-                                  else _toggleSelect(c.id);
+                                  if (!_selectionMode) {
+                                    _enterSelection(c.id);
+                                  } else {
+                                    _toggleSelect(c.id);
+                                  }
                                 },
                               ),
                             );
@@ -757,9 +759,8 @@ class _SkeletonGrid extends StatelessWidget {
 /// 呼吸骨架块:实底 + 透明度呼吸
 class _BreathingBox extends StatefulWidget {
   final double borderRadius;
-  final double? height;
 
-  const _BreathingBox({required this.borderRadius, this.height});
+  const _BreathingBox({required this.borderRadius});
 
   @override
   State<_BreathingBox> createState() => _BreathingBoxState();
@@ -786,7 +787,6 @@ class _BreathingBoxState extends State<_BreathingBox>
         CurvedAnimation(parent: _controller, curve: DesignTokens.curveEmphasized),
       ),
       child: Container(
-        height: widget.height,
         decoration: BoxDecoration(
           color: isDark ? DesignTokens.darkCard : DesignTokens.lightSeparator,
           borderRadius: BorderRadius.circular(widget.borderRadius),
@@ -1204,8 +1204,8 @@ class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
         Expanded(
           child: TabBarView(
             controller: _tabController,
-            children: [
-              const _KiraMarketTab(),
+            children: const [
+              _KiraMarketTab(),
               // [2026-09 已关闭] ACC 国际站
               // _AccMarketTab(
               //   onSwitchToMyCharacters: widget.onSwitchToMyCharacters,
@@ -1305,131 +1305,6 @@ class _KiraMarketTab extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// ACC国际站（AI Character Cards，WebView浏览器入口）
-class _AccMarketTab extends StatelessWidget {
-  final VoidCallback onSwitchToMyCharacters;
-
-  const _AccMarketTab({required this.onSwitchToMyCharacters});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(DesignTokens.spaceXl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.public,
-              size: 72,
-              color: DesignTokens.primary.withValues(alpha: 0.8),
-            ),
-            const SizedBox(height: DesignTokens.spaceLg),
-            Text(
-              'AI Character Cards 角色市场',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: DesignTokens.weightBold,
-              ),
-            ),
-            const SizedBox(height: DesignTokens.spaceXs),
-            Text(
-              '国际SFW角色卡社区',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: DesignTokens.spaceXl),
-            ElevatedButton.icon(
-              onPressed: () => _openWebView(context),
-              icon: const Icon(Icons.open_in_browser, size: 24),
-              label: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: DesignTokens.spaceSm),
-                child: Text(
-                  '打开 AI Character Cards 浏览器',
-                  style: TextStyle(fontSize: DesignTokens.fontSizeBodyLarge),
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: DesignTokens.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  vertical: DesignTokens.spaceMd,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(DesignTokens.radiusButton),
-                ),
-              ),
-            ),
-            const SizedBox(height: DesignTokens.spaceLg),
-            Container(
-              padding: DesignTokens.paddingCard,
-              decoration: BoxDecoration(
-                color: DesignTokens.primary.withValues(alpha: 0.08),
-                borderRadius:
-                    BorderRadius.circular(DesignTokens.radiusMd),
-                border: Border.all(
-                  color: DesignTokens.primary.withValues(alpha: 0.2),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.verified_outlined,
-                          size: 18, color: DesignTokens.primary),
-                      SizedBox(width: DesignTokens.spaceXs),
-                      Text(
-                        '国际SFW社区',
-                        style: TextStyle(
-                          fontSize: DesignTokens.fontSizeSm,
-                          fontWeight: DesignTokens.weightSemibold,
-                          color: DesignTokens.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: DesignTokens.spaceSm),
-                  Text(
-                    '• 国际SFW角色卡社区，内容安全合规\n'
-                    '• 在浏览器内直接浏览、搜索角色\n'
-                    '• 点击下载自动导入到 Kira\n'
-                    '• 支持包含世界书自动导入\n'
-                    '• 如无法访问请检查网络（部分地区或需VPN）',
-                    style: TextStyle(
-                      fontSize: DesignTokens.fontSizeSm,
-                      height: 1.6,
-                      color: isDark
-                          ? DesignTokens.darkTextSecondary
-                          : theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _openWebView(BuildContext context) {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute<void>(
-        // chub_webview_screen.dart 已更名 acc_webview_screen.dart（AI Character Cards）
-        builder: (_) => AccWebViewScreen(
-          onCharacterImported: onSwitchToMyCharacters,
-        ),
-        fullscreenDialog: true,
       ),
     );
   }

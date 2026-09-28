@@ -2,6 +2,7 @@
 /// 语义对齐 SillyTavern SlashCommandParser 的产物:
 /// 根闭包 = 形参表 + 执行器列表;执行器 = 命令名 + 命名/无名参数赋值;
 /// 闭包 `{: ... :}` 是一等公民,可作为参数值延迟执行。
+library;
 
 /// 参数赋值(命名/无名共用)。
 /// [value] 为 String 或 [SlashClosureNode](闭包参数,延迟执行)。

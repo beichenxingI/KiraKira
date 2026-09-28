@@ -1986,7 +1986,7 @@ class ImageGenerationService {
     if (resultFormat == 'raw') {
       resultBytes = await compute(
         _rawRgbToPng,
-        (resultBytes!, resultWidth, resultHeight),
+        (resultBytes, resultWidth, resultHeight),
       );
       resultFormat = 'png';
     }

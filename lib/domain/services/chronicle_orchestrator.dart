@@ -97,7 +97,7 @@ class ChronicleOrchestrator {
       final overflowUserTurns = overflowCount > 0
           ? unarchived.sublist(0, overflowCount).where((m) => m.role == MessageRole.user).length
           : 0;
-      bool triggerByTurns = overflowUserTurns >= settings.summaryInterval;
+      final bool triggerByTurns = overflowUserTurns >= settings.summaryInterval;
 
       // token压力触发：热窗token ≥ 比例阈值 或 绝对上限（H7双触发）
       bool triggerByTokens = false;

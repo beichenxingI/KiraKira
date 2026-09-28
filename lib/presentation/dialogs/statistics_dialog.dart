@@ -94,7 +94,7 @@ class _AppStatisticsView extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CoreSectionLabel('总览'),
+        const CoreSectionLabel('总览'),
         const SizedBox(height: 4),
         _Group(
           palette: palette,
@@ -114,7 +114,7 @@ class _AppStatisticsView extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 20),
-        CoreSectionLabel('消息'),
+        const CoreSectionLabel('消息'),
         const SizedBox(height: 4),
         _Group(
           palette: palette,
@@ -127,7 +127,7 @@ class _AppStatisticsView extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 20),
-        CoreSectionLabel('Token 用量'),
+        const CoreSectionLabel('Token 用量'),
         const SizedBox(height: 4),
         _Group(
           palette: palette,
@@ -142,7 +142,7 @@ class _AppStatisticsView extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 20),
-        CoreSectionLabel('性能'),
+        const CoreSectionLabel('性能'),
         const SizedBox(height: 4),
         _Group(
           palette: palette,
@@ -193,7 +193,7 @@ class _ChatStatisticsView extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CoreSectionLabel('消息'),
+        const CoreSectionLabel('消息'),
         const SizedBox(height: 4),
         _Group(
           palette: palette,
@@ -209,7 +209,7 @@ class _ChatStatisticsView extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 20),
-        CoreSectionLabel('时间线'),
+        const CoreSectionLabel('时间线'),
         const SizedBox(height: 4),
         _Group(
           palette: palette,
@@ -231,7 +231,7 @@ class _ChatStatisticsView extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 20),
-        CoreSectionLabel('Token 用量'),
+        const CoreSectionLabel('Token 用量'),
         const SizedBox(height: 4),
         _Group(
           palette: palette,
@@ -252,7 +252,7 @@ class _ChatStatisticsView extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 20),
-        CoreSectionLabel('生成性能'),
+        const CoreSectionLabel('生成性能'),
         const SizedBox(height: 4),
         _Group(
           palette: palette,

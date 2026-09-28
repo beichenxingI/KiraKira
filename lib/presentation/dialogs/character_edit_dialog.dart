@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -75,6 +76,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
   List<String> _tags = [];
   List<String> _alternateGreetings = [];
   String? _avatarPath;
+  Uint8List? _decodedAvatarBytes;
 
   String? _openSection;
   int? _expandedAlternateIndex;
@@ -99,6 +101,14 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     _tags = List.from(c?.tags ?? []);
     _alternateGreetings = List.from(c?.alternateGreetings ?? []);
     _avatarPath = c?.assets?.avatarPath ?? c?.assets?.avatarUrl;
+    // 预解码头像：base64 data URI 只在 initState 解码一次，避免每次 build 同步解码数 MB 原图
+    if (_avatarPath?.startsWith('data:image') == true) {
+      try {
+        _decodedAvatarBytes = base64Decode(_avatarPath!.split(',').last);
+      } catch (_) {
+        _decodedAvatarBytes = null;
+      }
+    }
     _nameCtrl.addListener(_markDirty);
   }
 
@@ -121,7 +131,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
       final confirm = await showDialog<bool>(
         context: context,
         barrierColor: Colors.black.withValues(alpha: 0.5),
-        builder: (ctx) => _StyledConfirm(
+        builder: (ctx) => const _StyledConfirm(
           title: '未保存的更改',
           message: '您有未保存的修改，确定要退出吗？您的更改将会丢失。',
           cancelText: '继续编辑',
@@ -146,8 +156,10 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     if (path.startsWith('data:image')) {
       try {
         final b64 = path.split(',').last;
-        return Image.memory(base64Decode(b64),
+        final bytes = _decodedAvatarBytes ?? base64Decode(b64);
+        return Image.memory(bytes,
             fit: BoxFit.cover, width: 86, height: 86,
+            cacheWidth: (86 * MediaQuery.of(context).devicePixelRatio).round(),
             errorBuilder: (_, __, ___) => _avatarPlaceholder());
       } catch (_) {
         return _avatarPlaceholder();
@@ -402,7 +414,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     return Stack(
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(
+          padding: const EdgeInsets.fromLTRB(
               DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
           child: Column(
             children: [
@@ -412,9 +424,9 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
                 child: Container(
                   width: 90,
                   height: 90,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
@@ -587,11 +599,11 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
                 ),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusChip),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.add, size: 16, color: KiraDialogTheme.primary),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Text('添加标签',
                       style: TextStyle(
                         color: KiraDialogTheme.primary,
@@ -677,9 +689,9 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
                       color: Colors.red.withValues(alpha: 0.6)),
                   onPressed: () => setState(() {
                     _alternateGreetings.removeAt(i);
-                    if (_expandedAlternateIndex == i)
+                    if (_expandedAlternateIndex == i) {
                       _expandedAlternateIndex = null;
-                    else if (_expandedAlternateIndex != null &&
+                    } else if (_expandedAlternateIndex != null &&
                         _expandedAlternateIndex! > i)
                       _expandedAlternateIndex =
                           _expandedAlternateIndex! - 1;
@@ -916,7 +928,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
                       onPressed: () => showWorldBookEditorDialog(
                           context, ref,
                           characterId: _characterId!),
-                      child: Text('打开编辑器 →',
+                      child: const Text('打开编辑器 →',
                           style: TextStyle(
                               fontSize: DesignTokens.fontSizeSm,
                               color: KiraDialogTheme.worldbook)),
@@ -930,7 +942,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
               child: Center(child: CupertinoActivityIndicator()),
             ),
             error: (e, _) => Text('加载失败: $e',
-                style: TextStyle(
+                style: const TextStyle(
                     fontSize: DesignTokens.fontSizeSm, color: Colors.red)),
           ),
         ],
@@ -1076,7 +1088,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
                     onPressed: () => showCharacterRegexDialog(
                         context, ref,
                         characterId: _characterId!),
-                    child: Text('打开编辑器 →',
+                    child: const Text('打开编辑器 →',
                         style: TextStyle(
                             fontSize: DesignTokens.fontSizeSm,
                             color: KiraDialogTheme.regex)),
@@ -1096,7 +1108,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.5),
       useRootNavigator: true,
-      builder: (ctx) => _StyledConfirm(
+      builder: (ctx) => const _StyledConfirm(
         title: '删除条目',
         message: '确定要删除这个知识条目吗？此操作不可恢复。',
         confirmText: '删除',
@@ -1198,7 +1210,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     }
 
     // 找到或创建目标世界书
-    var books = ref
+    final books = ref
             .read(characterWorldInfosProvider(_characterId!))
             .valueOrNull ??
         [];
@@ -1561,7 +1573,7 @@ class _WorldBookEntryRow extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.bookmark_outline,
+                const Icon(Icons.bookmark_outline,
                     size: 16, color: KiraDialogTheme.worldbook),
                 const SizedBox(width: 8),
                 Expanded(
@@ -1576,8 +1588,8 @@ class _WorldBookEntryRow extends StatelessWidget {
                   ),
                 ),
                 if (!entry.enabled)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
+                  const Padding(
+                    padding: EdgeInsets.only(right: 6),
                     child: Text('已停用',
                         style: TextStyle(
                             fontSize: DesignTokens.fontSizeXs,
@@ -1637,7 +1649,7 @@ class _RegexRuleRow extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.text_fields,
+                const Icon(Icons.text_fields,
                     size: 16, color: KiraDialogTheme.regex),
                 const SizedBox(width: 8),
                 Expanded(
@@ -1652,8 +1664,8 @@ class _RegexRuleRow extends StatelessWidget {
                   ),
                 ),
                 if (script.disabled)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
+                  const Padding(
+                    padding: EdgeInsets.only(right: 6),
                     child: Text('已停用',
                         style: TextStyle(
                             fontSize: DesignTokens.fontSizeXs,

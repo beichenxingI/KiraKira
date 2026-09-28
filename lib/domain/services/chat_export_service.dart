@@ -370,7 +370,7 @@ class ChatExportService {
       for (final e in (bundle['entries'] as List? ?? const [])) {
         if (e is! Map) continue;
         final entry = models.MemoryEntry.fromJson(
-            Map<String, dynamic>.from(e as Map));
+            Map<String, dynamic>.from(e));
         // 换绑到目标聊天
         await repo.upsertMemoryEntry(entry.copyWith(
           chatId: chatId,
@@ -380,7 +380,7 @@ class ChatExportService {
       for (final e in (bundle['entities'] as List? ?? const [])) {
         if (e is! Map) continue;
         final entity = models.MemoryEntity.fromJson(
-            Map<String, dynamic>.from(e as Map));
+            Map<String, dynamic>.from(e));
         await repo.upsertEntity(entity.copyWith(
           chatId: chatId,
           updatedAt: DateTime.now(),
@@ -389,7 +389,7 @@ class ChatExportService {
       for (final r in (bundle['relationships'] as List? ?? const [])) {
         if (r is! Map) continue;
         final rel = models.MemoryRelationship.fromJson(
-            Map<String, dynamic>.from(r as Map));
+            Map<String, dynamic>.from(r));
         await repo.upsertRelationship(
           chatId,
           models.UpsertRelationshipInstruction(
@@ -406,7 +406,7 @@ class ChatExportService {
       for (final e in (bundle['emotions'] as List? ?? const [])) {
         if (e is! Map) continue;
         final emo = models.EmotionNode.fromJson(
-            Map<String, dynamic>.from(e as Map));
+            Map<String, dynamic>.from(e));
         await repo.upsertEmotion(
           chatId,
           models.UpsertEmotionInstruction(

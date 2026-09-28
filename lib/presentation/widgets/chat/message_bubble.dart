@@ -1,31 +1,19 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/presentation/widgets/chat/typing_indicator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:kirakira/data/models/chat.dart';
-import 'package:kirakira/data/models/chat_background.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
-import 'package:kirakira/presentation/providers/background_providers.dart';
-import 'package:kirakira/presentation/providers/bookmark_providers.dart';
-import 'package:kirakira/presentation/providers/chat_providers.dart';
-import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/domain/services/regex_service.dart';
 import 'package:kirakira/presentation/providers/regex_providers.dart';
 import 'package:kirakira/data/models/regex_script.dart';
-import 'package:kirakira/presentation/screens/chat/chat_layout_mode.dart';
 import 'package:kirakira/presentation/widgets/chat/message_content_widget.dart';
 import 'package:kirakira/presentation/widgets/chat/reasoning_widget.dart';
-import 'package:kirakira/presentation/widgets/chat/visual_novel_message_view.dart';
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
-import 'package:image/image.dart' as img;
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
-import 'package:url_launcher/url_launcher.dart';
 
 class MessageBubble extends ConsumerStatefulWidget {
   final ChatMessage message;

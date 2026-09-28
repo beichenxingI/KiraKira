@@ -544,7 +544,7 @@ class _OracleSheetState extends State<_OracleSheet> {
           const SizedBox(height: 2),
           Text(value,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
+              style: const TextStyle(
                   fontSize: DesignTokens.fontSizeSm,
                   fontWeight: FontWeight.w600)),
         ],
@@ -666,7 +666,7 @@ class _OracleSheetState extends State<_OracleSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('深呼吸,凭直觉选一张',
+              const Text('深呼吸,凭直觉选一张',
                   style: TextStyle(
                       fontSize: DesignTokens.fontSizeHeadline,
                       fontWeight: FontWeight.w600)),

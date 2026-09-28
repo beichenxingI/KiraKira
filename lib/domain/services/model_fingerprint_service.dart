@@ -43,15 +43,15 @@ class ModelFingerprintService {
     void Function(int current, int total, String questionId)? onProgress,
   }) async {
     // 局部变量遮蔽静态字段：本方法内所有 _questions 引用自动使用按档位过滤后的题目
-    final _questions = _questionsForLevel(level);
+    final questions = _questionsForLevel(level);
     // 深度档强制开启掺假一致性检测
     if (level == DetectionLevel.deep) checkConsistency = true;
     final scores = <QuestionScore>[];
     int tokens = 0;
 
-    for (var i = 0; i < _questions.length; i++) {
-      final q = _questions[i];
-      onProgress?.call(i + 1, _questions.length, q.id);
+    for (var i = 0; i < questions.length; i++) {
+      final q = questions[i];
+      onProgress?.call(i + 1, questions.length, q.id);
       try {
         final stream = await provider.sendMessage(
           LlmRequest(messages: [{'role': 'user', 'content': q.prompt}], maxTokens: 400, temperature: 0.3),
@@ -80,14 +80,14 @@ class ModelFingerprintService {
     // Group by dimension, weighted average
     final dimScores = <String, List<double>>{};
     final dimWeights = <String, double>{};
-    for (var i = 0; i < _questions.length; i++) {
-      final dim = _questions[i].dimension;
+    for (var i = 0; i < questions.length; i++) {
+      final dim = questions[i].dimension;
       if (dim == 'differentiation' || dim == 'safety_style') {
         continue;
       }
       dimScores.putIfAbsent(dim, () => []);
-      dimScores[dim]!.add(scores[i].score * _questions[i].weight);
-      dimWeights[dim] = (dimWeights[dim] ?? 0) + _questions[i].weight;
+      dimScores[dim]!.add(scores[i].score * questions[i].weight);
+      dimWeights[dim] = (dimWeights[dim] ?? 0) + questions[i].weight;
     }
     final dimensions = <String, double>{};
     for (final e in dimScores.entries) {
@@ -98,11 +98,11 @@ class ModelFingerprintService {
     // Overall
     final allScores = <double>[];
     for (var i = 0; i < scores.length; i++) {
-      if (_questions[i].dimension == 'differentiation' ||
-          _questions[i].dimension == 'safety_style') {
+      if (questions[i].dimension == 'differentiation' ||
+          questions[i].dimension == 'safety_style') {
         continue;
       }
-      allScores.add(scores[i].score * _questions[i].weight);
+      allScores.add(scores[i].score * questions[i].weight);
     }
     final overall = allScores.isNotEmpty ? (allScores.fold(0.0, (a, b) => a + b) / allScores.length.toDouble() * 100).clamp(0.0, 100.0) : 0.0;
 
@@ -213,7 +213,7 @@ class ModelFingerprintService {
     for (var i = 0; i < rounds; i++) {
       try {
         final stream = await provider.sendMessage(
-          LlmRequest(
+          const LlmRequest(
             messages: [
               {'role': 'user', 'content': probe}
             ],

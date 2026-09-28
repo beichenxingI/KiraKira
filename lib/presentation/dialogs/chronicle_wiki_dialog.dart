@@ -11,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/chronicle.dart' as models;
 import 'package:kirakira/data/repositories/chronicle_repository.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
-import 'package:kirakira/presentation/providers/chronicle_providers.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:uuid/uuid.dart';
 import 'core_dialog.dart';
@@ -318,12 +317,34 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) => _EditorShell(
           title: existing == null ? '新建词条' : '编辑词条',
+          onSave: () async {
+            final repo = ref.read(chronicleRepositoryProvider);
+            await repo.upsertMemoryEntry(entry.copyWith(
+              title: titleCtrl.text.trim().isEmpty ? '未命名事件' : titleCtrl.text.trim(),
+              content: contentCtrl.text.trim(),
+              importance: importance,
+              alwaysInject: alwaysInject,
+              anchor: anchor,
+              neverEvict: anchor,
+              tags: tagsCtrl.text
+                  .split(RegExp(r'[,，]'))
+                  .map((t) => t.trim())
+                  .where((t) => t.isNotEmpty)
+                  .toList(),
+              updatedAt: DateTime.now(),
+            ));
+          },
+          onDelete: existing == null
+              ? null
+              : () => ref
+                  .read(chronicleRepositoryProvider)
+                  .deleteEntry(existing.id),
           children: [
-            CoreSectionLabel('标题'),
+            const CoreSectionLabel('标题'),
             const SizedBox(height: 6),
             CoreTextField(controller: titleCtrl, palette: _palette(ctx), hint: '简短标题'),
             const SizedBox(height: 12),
-            CoreSectionLabel('内容（50-120字精炼描述）'),
+            const CoreSectionLabel('内容（50-120字精炼描述）'),
             const SizedBox(height: 6),
             CoreTextField(
               controller: contentCtrl,
@@ -354,32 +375,10 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
               onChanged: (v) => setDialogState(() => anchor = v),
             ),
             const SizedBox(height: 12),
-            CoreSectionLabel('标签（逗号分隔，召回加权用）'),
+            const CoreSectionLabel('标签（逗号分隔，召回加权用）'),
             const SizedBox(height: 6),
             CoreTextField(controller: tagsCtrl, palette: _palette(ctx), hint: '如：承诺, 好感, 战斗'),
           ],
-          onSave: () async {
-            final repo = ref.read(chronicleRepositoryProvider);
-            await repo.upsertMemoryEntry(entry.copyWith(
-              title: titleCtrl.text.trim().isEmpty ? '未命名事件' : titleCtrl.text.trim(),
-              content: contentCtrl.text.trim(),
-              importance: importance,
-              alwaysInject: alwaysInject,
-              anchor: anchor,
-              neverEvict: anchor,
-              tags: tagsCtrl.text
-                  .split(RegExp(r'[,，]'))
-                  .map((t) => t.trim())
-                  .where((t) => t.isNotEmpty)
-                  .toList(),
-              updatedAt: DateTime.now(),
-            ));
-          },
-          onDelete: existing == null
-              ? null
-              : () => ref
-                  .read(chronicleRepositoryProvider)
-                  .deleteEntry(existing.id),
         ),
       ),
     );
@@ -406,19 +405,6 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
       barrierDismissible: false,
       builder: (dialogCtx) => _EditorShell(
         title: existing == null ? '新建实体' : '编辑实体',
-        children: [
-          CoreSectionLabel('名称'),
-          const SizedBox(height: 6),
-          CoreTextField(controller: nameCtrl, palette: _palette(dialogCtx), hint: '如：艾拉'),
-          const SizedBox(height: 12),
-          CoreSectionLabel('身份描述'),
-          const SizedBox(height: 6),
-          CoreTextField(controller: descCtrl, palette: _palette(dialogCtx), maxLines: 3),
-          const SizedBox(height: 12),
-          CoreSectionLabel('当前状态'),
-          const SizedBox(height: 6),
-          CoreTextField(controller: stateCtrl, palette: _palette(dialogCtx), maxLines: 3),
-        ],
         onSave: () async {
           if (nameCtrl.text.trim().isEmpty) return;
           final repo = ref.read(chronicleRepositoryProvider);
@@ -433,6 +419,19 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
             ? null
             : () =>
                 ref.read(chronicleRepositoryProvider).deleteEntity(existing.id),
+        children: [
+          const CoreSectionLabel('名称'),
+          const SizedBox(height: 6),
+          CoreTextField(controller: nameCtrl, palette: _palette(dialogCtx), hint: '如：艾拉'),
+          const SizedBox(height: 12),
+          const CoreSectionLabel('身份描述'),
+          const SizedBox(height: 6),
+          CoreTextField(controller: descCtrl, palette: _palette(dialogCtx), maxLines: 3),
+          const SizedBox(height: 12),
+          const CoreSectionLabel('当前状态'),
+          const SizedBox(height: 6),
+          CoreTextField(controller: stateCtrl, palette: _palette(dialogCtx), maxLines: 3),
+        ],
       ),
     );
     if (mounted) _reload();
@@ -466,31 +465,6 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) => _EditorShell(
           title: existing == null ? '新建关系' : '编辑关系',
-          children: [
-            CoreSectionLabel('从实体'),
-            _entityPicker(ctx, fromId, (v) => setDialogState(() => fromId = v)),
-            const SizedBox(height: 10),
-            CoreSectionLabel('到实体'),
-            _entityPicker(ctx, toId, (v) => setDialogState(() => toId = v)),
-            const SizedBox(height: 12),
-            CoreSliderRow(
-              label: '强度（-100敌对 ~ +100亲密）',
-              value: strength.toDouble(),
-              min: -100,
-              max: 100,
-              divisions: 40,
-              display: '$strength',
-              onChanged: (v) => setDialogState(() => strength = v.round()),
-            ),
-            const SizedBox(height: 12),
-            CoreSectionLabel('类型（trust/friendship/romantic/hostile/family/mentor）'),
-            const SizedBox(height: 6),
-            CoreTextField(controller: typeCtrl, palette: _palette(ctx)),
-            const SizedBox(height: 12),
-            CoreSectionLabel('描述'),
-            const SizedBox(height: 6),
-            CoreTextField(controller: descCtrl, palette: _palette(ctx), maxLines: 3),
-          ],
           onSave: () async {
             final repo = ref.read(chronicleRepositoryProvider);
             await repo.upsertRelationship(
@@ -511,6 +485,31 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
               : () => ref
                   .read(chronicleRepositoryProvider)
                   .deleteRelationship(existing.id),
+          children: [
+            const CoreSectionLabel('从实体'),
+            _entityPicker(ctx, fromId, (v) => setDialogState(() => fromId = v)),
+            const SizedBox(height: 10),
+            const CoreSectionLabel('到实体'),
+            _entityPicker(ctx, toId, (v) => setDialogState(() => toId = v)),
+            const SizedBox(height: 12),
+            CoreSliderRow(
+              label: '强度（-100敌对 ~ +100亲密）',
+              value: strength.toDouble(),
+              min: -100,
+              max: 100,
+              divisions: 40,
+              display: '$strength',
+              onChanged: (v) => setDialogState(() => strength = v.round()),
+            ),
+            const SizedBox(height: 12),
+            const CoreSectionLabel('类型（trust/friendship/romantic/hostile/family/mentor）'),
+            const SizedBox(height: 6),
+            CoreTextField(controller: typeCtrl, palette: _palette(ctx)),
+            const SizedBox(height: 12),
+            const CoreSectionLabel('描述'),
+            const SizedBox(height: 6),
+            CoreTextField(controller: descCtrl, palette: _palette(ctx), maxLines: 3),
+          ],
         ),
       ),
     );
@@ -544,11 +543,28 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) => _EditorShell(
           title: existing == null ? '新建情感' : '编辑情感',
+          onSave: () async {
+            final repo = ref.read(chronicleRepositoryProvider);
+            await repo.upsertEmotion(
+              _chatId!,
+              models.UpsertEmotionInstruction(
+                emotion: emotionCtrl.text.trim(),
+                intensity: intensity,
+                trigger: triggerCtrl.text.trim(),
+                active: isActive,
+              ),
+              entityId: entityId,
+            );
+          },
+          onDelete: existing == null
+              ? null
+              : () =>
+                  ref.read(chronicleRepositoryProvider).deleteEmotion(existing.id),
           children: [
-            CoreSectionLabel('实体'),
+            const CoreSectionLabel('实体'),
             _entityPicker(ctx, entityId, (v) => setDialogState(() => entityId = v)),
             const SizedBox(height: 12),
-            CoreSectionLabel('情感类型（如 感激/愤怒/不安/期待）'),
+            const CoreSectionLabel('情感类型（如 感激/愤怒/不安/期待）'),
             const SizedBox(height: 6),
             CoreTextField(controller: emotionCtrl, palette: _palette(ctx)),
             const SizedBox(height: 12),
@@ -568,27 +584,10 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
               onChanged: (v) => setDialogState(() => isActive = v),
             ),
             const SizedBox(height: 12),
-            CoreSectionLabel('触发原因'),
+            const CoreSectionLabel('触发原因'),
             const SizedBox(height: 6),
             CoreTextField(controller: triggerCtrl, palette: _palette(ctx), maxLines: 2),
           ],
-          onSave: () async {
-            final repo = ref.read(chronicleRepositoryProvider);
-            await repo.upsertEmotion(
-              _chatId!,
-              models.UpsertEmotionInstruction(
-                emotion: emotionCtrl.text.trim(),
-                intensity: intensity,
-                trigger: triggerCtrl.text.trim(),
-                active: isActive,
-              ),
-              entityId: entityId,
-            );
-          },
-          onDelete: existing == null
-              ? null
-              : () =>
-                  ref.read(chronicleRepositoryProvider).deleteEmotion(existing.id),
         ),
       ),
     );

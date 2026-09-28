@@ -89,7 +89,7 @@ class _AIPresetDialog extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline,
+                const Icon(Icons.info_outline,
                     color: DesignTokens.primary, size: 18),
                 const SizedBox(width: 10),
                 Expanded(
@@ -1032,7 +1032,7 @@ class _AIPresetEditDialogState extends ConsumerState<_AIPresetEditDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── 基本信息 ──
-          CoreSectionLabel('基本信息'),
+          const CoreSectionLabel('基本信息'),
           const SizedBox(height: 8),
           CoreTextField(
             controller: _nameController,
@@ -1049,7 +1049,7 @@ class _AIPresetEditDialogState extends ConsumerState<_AIPresetEditDialog> {
           const SizedBox(height: 20),
 
           // ── 绑定提示词预设 ──
-          CoreSectionLabel('绑定提示词预设'),
+          const CoreSectionLabel('绑定提示词预设'),
           const SizedBox(height: 4),
           CoreTile(
             title: '提示词预设',
