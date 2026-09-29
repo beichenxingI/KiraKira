@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as Math;
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -18,6 +19,7 @@ import '../components/kira_dialog_widgets.dart';
 import '../components/kira_input_dialog.dart';
 import '../components/kira_toast.dart';
 import '../providers/character_providers.dart';
+import '../providers/chat_providers.dart' show activeChatProvider;
 import '../../data/repositories/character_repository.dart';
 import '../providers/regex_providers.dart';
 import '../providers/world_info_providers.dart';
@@ -226,17 +228,19 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
       }
     }
     setState(() => _isSaving = true);
+    
     try {
       final notifier = ref.read(characterListProvider.notifier);
       final now = DateTime.now();
       final assets = (_avatarPath != null)
           ? CharacterAssets(avatarPath: _avatarPath)
           : widget.character?.assets;
+      
       if (_isEdit) {
-      // 保存前读取 DB 最新角色，避免覆盖会话期间的 extensions 变化（正则/置顶等）
-      final repo = ref.read(characterRepositoryProvider);
-      final latest = await repo.getCharacter(_characterId!);
-      final base = latest ?? widget.character!;  // DB 读失败兜底
+        // 保存前读取 DB 最新角色，避免覆盖会话期间的 extensions 变化（正则/置顶等）
+        final repo = ref.read(characterRepositoryProvider);
+        final latest = await repo.getCharacter(_characterId!);
+        final base = latest ?? widget.character!;
 
         await notifier.updateCharacter(base.copyWith(
           name: name,
@@ -251,7 +255,35 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
           alternateGreetings: _alternateGreetings,
           assets: assets,
           modifiedAt: now,
+          // [Bug1 根本修复] 明确保留所有未在编辑器中编辑的字段
+          postHistoryInstructions: base.postHistoryInstructions,
+          creator: base.creator,
+          version: base.version,
+          characterBook: base.characterBook,
+          extensions: base.extensions,
+          isFavorite: base.isFavorite,
+          createdAt: base.createdAt,
         ));
+        
+        // [临时调试] 验证数据库更新
+        if (mounted) {
+          debugPrint('═══ [数据库验证] 开始 ═══');
+          final verifyChar = await repo.getCharacter(_characterId!);
+          if (verifyChar != null) {
+            final descMatch = verifyChar.description == _description;
+            debugPrint('[数据库验证] description 匹配: ${descMatch ? "✅" : "❌"}');
+            if (!descMatch) {
+              debugPrint('[数据库验证] 保存长度: ${_description.length}, 读回长度: ${verifyChar.description.length}');
+            }
+          }
+          debugPrint('═══ [数据库验证] 结束 ═══\n');
+          
+          // [Bug1 根本修复] 强制刷新角色列表缓存
+          debugPrint('[角色编辑] 强制刷新 characterListProvider');
+          ref.invalidate(characterListProvider);
+          await Future.delayed(const Duration(milliseconds: 100));
+          debugPrint('[角色编辑] characterListProvider 已失效并重建');
+        }
       } else {
         await notifier.addCharacter(Character(
           id: '',
@@ -270,16 +302,66 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
           modifiedAt: now,
         ));
       }
+      
       if (mounted) {
         KiraToast.show(context, _isEdit ? '已保存' : '已创建',
             type: KiraToastType.success);
+        
+        // [Bug1.1] 保存成功后，若当前聊天页持有的是本角色的快照，同步刷新
+        if (_isEdit) {
+          debugPrint('═══ [角色编辑] 开始刷新快照 ═══');
+          debugPrint('[角色编辑] _characterId = $_characterId');
+          
+          final activeChat = ref.read(activeChatProvider);
+          debugPrint('[角色编辑] activeChat.character?.id = ${activeChat.character?.id}');
+          
+          if (activeChat.character?.id == _characterId) {
+            debugPrint('[角色编辑] ✅ ID 匹配，开始重读数据库');
+            
+            final updatedChar = await ref
+                .read(characterRepositoryProvider)
+                .getCharacter(_characterId!);
+            
+            if (updatedChar == null) {
+              debugPrint('[角色编辑] ❌ 数据库读取失败（返回 null）');
+            } else {
+              debugPrint('[角色编辑] ✅ 数据库读取成功');
+              debugPrint('[角色编辑] 新 description 长度: ${updatedChar.description.length}');
+            }
+            
+            if (!mounted) {
+              debugPrint('[角色编辑] ❌ 对话框已销毁，跳过刷新');
+              return;
+            }
+            
+            if (updatedChar != null) {
+              debugPrint('[角色编辑] ✅ 调用 updateCharacterSnapshot');
+              ref
+                  .read(activeChatProvider.notifier)
+                  .updateCharacterSnapshot(updatedChar);
+              debugPrint('[角色编辑] ✅ 快照刷新完成');
+              
+              // 验证：读回快照确认
+              final verifyChat = ref.read(activeChatProvider);
+              debugPrint('[角色编辑] 验证 - 刷新后 description 长度: ${verifyChat.character?.description.length}');
+            }
+          } else {
+            debugPrint('[角色编辑] ❌ ID 不匹配，跳过刷新');
+          }
+          
+          debugPrint('═══ [角色编辑] 刷新流程结束 ═══\n');
+        }
+        
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         KiraToast.show(context, '保存失败: $e', type: KiraToastType.error);
       }
-      if (mounted) setState(() => _isSaving = false);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 

@@ -105,7 +105,14 @@ class ImportService {
   }
 
   /// Export character to PNG with embedded data
-  Future<Uint8List> exportToPng(Character character, Uint8List? avatarData) async {
+  ///
+  /// [Bug1.2] worldInfoRepo 非空时从 world_infos 表（活跃轨）组装 characterBook
+  /// 替换导入快照（治导出世界书陈旧）；null 时保留快照（旧行为兜底）。
+  Future<Uint8List> exportToPng(
+    Character character,
+    Uint8List? avatarData, {
+    WorldInfoRepository? worldInfoRepo,
+  }) async {
     // Get avatar data
     Uint8List imageBytes;
     if (avatarData != null) {
@@ -121,23 +128,46 @@ class ImportService {
     } else {
       imageBytes = _createPlaceholderPng();
     }
-    
+
+    // [Bug1.2] 活跃轨组装：world_infos 表有绑定书条目时替换导入快照
+    Character exportChar = character;
+    if (worldInfoRepo != null) {
+      final liveBook =
+          await assembleCharacterBookFromRepo(worldInfoRepo, character.id);
+      if (liveBook != null) exportChar = character.copyWith(characterBook: liveBook);
+    }
+
     // Create character JSON
-    final json = _characterToV3Json(character);
+    final json = _characterToV3Json(exportChar);
     final jsonString = jsonEncode(json);
     final encoded = base64Encode(utf8.encode(jsonString));
-    
+
     // Embed in PNG
     return _embedPngTextChunk(imageBytes, 'chara', encoded);
   }
 
   /// Export character to CharX archive
-  Future<Uint8List> exportToCharX(Character character, Uint8List? avatarData) async {
+  ///
+  /// [Bug1.2] worldInfoRepo 非空时从 world_infos 表（活跃轨）组装 characterBook
+  /// 替换导入快照（治导出世界书陈旧）；null 时保留快照（旧行为兜底）。
+  Future<Uint8List> exportToCharX(
+    Character character,
+    Uint8List? avatarData, {
+    WorldInfoRepository? worldInfoRepo,
+  }) async {
     final encoder = ZipEncoder();
     final archive = Archive();
-    
+
+    // [Bug1.2] 活跃轨组装：world_infos 表有绑定书条目时替换导入快照
+    Character exportChar = character;
+    if (worldInfoRepo != null) {
+      final liveBook =
+          await assembleCharacterBookFromRepo(worldInfoRepo, character.id);
+      if (liveBook != null) exportChar = character.copyWith(characterBook: liveBook);
+    }
+
     // Add card.json
-    final json = _characterToV3Json(character);
+    final json = _characterToV3Json(exportChar);
     final jsonBytes = utf8.encode(jsonEncode(json));
     archive.addFile(ArchiveFile('card.json', jsonBytes.length, jsonBytes));
     
@@ -156,8 +186,22 @@ class ImportService {
   }
 
   /// Export character to JSON
-  String exportToJson(Character character) {
-    final json = _characterToV3Json(character);
+  ///
+  /// [Bug1.2] worldInfoRepo 非空时从 world_infos 表（活跃轨）组装 characterBook
+  /// 替换导入快照（治导出世界书陈旧）；null 时保留快照（旧行为兜底）。
+  /// 由 sync 改 async（组装需查库），两个调用方均已在 async 上下文。
+  Future<String> exportToJson(
+    Character character, {
+    WorldInfoRepository? worldInfoRepo,
+  }) async {
+    // [Bug1.2] 活跃轨组装：world_infos 表有绑定书条目时替换导入快照
+    Character exportChar = character;
+    if (worldInfoRepo != null) {
+      final liveBook =
+          await assembleCharacterBookFromRepo(worldInfoRepo, character.id);
+      if (liveBook != null) exportChar = character.copyWith(characterBook: liveBook);
+    }
+    final json = _characterToV3Json(exportChar);
     return jsonEncode(json);
   }
 
@@ -887,4 +931,62 @@ Future<void> importEmbeddedLorebook(
   // [IMP-6] 落库后回读:实际条数(与 IMP-5 对比,差值即丢点)
   final written = await worldInfoRepo.getEntriesForWorldInfo(worldInfo.id);
   print('[IMP-6] readback WI="${worldInfo.name}" id=${worldInfo.id} entriesInDb=${written.length} (expected ${characterBook.entries.length})');
+}
+
+/// [Bug1.2] 从 world_infos 表（活跃轨）组装回 CharacterBook，治导出世界书陈旧。
+///
+/// 世界书"双轨存储"：活跃数据在 world_infos/world_info_entries 表（编辑器全部写这里），
+/// characters.characterBookJson 是导入时的快照，两轨之间零同步 → 直接用快照导出
+/// 会丢用户此后的全部增删改（导出永远是导入时的原始数据）。
+/// 导出前调用本函数把活跃轨组装回 CharacterBook，替换快照。
+///
+/// 返回 null 表示该角色无绑定书/零条目（调用方保留原快照兜底）。
+/// 字段对应（与 _characterBookToJson / _wiEntryToJson 对齐）：
+/// - WorldInfoEntry 无 name 字段，名字存 comment（导入时 entry.name?:comment → comment）
+/// - id 用合并列表下标（确定性、无碰撞；ST uid 语义为数字，重导入 as int 解析无损）
+/// - position 用枚举 index（与 _wiEntryToJson 的 'position': e.position.index 一致）
+/// - WorldInfo 无 tokenBudget/extensions 字段 → CharacterBook 用默认值
+///   （书级 extensions 在 world_infos 表无落点，导出为空，条目级 extensions 完整保留）
+Future<CharacterBook?> assembleCharacterBookFromRepo(
+  WorldInfoRepository worldInfoRepo,
+  String characterId,
+) async {
+  try {
+    final books = await worldInfoRepo.getWorldInfosForCharacter(characterId);
+    if (books.isEmpty) return null;
+
+    // 合并角色绑定的全部书的条目（ST character_book 本就是平铺列表，
+    // 与 _handleWiGetEntries 的合并兜底语义一致）
+    final merged = <CharacterBookEntry>[];
+    String? bookName;
+    for (final book in books) {
+      bookName ??= book.name;
+      for (final e in book.entries) {
+        merged.add(CharacterBookEntry(
+          id: merged.length,
+          keys: e.keys,
+          secondaryKeys: e.secondaryKeys,
+          content: e.content,
+          comment: e.comment,
+          name: e.comment,
+          enabled: e.enabled,
+          insertionOrder: e.insertionOrder,
+          caseSensitive: e.caseSensitive,
+          constant: e.constant,
+          selective: e.selective,
+          position: e.position.index,
+          extensions: e.extensions,
+        ));
+      }
+    }
+    if (merged.isEmpty) return null;
+
+    return CharacterBook(
+      name: bookName,
+      entries: merged,
+    );
+  } catch (e) {
+    debugPrint('[导出] 组装世界书失败: $e');
+    return null;
+  }
 }

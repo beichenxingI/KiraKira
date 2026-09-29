@@ -151,44 +151,47 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
 
     try {
       final importService = ref.read(importServiceProvider);
+      // [Bug1.2] 活跃轨世界书：导出前从 world_infos 表组装（替换导入快照）
+      final worldInfoRepo = ref.read(worldInfoRepositoryProvider);
       final archive = Archive();
       final usedNames = <String>{};
 
-      for (final c in selected) {
-        // 读头像：avatarPath 存的是相对路径，导出前需转绝对路径（与 UI 显示一致）
-        Uint8List? avatarData;
-        final rawAvatarPath = c.assets?.avatarPath;
-        if (rawAvatarPath != null) {
-          final absPath = await PathUtils.toAbsolutePath(rawAvatarPath);
-          final f = File(absPath);
-          if (await f.exists()) avatarData = await f.readAsBytes();
-        }
+for (final c in selected) {
+  final repo = ref.read(characterRepositoryProvider);
+  final latestChar = await repo.getCharacter(c.id);
+  final exportChar = latestChar ?? c;
 
-        // 文件名安全化 + 去重
-        var safeName = c.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-        if (safeName.isEmpty) safeName = c.id;
-        var fileName = safeName;
-        var dup = 1;
-        final ext = format == 'json' ? 'json' : (format == 'charx' ? 'charx' : 'png');
-        while (usedNames.contains('$fileName.$ext')) {
-          fileName = '${safeName}_${dup++}';
-        }
-        usedNames.add('$fileName.$ext');
+  Uint8List? avatarData;
+  final rawAvatarPath = exportChar.assets?.avatarPath;
+  if (rawAvatarPath != null) {
+    final absPath = await PathUtils.toAbsolutePath(rawAvatarPath);
+    final f = File(absPath);
+    if (await f.exists()) avatarData = await f.readAsBytes();
+  }
 
-        // 按格式生成字节
-        final List<int> bytes;
-        switch (format) {
-          case 'json':
-            bytes = utf8.encode(importService.exportToJson(c));
-            break;
-          case 'charx':
-            bytes = await importService.exportToCharX(c, avatarData);
-            break;
-          default:
-            bytes = await importService.exportToPng(c, avatarData);
-        }
-        archive.addFile(ArchiveFile('$fileName.$ext', bytes.length, bytes));
-      }
+  var safeName = exportChar.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+  if (safeName.isEmpty) safeName = exportChar.id;
+  var fileName = safeName;
+  var dup = 1;
+  final ext = format == 'json' ? 'json' : (format == 'charx' ? 'charx' : 'png');
+  while (usedNames.contains('$fileName.$ext')) {
+    fileName = '${safeName}_${dup++}';
+  }
+  usedNames.add('$fileName.$ext');
+
+  final List<int> bytes;
+  switch (format) {
+    case 'json':
+      bytes = utf8.encode(await importService.exportToJson(exportChar, worldInfoRepo: worldInfoRepo));
+      break;
+    case 'charx':
+      bytes = await importService.exportToCharX(exportChar, avatarData, worldInfoRepo: worldInfoRepo);
+      break;
+    default:
+      bytes = await importService.exportToPng(exportChar, avatarData, worldInfoRepo: worldInfoRepo);
+  }
+  archive.addFile(ArchiveFile('$fileName.$ext', bytes.length, bytes));
+}
 
       final zipBytes = ZipEncoder().encode(archive)!;
       final ts = DateTime.now();

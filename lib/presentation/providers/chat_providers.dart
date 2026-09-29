@@ -181,6 +181,14 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     });
   }
 
+  /// [Bug1.1] 更新当前聊天的角色快照（治角色编辑后聊天页用旧数据）。
+  /// 只换 character 字段，不置 isLoading（避免 loadChat 整页闪屏）；
+  /// LLM prompt 组装（sendMessage/_buildContextUpTo）读的就是这份快照。
+  /// 注意：传新实例（内容变了、id 不变）——_charSub 只监听 id，不会触发重注入风暴。
+  void updateCharacterSnapshot(Character character) {
+    state = state.copyWith(character: character);
+  }
+
   /// Load a chat by ID
   Future<void> loadChat(String chatId) async {
     _generationToken++; // 切换聊天前作废正在跑的生成，杜绝串台
@@ -200,6 +208,30 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       final character =
           await _characterRepository.getCharacter(chat.characterId);
       final messages = await _chatRepository.getMessages(chatId);
+
+      // [临时调试] 验证 loadChat 读到的角色数据
+      debugPrint('═══ [loadChat] 读取角色数据 ═══');
+      debugPrint('[loadChat] chatId = $chatId');
+      debugPrint('[loadChat] characterId = ${chat.characterId}');
+      debugPrint('[loadChat] character != null: ${character != null}');
+      if (character != null) {
+        debugPrint('[loadChat] character.id = ${character.id}');
+        debugPrint('[loadChat] character.name = ${character.name}');
+        debugPrint('[loadChat] description 长度: ${character.description.length}');
+        if (character.description.isNotEmpty) {
+          final preview = character.description.length > 80 
+              ? character.description.substring(0, 80) 
+              : character.description;
+          debugPrint('[loadChat] description 开头: $preview');
+        }
+        debugPrint('[loadChat] systemPrompt 长度: ${character.systemPrompt.length}');
+        debugPrint('[loadChat] extensions 键: ${character.extensions.keys.join(", ")}');
+        debugPrint('[loadChat] characterBook != null: ${character.characterBook != null}');
+        if (character.characterBook != null) {
+          debugPrint('[loadChat] characterBook 条目数: ${character.characterBook!.entries.length}');
+        }
+      }
+      debugPrint('═══ [loadChat] 结束 ═══\n');
 
       // 恢复本聊天的局部变量（酒馆助手 getVariables 存档）
       await VariablesService.instance.loadLocalVariablesFromPrefs(chatId);

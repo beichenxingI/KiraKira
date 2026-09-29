@@ -113,6 +113,9 @@ window.__kiraDebug = __KIRA_DEBUG__;
     position: relative;
     margin: 14px 0; padding: 12px 16px 34px; border-radius: 18px;
     word-wrap: break-word; overflow-wrap: break-word;
+    /* [Bug4] 保留换行符（治AI输出XML标签时裸\n被浏览器折叠,全挤一行）。
+       配合 Dart 侧 _serializeMessage 剥掉块间 >\n< 空白,块级元素间距不受影响 */
+    white-space: pre-wrap;
     box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     color: #EAEAEA;
     font-size: 15px; line-height: 1.6;
@@ -3700,10 +3703,15 @@ function injectBridge(html, id, floorIdx) {
       'function _arm(){setTimeout(_chkBlank,1500);}' +
       'if(document.readyState==="complete"){_arm();}else{window.addEventListener("load",_arm);}' +
       '})();<\/script>';
+  // [Bug4] 裸XML片段判定(无文档结构):仅这类片段注入 pre-wrap 保留换行(治以
+  // <logic_check> 等标签开头的消息走 iframe 通道时裸\n被折叠);
+  // 完整HTML卡片(自带 <style>/DOCTYPE,源码含缩进换行)不加 —— pre-wrap 会把
+  // 源码缩进换行渲染出来,炸掉卡片排版。卡片自带样式在 <head> 之后按级联覆盖。
+  var _bareFrag = !(/<!DOCTYPE|<html[\s>]|<style/i.test(html));
   var patch = _guardErr + _libScript + _guardEnv + '<style>' +
       // [MD修复] 默认前景色:半成品HTML文档(无自带样式)不再黑字透明不可读;
       // 卡片自带样式在 <head> 之后,同特异性下按级联顺序覆盖此默认值
-      'html,body{overflow:visible !important;color:#E0E0E0;}' +
+      'html,body{overflow:visible !important;color:#E0E0E0;' + (_bareFrag ? 'white-space:pre-wrap;' : '') + '}' +
       '</style>' +
       '<script>(function(){' +
       'var _s={};try{localStorage.getItem("__t");}catch(e){' +

@@ -185,7 +185,7 @@ void main() {
   test('导出 JSON 含 alternate_greetings 与 character_book', () async {
     final card = v3Card(entries: [entryJson(0)], scanDepth: 3);
     final imported = await service.importFromPngBytes(buildCardPng(card));
-    final json = jsonDecode(service.exportToJson(imported)) as Map<String, dynamic>;
+    final json = jsonDecode(await service.exportToJson(imported)) as Map<String, dynamic>;
 
     final data = json['data'] as Map<String, dynamic>;
     expect(data['alternate_greetings'], ['Hi again', 'Yo']);

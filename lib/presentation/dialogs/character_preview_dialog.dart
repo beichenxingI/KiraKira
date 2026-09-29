@@ -398,43 +398,47 @@ class _CharacterPreviewDialog extends ConsumerWidget {
     try {
       final importService = ref.read(importServiceProvider);
 
-      // 头像字节：avatarPath 存相对路径，导出前转绝对路径
-      Uint8List? avatarData;
-      final rawAvatarPath = character.assets?.avatarPath;
-      if (rawAvatarPath != null) {
-        final absPath = await PathUtils.toAbsolutePath(rawAvatarPath);
-        final f = File(absPath);
-        if (await f.exists()) avatarData = await f.readAsBytes();
-      }
+final worldInfoRepo = ref.read(worldInfoRepositoryProvider);
 
-      final safeName = character.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+final repo = ref.read(characterRepositoryProvider);
+final latestCharacter = await repo.getCharacter(character.id);
+final exportChar = latestCharacter ?? character;
 
-      final Uint8List bytes;
-      final String ext;
-      switch (format) {
-        case 'json':
-          bytes = utf8.encode(importService.exportToJson(character));
-          ext = 'json';
-          break;
-        case 'charx':
-          bytes = await importService.exportToCharX(character, avatarData);
-          ext = 'charx';
-          break;
-        case 'png':
-        default:
-          bytes = await importService.exportToPng(character, avatarData);
-          ext = 'png';
-          break;
-      }
+Uint8List? avatarData;
+final rawAvatarPath = exportChar.assets?.avatarPath;
+if (rawAvatarPath != null) {
+  final absPath = await PathUtils.toAbsolutePath(rawAvatarPath);
+  final f = File(absPath);
+  if (await f.exists()) avatarData = await f.readAsBytes();
+}
 
-      // [问题1] 统一导出交付(mode 已选定,不依赖 context)
-      final savedPath = await deliverExportFile(
-        fileName: '$safeName.$ext',
-        bytes: bytes,
-        subject: character.name,
-        ext: ext,
-        mode: mode,
-      );
+final safeName = exportChar.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+
+final Uint8List bytes;
+final String ext;
+switch (format) {
+  case 'json':
+    bytes = utf8.encode(await importService.exportToJson(exportChar, worldInfoRepo: worldInfoRepo));
+    ext = 'json';
+    break;
+  case 'charx':
+    bytes = await importService.exportToCharX(exportChar, avatarData, worldInfoRepo: worldInfoRepo);
+    ext = 'charx';
+    break;
+  case 'png':
+  default:
+    bytes = await importService.exportToPng(exportChar, avatarData, worldInfoRepo: worldInfoRepo);
+    ext = 'png';
+    break;
+}
+
+final savedPath = await deliverExportFile(
+  fileName: '$safeName.$ext',
+  bytes: bytes,
+  subject: exportChar.name,
+  ext: ext,
+  mode: mode,
+);
       if (savedPath != null &&
           mode == ExportDeliveryMode.save) {
         messenger.showSnackBar(SnackBar(content: Text('已保存到: $savedPath')));

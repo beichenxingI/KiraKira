@@ -3395,7 +3395,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         notifyFrameworkLoaded: notify?['MVU框架加载成功'] as bool?,
         notifyInitSuccess: notify?['变量初始化成功'] as bool?,
         notifyVarError: notify?['变量更新出错'] as bool?,
-        notifyExtraParsing: extra?['额外模型解析中'] as bool?,
+        // [Bug2 修复] 四键都在"通知"里（道渊 In() 把四键全写在 通知 下），
+        // 此前从 额外模型解析配置 读 → 恒 null → 该键卡死在烘焙默认值
+        notifyExtraParsing: notify?['额外模型解析中'] as bool?,
         jailbreakScheme: extra?['破限方案'] as String?,
         autoRequest: extra?['启用自动请求'] as bool?,
         maxChatHistory: (extra?['max_chat_history'] as num?)?.toInt(),
@@ -4110,6 +4112,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final scope = data['scope'] as String? ?? 'global';
 
     Future<void> pushRefresh({Map<String, dynamic>? editDetail}) async {
+      // [Bug1.3] 变更后重注入正则规则快照（治 JS 同步引擎用旧规则）：
+      // __KIRA_REGEX_RULES 此前仅 onLoadStop 注入一次，面板开关/删除/保存/导入后
+      // JS 同步引擎（__kiraRunRegex 读 window.__KIRA_REGEX_RULES）一直拿旧值。
+      // 注入幂等（整体重写），顺带在面板打开（loadRegexList）时也刷新为最新。
+      final controller = _controller;
+      if (controller != null && _webViewMounted) {
+        await _injectRegexRules(controller);
+      }
       _bridge.send(BridgeType.settingsPanelData, {
         'data': _serializeRegexData(editDetail: editDetail),
         'refresh': true,
@@ -7113,9 +7123,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (htmlFenceMatch != null) {
       final before = processed.substring(0, htmlFenceMatch.start).trim();
       if (before.isNotEmpty) {
-        proseHtml = _highlightQuotes(md.markdownToHtml(
+        proseHtml = _stripInterBlockWs(_highlightQuotes(md.markdownToHtml(
             before,
-            extensionSet: md.ExtensionSet.gitHubWeb));
+            extensionSet: md.ExtensionSet.gitHubWeb)));
       }
       bodyForRender = htmlFenceMatch.group(1) ?? ''; // 围栏内的纯 HTML
     } else {
@@ -7125,9 +7135,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       if (docStart != null && docStart.start > 0) {
         final prose = processed.substring(0, docStart.start).trim();
         if (prose.isNotEmpty) {
-          proseHtml = _highlightQuotes(md.markdownToHtml(
+          proseHtml = _stripInterBlockWs(_highlightQuotes(md.markdownToHtml(
               prose,
-              extensionSet: md.ExtensionSet.gitHubWeb));
+              extensionSet: md.ExtensionSet.gitHubWeb)));
         }
         bodyForRender = processed.substring(docStart.start);
       }
@@ -7137,10 +7147,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final looksLikeHtml = _looksLikeHtmlDoc(bodyForRender);
     final rendered = looksLikeHtml
         ? normalizeCodeQuotes(bodyForRender)
-        : _highlightQuotes(md.markdownToHtml(
+        : _stripInterBlockWs(_highlightQuotes(md.markdownToHtml(
             bodyForRender,
             extensionSet: md.ExtensionSet.gitHubWeb,
-          ));
+          )));
     final htmlFenceMatches = RegExp(
       r'```html\s*\n([\s\S]*?)```',
       caseSensitive: false,
@@ -7845,13 +7855,45 @@ bool _looksLikeHtmlDoc(String s) {
 /// 边界: <script> 未闭合 → 非贪婪匹配不命中 → 该段照旧归一化(与旧行为一致);
 /// JS 字符串内的字面量 "</script>" 与浏览器解析行为一致地提前截断块,
 /// 卡片本身已在字符串内写 <\/script> 转义,不受影响。
+/// [Bug4] 剥掉块级元素之间的空白换行（>\n< → ><）。
+/// markdown 包产物中所有原始 < > 都是标签定界符（文本内容已被转义），
+/// 块间空白换行在普通 white-space 下渲染为零高度行（不可见）；
+/// .msg 加 pre-wrap 后会把它们渲染成空行 → 段落间距炸裂。
+/// 剥掉后 pre-wrap 只影响真实文本内容里的换行（含 <pre> 代码块：其内容
+/// 已转义，且尾 \n 前是文本非 >，不受影响）。
+String _stripInterBlockWs(String html) =>
+    html.replaceAll(RegExp(r'>[ \t]*\n+[ \t]*<'), '><');
+
 String normalizeCodeQuotes(String html) {
-  // 全文替换：弯引号在JS里无论出现在何处都是非法的
-  // 出现为字符串定界符时必须替换；出现在字符串内容里时替换为直引号对语义无害
-  return html
+  // [P3-D1 块感知] 块外归一化，块内原样保留（治正则替换出的游戏HTML内弯引号触发SyntaxError）。
+  // 弯引号作为JS字符串定界符时非法；作为字符串内容时合法（如 desc:"“深蓝!”…"），
+  // 全文替换会把内容里的弯引号也换成直引号 → 字符串提前终止 → 整块脚本死亡。
+  String norm(String s) => s
       .replaceAll(RegExp('[\u2018\u2019\u201a\u201b]'), "'")
       .replaceAll(RegExp('[\u201c\u201d\u201e\u201f\uff02]'), '"')
       .replaceAll(RegExp('\u2026+'), '...');
+
+  // 提取所有 <script>/<style> 块（非贪婪，未闭合块不命中 → 该段照旧归一化）
+  final blocks = RegExp(
+    r'<script[^>]*>[\s\S]*?</script>|<style[^>]*>[\s\S]*?</style>',
+    caseSensitive: false,
+  ).allMatches(html);
+
+  final buf = StringBuffer();
+  var last = 0;
+
+  for (final m in blocks) {
+    // 块外归一化
+    buf.write(norm(html.substring(last, m.start)));
+    // 块内原样保留
+    buf.write(html.substring(m.start, m.end));
+    last = m.end;
+  }
+
+  // 最后一段块外归一化
+  buf.write(norm(html.substring(last)));
+
+  return buf.toString();
 }
 
 /// [顶栏] 滑动显隐包装:Scaffold 布局位不变(extendBodyBehindAppBar 下 body 全出血,
