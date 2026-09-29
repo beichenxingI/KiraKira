@@ -21,6 +21,7 @@ import '../components/kira_toast.dart';
 import '../providers/character_providers.dart';
 import '../providers/chat_providers.dart' show activeChatProvider;
 import '../../data/repositories/character_repository.dart';
+import '../../domain/services/import_service.dart' show assembleCharacterBookFromRepo;
 import '../providers/regex_providers.dart';
 import '../providers/world_info_providers.dart';
 import '../theme/design_tokens.dart';
@@ -242,6 +243,20 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
         final latest = await repo.getCharacter(_characterId!);
         final base = latest ?? widget.character!;
 
+        // [Phase 1.2] 从 world_infos 表重建 characterBook（临时同步，Phase 2 完成后可删）
+        final wbRepo = ref.read(worldInfoRepositoryProvider);
+        final liveBook = await assembleCharacterBookFromRepo(wbRepo, _characterId!);
+        debugPrint('[Phase1.2] 重建 characterBook: ${liveBook?.entries.length ?? 0} 条');
+
+        // [Phase 1.3] 从 Provider state 重建正则 extensions（消除 lost-update 竞态窗口）
+        final regexState = ref.read(characterRegexScriptsProvider(_characterId!));
+        final mergedExtensions = Map<String, dynamic>.from(base.extensions);
+        if (regexState.isNotEmpty) {
+          mergedExtensions['regex_scripts'] =
+              regexState.map((s) => s.toJson()).toList();
+        }
+        debugPrint('[Phase1.3] 同步正则: ${regexState.length} 条');
+
         await notifier.updateCharacter(base.copyWith(
           name: name,
           description: _description,
@@ -259,8 +274,8 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
           postHistoryInstructions: base.postHistoryInstructions,
           creator: base.creator,
           version: base.version,
-          characterBook: base.characterBook,
-          extensions: base.extensions,
+          characterBook: liveBook ?? base.characterBook, // [Phase 1.2] 用表组装的
+          extensions: mergedExtensions, // [Phase 1.3] 正则同步后的值
           isFavorite: base.isFavorite,
           createdAt: base.createdAt,
         ));

@@ -9,7 +9,9 @@ import 'package:kirakira/presentation/providers/world_info_providers.dart';
 final selectedCharacterIdProvider = StateProvider<String?>((ref) => null);
 
 /// Character list provider
-final characterListProvider = AsyncNotifierProvider<CharacterListNotifier, List<Character>>(() {
+/// [Phase 1.1] autoDispose：列表页退出自动销毁缓存，重进必重查数据库，
+/// 无需手动 invalidate；消除统计页/世界书页的陈旧缓存。
+final characterListProvider = AsyncNotifierProvider.autoDispose<CharacterListNotifier, List<Character>>(() {
   return CharacterListNotifier();
 });
 
