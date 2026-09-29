@@ -16,7 +16,7 @@ final characterListProvider = AsyncNotifierProvider.autoDispose<CharacterListNot
 });
 
 /// Character list notifier
-class CharacterListNotifier extends AsyncNotifier<List<Character>> {
+class CharacterListNotifier extends AutoDisposeAsyncNotifier<List<Character>> {
   @override
   Future<List<Character>> build() async {
     final repo = ref.watch(characterRepositoryProvider);
