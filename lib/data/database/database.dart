@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
+import 'package:kirakira/data/models/regex_script.dart' as models;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
@@ -355,6 +358,29 @@ class EmotionNodes extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// [Phase 2.1] 正则脚本独立表（正则不再存 extensions JSON，消除 lost-update 竞态）
+/// DataClassName 重命名：Drift 按表名单数化默认生成 `RegexScript`，
+/// 会与 data/models/regex_script.dart 的模型类冲突，故改名 RegexScriptRow。
+@DataClassName('RegexScriptRow')
+class RegexScripts extends Table {
+  TextColumn get id => text()();
+  /// 'global' 或 'character'
+  TextColumn get scope => text().withDefault(const Constant('global'))();
+  /// 角色 ID（scope='character' 时）
+  TextColumn get characterId => text().nullable()();
+  /// RegexScript 序列化 JSON
+  TextColumn get scriptJson => text().withDefault(const Constant('{}'))();
+  /// 排序（lower = earlier）
+  IntColumn get order => integer().withDefault(const Constant(0))();
+  /// 是否禁用
+  BoolColumn get disabled => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// App database
 @DriftDatabase(tables: [
   Characters,
@@ -377,12 +403,13 @@ class EmotionNodes extends Table {
   MemoryEntities,
   MemoryRelationships,
   EmotionNodes,
+  RegexScripts,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-   int get schemaVersion => 18;
+   int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration {
@@ -492,8 +519,87 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(memoryRelationships);
           await m.createTable(emotionNodes);
         }
+        if (from < 19) {
+          // [Phase 2.1] 创建 regex_scripts 表（正则独立表，schema v18→v19）
+          await m.createTable(regexScripts);
+          debugPrint('[Migration] v18→v19: 创建 regex_scripts 表');
+
+          // [Phase 2.2] 迁移存量角色级正则（extensions['regex_scripts'] → 表）
+          // 旧数据保留不删（双读降级兜底）；失败不阻断启动。
+          try {
+            final chars = await select(characters).get();
+            var migratedCharCount = 0;
+            var migratedScriptCount = 0;
+            for (final char in chars) {
+              try {
+                final extensions =
+                    jsonDecode(char.extensionsJson) as Map<String, dynamic>;
+                final rawList = extensions['regex_scripts'];
+                if (rawList is! List || rawList.isEmpty) continue;
+                for (var i = 0; i < rawList.length; i++) {
+                  final raw = rawList[i];
+                  if (raw is! Map) continue;
+                  final script = _migrateRegexScript(
+                    Map<String, dynamic>.from(raw),
+                    char.id,
+                    i,
+                  );
+                  if (script == null) continue;
+                  await into(regexScripts).insert(RegexScriptsCompanion(
+                    id: Value(script.id),
+                    scope: const Value('character'),
+                    characterId: Value(char.id),
+                    scriptJson: Value(jsonEncode(script.toJson())),
+                    order: Value(i),
+                    disabled: Value(script.disabled),
+                    createdAt: Value(script.createdAt),
+                    updatedAt: Value(script.updatedAt),
+                  ));
+                  migratedScriptCount++;
+                }
+                migratedCharCount++;
+              } catch (charError) {
+                debugPrint(
+                    '[Migration] 角色 ${char.name} extensions 解析失败: $charError');
+                // 继续迁移其他角色
+              }
+            }
+            debugPrint(
+                '[Migration] 角色级正则迁移完成: $migratedCharCount 个角色, $migratedScriptCount 条脚本');
+            debugPrint(
+                '[Migration] 全局正则迁移由首启逻辑处理（SharedPreferences → 表）');
+          } catch (migrationError) {
+            debugPrint('[Migration] ❌ 正则迁移失败: $migrationError');
+            // 迁移失败不阻断 app 启动（extensions 旧数据仍在，双读兜底）
+          }
+        }
       },
     );
+  }
+}
+
+/// [Phase 2.2] 单条正则迁移：自家格式优先，SillyTavern 格式兜底（[IMP-7] 硬 cast 防炸）。
+/// 返回 null 表示无法解析（跳过该条，不阻断其余迁移）。
+models.RegexScript? _migrateRegexScript(
+  Map<String, dynamic> raw,
+  String characterId,
+  int index,
+) {
+  try {
+    final s = models.RegexScript.fromJson(raw);
+    return s.copyWith(characterId: s.characterId ?? characterId);
+  } catch (_) {}
+  try {
+    final s = models.RegexScript.fromSillyTavernJson(
+      raw,
+      newId: '${characterId}_migrated_$index',
+    );
+    return s.copyWith(
+      scriptType: models.RegexScriptType.character,
+      characterId: characterId,
+    );
+  } catch (_) {
+    return null;
   }
 }
 

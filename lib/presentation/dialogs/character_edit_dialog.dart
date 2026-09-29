@@ -248,15 +248,6 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
         final liveBook = await assembleCharacterBookFromRepo(wbRepo, _characterId!);
         debugPrint('[Phase1.2] 重建 characterBook: ${liveBook?.entries.length ?? 0} 条');
 
-        // [Phase 1.3] 从 Provider state 重建正则 extensions（消除 lost-update 竞态窗口）
-        final regexState = ref.read(characterRegexScriptsProvider(_characterId!));
-        final mergedExtensions = Map<String, dynamic>.from(base.extensions);
-        if (regexState.isNotEmpty) {
-          mergedExtensions['regex_scripts'] =
-              regexState.map((s) => s.toJson()).toList();
-        }
-        debugPrint('[Phase1.3] 同步正则: ${regexState.length} 条');
-
         await notifier.updateCharacter(base.copyWith(
           name: name,
           description: _description,
@@ -275,7 +266,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
           creator: base.creator,
           version: base.version,
           characterBook: liveBook ?? base.characterBook, // [Phase 1.2] 用表组装的
-          extensions: mergedExtensions, // [Phase 1.3] 正则同步后的值
+          extensions: base.extensions, // [Phase 2.5] 正则已独立表，不再触碰 extensions
           isFavorite: base.isFavorite,
           createdAt: base.createdAt,
         ));

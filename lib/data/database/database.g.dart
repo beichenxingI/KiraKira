@@ -10311,6 +10311,448 @@ class EmotionNodesCompanion extends UpdateCompanion<EmotionNode> {
   }
 }
 
+class $RegexScriptsTable extends RegexScripts
+    with TableInfo<$RegexScriptsTable, RegexScriptRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RegexScriptsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
+  @override
+  late final GeneratedColumn<String> scope = GeneratedColumn<String>(
+      'scope', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('global'));
+  static const VerificationMeta _characterIdMeta =
+      const VerificationMeta('characterId');
+  @override
+  late final GeneratedColumn<String> characterId = GeneratedColumn<String>(
+      'character_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _scriptJsonMeta =
+      const VerificationMeta('scriptJson');
+  @override
+  late final GeneratedColumn<String> scriptJson = GeneratedColumn<String>(
+      'script_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _orderMeta = const VerificationMeta('order');
+  @override
+  late final GeneratedColumn<int> order = GeneratedColumn<int>(
+      'order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _disabledMeta =
+      const VerificationMeta('disabled');
+  @override
+  late final GeneratedColumn<bool> disabled = GeneratedColumn<bool>(
+      'disabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("disabled" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        scope,
+        characterId,
+        scriptJson,
+        order,
+        disabled,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'regex_scripts';
+  @override
+  VerificationContext validateIntegrity(Insertable<RegexScriptRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('scope')) {
+      context.handle(
+          _scopeMeta, scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta));
+    }
+    if (data.containsKey('character_id')) {
+      context.handle(
+          _characterIdMeta,
+          characterId.isAcceptableOrUnknown(
+              data['character_id']!, _characterIdMeta));
+    }
+    if (data.containsKey('script_json')) {
+      context.handle(
+          _scriptJsonMeta,
+          scriptJson.isAcceptableOrUnknown(
+              data['script_json']!, _scriptJsonMeta));
+    }
+    if (data.containsKey('order')) {
+      context.handle(
+          _orderMeta, order.isAcceptableOrUnknown(data['order']!, _orderMeta));
+    }
+    if (data.containsKey('disabled')) {
+      context.handle(_disabledMeta,
+          disabled.isAcceptableOrUnknown(data['disabled']!, _disabledMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RegexScriptRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RegexScriptRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      scope: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}scope'])!,
+      characterId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}character_id']),
+      scriptJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}script_json'])!,
+      order: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}order'])!,
+      disabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}disabled'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $RegexScriptsTable createAlias(String alias) {
+    return $RegexScriptsTable(attachedDatabase, alias);
+  }
+}
+
+class RegexScriptRow extends DataClass implements Insertable<RegexScriptRow> {
+  final String id;
+
+  /// 'global' 或 'character'
+  final String scope;
+
+  /// 角色 ID（scope='character' 时）
+  final String? characterId;
+
+  /// RegexScript 序列化 JSON
+  final String scriptJson;
+
+  /// 排序（lower = earlier）
+  final int order;
+
+  /// 是否禁用
+  final bool disabled;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const RegexScriptRow(
+      {required this.id,
+      required this.scope,
+      this.characterId,
+      required this.scriptJson,
+      required this.order,
+      required this.disabled,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['scope'] = Variable<String>(scope);
+    if (!nullToAbsent || characterId != null) {
+      map['character_id'] = Variable<String>(characterId);
+    }
+    map['script_json'] = Variable<String>(scriptJson);
+    map['order'] = Variable<int>(order);
+    map['disabled'] = Variable<bool>(disabled);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  RegexScriptsCompanion toCompanion(bool nullToAbsent) {
+    return RegexScriptsCompanion(
+      id: Value(id),
+      scope: Value(scope),
+      characterId: characterId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(characterId),
+      scriptJson: Value(scriptJson),
+      order: Value(order),
+      disabled: Value(disabled),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory RegexScriptRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RegexScriptRow(
+      id: serializer.fromJson<String>(json['id']),
+      scope: serializer.fromJson<String>(json['scope']),
+      characterId: serializer.fromJson<String?>(json['characterId']),
+      scriptJson: serializer.fromJson<String>(json['scriptJson']),
+      order: serializer.fromJson<int>(json['order']),
+      disabled: serializer.fromJson<bool>(json['disabled']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'scope': serializer.toJson<String>(scope),
+      'characterId': serializer.toJson<String?>(characterId),
+      'scriptJson': serializer.toJson<String>(scriptJson),
+      'order': serializer.toJson<int>(order),
+      'disabled': serializer.toJson<bool>(disabled),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  RegexScriptRow copyWith(
+          {String? id,
+          String? scope,
+          Value<String?> characterId = const Value.absent(),
+          String? scriptJson,
+          int? order,
+          bool? disabled,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      RegexScriptRow(
+        id: id ?? this.id,
+        scope: scope ?? this.scope,
+        characterId: characterId.present ? characterId.value : this.characterId,
+        scriptJson: scriptJson ?? this.scriptJson,
+        order: order ?? this.order,
+        disabled: disabled ?? this.disabled,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  RegexScriptRow copyWithCompanion(RegexScriptsCompanion data) {
+    return RegexScriptRow(
+      id: data.id.present ? data.id.value : this.id,
+      scope: data.scope.present ? data.scope.value : this.scope,
+      characterId:
+          data.characterId.present ? data.characterId.value : this.characterId,
+      scriptJson:
+          data.scriptJson.present ? data.scriptJson.value : this.scriptJson,
+      order: data.order.present ? data.order.value : this.order,
+      disabled: data.disabled.present ? data.disabled.value : this.disabled,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RegexScriptRow(')
+          ..write('id: $id, ')
+          ..write('scope: $scope, ')
+          ..write('characterId: $characterId, ')
+          ..write('scriptJson: $scriptJson, ')
+          ..write('order: $order, ')
+          ..write('disabled: $disabled, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, scope, characterId, scriptJson, order,
+      disabled, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RegexScriptRow &&
+          other.id == this.id &&
+          other.scope == this.scope &&
+          other.characterId == this.characterId &&
+          other.scriptJson == this.scriptJson &&
+          other.order == this.order &&
+          other.disabled == this.disabled &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class RegexScriptsCompanion extends UpdateCompanion<RegexScriptRow> {
+  final Value<String> id;
+  final Value<String> scope;
+  final Value<String?> characterId;
+  final Value<String> scriptJson;
+  final Value<int> order;
+  final Value<bool> disabled;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const RegexScriptsCompanion({
+    this.id = const Value.absent(),
+    this.scope = const Value.absent(),
+    this.characterId = const Value.absent(),
+    this.scriptJson = const Value.absent(),
+    this.order = const Value.absent(),
+    this.disabled = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RegexScriptsCompanion.insert({
+    required String id,
+    this.scope = const Value.absent(),
+    this.characterId = const Value.absent(),
+    this.scriptJson = const Value.absent(),
+    this.order = const Value.absent(),
+    this.disabled = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<RegexScriptRow> custom({
+    Expression<String>? id,
+    Expression<String>? scope,
+    Expression<String>? characterId,
+    Expression<String>? scriptJson,
+    Expression<int>? order,
+    Expression<bool>? disabled,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (scope != null) 'scope': scope,
+      if (characterId != null) 'character_id': characterId,
+      if (scriptJson != null) 'script_json': scriptJson,
+      if (order != null) 'order': order,
+      if (disabled != null) 'disabled': disabled,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RegexScriptsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? scope,
+      Value<String?>? characterId,
+      Value<String>? scriptJson,
+      Value<int>? order,
+      Value<bool>? disabled,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return RegexScriptsCompanion(
+      id: id ?? this.id,
+      scope: scope ?? this.scope,
+      characterId: characterId ?? this.characterId,
+      scriptJson: scriptJson ?? this.scriptJson,
+      order: order ?? this.order,
+      disabled: disabled ?? this.disabled,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (scope.present) {
+      map['scope'] = Variable<String>(scope.value);
+    }
+    if (characterId.present) {
+      map['character_id'] = Variable<String>(characterId.value);
+    }
+    if (scriptJson.present) {
+      map['script_json'] = Variable<String>(scriptJson.value);
+    }
+    if (order.present) {
+      map['order'] = Variable<int>(order.value);
+    }
+    if (disabled.present) {
+      map['disabled'] = Variable<bool>(disabled.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RegexScriptsCompanion(')
+          ..write('id: $id, ')
+          ..write('scope: $scope, ')
+          ..write('characterId: $characterId, ')
+          ..write('scriptJson: $scriptJson, ')
+          ..write('order: $order, ')
+          ..write('disabled: $disabled, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -10339,6 +10781,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MemoryRelationshipsTable memoryRelationships =
       $MemoryRelationshipsTable(this);
   late final $EmotionNodesTable emotionNodes = $EmotionNodesTable(this);
+  late final $RegexScriptsTable regexScripts = $RegexScriptsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10363,7 +10806,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         chronicleStates,
         memoryEntities,
         memoryRelationships,
-        emotionNodes
+        emotionNodes,
+        regexScripts
       ];
 }
 
@@ -16537,6 +16981,224 @@ typedef $$EmotionNodesTableProcessedTableManager = ProcessedTableManager<
     ),
     EmotionNode,
     PrefetchHooks Function()>;
+typedef $$RegexScriptsTableCreateCompanionBuilder = RegexScriptsCompanion
+    Function({
+  required String id,
+  Value<String> scope,
+  Value<String?> characterId,
+  Value<String> scriptJson,
+  Value<int> order,
+  Value<bool> disabled,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$RegexScriptsTableUpdateCompanionBuilder = RegexScriptsCompanion
+    Function({
+  Value<String> id,
+  Value<String> scope,
+  Value<String?> characterId,
+  Value<String> scriptJson,
+  Value<int> order,
+  Value<bool> disabled,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$RegexScriptsTableFilterComposer
+    extends Composer<_$AppDatabase, $RegexScriptsTable> {
+  $$RegexScriptsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get scope => $composableBuilder(
+      column: $table.scope, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get characterId => $composableBuilder(
+      column: $table.characterId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get scriptJson => $composableBuilder(
+      column: $table.scriptJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get order => $composableBuilder(
+      column: $table.order, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get disabled => $composableBuilder(
+      column: $table.disabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$RegexScriptsTableOrderingComposer
+    extends Composer<_$AppDatabase, $RegexScriptsTable> {
+  $$RegexScriptsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get scope => $composableBuilder(
+      column: $table.scope, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get characterId => $composableBuilder(
+      column: $table.characterId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get scriptJson => $composableBuilder(
+      column: $table.scriptJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get order => $composableBuilder(
+      column: $table.order, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get disabled => $composableBuilder(
+      column: $table.disabled, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$RegexScriptsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RegexScriptsTable> {
+  $$RegexScriptsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get scope =>
+      $composableBuilder(column: $table.scope, builder: (column) => column);
+
+  GeneratedColumn<String> get characterId => $composableBuilder(
+      column: $table.characterId, builder: (column) => column);
+
+  GeneratedColumn<String> get scriptJson => $composableBuilder(
+      column: $table.scriptJson, builder: (column) => column);
+
+  GeneratedColumn<int> get order =>
+      $composableBuilder(column: $table.order, builder: (column) => column);
+
+  GeneratedColumn<bool> get disabled =>
+      $composableBuilder(column: $table.disabled, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$RegexScriptsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $RegexScriptsTable,
+    RegexScriptRow,
+    $$RegexScriptsTableFilterComposer,
+    $$RegexScriptsTableOrderingComposer,
+    $$RegexScriptsTableAnnotationComposer,
+    $$RegexScriptsTableCreateCompanionBuilder,
+    $$RegexScriptsTableUpdateCompanionBuilder,
+    (
+      RegexScriptRow,
+      BaseReferences<_$AppDatabase, $RegexScriptsTable, RegexScriptRow>
+    ),
+    RegexScriptRow,
+    PrefetchHooks Function()> {
+  $$RegexScriptsTableTableManager(_$AppDatabase db, $RegexScriptsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RegexScriptsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RegexScriptsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RegexScriptsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> scope = const Value.absent(),
+            Value<String?> characterId = const Value.absent(),
+            Value<String> scriptJson = const Value.absent(),
+            Value<int> order = const Value.absent(),
+            Value<bool> disabled = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RegexScriptsCompanion(
+            id: id,
+            scope: scope,
+            characterId: characterId,
+            scriptJson: scriptJson,
+            order: order,
+            disabled: disabled,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            Value<String> scope = const Value.absent(),
+            Value<String?> characterId = const Value.absent(),
+            Value<String> scriptJson = const Value.absent(),
+            Value<int> order = const Value.absent(),
+            Value<bool> disabled = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RegexScriptsCompanion.insert(
+            id: id,
+            scope: scope,
+            characterId: characterId,
+            scriptJson: scriptJson,
+            order: order,
+            disabled: disabled,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$RegexScriptsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $RegexScriptsTable,
+    RegexScriptRow,
+    $$RegexScriptsTableFilterComposer,
+    $$RegexScriptsTableOrderingComposer,
+    $$RegexScriptsTableAnnotationComposer,
+    $$RegexScriptsTableCreateCompanionBuilder,
+    $$RegexScriptsTableUpdateCompanionBuilder,
+    (
+      RegexScriptRow,
+      BaseReferences<_$AppDatabase, $RegexScriptsTable, RegexScriptRow>
+    ),
+    RegexScriptRow,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -16580,4 +17242,6 @@ class $AppDatabaseManager {
       $$MemoryRelationshipsTableTableManager(_db, _db.memoryRelationships);
   $$EmotionNodesTableTableManager get emotionNodes =>
       $$EmotionNodesTableTableManager(_db, _db.emotionNodes);
+  $$RegexScriptsTableTableManager get regexScripts =>
+      $$RegexScriptsTableTableManager(_db, _db.regexScripts);
 }
