@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/data/repositories/regex_script_repository.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 
 // Note: characterRepositoryProvider is defined in character_repository.dart
@@ -49,6 +51,22 @@ class CharacterListNotifier extends AutoDisposeAsyncNotifier<List<Character>> {
   Future<Character> addCharacter(Character character) async {
     final repo = ref.read(characterRepositoryProvider);
     final createdCharacter = await repo.createCharacter(character);
+
+    // [紧急修复-C] 导入时把 extensions['regex_scripts'] 写入独立表。
+    // Phase 2 后正则消费侧只查表；若导入不写表，只能靠 Provider 首次加载的
+    // 双读降级兜底（ST 格式卡兜底解析失败 → 正则整体丢失）。
+    try {
+      final rawList = createdCharacter.extensions['regex_scripts'];
+      if (rawList is List && rawList.isNotEmpty) {
+        await ref
+            .read(regexScriptRepositoryProvider)
+            .importCharacterScriptsFromRaw(createdCharacter.id, rawList);
+      }
+    } catch (e) {
+      // 写表失败不阻断建卡；extensions 原数据保留，加载时双读兜底
+      debugPrint('[Phase2] 导入正则写表失败(extensions 保留): $e');
+    }
+
     // 条目1:新建角色同步生成绑定空世界书(角色正则集存 extensions,天然自带空集)
     // A2修复:仅当角色卡【不带内嵌世界书】时才建壳——导入带书的卡不再产生
     // 空壳遮蔽真书(消费侧已改非空优先,此处从源头不再制造空壳)。

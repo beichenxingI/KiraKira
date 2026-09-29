@@ -24,6 +24,7 @@ import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/data/repositories/regex_script_repository.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
 
@@ -288,6 +289,17 @@ for (final c in selected) {
           }
           // 入库（正则随 extensions 一起进库）
           final created = await repo.createCharacter(c);
+          // [紧急修复-C] 导入时正则写入独立表（与 import_screen 主路径一致）
+          try {
+            final rawList = c.extensions['regex_scripts'];
+            if (rawList is List && rawList.isNotEmpty) {
+              await ref
+                  .read(regexScriptRepositoryProvider)
+                  .importCharacterScriptsFromRaw(created.id, rawList);
+            }
+          } catch (e) {
+            debugPrint('[Phase2] ZIP导入正则写表失败(extensions 保留): $e');
+          }
           // 提取内嵌世界书为独立 WorldInfo（复用单个导入逻辑）
           if (c.characterBook != null && c.characterBook!.entries.isNotEmpty) {
             await importEmbeddedLorebook(

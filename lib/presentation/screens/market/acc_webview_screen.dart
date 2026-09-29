@@ -6,6 +6,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/data/repositories/regex_script_repository.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
@@ -494,6 +495,18 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
 
       final repo = ref.read(characterRepositoryProvider);
       final created = await repo.createCharacter(character);
+
+      // [紧急修复-C] 导入时正则写入独立表（与 import_screen 主路径一致）
+      try {
+        final rawList = character.extensions['regex_scripts'];
+        if (rawList is List && rawList.isNotEmpty) {
+          await ref
+              .read(regexScriptRepositoryProvider)
+              .importCharacterScriptsFromRaw(created.id, rawList);
+        }
+      } catch (e) {
+        debugPrint('[Phase2] 市场导入正则写表失败(extensions 保留): $e');
+      }
 
       if (character.characterBook != null &&
           character.characterBook!.entries.isNotEmpty) {

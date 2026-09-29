@@ -56,10 +56,24 @@ class GlobalRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final decoded = jsonDecode(jsonStr);
         if (decoded is List) {
-          state = decoded
-              .map((e) => RegexScript.fromJson(e as Map<String, dynamic>))
-              .toList();
-          await _regexRepo.migrateGlobalFromPrefs(state);
+          // [紧急修复-A] 逐条容错解析：单条失败跳过，不炸掉整个列表
+          final parsed = <RegexScript>[];
+          for (var i = 0; i < decoded.length; i++) {
+            try {
+              parsed.add(RegexScript.fromJson(decoded[i] as Map<String, dynamic>));
+            } catch (e) {
+              debugPrint('[GlobalRegex] prefs 第 $i 条解析失败，跳过: $e');
+            }
+          }
+          if (parsed.isNotEmpty) {
+            state = parsed;
+            try {
+              await _regexRepo.migrateGlobalFromPrefs(state);
+            } catch (e, stackTrace) {
+              debugPrint('[GlobalRegex] ❌ 迁移全局正则到表失败: $e');
+              debugPrint('[GlobalRegex] StackTrace: $stackTrace');
+            }
+          }
         }
       }
     } catch (e) {
@@ -224,30 +238,56 @@ class CharacterRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
         state = scripts;
         return;
       }
-      // 双读降级：表为空且 extensions 有数据（迁移失败/旧数据兜底），自动迁移到表
+      // 双读降级：表为空【或表条数少于 extensions 条数】（迁移失败/部分迁移兜底），用 extensions 重建表
       final character = await _charRepo.getCharacter(characterId);
       final rawList = character?.extensions['regex_scripts'];
       if (rawList is List && rawList.isNotEmpty) {
-        try {
-          state = rawList
-              .map((e) => RegexScript.fromJson(e as Map<String, dynamic>))
-              .toList();
-          // 确保 characterId 已正确绑定（兼容旧存档/SillyTavern 导入格式）
-          state = state
-              .map((s) => s.characterId == null
-                  ? s.copyWith(characterId: characterId)
-                  : s)
-              .toList();
-          await _regexRepo.saveForCharacter(characterId, state);
-          debugPrint('[Regex] 双读降级 + 自动迁移到表: ${state.length} 条');
-        } catch (e) {
-          // [IMP-7] 上游 ST 格式走自家硬 cast fromJson 会在这里炸 → 兜底失败
-          debugPrint('[Regex] extensions 兜底失败: $e');
-          state = [];
+        // [紧急修复-A] 双格式解析（自家优先/ST 兜底）+ 逐条 try-catch：
+        // 单条解析失败不再炸掉整个列表（Phase 2 旧兜底只支持自家格式，ST 卡整体丢失）
+        final parsed = <RegexScript>[];
+        for (var i = 0; i < rawList.length; i++) {
+          final raw = rawList[i];
+          if (raw is! Map) {
+            debugPrint(
+                '[Regex] extensions 第 $i 条非 Map，跳过: ${raw?.runtimeType}');
+            continue;
+          }
+          final s = parseRegexScriptRobust(
+            Map<String, dynamic>.from(raw),
+            characterId,
+            i,
+          );
+          if (s == null) {
+            debugPrint(
+                '[Regex] ❌ extensions 第 $i 条解析失败: keys=${raw.keys.take(8).toList()} raw=$raw');
+            continue;
+          }
+          parsed.add(s);
+        }
+        debugPrint(
+            '[Regex] 双读降级解析完成: ${parsed.length}/${rawList.length} 条 (表中原有 ${scripts.length} 条)');
+        if (parsed.length > scripts.length) {
+          // extensions 数据更完整（表为空或部分迁移）→ 用 extensions 重建表
+          try {
+            await _regexRepo.saveForCharacter(characterId, parsed);
+            // 保存后重读表，保证内存 id 与表行 id 一致
+            final saved = await _regexRepo.getForCharacter(characterId);
+            state = saved.isNotEmpty ? saved : parsed;
+            debugPrint('[Regex] ✅ 重建表完成: ${state.length} 条');
+          } catch (e, stackTrace) {
+            debugPrint('[Regex] ❌ 重建表失败: $e');
+            debugPrint('[Regex] StackTrace: $stackTrace');
+            state = parsed;
+          }
+        } else if (scripts.isEmpty) {
+          state = parsed;
+        } else {
+          state = scripts;
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('[Regex] 加载失败: $e');
+      debugPrint('[Regex] StackTrace: $stackTrace');
       state = [];
     } finally {
       if (!_readyCompleter.isCompleted) _readyCompleter.complete();
@@ -256,11 +296,14 @@ class CharacterRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
 
   Future<void> _saveScripts() async {
     try {
-      // [Phase 2.4] 改为独立写表，删除 extensions 整行读改写（消除 lost-update 竞态）
+      // [Phase 2.4] 独立写表，删除 extensions 整行读改写（消除 lost-update 竞态）
       await _regexRepo.saveForCharacter(characterId, state);
       debugPrint('[Regex] 保存成功: ${state.length} 条');
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('❌ 正则保存失败: $e');
+      debugPrint('❌ StackTrace: $stackTrace');
+      // [紧急修复-E] Phase 2 误删的 rethrow 恢复：保存失败不再静默，上层可感知
+      rethrow;
     }
   }
 

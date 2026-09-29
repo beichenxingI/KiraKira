@@ -526,50 +526,79 @@ class AppDatabase extends _$AppDatabase {
 
           // [Phase 2.2] 迁移存量角色级正则（extensions['regex_scripts'] → 表）
           // 旧数据保留不删（双读降级兜底）；失败不阻断启动。
+          debugPrint('[Migration] ═══ 开始迁移角色级正则 ═══');
           try {
             final chars = await select(characters).get();
             var migratedCharCount = 0;
             var migratedScriptCount = 0;
+            debugPrint('[Migration] 共 ${chars.length} 个角色待检查');
             for (final char in chars) {
+              debugPrint('[Migration] 处理角色: ${char.name} (${char.id})');
               try {
                 final extensions =
                     jsonDecode(char.extensionsJson) as Map<String, dynamic>;
                 final rawList = extensions['regex_scripts'];
-                if (rawList is! List || rawList.isEmpty) continue;
+                if (rawList is! List || rawList.isEmpty) {
+                  debugPrint('[Migration]   无 regex_scripts 字段或为空');
+                  continue;
+                }
+                debugPrint('[Migration]   找到 ${rawList.length} 条正则');
+                // [紧急修复] 逐条独立 try-catch + id 去重：
+                // 单条 PK 冲突/解析失败不再中断该角色剩余迁移（旧代码会部分迁移）
+                final seenRowIds = <String>{};
                 for (var i = 0; i < rawList.length; i++) {
                   final raw = rawList[i];
-                  if (raw is! Map) continue;
-                  final script = _migrateRegexScript(
-                    Map<String, dynamic>.from(raw),
-                    char.id,
-                    i,
-                  );
-                  if (script == null) continue;
-                  await into(regexScripts).insert(RegexScriptsCompanion(
-                    id: Value(script.id),
-                    scope: const Value('character'),
-                    characterId: Value(char.id),
-                    scriptJson: Value(jsonEncode(script.toJson())),
-                    order: Value(i),
-                    disabled: Value(script.disabled),
-                    createdAt: Value(script.createdAt),
-                    updatedAt: Value(script.updatedAt),
-                  ));
-                  migratedScriptCount++;
+                  if (raw is! Map) {
+                    debugPrint('[Migration]   ⚠️ 第 $i 条非 Map，跳过');
+                    continue;
+                  }
+                  try {
+                    final script = _migrateRegexScript(
+                      Map<String, dynamic>.from(raw),
+                      char.id,
+                      i,
+                    );
+                    if (script == null) {
+                      debugPrint('[Migration]   ⚠️ 第 $i 条无法解析，跳过');
+                      debugPrint('[Migration]   原始数据: $raw');
+                      continue;
+                    }
+                    var rowId = script.id;
+                    if (!seenRowIds.add(rowId)) {
+                      rowId =
+                          '${char.id}_migrated_dup_${DateTime.now().microsecondsSinceEpoch}_$i';
+                      debugPrint('[Migration]   ⚠️ 第 $i 条 id 重复，改用 $rowId');
+                    }
+                    await into(regexScripts).insert(RegexScriptsCompanion(
+                      id: Value(rowId),
+                      scope: const Value('character'),
+                      characterId: Value(char.id),
+                      scriptJson: Value(jsonEncode(script.toJson())),
+                      order: Value(i),
+                      disabled: Value(script.disabled),
+                      createdAt: Value(script.createdAt),
+                      updatedAt: Value(script.updatedAt),
+                    ));
+                    migratedScriptCount++;
+                    debugPrint('[Migration]   ✅ 第 $i 条迁移成功 id=$rowId');
+                  } catch (scriptError) {
+                    debugPrint('[Migration]   ❌ 第 $i 条迁移失败: $scriptError');
+                    debugPrint('[Migration]   原始数据: $raw');
+                  }
                 }
                 migratedCharCount++;
               } catch (charError) {
-                debugPrint(
-                    '[Migration] 角色 ${char.name} extensions 解析失败: $charError');
+                debugPrint('[Migration]   ❌ 角色 ${char.name} 处理失败: $charError');
                 // 继续迁移其他角色
               }
             }
             debugPrint(
-                '[Migration] 角色级正则迁移完成: $migratedCharCount 个角色, $migratedScriptCount 条脚本');
+                '[Migration] ═══ 角色级正则迁移完成: $migratedCharCount/${chars.length} 个角色, $migratedScriptCount 条脚本 ═══');
             debugPrint(
                 '[Migration] 全局正则迁移由首启逻辑处理（SharedPreferences → 表）');
-          } catch (migrationError) {
+          } catch (migrationError, migrationStack) {
             debugPrint('[Migration] ❌ 正则迁移失败: $migrationError');
+            debugPrint('[Migration] StackTrace: $migrationStack');
             // 迁移失败不阻断 app 启动（extensions 旧数据仍在，双读兜底）
           }
         }
@@ -587,7 +616,12 @@ models.RegexScript? _migrateRegexScript(
 ) {
   try {
     final s = models.RegexScript.fromJson(raw);
-    return s.copyWith(characterId: s.characterId ?? characterId);
+    // [紧急修复-B] 行 id 加角色前缀（跨角色同 id 防 PK 冲突，幂等防叠加）；
+    // 空 id 用序号兜底
+    final resolvedId = s.id.isEmpty
+        ? '${characterId}_migrated_$index'
+        : (s.id.startsWith('${characterId}_') ? s.id : '${characterId}_${s.id}');
+    return s.copyWith(id: resolvedId, characterId: s.characterId ?? characterId);
   } catch (_) {}
   try {
     final s = models.RegexScript.fromSillyTavernJson(

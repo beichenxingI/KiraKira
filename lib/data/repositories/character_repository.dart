@@ -156,6 +156,11 @@ class CharacterRepository {
     // Delete associated character tags
     await (_db.delete(_db.characterTags)..where((t) => t.characterId.equals(id))).go();
     
+    // [紧急修复-F] 清理角色级正则（独立表，防幽灵行/同 id 重导 PK 冲突）
+    await (_db.delete(_db.regexScripts)
+          ..where((t) => t.scope.equals('character') & t.characterId.equals(id)))
+        .go();
+    
     // Delete the character
     await (_db.delete(_db.characters)..where((t) => t.id.equals(id))).go();
     
