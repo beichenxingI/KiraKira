@@ -39,7 +39,8 @@ import 'package:kirakira/data/models/chronicle.dart'
         MemoryEntity,
         MemoryEntry,
         MemoryRelationship,
-        EmotionNode;
+        EmotionNode,
+        WindowedMessages;
 import 'package:kirakira/core/utils/file_utils.dart';
 
 // Note: Repository providers are defined in their respective repository files
@@ -1661,6 +1662,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     // ═══ [CHRONICLE Phase 1] 四窗口滑动替换全量注入 ═══
     // Chronicle开启时接管历史切分：未总结(所有未归档,末尾最高注意力) / 热(近归档) /
     // 温 / 冷(旧归档)，各窗口=hotWindowSize轮（×2转条）。隐藏楼层(isHidden)不进提示词。失败回落旧行为。
+    // Split result is captured so zone boundary markers can be inserted below.
+    WindowedMessages? chronicleWindowed;
     if (chat != null && chronicleSettings.enabled) {
       try {
         final chronicleRepo = _ref.read(chronicleRepositoryProvider);
@@ -1670,6 +1673,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           allMessages: chatMessages.where((m) => !m.isHidden).toList(),
           windowSize: chronicleSettings.hotWindowSize,
         );
+        chronicleWindowed = windowed;
         chatMessages = windowed.injectionOrder;
         debugPrint('[CHRONICLE] 四窗口注入：'
             '冷${windowed.cold.length}/温${windowed.warm.length}/热${windowed.hot.length}/'
@@ -1928,8 +1932,54 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final authorNote = chat?.authorNote ?? '';
     final authorNoteDepth = chat?.authorNoteDepth ?? 4;
 
+    // Chronicle zone boundaries in injection order (cold, warm, hot, unarchived);
+    // markers are only injected when the four-window split is active.
+    final zoneWindowed = chronicleWindowed;
+    final coldZoneEnd = zoneWindowed?.cold.length ?? 0;
+    final warmZoneEnd = coldZoneEnd + (zoneWindowed?.warm.length ?? 0);
+    final hotZoneEnd = warmZoneEnd + (zoneWindowed?.hot.length ?? 0);
+    final unarchivedZoneStart = hotZoneEnd;
+    final zoneMarkersActive = zoneWindowed != null;
+
     for (var i = 0; i < chatMessages.length; i++) {
       final msg = chatMessages[i];
+
+      // Zone boundary markers: label each zone so the model can tell archived
+      // history from the current conversation (Lost in the Middle effect).
+      if (zoneMarkersActive) {
+        if (i == 0 && coldZoneEnd > 0) {
+          messages.add({
+            'role': 'system',
+            'content': '[Historical Context - Cold Zone]\n'
+                'This zone contains $coldZoneEnd older archived messages from the distant past. '
+                'Low attention priority: reference only when long-term continuity is needed.',
+          });
+        } else if (i == coldZoneEnd && warmZoneEnd > coldZoneEnd) {
+          messages.add({
+            'role': 'system',
+            'content': '[Historical Context - Warm Zone]\n'
+                'This zone contains ${warmZoneEnd - coldZoneEnd} archived messages from the recent past. '
+                'Mid attention priority: use for recent plot developments and character interactions.',
+          });
+        } else if (i == warmZoneEnd && hotZoneEnd > warmZoneEnd) {
+          messages.add({
+            'role': 'system',
+            'content': '[Historical Context - Hot Zone]\n'
+                'This zone contains the ${hotZoneEnd - warmZoneEnd} most recent archived messages. '
+                'High attention priority: this is the immediate history leading into '
+                'the current conversation below.',
+          });
+        } else if (i == unarchivedZoneStart &&
+            unarchivedZoneStart < chatMessages.length) {
+          messages.add({
+            'role': 'system',
+            'content': '[Current Conversation - Unarchived Zone]\n'
+                'This is the active conversation zone with maximum attention priority. '
+                'These ${chatMessages.length - unarchivedZoneStart} messages are not archived yet '
+                'and form the ongoing dialogue; base your response primarily on this section.',
+          });
+        }
+      }
 
       // Depth is counted from the end (most recent = depth 0)
       final depthFromEnd = chatMessages.length - 1 - i;
@@ -1969,6 +2019,18 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         messages.add({
           'role': 'system',
           'content': '[Author\'s Note]\n$processedNote',
+        });
+      }
+
+      // Flag the user's latest message as the required response target
+      if (msg.role == MessageRole.user && i == chatMessages.length - 1) {
+        messages.add({
+          'role': 'system',
+          'content': "[USER'S LATEST MESSAGE - RESPOND TO THIS]\n"
+              "This is the user's most recent input that you MUST respond to. "
+              'Base your reply on the current conversation (Unarchived Zone), '
+              'recent history (Hot Zone), and long-term background '
+              '(Warm/Cold Zones and Chronicle entries).',
         });
       }
 
@@ -2429,6 +2491,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     var chatMessages = state.messages.sublist(0, messageIndex);
 
     // [CHRONICLE Phase 1] 四窗口滑动（重生成/编辑路径与主路径一致）
+    // Split result is captured so zone boundary markers can be inserted below.
+    WindowedMessages? chronicleWindowed;
     if (chat != null) {
       try {
         final chronicleSettings = _ref.read(chronicleSettingsProvider);
@@ -2441,6 +2505,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
             allMessages: chatMessages.where((m) => !m.isHidden).toList(),
             windowSize: chronicleSettings.hotWindowSize,
           );
+          chronicleWindowed = windowed;
           chatMessages = windowed.injectionOrder;
         }
       } catch (_) {
@@ -2582,8 +2647,54 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final authorNote = chat?.authorNote ?? '';
     final authorNoteDepth = chat?.authorNoteDepth ?? 4;
 
+    // Chronicle zone boundaries in injection order (cold, warm, hot, unarchived);
+    // markers are only injected when the four-window split is active.
+    final zoneWindowed = chronicleWindowed;
+    final coldZoneEnd = zoneWindowed?.cold.length ?? 0;
+    final warmZoneEnd = coldZoneEnd + (zoneWindowed?.warm.length ?? 0);
+    final hotZoneEnd = warmZoneEnd + (zoneWindowed?.hot.length ?? 0);
+    final unarchivedZoneStart = hotZoneEnd;
+    final zoneMarkersActive = zoneWindowed != null;
+
     for (var i = 0; i < chatMessages.length; i++) {
       final msg = chatMessages[i];
+
+      // Zone boundary markers: label each zone so the model can tell archived
+      // history from the current conversation (Lost in the Middle effect).
+      if (zoneMarkersActive) {
+        if (i == 0 && coldZoneEnd > 0) {
+          messages.add({
+            'role': 'system',
+            'content': '[Historical Context - Cold Zone]\n'
+                'This zone contains $coldZoneEnd older archived messages from the distant past. '
+                'Low attention priority: reference only when long-term continuity is needed.',
+          });
+        } else if (i == coldZoneEnd && warmZoneEnd > coldZoneEnd) {
+          messages.add({
+            'role': 'system',
+            'content': '[Historical Context - Warm Zone]\n'
+                'This zone contains ${warmZoneEnd - coldZoneEnd} archived messages from the recent past. '
+                'Mid attention priority: use for recent plot developments and character interactions.',
+          });
+        } else if (i == warmZoneEnd && hotZoneEnd > warmZoneEnd) {
+          messages.add({
+            'role': 'system',
+            'content': '[Historical Context - Hot Zone]\n'
+                'This zone contains the ${hotZoneEnd - warmZoneEnd} most recent archived messages. '
+                'High attention priority: this is the immediate history leading into '
+                'the current conversation below.',
+          });
+        } else if (i == unarchivedZoneStart &&
+            unarchivedZoneStart < chatMessages.length) {
+          messages.add({
+            'role': 'system',
+            'content': '[Current Conversation - Unarchived Zone]\n'
+                'This is the active conversation zone with maximum attention priority. '
+                'These ${chatMessages.length - unarchivedZoneStart} messages are not archived yet '
+                'and form the ongoing dialogue; base your response primarily on this section.',
+          });
+        }
+      }
 
       // Depth is counted from the end (most recent = depth 0)
       final depthFromEnd = chatMessages.length - 1 - i;
@@ -2623,6 +2734,18 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         messages.add({
           'role': 'system',
           'content': '[Author\'s Note]\n$processedNote',
+        });
+      }
+
+      // Flag the user's latest message as the required response target
+      if (msg.role == MessageRole.user && i == chatMessages.length - 1) {
+        messages.add({
+          'role': 'system',
+          'content': "[USER'S LATEST MESSAGE - RESPOND TO THIS]\n"
+              "This is the user's most recent input that you MUST respond to. "
+              'Base your reply on the current conversation (Unarchived Zone), '
+              'recent history (Hot Zone), and long-term background '
+              '(Warm/Cold Zones and Chronicle entries).',
         });
       }
 
