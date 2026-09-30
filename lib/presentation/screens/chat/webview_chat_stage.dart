@@ -1383,7 +1383,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest(BridgeType.generate, _handleGenerate);
                     _bridge.onRequest(BridgeType.stopGeneration, _handleStopGeneration);
                     // [Chronicle可视化] 记忆库浮窗"运行状态"tab 拉取五区工作状态
-                    // （未总结区进度 + 热/温/冷/超冷分区，复用 chronicleVisualizationProvider）
+                    // （归档进度 + 热/温/冷/只词条分区，复用 chronicleVisualizationProvider）
                     _bridge.onRequest('getChronicleVisualization', (payload) async {
                       final chatId = widget.chatId;
                       if (chatId.isEmpty) {

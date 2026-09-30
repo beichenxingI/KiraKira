@@ -221,36 +221,44 @@ final chronicleVisualizationProvider = FutureProvider.autoDispose
     for (var i = 0; i < allMessages.length; i++) allMessages[i].id: i + 1,
   };
 
-  // 分区：已归档集从新到旧按"一代归档"（summaryInterval 轮，1轮=user+AI≈2条消息）
-  // 分批，与触发逻辑的归档批次一致：第0批=热区、第1批=温区、第2批=冷区
-  // （原文+词条），更早=超冷区（只注入词条，原文已淡出）。
-  final generationSize = (settings.summaryInterval * 2).clamp(2, 1 << 30);
+  // [修复] 分区规则：区大小 = hotWindowSize 轮（用户可调，1轮=user+AI≈2条消息）。
+  // 从新到旧：热区、温区、冷区（保留原文+词条）；冷区之前的所有归档合并为
+  // 一个"只词条"区（无"超冷区"概念，原文已彻底淡出，只注入词条）。
+  final zoneSize = (settings.hotWindowSize * 2).clamp(2, 1 << 30);
+  const zoneNames = ['热区', '温区', '冷区'];
+  const zoneKeys = ['hot', 'warm', 'cold'];
   final zones = <ChronicleZone>[];
-  var batchIndex = 0;
-  for (var end = archived.length; end > 0; end -= generationSize) {
-    final start = (end - generationSize).clamp(0, archived.length);
+
+  // 热/温/冷：从新到旧最多 3 个区，每个 zoneSize 条
+  for (var batchIndex = 0; batchIndex < 3; batchIndex++) {
+    final end = archived.length - batchIndex * zoneSize;
+    if (end <= 0) break;
+    final start = (end - zoneSize).clamp(0, end);
+    if (start >= end) break;
     final batch = archived.sublist(start, end);
-    final name = switch (batchIndex) {
-      0 => '热区',
-      1 => '温区',
-      2 => '冷区',
-      _ => '超冷区',
-    };
-    final key = switch (batchIndex) {
-      0 => 'hot',
-      1 => 'warm',
-      2 => 'cold',
-      _ => 'frozen',
-    };
     zones.add(ChronicleZone(
-      key: key,
-      name: name,
+      key: zoneKeys[batchIndex],
+      name: zoneNames[batchIndex],
       startIndex: floorOf[batch.first.id] ?? start + 1,
       endIndex: floorOf[batch.last.id] ?? end,
       messageCount: batch.length,
-      hasOriginalText: batchIndex <= 2,
+      hasOriginalText: true,
     ));
-    batchIndex++;
+  }
+
+  // 只词条区：冷区之前的所有归档（合并为一个区）
+  final onlyEntriesEnd =
+      (archived.length - 3 * zoneSize).clamp(0, archived.length);
+  if (onlyEntriesEnd > 0) {
+    final batch = archived.sublist(0, onlyEntriesEnd);
+    zones.add(ChronicleZone(
+      key: 'frozen',
+      name: '只词条',
+      startIndex: floorOf[batch.first.id] ?? 1,
+      endIndex: floorOf[batch.last.id] ?? onlyEntriesEnd,
+      messageCount: batch.length,
+      hasOriginalText: false,
+    ));
   }
 
   return ChronicleVisualizationData(

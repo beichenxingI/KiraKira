@@ -2864,7 +2864,7 @@ __KIRA_CHAT_BRIDGE__
       + '<div class="chron-progress-bar"><div class="chron-progress-fill" style="width:' + pct + '%"></div>'
       + '<span class="chron-progress-text">' + pct.toFixed(1) + '%</span></div>'
       + '</div>';
-    // 热/温/冷/超冷分区
+    // 热/温/冷/只词条分区
     var zones = data.zones || [];
     zones.forEach(function(z) {
       html += '<div class="chron-zone chron-zone-' + (z.key || 'frozen') + '">'
@@ -2881,7 +2881,7 @@ __KIRA_CHAT_BRIDGE__
         + '<div class="chron-zone-desc">'
         + (z.hasOriginalText
             ? (z.messageCount || 0) + ' 条原文 + 总结词条'
-            : '只注入总结词条（原文已彻底淡出）')
+            : (z.messageCount || 0) + ' 条原文已归档，只注入总结词条')
         + '</div>'
         + '</div>';
     });
