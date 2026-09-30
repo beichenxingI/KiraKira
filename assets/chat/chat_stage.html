@@ -1615,6 +1615,10 @@ __KIRA_CHAT_BRIDGE__
   });
   registerBridgeHandler('settingsPanelData', function(p) {
     if (!p) return;
+    // [Bug3] 带 targetPanel 的推送仅当该面板正打开时才生效：防跨面板数据污染
+    // （如 TTS 面板开着时收到生图数据推送，会把 __panelData 污染成生图数据，
+    // 面板重渲成空壳）。无 targetPanel 的推送（面板内 action 回推）保持原行为。
+    if (p.targetPanel && p.targetPanel !== __currentPanel) return;
     __panelData = p.data || __panelData;
     // 异步操作完成后可推送新数据刷新面板
     if (p.refresh && __currentPanel) {

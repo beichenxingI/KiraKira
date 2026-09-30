@@ -1147,6 +1147,32 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       }
     });
 
+    // [Bug3] Flutter 侧生图设置变化 → 推送打开中的生图浮窗：此前浮窗数据是
+    // 打开瞬间的快照（_openImageGenPanel 仅在打开时推一次），Flutter 设置页
+    // 改完浮窗不感知。带 targetPanel 让 JS 侧仅在生图面板正打开时才应用
+    // （防跨面板数据污染，见 chat_stage.html settingsPanelData handler）。
+    ref.listen(imageGenSettingsProvider, (prev, next) {
+      if (prev == next) return;
+      debugPrint('[Bug3] 生图设置变化 → 推送打开中的浮窗');
+      _bridge.send(BridgeType.settingsPanelData, {
+        'data': _serializeImageGenData(),
+        'refresh': true,
+        'targetPanel': 'imageGen',
+      });
+    });
+    // [Bug3] 生图模型列表拉取完成 → 再推一次：模型列表是异步拉取的
+    // （fetchedModelsProvider 随 provider/apiKey 变化重建后拉取），设置变化时
+    // 先推了设置，模型到达后补推一次让浮窗显示最新列表。
+    ref.listen(availableModelsProvider, (prev, next) {
+      if (prev == next) return;
+      debugPrint('[Bug3] 生图模型列表变化 → 推送打开中的浮窗');
+      _bridge.send(BridgeType.settingsPanelData, {
+        'data': _serializeImageGenData(),
+        'refresh': true,
+        'targetPanel': 'imageGen',
+      });
+    });
+
     final character = ref.watch(activeChatProvider.select((s) => s.character));
     // [顶栏模型名] watch 生效配置 llmConfigProvider.model(而非 llmConfigsProvider):
     // 切模型(updateModel)只写前者+直写DB,不刷新后者的内存列表 → watch 错源会不更新。
