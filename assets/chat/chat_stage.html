@@ -2837,7 +2837,7 @@ __KIRA_CHAT_BRIDGE__
 
   function buildChronicleStatusHTML(container, data) {
     var html = '';
-    // 未总结区（最高优先级 + 距离下一次总结进度条）
+    // 未总结区（最高优先级 + 归档进度条）
     var startF = data.unarchivedStartFloor || 0;
     var endF = data.unarchivedEndFloor || 0;
     var count = data.unarchivedCount || 0;
@@ -2850,6 +2850,7 @@ __KIRA_CHAT_BRIDGE__
       range = '第 ' + startF + '-' + endF + ' 条（' + count + ' 条原文）';
     }
     var pct = Math.max(0, Math.min(100, (data.progress || 0) * 100));
+    var archivedCount = Math.round((data.totalMessageCount || 0) * (data.progress || 0));
     html += '<div class="chron-zone chron-zone-unarchived">'
       + '<div class="chron-zone-head">'
       + '<span class="chron-zone-icon">' + (_chronSvgIcons.unsummarized || '') + '</span>'
@@ -2857,8 +2858,9 @@ __KIRA_CHAT_BRIDGE__
       + '<span class="chron-zone-priority">最高优先级 · 原文注入末尾</span>'
       + '</div>'
       + '<div class="chron-zone-range">' + range + '</div>'
-      + '<div class="chron-progress-info"><span>距离下一次总结</span>'
-      + '<span>' + (data.unarchivedUserTurns || 0) + '/' + (data.summaryInterval || 20) + ' 轮</span></div>'
+      + '<div class="chron-progress-info"><span>归档进度</span>'
+      + '<span>已归档 ' + archivedCount + '/' + (data.totalMessageCount || 0)
+      + ' 条（' + pct.toFixed(1) + '%）</span></div>'
       + '<div class="chron-progress-bar"><div class="chron-progress-fill" style="width:' + pct + '%"></div>'
       + '<span class="chron-progress-text">' + pct.toFixed(1) + '%</span></div>'
       + '</div>';

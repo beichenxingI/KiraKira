@@ -179,7 +179,8 @@ class ChronicleVisualizationData {
   final int unarchivedCount; // 未归档消息总数
   final int unarchivedUserTurns; // 未归档轮数（user消息计，1轮=user+AI）
   final int summaryInterval; // 总结阈值（轮）
-  final double progress; // unarchivedUserTurns / summaryInterval
+  final double progress; // 归档进度 = 已归档 / 总楼层（archived / totalMessageCount）
+  final int totalMessageCount; // 总楼层数（含隐藏楼层，与聊天页楼层总数一致）
   final int unarchivedStartFloor; // 首条未归档楼层（无未归档时 0）
   final int unarchivedEndFloor; // 末条未归档楼层
   final List<ChronicleZone> zones; // 已归档分区（新→旧）
@@ -188,6 +189,7 @@ class ChronicleVisualizationData {
     required this.unarchivedUserTurns,
     required this.summaryInterval,
     required this.progress,
+    required this.totalMessageCount,
     required this.unarchivedStartFloor,
     required this.unarchivedEndFloor,
     required this.zones,
@@ -255,9 +257,10 @@ final chronicleVisualizationProvider = FutureProvider.autoDispose
     unarchivedCount: unarchived.length,
     unarchivedUserTurns: unarchivedUserTurns,
     summaryInterval: settings.summaryInterval,
-    progress: settings.summaryInterval > 0
-        ? unarchivedUserTurns / settings.summaryInterval
+    progress: allMessages.isNotEmpty
+        ? archived.length / allMessages.length
         : 0.0,
+    totalMessageCount: allMessages.length,
     unarchivedStartFloor:
         unarchived.isEmpty ? 0 : (floorOf[unarchived.first.id] ?? 0),
     unarchivedEndFloor:

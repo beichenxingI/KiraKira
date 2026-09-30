@@ -1385,8 +1385,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     // [Chronicle可视化] 记忆库浮窗"运行状态"tab 拉取五区工作状态
                     // （未总结区进度 + 热/温/冷/超冷分区，复用 chronicleVisualizationProvider）
                     _bridge.onRequest('getChronicleVisualization', (payload) async {
-                      final chatId = ref.read(activeChatIdProvider);
-                      if (chatId == null || chatId.isEmpty) {
+                      final chatId = widget.chatId;
+                      if (chatId.isEmpty) {
                         throw StateError('当前无活动聊天');
                       }
                       final data = await ref
@@ -1396,6 +1396,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                         'unarchivedUserTurns': data.unarchivedUserTurns,
                         'summaryInterval': data.summaryInterval,
                         'progress': data.progress,
+                        'totalMessageCount': data.totalMessageCount,
                         'unarchivedStartFloor': data.unarchivedStartFloor,
                         'unarchivedEndFloor': data.unarchivedEndFloor,
                         'zones': [
