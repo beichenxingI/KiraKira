@@ -1065,7 +1065,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       if (prevMsgs.length == nextMsgs.length) {
         for (var i = 0; i < nextMsgs.length; i++) {
           if (nextMsgs[i].attachments.length != prevMsgs[i].attachments.length) {
-            _pushMessages();
+            // [Bug6] 附件变化走定点更新：_pushMessages 全量重建(initial:true)会
+            // root.innerHTML='' 拆毁整页 → scrollTop 归零（图像生成后回顶的根因）。
+            // updateMessage 只换该气泡内容，滚动天然保持；rich 卡片由 JS 回
+            // needFullPush 兜底全量重推（与生成结束同路径，锚点机制恢复位置）。
+            debugPrint('[Bug6] 消息 ${nextMsgs[i].id} 附件变化 → 定点更新');
+            _updateSingleMessage(nextMsgs[i].id);
             break;
           }
         }
