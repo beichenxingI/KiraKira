@@ -53,14 +53,29 @@ class LLMConfigNotifier extends StateNotifier<LLMConfig> {
   static const _providerConfigKeyPrefix = 'llm_provider_config_';
 
   /// Phase 3: Map a multi-config provider string to the LLMProvider enum.
+  /// [Bug1] 行 provider 来源有两种：ai_config 弹窗写枚举名（'deepSeek' 驼峰），
+  /// LlmConfigEditScreen 写 'custom' 等小写字符串。原映射只匹配小写 'deepseek'
+  /// 且缺 gemini/qwen 等 case，其余全部落到 openAICompatible → 保存后
+  /// applyActiveMultiConfig 把运行时 provider 错误翻转。改 toLowerCase + 全枚举。
   static LLMProvider _mapMultiConfigProvider(String s) {
-    switch (s) {
+    switch (s.toLowerCase()) {
       case 'deepseek':
         return LLMProvider.deepSeek;
       case 'openai':
         return LLMProvider.openai;
       case 'claude':
         return LLMProvider.claude;
+      case 'gemini':
+        return LLMProvider.gemini;
+      case 'qwen':
+        return LLMProvider.qwen;
+      case 'openrouter':
+        return LLMProvider.openRouter;
+      case 'ollama':
+        return LLMProvider.ollama;
+      case 'koboldcpp':
+        return LLMProvider.koboldCpp;
+      case 'openaicompatible':
       case 'custom':
       default:
         return LLMProvider.openAICompatible;
