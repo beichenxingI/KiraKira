@@ -8,6 +8,7 @@ import 'package:kirakira/core/utils/path_utils.dart';
 import 'package:path/path.dart' as p;
 import 'package:kirakira/data/models/world_info.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
+import 'package:kirakira/data/repositories/regex_script_repository.dart';
 
 /// Service for importing and exporting character cards
 class ImportService {
@@ -112,6 +113,7 @@ class ImportService {
     Character character,
     Uint8List? avatarData, {
     WorldInfoRepository? worldInfoRepo,
+    RegexScriptRepository? regexRepo,
   }) async {
     // Get avatar data
     Uint8List imageBytes;
@@ -137,6 +139,19 @@ class ImportService {
       if (liveBook != null) exportChar = character.copyWith(characterBook: liveBook);
     }
 
+    // [Bug修复] 导出前同步最新正则脚本
+    if (regexRepo != null) {
+      final latestRegexScripts = await regexRepo.getForCharacter(character.id);
+      if (latestRegexScripts.isNotEmpty) {
+        exportChar = exportChar.copyWith(
+          extensions: {
+            ...exportChar.extensions,
+            'regex_scripts': latestRegexScripts.map((s) => s.toJson()).toList(),
+          },
+        );
+      }
+    }
+
     // Create character JSON
     final json = _characterToV3Json(exportChar);
     final jsonString = jsonEncode(json);
@@ -154,6 +169,7 @@ class ImportService {
     Character character,
     Uint8List? avatarData, {
     WorldInfoRepository? worldInfoRepo,
+    RegexScriptRepository? regexRepo,
   }) async {
     final encoder = ZipEncoder();
     final archive = Archive();
@@ -164,6 +180,19 @@ class ImportService {
       final liveBook =
           await assembleCharacterBookFromRepo(worldInfoRepo, character.id);
       if (liveBook != null) exportChar = character.copyWith(characterBook: liveBook);
+    }
+
+    // [Bug修复] 导出前同步最新正则脚本
+    if (regexRepo != null) {
+      final latestRegexScripts = await regexRepo.getForCharacter(character.id);
+      if (latestRegexScripts.isNotEmpty) {
+        exportChar = exportChar.copyWith(
+          extensions: {
+            ...exportChar.extensions,
+            'regex_scripts': latestRegexScripts.map((s) => s.toJson()).toList(),
+          },
+        );
+      }
     }
 
     // Add card.json
@@ -193,6 +222,7 @@ class ImportService {
   Future<String> exportToJson(
     Character character, {
     WorldInfoRepository? worldInfoRepo,
+    RegexScriptRepository? regexRepo,
   }) async {
     // [Bug1.2] 活跃轨组装：world_infos 表有绑定书条目时替换导入快照
     Character exportChar = character;
@@ -201,6 +231,20 @@ class ImportService {
           await assembleCharacterBookFromRepo(worldInfoRepo, character.id);
       if (liveBook != null) exportChar = character.copyWith(characterBook: liveBook);
     }
+
+    // [Bug修复] 导出前同步最新正则脚本
+    if (regexRepo != null) {
+      final latestRegexScripts = await regexRepo.getForCharacter(character.id);
+      if (latestRegexScripts.isNotEmpty) {
+        exportChar = exportChar.copyWith(
+          extensions: {
+            ...exportChar.extensions,
+            'regex_scripts': latestRegexScripts.map((s) => s.toJson()).toList(),
+          },
+        );
+      }
+    }
+
     final json = _characterToV3Json(exportChar);
     return jsonEncode(json);
   }

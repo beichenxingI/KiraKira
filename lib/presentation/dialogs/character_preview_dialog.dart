@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/utils/path_utils.dart';
 import '../../data/models/character.dart';
 import '../../data/repositories/character_repository.dart';
+import '../../data/repositories/regex_script_repository.dart';
 import '../providers/chat_providers.dart';
 import '../providers/character_providers.dart';
 import '../providers/world_info_providers.dart';
@@ -399,6 +400,7 @@ class _CharacterPreviewDialog extends ConsumerWidget {
       final importService = ref.read(importServiceProvider);
 
 final worldInfoRepo = ref.read(worldInfoRepositoryProvider);
+final regexRepo = ref.read(regexScriptRepositoryProvider);
 
 final repo = ref.read(characterRepositoryProvider);
 final latestCharacter = await repo.getCharacter(character.id);
@@ -418,16 +420,16 @@ final Uint8List bytes;
 final String ext;
 switch (format) {
   case 'json':
-    bytes = utf8.encode(await importService.exportToJson(exportChar, worldInfoRepo: worldInfoRepo));
+    bytes = utf8.encode(await importService.exportToJson(exportChar, worldInfoRepo: worldInfoRepo, regexRepo: regexRepo));
     ext = 'json';
     break;
   case 'charx':
-    bytes = await importService.exportToCharX(exportChar, avatarData, worldInfoRepo: worldInfoRepo);
+    bytes = await importService.exportToCharX(exportChar, avatarData, worldInfoRepo: worldInfoRepo, regexRepo: regexRepo);
     ext = 'charx';
     break;
   case 'png':
   default:
-    bytes = await importService.exportToPng(exportChar, avatarData, worldInfoRepo: worldInfoRepo);
+    bytes = await importService.exportToPng(exportChar, avatarData, worldInfoRepo: worldInfoRepo, regexRepo: regexRepo);
     ext = 'png';
     break;
 }

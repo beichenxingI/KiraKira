@@ -154,6 +154,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
       final importService = ref.read(importServiceProvider);
       // [Bug1.2] 活跃轨世界书：导出前从 world_infos 表组装（替换导入快照）
       final worldInfoRepo = ref.read(worldInfoRepositoryProvider);
+      final regexRepo = ref.read(regexScriptRepositoryProvider);
       final archive = Archive();
       final usedNames = <String>{};
 
@@ -183,13 +184,13 @@ for (final c in selected) {
   final List<int> bytes;
   switch (format) {
     case 'json':
-      bytes = utf8.encode(await importService.exportToJson(exportChar, worldInfoRepo: worldInfoRepo));
+      bytes = utf8.encode(await importService.exportToJson(exportChar, worldInfoRepo: worldInfoRepo, regexRepo: regexRepo));
       break;
     case 'charx':
-      bytes = await importService.exportToCharX(exportChar, avatarData, worldInfoRepo: worldInfoRepo);
+      bytes = await importService.exportToCharX(exportChar, avatarData, worldInfoRepo: worldInfoRepo, regexRepo: regexRepo);
       break;
     default:
-      bytes = await importService.exportToPng(exportChar, avatarData, worldInfoRepo: worldInfoRepo);
+      bytes = await importService.exportToPng(exportChar, avatarData, worldInfoRepo: worldInfoRepo, regexRepo: regexRepo);
   }
   archive.addFile(ArchiveFile('$fileName.$ext', bytes.length, bytes));
 }
