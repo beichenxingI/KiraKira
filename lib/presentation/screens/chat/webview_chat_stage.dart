@@ -4196,6 +4196,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           }
         }
         await pushRefresh();
+        // [Bug4] 正则 display 效果已烘焙进已渲染气泡，重推才立刻生效
+        await _repushRenderedWindowForRegexChange();
         break;
 
       case 'deleteRegex':
@@ -4218,6 +4220,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               .removeScript(id);
         }
         await pushRefresh();
+        // [Bug4] 规则删除后重推已渲染楼层（display 效果立刻消失）
+        await _repushRenderedWindowForRegexChange();
         break;
 
       case 'saveRegex':
@@ -4322,6 +4326,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           }
         }
         await pushRefresh();
+        // [Bug4] 规则保存/新建后重推已渲染楼层（display 效果立刻生效）
+        await _repushRenderedWindowForRegexChange();
         break;
 
       case 'importRegex':
@@ -7425,6 +7431,34 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final m = _safeSerializeMessage(msgs[idx], idx, lastAiIndex, character, scripts);
     _bridge.send(BridgeType.updateMessage, m);
     _pushImages([msgs[idx]]);
+  }
+
+  /// [Bug4] 正则变更后重推已渲染楼层：display 效果在序列化时烘焙进气泡
+  /// (_serializeMessage 调 RegexService.getRegexedString)，不重推则已渲染楼层
+  /// 保持旧效果（要退出重进才生效的根因）。
+  /// 逐条 updateMessage 定点换内容（不整页 initial 重建，避开全量重建丢滚动位置）；
+  /// 只推默认渲染窗口（最近 50 条，与 _pushMessages 首屏窗口一致），更早楼层
+  /// 无 DOM 节点，updateMessage 会回 needFullPush 触发全量兜底。
+  Future<void> _repushRenderedWindowForRegexChange() async {
+    final chatState = ref.read(activeChatProvider);
+    final msgs = chatState.messages;
+    if (msgs.isEmpty) return;
+    final character = chatState.character;
+    final scripts = ref.read(combinedRegexScriptsProvider(character?.id));
+    int lastAiIndex = -1;
+    for (var i = 0; i < msgs.length; i++) {
+      if (msgs[i].role != MessageRole.user) lastAiIndex = i;
+    }
+    const int batchSize = 50;
+    final start = msgs.length > batchSize ? msgs.length - batchSize : 0;
+    debugPrint('[Bug4] 正则变更重推已渲染楼层: ${msgs.length - start} 条'
+        '（从 $start 到 ${msgs.length - 1}）');
+    for (var i = start; i < msgs.length; i++) {
+      final m = _safeSerializeMessage(msgs[i], i, lastAiIndex, character, scripts);
+      _bridge.send(BridgeType.updateMessage, m);
+      // 附件占位图同步补图(html 里是 data-att-path 占位)
+      await _pushImages([msgs[i]]);
+    }
   }
 
   String _buildAttachmentsHtml(ChatMessage m) {

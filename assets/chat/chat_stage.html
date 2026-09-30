@@ -5272,7 +5272,12 @@ function injectBridge(html, id, floorIdx) {
   // 锚点只被"真实用户手势"取消:清屏引发的 scrollY 钳制同样走 scroll 事件,
   // 不能拿 scroll 判用户意图,否则锚点刚记录就被冲掉。
   ['wheel', 'touchstart', 'keydown'].forEach(function (evt) {
-    window.addEventListener(evt, function () { __scrollAnchor = null; }, { passive: true });
+    window.addEventListener(evt, function () {
+      // [Bug4] 设置面板挡住聊天，此时手势不针对聊天页，不取消锚点——
+      // 面板内操作触发全量兜底重建后，关闭面板仍可恢复阅读位置。
+      if (__currentPanel) return;
+      __scrollAnchor = null;
+    }, { passive: true });
   });
   function tryRestoreAnchor() {
     if (__scrollAnchor === null) return;
