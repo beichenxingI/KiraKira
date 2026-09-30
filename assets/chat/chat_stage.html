@@ -4988,6 +4988,8 @@ function injectBridge(html, id, floorIdx) {
             }
           }
           wrap.appendChild(segsGroup);
+          // [Bug5] 附件渲染在气泡下方（附件 HTML 是独立字段，不再拼进 html）
+          if (m.attachmentsHtml) wrap.insertAdjacentHTML('beforeend', m.attachmentsHtml);
           // [P3-K1] hasSegs 分支补挂载 wrap：建完不挂,所有 seg frame/prose 游离(t3 实测 cardIframes=0)
           injectMessageOverlays(wrap, m.id, m.role === 'user', m.isLatestAi, m.floor);
           group.appendChild(wrap);
@@ -5023,15 +5025,21 @@ function injectBridge(html, id, floorIdx) {
             }
           })(frame, m.html, m.id);
           var _cfWrap = createCardFrameWrap(frame, m.id);
+          // [Bug5] 附件渲染在卡片下方（wrap 挂在 _cfWrap 之后，附件有值时 wrap 必挂，
+          // 否则无 reasoning 的富文本消息附件丢失）
+          if (m.attachmentsHtml) wrap.insertAdjacentHTML('beforeend', m.attachmentsHtml);
           injectMessageOverlays(_cfWrap, m.id, false, m.isLatestAi, m.floor);
           group.appendChild(_cfWrap);
           // [P3-K1] isRichHtml 分支补挂载 wrap：reasoning 塞在 wrap 里，不挂出来 reasoning 必丢(t4 实测)
           if (wrap.children.length > 0) group.appendChild(wrap);
         } else {
           var c = document.createElement('div');
+          // [Bug5] 附件渲染在气泡下方；纯图消息（无文字有附件）不再误显 typing-indicator
+          var hasAttHtml = !!(m.attachmentsHtml && String(m.attachmentsHtml).trim() !== '');
           c.innerHTML = (m.html && m.html.trim() !== '')
             ? m.html
-            : '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+            : (hasAttHtml ? '' : '<div class="typing-indicator"><span></span><span></span><span></span></div>');
+          if (hasAttHtml) c.insertAdjacentHTML('beforeend', m.attachmentsHtml);
           wrap.appendChild(c);
           // EJS 渲染失败标红
           if (m.ejsError) {
@@ -5543,6 +5551,10 @@ function injectBridge(html, id, floorIdx) {
       }
       var c = document.createElement('div');
       c.innerHTML = (p.html && String(p.html).trim() !== '') ? p.html : '';
+      // [Bug5] 定点更新也渲染附件（附件是独立字段，不拼进 html）
+      if (p.attachmentsHtml && String(p.attachmentsHtml).trim() !== '') {
+        c.insertAdjacentHTML('beforeend', p.attachmentsHtml);
+      }
       wrap.appendChild(c);
       if (_sStar) wrap.appendChild(_sStar); if (_sFloor) wrap.appendChild(_sFloor);
       applyMsgTranslation(id); // 定点更新清空了内容，翻译层需要重挂

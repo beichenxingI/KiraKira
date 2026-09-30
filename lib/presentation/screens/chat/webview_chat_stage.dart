@@ -7254,7 +7254,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       'createdAt': m.timestamp.millisecondsSinceEpoch,
       'prose': proseHtml, // 文档前的旁白文字，渲染层放在 iframe 之上
       'rich': looksLikeHtml, // [MD修复2] 显式告知 JS 走 iframe 还是气泡,替代 JS 侧二次猜测
-      'html': rendered + attachmentsHtml,
+      // [Bug5] 附件 HTML 改为独立字段，不再拼进 html：rich 时它会被拖进 iframe
+      // srcdoc（固定 300px 高、scrolling=no，图片埋进 iframe 尾部不可见），
+      // segs 时 html 字段被 JS 完全忽略（附件整段丢失）。
+      'html': rendered,
+      if (attachmentsHtml.isNotEmpty) 'attachmentsHtml': attachmentsHtml,
       if (segs != null) 'segs': segs,
       'reasoning': m.currentReasoning ?? '',
       'swipeCount': m.swipes.length,
@@ -7381,6 +7385,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (list.isEmpty) return;
     // 不带 initial / prepend → setMessages 走"追加渲染"分支
     await _sendEncodedMessages(list);
+    // [Bug5] 纯追加路径也要补图：用户新发带图消息（sendMessage 一次性带附件入
+    // state）走这里，占位 <img data-att-path> 靠 setImage 通道填 src，缺这步图片永不显示
+    await _pushImages(messages.sublist(startFrom));
   }
 
   /// [闪屏修复] 尾部截断:把 prev 中已不存在的尾部消息从 DOM 摘掉,不整页重建。
