@@ -93,11 +93,16 @@ class ChronicleOrchestrator {
       final overflowCount =
           (unarchived.length - settings.hotWindowSize).clamp(0, unarchived.length);
 
-      // 按轮次（user消息数）计，1 user + 1 assistant = 1轮；summaryInterval单位=轮
-      final overflowUserTurns = overflowCount > 0
-          ? unarchived.sublist(0, overflowCount).where((m) => m.role == MessageRole.user).length
-          : 0;
-      final bool triggerByTurns = overflowUserTurns >= settings.summaryInterval;
+      // [Bug2] 按轮次（user消息数）计，1 user + 1 assistant = 1轮；summaryInterval单位=轮。
+      // 阈值统计口径改为"全部未归档 user 消息数"：原实现只统计溢出批次(sublist(0,
+      // overflowCount))里的 user 数——默认 hotWindowSize=20 下未归档需堆到约 60 条
+      // (30 轮)才可能凑满 20 user，52 楼(26 轮)时溢出批次仅 16 条 user → 永不触发。
+      final unarchivedUserTurns =
+          unarchived.where((m) => m.role == MessageRole.user).length;
+      final bool triggerByTurns = unarchivedUserTurns >= settings.summaryInterval;
+      debugPrint('[Bug2] 超级记忆触发检查: unarchivedUserTurns=$unarchivedUserTurns, '
+          'threshold=${settings.summaryInterval}, trigger=$triggerByTurns, '
+          'overflowCount=$overflowCount');
 
       // token压力触发：热窗token ≥ 比例阈值 或 绝对上限（H7双触发）
       bool triggerByTokens = false;
