@@ -991,32 +991,6 @@ window.__kiraDebug = __KIRA_DEBUG__;
   .wiki-error-banner{background:rgba(239,83,80,.15);
     border:1px solid rgba(239,83,80,.4);border-radius:8px;padding:8px 12px;
     margin-bottom:8px;font-size:12px;color:#EF5350;word-break:break-all;}
-  /* [Chronicle可视化] 五区工作状态（颜色走 --kira-* 变量，跟随主题） */
-  .chronicle-status{padding:4px 0;}
-  .chron-zone{background:var(--kira-input-bg,#20242C);border-radius:12px;
-    padding:12px 14px;margin-bottom:10px;}
-  .chron-zone-unarchived{border:1.5px solid color-mix(in srgb,var(--kira-accent,#7C4DFF) 45%,transparent);}
-  .chron-zone-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
-  .chron-zone-icon{display:inline-flex;color:var(--kira-accent,#7C4DFF);}
-  .chron-zone-title{font-weight:600;font-size:14px;color:var(--kira-text-1,#F5F7FA);}
-  .chron-zone-priority{font-size:11px;color:var(--kira-text-3,#8A8A8A);}
-  .chron-zone-range{font-size:13px;color:var(--kira-text-1,#F5F7FA);}
-  .chron-zone-desc{font-size:12px;color:var(--kira-text-3,#8A8A8A);margin-top:4px;}
-  .chron-zone-hot .chron-zone-icon,.chron-zone-hot .chron-zone-title{color:#FF7043;}
-  .chron-zone-warm .chron-zone-icon,.chron-zone-warm .chron-zone-title{color:#FFB300;}
-  .chron-zone-cold .chron-zone-icon,.chron-zone-cold .chron-zone-title{color:#42A5F5;}
-  .chron-zone-frozen .chron-zone-icon,.chron-zone-frozen .chron-zone-title{color:#26C6DA;}
-  .chron-progress-info{display:flex;justify-content:space-between;margin:10px 0 6px;
-    font-size:13px;color:var(--kira-text-2,#C8CDD6);}
-  .chron-progress-bar{position:relative;height:16px;
-    background:var(--kira-panel-bg,#12141C);border-radius:8px;overflow:hidden;}
-  .chron-progress-fill{height:100%;background:var(--kira-accent,#7C4DFF);
-    transition:width .3s ease;}
-  .chron-progress-text{position:absolute;top:50%;left:50%;
-    transform:translate(-50%,-50%);font-size:11px;font-weight:600;
-    color:var(--kira-text-1,#F5F7FA);text-shadow:0 1px 2px rgba(0,0,0,.45);}
-  .chron-empty{text-align:center;padding:24px;color:var(--kira-text-3,#8A8A8A);font-size:14px;}
-  .chron-empty-desc{font-size:12px;margin-top:6px;opacity:.7;}
 </style>
 </head>
 <body>
@@ -2660,31 +2634,6 @@ __KIRA_CHAT_BRIDGE__
     var statusLabels = {pending:'等待', running:'运行中', done:'完成', failed:'失败'};
     var statusColors = {pending:'#8A8A8A', running:'#5B8CFF', done:'#52C41A', failed:'#FF4D4F'};
 
-    // [Chronicle可视化] 五区工作状态卡（置顶；数据经桥异步拉取后填入占位，
-    // 不整面板重渲——用户滚动位置不受影响；过期响应按节点存活丢弃）
-    var vizCard = document.createElement('div');
-    vizCard.className = 'sp-card';
-    vizCard.appendChild(spSection('工作状态可视化'));
-    var vizBody = document.createElement('div');
-    vizBody.className = 'chronicle-status';
-    vizBody.appendChild(spEmpty('加载中…'));
-    vizCard.appendChild(vizBody);
-    container.appendChild(vizCard);
-
-    window.__sendRequest('getChronicleVisualization', {}).then(function(data) {
-      if (!vizBody.parentNode) return; // 面板已关闭/重渲，丢弃过期响应
-      vizBody.innerHTML = '';
-      if (data && data.error) {
-        vizBody.appendChild(spEmpty('加载失败: ' + data.error));
-        return;
-      }
-      buildChronicleStatusHTML(vizBody, data || {});
-    }).catch(function(err) {
-      if (!vizBody.parentNode) return;
-      vizBody.innerHTML = '';
-      vizBody.appendChild(spEmpty('加载失败: ' + ((err && err.message) || err)));
-    });
-
     // 归档进度条
     var archived = stats.archivedMessageCount || 0;
     var total = stats.totalMessageCount || 0;
@@ -2818,77 +2767,6 @@ __KIRA_CHAT_BRIDGE__
     promptCard.appendChild(spSlider('wiki-retries', '最大重试次数', d.maxRetries || 3, 1, 10, 1, ' 次',
       function(v) { spAction('setMaxRetries', {value: v}); }));
     container.appendChild(promptCard);
-  }
-
-  // ── [Chronicle可视化] 五区工作状态渲染（inline SVG，无 emoji） ──────
-  var _chronSvgIcons = {
-    unsummarized: '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" fill="currentColor"/></svg>',
-    hot: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M12 2C9 5 7 8.5 7 12.5a5 5 0 0 0 10 0C17 8.5 15 5 12 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="currentColor" fill-opacity=".2"/><path d="M12 9.5c-1 1.5-2 2.7-2 4a2 2 0 0 0 4 0c0-1.3-1-2.5-2-4z" fill="currentColor"/></svg>',
-    warm: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M10 15V4a2 2 0 0 1 4 0v11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="18" r="3.5" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="18" r="1.7" fill="currentColor"/><rect x="11.2" y="9" width="1.6" height="7" fill="currentColor"/></svg>',
-    cold: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M12 2.5v19M3.8 7.2l16.4 9.6M3.8 16.8l16.4-9.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>',
-    frozen: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="4" y="6.5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M4 10.5h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="9.5" y="13" width="5" height="2.4" rx="1.2" stroke="currentColor" stroke-width="2"/></svg>'
-  };
-  var _chronZonePriority = {
-    hot: '高优先级 · 原文注入',
-    warm: '中优先级 · 渐进淡出',
-    cold: '低优先级 · 渐进淡出',
-    frozen: '最低优先级 · 仅词条召回'
-  };
-
-  function buildChronicleStatusHTML(container, data) {
-    var html = '';
-    // 未总结区（最高优先级 + 距离下一次总结进度条）
-    var startF = data.unarchivedStartFloor || 0;
-    var endF = data.unarchivedEndFloor || 0;
-    var count = data.unarchivedCount || 0;
-    var range;
-    if (startF <= 0) {
-      range = count + ' 条原文';
-    } else if (startF === endF) {
-      range = '第 ' + startF + ' 条（' + count + ' 条原文）';
-    } else {
-      range = '第 ' + startF + '-' + endF + ' 条（' + count + ' 条原文）';
-    }
-    var pct = Math.max(0, Math.min(100, (data.progress || 0) * 100));
-    html += '<div class="chron-zone chron-zone-unarchived">'
-      + '<div class="chron-zone-head">'
-      + '<span class="chron-zone-icon">' + (_chronSvgIcons.unsummarized || '') + '</span>'
-      + '<span class="chron-zone-title">未总结区</span>'
-      + '<span class="chron-zone-priority">最高优先级 · 原文注入末尾</span>'
-      + '</div>'
-      + '<div class="chron-zone-range">' + range + '</div>'
-      + '<div class="chron-progress-info"><span>距离下一次总结</span>'
-      + '<span>' + (data.unarchivedUserTurns || 0) + '/' + (data.summaryInterval || 20) + ' 轮</span></div>'
-      + '<div class="chron-progress-bar"><div class="chron-progress-fill" style="width:' + pct + '%"></div>'
-      + '<span class="chron-progress-text">' + pct.toFixed(1) + '%</span></div>'
-      + '</div>';
-    // 热/温/冷/超冷分区
-    var zones = data.zones || [];
-    zones.forEach(function(z) {
-      html += '<div class="chron-zone chron-zone-' + (z.key || 'frozen') + '">'
-        + '<div class="chron-zone-head">'
-        + '<span class="chron-zone-icon">' + (_chronSvgIcons[z.key] || '') + '</span>'
-        + '<span class="chron-zone-title">' + (z.name || '') + '</span>'
-        + '<span class="chron-zone-priority">' + (_chronZonePriority[z.key] || '') + '</span>'
-        + '</div>'
-        + '<div class="chron-zone-range">'
-        + (z.startIndex === z.endIndex
-            ? '第 ' + z.startIndex + ' 条'
-            : '第 ' + z.startIndex + '-' + z.endIndex + ' 条')
-        + '</div>'
-        + '<div class="chron-zone-desc">'
-        + (z.hasOriginalText
-            ? (z.messageCount || 0) + ' 条原文 + 总结词条'
-            : '只注入总结词条（原文已彻底淡出）')
-        + '</div>'
-        + '</div>';
-    });
-    // 空状态
-    if (zones.length === 0) {
-      html += '<div class="chron-empty"><div>暂无归档记忆</div>'
-        + '<div class="chron-empty-desc">继续聊天，超级记忆会自动归档</div></div>';
-    }
-    container.innerHTML = html;
   }
 
   // ── [浮窗化] STT 语音识别面板 ────────────────────────────────────────
