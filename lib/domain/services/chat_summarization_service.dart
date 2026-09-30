@@ -173,42 +173,53 @@ class ChatSummarizationService {
     return allMessages.sublist(startIndex);
   }
 
-  /// [CHRONICLE Phase 1] 三窗口切分（替代"上次总结后全量注入"）。
+  /// [修复] 四窗口切分（未总结区 + 热区 + 温区 + 冷区），[windowSize] 单位为"轮"
+  /// （1 轮 = user + AI ≈ 2 条消息，内部 ×2 转条）。
   ///
-  /// - 热区：最近 [windowSize] 条未归档消息（高注意力，注入末尾）
-  /// - 温区：最近 [windowSize] 条已归档消息（渐进淡出）
-  /// - 冷区：温区之前的 [windowSize] 条已归档（最低注意力，超出即彻底淡出）
+  /// - 未总结区：所有未归档消息（最高注意力，注入末尾）
+  /// - 热区：最近 [windowSize] 轮已归档消息（原文+词条）
+  /// - 温区：热区之前的 [windowSize] 轮已归档消息（原文+词条）
+  /// - 冷区：温区之前的 [windowSize] 轮已归档消息（原文+词条）
+  /// - 更早归档：彻底淡出，不注入原文（内容经 F-6/F-7 词条可达）
   ///
-  /// 注入顺序 冷→温→热，利用 Lost in the Middle：越新越靠末尾。
+  /// 注入顺序 冷→温→热→未总结，利用 Lost in the Middle：越新越靠末尾。
   WindowedMessages getWindowedMessages({
     required Set<String> archivedMessageIds,
     required List<ChatMessage> allMessages,
-    int windowSize = 20,
+    int windowSize = 20, // 单位：轮（1 轮 = user + AI ≈ 2 条消息）
   }) {
     final nonArchived =
         allMessages.where((m) => !archivedMessageIds.contains(m.id)).toList();
     final archived =
         allMessages.where((m) => archivedMessageIds.contains(m.id)).toList();
 
-    // 热区：最近 windowSize 条未归档
-    final hot = nonArchived.length <= windowSize
-        ? nonArchived
-        : nonArchived.sublist(nonArchived.length - windowSize);
+    // windowSize 按"轮"，转"条"需 ×2
+    final windowInMessages = windowSize * 2;
 
-    // 温区：最近 windowSize 条已归档
-    final warm = archived.length <= windowSize
-        ? archived
-        : archived.sublist(archived.length - windowSize);
+    // 未总结区：所有未归档（注入末尾，最高注意力）
+    final unarchived = nonArchived;
 
-    // 冷区：温区之前的 windowSize 条已归档；再往前彻底淡出（不再注入）
-    final olderArchived = archived.length > windowSize
-        ? archived.sublist(0, archived.length - windowSize)
-        : <ChatMessage>[];
-    final cold = olderArchived.length <= windowSize
-        ? olderArchived
-        : olderArchived.sublist(olderArchived.length - windowSize);
+    // 热区：最近 windowInMessages 条归档
+    final hotStart =
+        (archived.length - windowInMessages).clamp(0, archived.length);
+    final hot = archived.sublist(hotStart, archived.length);
 
-    return WindowedMessages(cold: cold, warm: warm, hot: hot);
+    // 温区：热区之前的 windowInMessages 条归档
+    final warmStart = (hotStart - windowInMessages).clamp(0, hotStart);
+    final warm = archived.sublist(warmStart, hotStart);
+
+    // 冷区：温区之前的 windowInMessages 条归档
+    final coldStart = (warmStart - windowInMessages).clamp(0, warmStart);
+    final cold = archived.sublist(coldStart, warmStart);
+
+    // 更早归档：不注入原文（只词条经 F-6/F-7 可达）
+
+    return WindowedMessages(
+      unarchived: unarchived,
+      hot: hot,
+      warm: warm,
+      cold: cold,
+    );
   }
 
   /// Create a pseudo-message from summary for context building

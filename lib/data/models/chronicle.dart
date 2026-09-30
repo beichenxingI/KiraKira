@@ -491,23 +491,27 @@ class ChronicleSettings {
   }
 }
 
-/// 三窗口切分结果（Lost in the Middle利用：冷→温→热注入）
+/// 四窗口切分结果（Lost in the Middle利用：冷→温→热→未总结注入）
 class WindowedMessages {
-  /// 冷区：最早一批已归档（低注意力，注入在中间靠前）
+  /// 冷区：再前 windowSize 轮归档（低注意力，注入在中间靠前）
   final List<ChatMessage> cold;
-  /// 温区：最近一批已归档（渐进淡出中间带）
+  /// 温区：前 windowSize 轮归档（中注意力）
   final List<ChatMessage> warm;
-  /// 热区：最近未归档（高注意力，注入在末尾）
+  /// 热区：最近 windowSize 轮归档（高注意力）
   final List<ChatMessage> hot;
+  /// 未总结区：所有未归档（最高注意力，注入在末尾）
+  final List<ChatMessage> unarchived;
 
   const WindowedMessages({
     this.cold = const [],
     this.warm = const [],
     this.hot = const [],
+    this.unarchived = const [],
   });
 
-  /// 注入顺序：冷 → 温 → 热（越靠近末尾注意力越高）
-  List<ChatMessage> get injectionOrder => [...cold, ...warm, ...hot];
+  /// 注入顺序：冷 → 温 → 热 → 未总结（越靠近末尾注意力越高）
+  List<ChatMessage> get injectionOrder =>
+      [...cold, ...warm, ...hot, ...unarchived];
 }
 
 /// ═══════════════════════════════════════════════════════════

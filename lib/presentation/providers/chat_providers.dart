@@ -1658,9 +1658,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       chatMessages = recentMessages;
     }
 
-    // ═══ [CHRONICLE Phase 1] 三窗口滑动替换全量注入 ═══
-    // Chronicle开启时接管历史切分：热(未归档,末尾高注意力) / 温(近归档,淡出带) / 冷(旧归档,低注意力)。
-    // 隐藏楼层(isHidden)不进提示词。失败回落旧行为。
+    // ═══ [CHRONICLE Phase 1] 四窗口滑动替换全量注入 ═══
+    // Chronicle开启时接管历史切分：未总结(所有未归档,末尾最高注意力) / 热(近归档) /
+    // 温 / 冷(旧归档)，各窗口=hotWindowSize轮（×2转条）。隐藏楼层(isHidden)不进提示词。失败回落旧行为。
     if (chat != null && chronicleSettings.enabled) {
       try {
         final chronicleRepo = _ref.read(chronicleRepositoryProvider);
@@ -1671,8 +1671,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           windowSize: chronicleSettings.hotWindowSize,
         );
         chatMessages = windowed.injectionOrder;
-        debugPrint('[CHRONICLE] 三窗口注入：'
-            '冷${windowed.cold.length}/温${windowed.warm.length}/热${windowed.hot.length} '
+        debugPrint('[CHRONICLE] 四窗口注入：'
+            '冷${windowed.cold.length}/温${windowed.warm.length}/热${windowed.hot.length}/'
+            '未总结${windowed.unarchived.length} '
             '(归档${archivedIds.length}条)');
       } catch (e) {
         debugPrint('[CHRONICLE] 窗口切分失败，回落全量注入: $e');
@@ -2427,7 +2428,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     // Get chat messages up to (but not including) the specified index
     var chatMessages = state.messages.sublist(0, messageIndex);
 
-    // [CHRONICLE Phase 1] 三窗口滑动（重生成/编辑路径与主路径一致）
+    // [CHRONICLE Phase 1] 四窗口滑动（重生成/编辑路径与主路径一致）
     if (chat != null) {
       try {
         final chronicleSettings = _ref.read(chronicleSettingsProvider);
