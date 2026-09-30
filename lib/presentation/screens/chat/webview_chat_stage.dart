@@ -1382,6 +1382,35 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     // [P5-9/P1] 生成控制(狐神自动推进/停止)
                     _bridge.onRequest(BridgeType.generate, _handleGenerate);
                     _bridge.onRequest(BridgeType.stopGeneration, _handleStopGeneration);
+                    // [Chronicle可视化] 记忆库浮窗"运行状态"tab 拉取五区工作状态
+                    // （未总结区进度 + 热/温/冷/超冷分区，复用 chronicleVisualizationProvider）
+                    _bridge.onRequest('getChronicleVisualization', (payload) async {
+                      final chatId = ref.read(activeChatIdProvider);
+                      if (chatId == null || chatId.isEmpty) {
+                        throw StateError('当前无活动聊天');
+                      }
+                      final data = await ref
+                          .read(chronicleVisualizationProvider(chatId).future);
+                      return {
+                        'unarchivedCount': data.unarchivedCount,
+                        'unarchivedUserTurns': data.unarchivedUserTurns,
+                        'summaryInterval': data.summaryInterval,
+                        'progress': data.progress,
+                        'unarchivedStartFloor': data.unarchivedStartFloor,
+                        'unarchivedEndFloor': data.unarchivedEndFloor,
+                        'zones': [
+                          for (final z in data.zones)
+                            {
+                              'name': z.name,
+                              'key': z.key,
+                              'startIndex': z.startIndex,
+                              'endIndex': z.endIndex,
+                              'messageCount': z.messageCount,
+                              'hasOriginalText': z.hasOriginalText,
+                            }
+                        ],
+                      };
+                    });
                   },
                   onLoadStop: (c, url) async {
                     // [P0-2] 整体 try/finally:任一 await 抛异常不再中断回调 →
