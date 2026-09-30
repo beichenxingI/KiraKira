@@ -1,6 +1,6 @@
 // lib/presentation/dialogs/chronicle_wiki_dialog.dart
 /// [CHRONICLE Phase 4] Wiki管理浮窗（极客Core规范浮窗，720宽·90%高）
-/// 四标签页：词条/实体/关系/情感
+/// 五标签页：词条/实体/关系/情感/状态（[改进4] 工作状态可视化）
 /// 功能：查看/编辑/删除/手动添加词条、标记锚点、始终注入开关。
 /// 解决"以前要用括号骗AI"的记忆编辑问题。
 library;
@@ -12,6 +12,7 @@ import 'package:kirakira/data/models/chronicle.dart' as models;
 import 'package:kirakira/data/repositories/chronicle_repository.dart';
 import 'package:kirakira/presentation/providers/chat_providers.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/widgets/chronicle/chronicle_status_view.dart';
 import 'package:uuid/uuid.dart';
 import 'core_dialog.dart';
 
@@ -23,7 +24,7 @@ Future<void> showChronicleWikiDialog(BuildContext context, WidgetRef ref) {
   );
 }
 
-enum _WikiTab { entries, entities, relationships, emotions }
+enum _WikiTab { entries, entities, relationships, emotions, status }
 
 class _ChronicleWikiDialog extends ConsumerStatefulWidget {
   const _ChronicleWikiDialog();
@@ -111,13 +112,15 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
                     Expanded(child: _buildList(palette)),
                   ],
                 ),
-      footer: CoreDialogFooter(
-        child: CoreSecondaryButton(
-          label: _newItemLabel,
-          icon: CupertinoIcons.add,
-          onPressed: _chatId == null ? null : _onAdd,
-        ),
-      ),
+      footer: _tab == _WikiTab.status
+          ? null // [改进4] 状态 tab 只读，无新建按钮
+          : CoreDialogFooter(
+              child: CoreSecondaryButton(
+                label: _newItemLabel,
+                icon: CupertinoIcons.add,
+                onPressed: _chatId == null ? null : _onAdd,
+              ),
+            ),
     );
   }
 
@@ -131,6 +134,8 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
         return '新建关系';
       case _WikiTab.emotions:
         return '新建情感';
+      case _WikiTab.status:
+        return '';
     }
   }
 
@@ -155,6 +160,10 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
         _WikiTab.emotions: Padding(
           padding: EdgeInsets.symmetric(vertical: 6),
           child: Text('情感'),
+        ),
+        _WikiTab.status: Padding(
+          padding: EdgeInsets.symmetric(vertical: 6),
+          child: Text('状态'),
         ),
       },
       onValueChanged: (v) => setState(() => _tab = v!),
@@ -199,6 +208,9 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
           itemCount: _emotions.length,
           itemBuilder: (_, i) => _buildEmotionTile(_emotions[i], palette),
         );
+      case _WikiTab.status:
+        // [改进4] 工作状态可视化（五区展示 + 进度条）
+        return ChronicleStatusView(chatId: _chatId!);
     }
   }
 
@@ -289,6 +301,8 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
         _editRelationship(null);
       case _WikiTab.emotions:
         _editEmotion(null);
+      case _WikiTab.status:
+        break; // 状态 tab 只读，无新建
     }
   }
 

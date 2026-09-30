@@ -71,7 +71,8 @@ class ChronicleOrchestrator {
   // ═══════════════════ 触发检查（发消息后异步调用） ═══════════════════
 
   /// 检查触发条件并入队。返回 true=Chronicle已接管（调用方跳过旧总结路径）。
-  /// force=true（Wiki面板手动整理）：跳过轮次/token阈值与失败退避，立即入队。
+  /// [改进1] token 压力已移除（只作为 UI 建议指标，不影响自动触发）。
+  /// force=true（Wiki面板手动整理）：跳过轮次阈值与失败退避，全部归档立即入队。
   Future<bool> checkAndEnqueue({
     required String chatId,
     required List<ChatMessage> messages,
@@ -89,38 +90,28 @@ class ChronicleOrchestrator {
 
       if (unarchived.isEmpty) return true; // 无可归档，但Chronicle已接管
 
-      // 溢出热窗的消息（候选归档集）
-      final overflowCount =
-          (unarchived.length - settings.hotWindowSize).clamp(0, unarchived.length);
-
-      // [Bug2] 按轮次（user消息数）计，1 user + 1 assistant = 1轮；summaryInterval单位=轮。
-      // 阈值统计口径改为"全部未归档 user 消息数"：原实现只统计溢出批次(sublist(0,
-      // overflowCount))里的 user 数——默认 hotWindowSize=20 下未归档需堆到约 60 条
-      // (30 轮)才可能凑满 20 user，52 楼(26 轮)时溢出批次仅 16 条 user → 永不触发。
+      // [Bug2] 按轮次（user消息数）计，1 user + 1 assistant = 1轮；
+      // summaryInterval单位=轮。阈值统计口径=全部未归档 user 消息数。
+      // [改进1] 移除 token 压力判断：token 压力只作为 UI 建议指标。
       final unarchivedUserTurns =
           unarchived.where((m) => m.role == MessageRole.user).length;
-      final bool triggerByTurns = unarchivedUserTurns >= settings.summaryInterval;
-      debugPrint('[Bug2] 超级记忆触发检查: unarchivedUserTurns=$unarchivedUserTurns, '
-          'threshold=${settings.summaryInterval}, trigger=$triggerByTurns, '
-          'overflowCount=$overflowCount');
+      // [改进2] 满了等一条再总结（> 而非 >=）：checkAndEnqueue 在用户新消息落库
+      // 后触发，此刻最新一轮尚不完整（AI 未回复）；等一轮完整后才总结，
+      // 防止用户重试最后一条时该条被排除在总结外。
+      final bool shouldTrigger = unarchivedUserTurns > settings.summaryInterval;
+      debugPrint('[Chronicle] 触发检查: 未归档 $unarchivedUserTurns 轮, '
+          '阈值 ${settings.summaryInterval}, 触发=$shouldTrigger');
 
-      // token压力触发：热窗token ≥ 比例阈值 或 绝对上限（H7双触发）
-      bool triggerByTokens = false;
-      if (overflowCount > 0) {
-        var hotTokens = 0;
-        final hot = unarchived.sublist(unarchived.length - settings.hotWindowSize);
-        for (final m in hot) {
-          hotTokens += (m.content.length / 3.35).ceil();
-        }
-        triggerByTokens = hotTokens >= llmConfig.contextLength * settings.tokenPressureThreshold ||
-            hotTokens >= ChatSummarizationService.absoluteTokenLimit;
-      }
+      if (!force && !shouldTrigger) return true; // 未达阈值，已接管
 
-      if (!force && !triggerByTurns && !triggerByTokens) return true; // 未达阈值，已接管
-
-      // 待归档消息：溢出热窗的最早一批（调整A：messageId集合）
-      final toArchive =
-          unarchived.sublist(0, overflowCount).map((m) => m.id).toList();
+      // [改进2] 自动触发：总结最早的 summaryInterval 轮（1轮=user+AI≈2条消息），
+      // 留下最新的；
+      // [改进3] force（Wiki面板手动整理）= 全部归档，不留热窗。
+      final toArchive = (force
+              ? unarchived
+              : unarchived.take(settings.summaryInterval * 2))
+          .map((m) => m.id)
+          .toList();
 
       // 失败任务退避：超过最大重试次数停止入队，等待用户手动干预（force跳过）
       if (!force) {
@@ -139,7 +130,7 @@ class ChronicleOrchestrator {
       );
       if (enqueued) {
         debugPrint('[CHRONICLE] 入队总结任务：${toArchive.length}条消息 '
-            '(turns触发=$triggerByTurns, tokens触发=$triggerByTokens)');
+            '(触发=$shouldTrigger, force=$force)');
       }
       return true;
     } catch (e) {

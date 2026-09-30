@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kirakira/data/models/chat.dart';
 import 'package:kirakira/data/models/chronicle.dart' as models;
 import 'package:kirakira/data/repositories/chronicle_repository.dart';
+import 'package:kirakira/data/repositories/chat_repository.dart';
 import 'package:kirakira/domain/services/chronicle_orchestrator.dart';
 import 'package:kirakira/domain/services/chronicle_recall_service.dart';
 import 'package:kirakira/domain/services/chronicle_summary_service.dart';
@@ -152,4 +154,114 @@ final chronicleOrchestratorProvider = Provider<ChronicleOrchestrator>((ref) {
   );
   ref.onDispose(orchestrator.dispose);
   return orchestrator;
+});
+
+/// [改进4] 可视化分区（热/温/冷/超冷）。
+class ChronicleZone {
+  final String key; // 'hot'/'warm'/'cold'/'frozen'（图标选择用）
+  final String name; // 热区/温区/冷区/超冷区
+  final int startIndex; // 起始楼层（1-based，对齐聊天页楼层号）
+  final int endIndex;
+  final int messageCount;
+  final bool hasOriginalText; // false = 原文已彻底淡出，只注入总结词条
+  const ChronicleZone({
+    required this.key,
+    required this.name,
+    required this.startIndex,
+    required this.endIndex,
+    required this.messageCount,
+    required this.hasOriginalText,
+  });
+}
+
+/// [改进4] 超级记忆工作状态可视化数据。
+class ChronicleVisualizationData {
+  final int unarchivedCount; // 未归档消息总数
+  final int unarchivedUserTurns; // 未归档轮数（user消息计，1轮=user+AI）
+  final int summaryInterval; // 总结阈值（轮）
+  final double progress; // unarchivedUserTurns / summaryInterval
+  final int unarchivedStartFloor; // 首条未归档楼层（无未归档时 0）
+  final int unarchivedEndFloor; // 末条未归档楼层
+  final List<ChronicleZone> zones; // 已归档分区（新→旧）
+  const ChronicleVisualizationData({
+    required this.unarchivedCount,
+    required this.unarchivedUserTurns,
+    required this.summaryInterval,
+    required this.progress,
+    required this.unarchivedStartFloor,
+    required this.unarchivedEndFloor,
+    required this.zones,
+  });
+}
+
+/// [改进4] 可视化数据：按聊天拉取消息+归档状态，切五区。
+/// autoDispose：状态 tab 关闭即销毁缓存，重进必重查，保证展示的是当前状态。
+final chronicleVisualizationProvider = FutureProvider.autoDispose
+    .family<ChronicleVisualizationData, String>((ref, chatId) async {
+  final chatRepo = ref.watch(chatRepositoryProvider);
+  final chronicleRepo = ref.watch(chronicleRepositoryProvider);
+  final settings = ref.watch(chronicleSettingsProvider);
+
+  final allMessages = await chatRepo.getMessages(chatId);
+  final archivedIds = await chronicleRepo.getArchivedMessageIds(chatId);
+
+  final unarchived = allMessages
+      .where((m) => !archivedIds.contains(m.id) && !m.isHidden)
+      .toList();
+  final archived = allMessages
+      .where((m) => archivedIds.contains(m.id) && !m.isHidden)
+      .toList();
+  final unarchivedUserTurns =
+      unarchived.where((m) => m.role == MessageRole.user).length;
+
+  // 楼层号对齐全消息序号（含隐藏楼层，与聊天页楼层一致）
+  final floorOf = <String, int>{
+    for (var i = 0; i < allMessages.length; i++) allMessages[i].id: i + 1,
+  };
+
+  // 分区：已归档集从新到旧按"一代归档"（summaryInterval 轮，1轮=user+AI≈2条消息）
+  // 分批，与触发逻辑的归档批次一致：第0批=热区、第1批=温区、第2批=冷区
+  // （原文+词条），更早=超冷区（只注入词条，原文已淡出）。
+  final generationSize = (settings.summaryInterval * 2).clamp(2, 1 << 30);
+  final zones = <ChronicleZone>[];
+  var batchIndex = 0;
+  for (var end = archived.length; end > 0; end -= generationSize) {
+    final start = (end - generationSize).clamp(0, archived.length);
+    final batch = archived.sublist(start, end);
+    final name = switch (batchIndex) {
+      0 => '热区',
+      1 => '温区',
+      2 => '冷区',
+      _ => '超冷区',
+    };
+    final key = switch (batchIndex) {
+      0 => 'hot',
+      1 => 'warm',
+      2 => 'cold',
+      _ => 'frozen',
+    };
+    zones.add(ChronicleZone(
+      key: key,
+      name: name,
+      startIndex: floorOf[batch.first.id] ?? start + 1,
+      endIndex: floorOf[batch.last.id] ?? end,
+      messageCount: batch.length,
+      hasOriginalText: batchIndex <= 2,
+    ));
+    batchIndex++;
+  }
+
+  return ChronicleVisualizationData(
+    unarchivedCount: unarchived.length,
+    unarchivedUserTurns: unarchivedUserTurns,
+    summaryInterval: settings.summaryInterval,
+    progress: settings.summaryInterval > 0
+        ? unarchivedUserTurns / settings.summaryInterval
+        : 0.0,
+    unarchivedStartFloor:
+        unarchived.isEmpty ? 0 : (floorOf[unarchived.first.id] ?? 0),
+    unarchivedEndFloor:
+        unarchived.isEmpty ? 0 : (floorOf[unarchived.last.id] ?? 0),
+    zones: zones,
+  );
 });
