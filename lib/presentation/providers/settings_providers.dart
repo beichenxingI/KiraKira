@@ -340,12 +340,15 @@ class LLMConfigNotifier extends StateNotifier<LLMConfig> {
   /// 保证冷启动时 applyActiveMultiConfig 读到的是最新选择的模型。
   /// 注意：只 update model 一列，绝不触碰 apiKey/endpoint，避免误伤其他字段。
   Future<void> _persistModelToActiveConfig(String model) async {
-    final active = await (_db.select(_db.llmConfigs)
+    // [Bug1] 用 get()+first 容忍瞬时双 isDefault=true 窗口（如 onSaveAsNew/
+    // onSave 新建分支的 upsert 与 setActive 事务之间），getSingleOrNull 遇多行
+    // 会抛 StateError 使本次回写静默失败。
+    final rows = await (_db.select(_db.llmConfigs)
           ..where((t) => t.isDefault.equals(true)))
-        .getSingleOrNull();
-    if (active == null) return; // 无激活方案（纯单配置模式），无需回写
+        .get();
+    if (rows.isEmpty) return; // 无激活方案（纯单配置模式），无需回写
     await (_db.update(_db.llmConfigs)
-          ..where((t) => t.isDefault.equals(true)))
+          ..where((t) => t.id.equals(rows.first.id)))
         .write(LlmConfigsCompanion(
       model: drift.Value(model.isEmpty ? null : model),
     ));

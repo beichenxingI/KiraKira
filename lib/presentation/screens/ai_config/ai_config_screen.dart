@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -835,10 +836,17 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                         ref.read(llmConfigProvider.notifier).updateApiKey(key);
                         ref.read(llmConfigProvider.notifier).updateModel(model);
                         // 2. 同步多方案表（更新或新建当前方案）
+                        // [Bug1] 感知"新建"状态：activeConfigName 为空 = 用户点过
+                        // "新建方案"（onNewConfig 只清表单，此前 onSave 无条件用
+                        // active?.id upsert → 旧方案被新内容整体覆盖替换）。
                         final active = ref.read(llmConfigsProvider).active;
                         final now = DateTime.now();
+                        final isNew = activeConfigName.isEmpty || active == null;
+                        final configId =
+                            isNew ? now.millisecondsSinceEpoch.toString() : active.id;
+                        debugPrint('[Bug1] onSave: isNew=$isNew, configId=$configId');
                         await ref.read(llmConfigsProvider.notifier).upsert(LlmConfigsCompanion(
-                          id: drift.Value(active?.id ?? now.millisecondsSinceEpoch.toString()),
+                          id: drift.Value(configId),
                           name: drift.Value(name),
                           provider: drift.Value(selectedProvider.name),
                           endpoint: drift.Value(url),
@@ -850,6 +858,13 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                           createdAt: drift.Value(active?.createdAt ?? now),
                           modifiedAt: drift.Value(now),
                         ));
+                        if (isNew) {
+                          // [Bug1] 新建方案自动激活：setActive 事务(全表 isDefault 置 false
+                          // → 目标置 true)清掉旧方案的 true 标记，避免双 true 行导致
+                          // getSingleOrNull 抛 StateError；同时把刚保存的配置应用到运行时，
+                          // 避免冷启动 applyActiveMultiConfig 被旧方案覆盖。
+                          await ref.read(llmConfigsProvider.notifier).setActive(configId);
+                        }
                         if (rootContext.mounted) {
                           Navigator.pop(dialogContext);
                           _showDialogSnackBar(rootContext, '配置已保存');
