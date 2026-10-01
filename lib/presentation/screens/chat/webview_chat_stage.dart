@@ -117,6 +117,13 @@ class WebViewChatStage extends ConsumerStatefulWidget {
 }
 
 class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with TickerProviderStateMixin, WidgetsBindingObserver {
+  // 新增：强制最短加载时间控制
+  bool _minLoadingTimeElapsed = false;
+  Timer? _minLoadingTimer;
+  // WebView 是否已完成首次加载（onLoadStop 成功 / 加载出错 视为就绪）
+  bool _webViewReady = false;
+  // 星星脉动方向：true = 0→1，false = 1→0；onEnd 翻转以形成循环脉动
+  bool _starPulseUp = true;
   ProviderSubscription<PromptManagerConfig>? _pmSub;
   ProviderSubscription<String?>? _charSub; // [P5-7B] character 变化自愈监听
   InAppWebViewController? _controller;
@@ -662,6 +669,26 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         }
       },
     );
+    // 强制显示加载动画至少 2 秒
+    _minLoadingTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _minLoadingTimeElapsed = true;
+        });
+        // 如果 WebView 已经准备好了，检查是否可以隐藏遮罩
+        _tryHideMask();
+      }
+    });
+  }
+
+  // 新增：尝试隐藏遮罩（需同时满足：WebView 准备好 + 最短时间已过）
+  void _tryHideMask() {
+    if (_minLoadingTimeElapsed &&
+        _webViewReady &&
+        mounted &&
+        _maskController.status != AnimationStatus.dismissed) {
+      _maskController.reverse();
+    }
   }
   @override
   void didChangePlatformBrightness() {
@@ -930,6 +957,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
 
   @override
   void dispose() {
+    _minLoadingTimer?.cancel();
     // 清空 EJS 渲染函数登记(离开聊天页,回到安全态)
     try {
       ref.read(ejsRenderRegistryProvider).clear();
@@ -1293,7 +1321,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                   // 撤下遮罩给用户出路(可返回/重进);加载完成后遮罩已撤,再触发是无视觉变化的立即完成。
                   onReceivedError: (controller, request, error) {
                     debugPrint('[WebView] 加载错误: ${error.description}');
-                    if (mounted) _maskController.reverse();
+                    // 加载出错同样视为“就绪”，交由统一判断（最短时间未到则等定时器）
+                    _webViewReady = true;
+                    _tryHideMask();
                   },
                   onWebViewCreated: (c) {
                     _controller = c;
@@ -1662,7 +1692,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                       debugPrint('[onLoadStop] 异常，强制撤遮罩: $e\n$st');
                     } finally {
                       // [P0-2] 遮罩唯一清除点移入 finally:成功/异常/提前 return 都会撤下
-                      if (mounted) await _maskController.reverse();
+                      _webViewReady = true;
+                      _tryHideMask();
                     }
                   },
                 )
@@ -1726,10 +1757,33 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.auto_awesome,
-                      size: 44,
-                      color: activeGlassPalette.accent,
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: _starPulseUp ? 1.0 : 0.0),
+                      duration: const Duration(milliseconds: 1200),
+                      builder: (context, value, child) {
+                        final t = (value - 0.5).abs() * 2;
+                        final scale = 0.9 + (0.2 * (1 - t));
+                        final opacity = 0.7 + (0.3 * (1 - t));
+
+                        return Opacity(
+                          opacity: opacity,
+                          child: Transform.scale(
+                            scale: scale,
+                            child: const Icon(
+                              Icons.stars,
+                              size: 64,
+                              color: Colors.white,
+                            ),
+                          ),
+                        );
+                      },
+                      onEnd: () {
+                        if (mounted) {
+                          setState(() {
+                            _starPulseUp = !_starPulseUp;
+                          });
+                        }
+                      },
                     ),
                     const SizedBox(height: 16),
                     Text(
