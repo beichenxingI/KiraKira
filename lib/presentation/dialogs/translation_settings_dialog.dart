@@ -1,8 +1,9 @@
 // lib/presentation/dialogs/translation_settings_dialog.dart
-/// 翻译设置浮窗(极客Core迁移 P1)
-/// 内容完整迁自 translation_settings_screen.dart,字段一个不少:
-/// 通用(启用/译AI回复/译用户消息/显示原文) · 提供商(引擎/API密钥)
-/// 语言(源语言/交换/目标语言) · 翻译测试 · 信息说明 · 恢复默认
+/// Translation settings dialog.
+/// Mirrors translation_settings_screen.dart with every field preserved:
+/// general (enable / translate AI replies / translate user messages / show
+/// original), provider (engine / API key), language (source / swap / target),
+/// translation test, information, reset to defaults.
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -37,7 +38,7 @@ class _TranslationSettingsDialog extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 通用 ──
+          // General
           CoreSectionLabel(l10n.general),
           const SizedBox(height: 4),
           _Group(
@@ -89,7 +90,7 @@ class _TranslationSettingsDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 提供商 ──
+          // Provider
           CoreSectionLabel(l10n.provider),
           const SizedBox(height: 4),
           _Group(
@@ -141,7 +142,7 @@ class _TranslationSettingsDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 语言 ──
+          // Language
           CoreSectionLabel(l10n.language),
           const SizedBox(height: 4),
           _Group(
@@ -229,13 +230,13 @@ class _TranslationSettingsDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 测试 ──
+          // Test
           CoreSectionLabel(l10n.test),
           const SizedBox(height: 8),
           _TranslationTestWidget(palette: palette, enabled: settings.enabled),
           const SizedBox(height: 20),
 
-          // ── 信息 ──
+          // Information
           CoreSectionLabel(l10n.information),
           const SizedBox(height: 4),
           CoreInfoRow(
@@ -272,7 +273,7 @@ class _TranslationSettingsDialog extends ConsumerWidget {
             ),
           const SizedBox(height: 20),
 
-          // ── 恢复默认 ──
+          // Reset to defaults
           CoreSecondaryButton(
             label: l10n.resetToDefaults,
             icon: CupertinoIcons.arrow_counterclockwise,
@@ -286,7 +287,8 @@ class _TranslationSettingsDialog extends ConsumerWidget {
     );
   }
 
-  /// API Key 表单 → 底部 Sheet(键盘避让,与原页一致)
+  /// API key form shown as a bottom sheet with keyboard avoidance, matching
+  /// the original page.
   void _showApiKeySheet(
     BuildContext context,
     WidgetRef ref,
@@ -358,7 +360,7 @@ class _TranslationSettingsDialog extends ConsumerWidget {
   }
 }
 
-/// 浮窗内分组容器
+/// Group container used inside the dialog.
 class _Group extends StatelessWidget {
   const _Group({required this.palette, required this.children});
 
@@ -380,7 +382,7 @@ class _Group extends StatelessWidget {
   }
 }
 
-/// 带右侧下拉的行
+/// Row with a trailing dropdown.
 class _DropdownTile extends StatelessWidget {
   const _DropdownTile({
     required this.palette,
@@ -421,7 +423,7 @@ class _DropdownTile extends StatelessWidget {
   }
 }
 
-/// 翻译测试(原 `_TranslationTestWidget` 浮窗形态)
+/// Translation test in dialog form (originally `_TranslationTestWidget`).
 class _TranslationTestWidget extends ConsumerStatefulWidget {
   const _TranslationTestWidget({required this.palette, required this.enabled});
 

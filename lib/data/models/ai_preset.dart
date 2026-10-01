@@ -606,7 +606,7 @@ class BuiltInAIPresets {
       temperature: 0.85,
       topP: 0.95,
       topK: 40,
-      maxTokens: 16384, // 更大的输出空间，配合长文提示词
+      maxTokens: 16384, // Larger output budget to pair with long-form prompts
       contextLength: 1000000, // Larger context for long form
       repetitionPenalty: 1.15,
     ),

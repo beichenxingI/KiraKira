@@ -8,7 +8,7 @@ import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/widgets/regex/regex_widgets.dart';
 
-/// 角色正则脚本管理页面（全屏独立页）
+/// Character regex script management screen (standalone full-screen page)
 class CharacterRegexScreen extends ConsumerStatefulWidget {
   final String characterId;
 
@@ -181,12 +181,12 @@ class _CharacterRegexScreenState extends ConsumerState<CharacterRegexScreen> {
               ),
             )
           : ReorderableListView.builder(
-              // 88=FAB 避让工程尺寸(不进 token)
+              // 88 = FAB clearance, fixed engineering size (not a design token)
               padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, 88),
               itemCount: scripts.length,
               onReorder: (oldIndex, newIndex) {
-                // ReorderableListView 的 newIndex 逻辑：拖到后面时 newIndex 会比实际位置大 1
-                // 不需要手动调整，provider 内部会处理
+                // ReorderableListView newIndex semantics: when an item is dragged past the end, newIndex is 1 greater than the actual position
+                // No manual adjustment is needed; the provider handles it internally
               },
               itemBuilder: (context, index) {
                 final script = scripts[index];

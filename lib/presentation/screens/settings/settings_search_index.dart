@@ -1,9 +1,9 @@
 // lib/presentation/screens/settings/settings_search_index.dart
-/// 设置内全局搜索索引(Block E · E-T1)
+/// Global search index for settings.
 ///
-/// 手工登记(不反射);Block D 每页一条 + C-T4 主页 6 组高频项。
-/// keywords 必须含中文名、英文名、常见同义("密钥/密匙/key" 这类都写上),
-/// 保证 contains 命中即可。
+/// Manually maintained (no reflection); one entry per page plus the six high-frequency home groups.
+/// keywords must include the Chinese name, the English name, and common synonyms
+/// (write every variant), so any contains() match succeeds.
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -15,23 +15,23 @@ class SettingsIndexEntry {
     required this.keywords,
     required this.route,
     required this.icon,
-    required this.section, // 所属组名(搜索结果显示副标题)
+    required this.section, // group name (shown as subtitle in search results)
     this.dialog,
   });
 
   final String title;
-  final String keywords; // 空格分隔
+  final String keywords; // space-separated
   final String route;
 
-  /// 非空 = 迁移后的浮窗条目:不走路由,由设置页分发器直接弹对应浮窗
-  /// (key 见 settings_screen.dart `_openSearchDialog` 的路由表)
+  /// Non-null = migrated dialog entry: no route is used; the settings page dispatcher
+  /// opens the matching dialog directly (keys are listed in `_openSearchDialog` in settings_screen.dart)
   final String? dialog;
   final IconData icon;
   final String section;
 }
 
 const kSettingsIndex = <SettingsIndexEntry>[
-  // ══ 置顶高频 ══
+  // Pinned high-frequency
   SettingsIndexEntry(
     title: '深色主题',
     keywords: '深色 主题 暗色 黑夜 dark mode theme 夜间',
@@ -55,7 +55,7 @@ const kSettingsIndex = <SettingsIndexEntry>[
     section: '通用',
   ),
 
-  // ══ 外观 ══
+  // Appearance
   SettingsIndexEntry(
     title: '聊天背景',
     keywords: '聊天背景 壁纸 背景图 background wallpaper 气泡',
@@ -81,7 +81,7 @@ const kSettingsIndex = <SettingsIndexEntry>[
     section: '外观',
   ),
 
-  // ══ 模型与生成 ══
+  // Model and generation
   SettingsIndexEntry(
     title: 'AI 预设',
     keywords: '预设 模版 preset 采样 方案 ai preset 配置',
@@ -139,7 +139,7 @@ const kSettingsIndex = <SettingsIndexEntry>[
     section: '模型与生成',
   ),
 
-  // ══ 聊天设置(极客Core迁移)══
+  // Chat settings
   SettingsIndexEntry(
     title: '流式输出',
     keywords: '流式 stream streaming 实时 逐字 输出',
@@ -156,7 +156,7 @@ const kSettingsIndex = <SettingsIndexEntry>[
     section: '聊天设置',
   ),
 
-  // ══ 语音与翻译(极客Core迁移)══
+  // Voice and translation
   SettingsIndexEntry(
     title: 'TTS 合成',
     keywords: 'tts 语音合成 朗读 有声 配音 voice speech text to speech',
@@ -204,7 +204,7 @@ const kSettingsIndex = <SettingsIndexEntry>[
     icon: CupertinoIcons.square_list,
     section: '工具链',
   ),
-  // [CHRONICLE UI整合] "向量存储 RAG"搜索索引已随入口删除一并移除。
+  // The "vector storage RAG" search index entry was removed together with its entry point.
   SettingsIndexEntry(
     title: 'Chronicle 超级记忆',
     keywords: '记忆 chronicle 总结 词条 召回 wiki 上下文压缩 超级记忆',
@@ -214,7 +214,7 @@ const kSettingsIndex = <SettingsIndexEntry>[
     section: '工具链',
   ),
 
-  // ══ 数据与诊断 ══
+  // Data and diagnostics
   SettingsIndexEntry(
     title: '用量统计',
     keywords: '统计 用量 token 统计 日志统计 statistics 时长',
@@ -232,7 +232,7 @@ const kSettingsIndex = <SettingsIndexEntry>[
     section: '数据与诊断',
   ),
 
-  // ══ 关于 ══
+  // About
   SettingsIndexEntry(
     title: '关于 KiraKira',
     keywords: '关于 版本 版权 开源 许可 赞助 支持版本号 build',

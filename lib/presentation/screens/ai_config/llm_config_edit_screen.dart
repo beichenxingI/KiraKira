@@ -1,5 +1,5 @@
 // lib/presentation/screens/ai_config/llm_config_edit_screen.dart
-/// LLM 配置编辑页(G-T4:_ConfigEditorDialog 4 字段表单 → push 子页,D-T2 规则 3)
+/// LLM config edit screen; replaces the former _ConfigEditorDialog 4-field form
 library;
 
 import 'package:drift/drift.dart' as drift;

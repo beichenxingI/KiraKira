@@ -1,11 +1,10 @@
 // lib/presentation/dialogs/advanced_sampling_dialog.dart
-/// 高级采样参数浮窗(极客Core迁移 P2)
-/// 内容完整迁自 advanced_settings_screen.dart,参数一个不少:
-/// 基础采样(温度/TopP/TopK) · 高级采样(minP/typicalP/topA/TFS)
-/// 重复控制(repPenalty/Range/freqPen/presPen) · Mirostat(模式/tau/eta)
-/// 上下文管理(自动摘要开关/阈值/总结模型/自定义总结提示词)
-/// 生成控制(maxTokens/seed/停止序列) · CFG Scale(LLM全局级)
-/// 恢复默认(带确认)
+/// Advanced sampling parameter dialog.
+/// Sections: basic sampling (temperature/TopP/TopK),
+/// advanced sampling (minP/typicalP/topA/TFS),
+/// repetition control (repPenalty/Range/freqPen/presPen), Mirostat (mode/tau/eta),
+/// generation control (maxTokens/seed/stop sequences), CFG scale (LLM global),
+/// reset to defaults (with confirmation).
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -52,7 +51,7 @@ class _AdvancedSamplingDialog extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 基础采样 ──
+          // Basic sampling
           CoreSectionLabel(l10n.basicSampling),
           const SizedBox(height: 4),
           _Group(
@@ -101,7 +100,7 @@ class _AdvancedSamplingDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 高级采样 ──
+          // Advanced sampling
           CoreSectionLabel(l10n.advancedSampling),
           const SizedBox(height: 4),
           _Group(
@@ -160,7 +159,7 @@ class _AdvancedSamplingDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 重复控制 ──
+          // Repetition control
           CoreSectionLabel(l10n.repetitionControl),
           const SizedBox(height: 4),
           _Group(
@@ -222,7 +221,7 @@ class _AdvancedSamplingDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── Mirostat ──
+          // Mirostat
           CoreSectionLabel(l10n.mirostatLocalModels),
           const SizedBox(height: 4),
           _Group(
@@ -298,7 +297,7 @@ class _AdvancedSamplingDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 生成控制 ──
+          // Generation control
           CoreSectionLabel(l10n.generationControl),
           const SizedBox(height: 4),
           _Group(
@@ -347,7 +346,7 @@ class _AdvancedSamplingDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── CFG Scale(LLM全局级) ──
+          // CFG scale (LLM global)
           const CoreSectionLabel('CFG Scale（LLM 全局级）'),
           const SizedBox(height: 4),
           _Group(
@@ -406,7 +405,7 @@ class _AdvancedSamplingDialog extends ConsumerWidget {
   Widget _rowDivider(CoreDialogPalette palette) =>
       Divider(height: 0.5, thickness: 0.5, color: palette.divider);
 
-  /// 恢复默认(破坏确认,与原页一致)
+  /// Reset to defaults (destructive confirmation).
   void _showResetConfirmation(
       BuildContext context, WidgetRef ref, AppLocalizations l10n) {
     showCupertinoDialog<void>(
@@ -433,7 +432,7 @@ class _AdvancedSamplingDialog extends ConsumerWidget {
     );
   }
 
-  /// 整数输入 → 底部 Sheet(与原页一致)
+  /// Integer input in a bottom sheet.
   void _showIntInputSheet(
     BuildContext context,
     String title,
@@ -504,10 +503,10 @@ class _AdvancedSamplingDialog extends ConsumerWidget {
     );
   }
 
-  // [CHRONICLE UI整合] 旧自动总结入口已删除（_showSummaryModelSheet/_showSummaryPromptSheet
-  // 一并移除）；总结功能由Chronicle设置浮窗管理（总结模型/自定义追加指令）。
+  // Legacy auto-summary entries were removed (_showSummaryModelSheet/_showSummaryPromptSheet);
+  // summarization is now managed by the Chronicle settings dialog (summary model / custom append instructions).
 
-  /// 停止序列 → 底部 Sheet(与原页一致)
+  /// Stop sequences in a bottom sheet.
   void _showStopSequencesSheet(
     BuildContext context,
     WidgetRef ref,
@@ -592,7 +591,7 @@ class _AdvancedSamplingDialog extends ConsumerWidget {
   }
 }
 
-/// 滑块行(标题 + 当前值 + 说明 + Slider,与原页布局一致)
+/// Slider row (title + current value + description + slider).
 class _SliderTile extends StatelessWidget {
   const _SliderTile({
     required this.palette,
@@ -661,7 +660,7 @@ class _SliderTile extends StatelessWidget {
   }
 }
 
-/// 整数输入行(点击弹底部 Sheet,与原页一致)
+/// Integer input row (opens a bottom sheet on tap).
 class _IntInputTile extends StatelessWidget {
   const _IntInputTile({
     required this.palette,
@@ -695,7 +694,7 @@ class _IntInputTile extends StatelessWidget {
   }
 }
 
-/// CFG 快捷预设 Chip
+/// Quick CFG preset chip.
 class _PresetChip extends StatelessWidget {
   const _PresetChip({
     required this.palette,
@@ -742,7 +741,7 @@ class _PresetChip extends StatelessWidget {
   }
 }
 
-/// 浮窗内分组容器
+/// Group container used inside the dialog.
 class _Group extends StatelessWidget {
   const _Group({required this.palette, required this.children});
 

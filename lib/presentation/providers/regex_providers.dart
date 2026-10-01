@@ -19,8 +19,8 @@ final regexServiceProvider = Provider<RegexService>((ref) {
 });
 
 /// Provider for global regex scripts
-/// [Phase 2.4] 优先查表（regex_scripts 表）；首启从 SharedPreferences 迁移；
-/// 保存双写（表 + prefs，兼容旧版回滚）
+/// Reads the regex_scripts table first; on first launch migrates from
+/// SharedPreferences; saves dual-write (table + prefs) for backward compat.
 final globalRegexScriptsProvider = StateNotifierProvider<GlobalRegexScriptsNotifier, List<RegexScript>>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   final regexRepo = ref.watch(regexScriptRepositoryProvider);
@@ -35,7 +35,8 @@ class GlobalRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
   final RegexScriptRepository _regexRepo;
 
   final Completer<void> _readyCompleter = Completer<void>();
-  /// 首次加载完成（成功或失败）后 complete，供渲染前 await，确保正则就绪
+  /// Completes after the first load finishes (success or failure); await before
+  /// rendering to ensure regex scripts are ready.
   Future<void> get ready => _readyCompleter.future;
 
   GlobalRegexScriptsNotifier(this._prefs, this._regexRepo) : super([]) {
@@ -44,19 +45,19 @@ class GlobalRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
 
   Future<void> _loadScripts() async {
     try {
-      // [Phase 2.4] 优先查表
+      // Query the table first
       final scripts = await _regexRepo.getGlobal();
       if (scripts.isNotEmpty) {
         state = scripts;
         return;
       }
-      // 兜底：表为空时从 SharedPreferences 迁移（旧版本数据；
-      // 迁移后保留 prefs 作备份，不删除）
+      // Fallback: when the table is empty, migrate from SharedPreferences
+      // (legacy-version data; prefs are kept as a backup and not deleted)
       final jsonStr = _prefs.getString(_storageKey);
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final decoded = jsonDecode(jsonStr);
         if (decoded is List) {
-          // [紧急修复-A] 逐条容错解析：单条失败跳过，不炸掉整个列表
+          // Tolerant per-entry parsing: a single failure is skipped instead of discarding the whole list
           final parsed = <RegexScript>[];
           for (var i = 0; i < decoded.length; i++) {
             try {
@@ -85,7 +86,7 @@ class GlobalRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
 
   Future<void> _saveScripts() async {
     try {
-      // [Phase 2.4] 写表 + 双写 SharedPreferences（兼容旧版回滚）
+      // Write to the table and dual-write to SharedPreferences (compatible with rollback to older versions)
       await _regexRepo.saveGlobal(state);
       final json = jsonEncode(state.map((s) => s.toJson()).toList());
       await _prefs.setString(_storageKey, json);
@@ -200,8 +201,9 @@ class GlobalRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
 }
 
 /// Provider for character-specific regex scripts
-/// [Phase 2.4] 查表（regex_scripts 表）；表空时 extensions 双读降级 + 自动迁移；
-/// 保存独立写表，不再触碰 extensions（消除 lost-update 竞态）
+/// Reads the regex_scripts table; when the table is empty it falls back to
+/// reading character extensions with automatic migration; saves write only to
+/// the table and no longer touch extensions (eliminates lost-update races).
 final characterRegexScriptsProvider = StateNotifierProvider.family<CharacterRegexScriptsNotifier, List<RegexScript>, String>((ref, characterId) {
   final charRepo = ref.watch(characterRepositoryProvider);
   final regexRepo = ref.watch(regexScriptRepositoryProvider);
@@ -232,18 +234,20 @@ class CharacterRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
 
   Future<void> _loadScripts() async {
     try {
-      // [Phase 2.4] 改为查表，不再读 extensions
+      // Query the table instead of reading extensions
       final scripts = await _regexRepo.getForCharacter(characterId);
       if (scripts.isNotEmpty) {
         state = scripts;
         return;
       }
-      // 双读降级：表为空【或表条数少于 extensions 条数】（迁移失败/部分迁移兜底），用 extensions 重建表
+      // Dual-read fallback: when the table is empty (or has fewer rows than extensions, covering failed or partial migration), rebuild the table from extensions
       final character = await _charRepo.getCharacter(characterId);
       final rawList = character?.extensions['regex_scripts'];
       if (rawList is List && rawList.isNotEmpty) {
-        // [紧急修复-A] 双格式解析（自家优先/ST 兜底）+ 逐条 try-catch：
-        // 单条解析失败不再炸掉整个列表（Phase 2 旧兜底只支持自家格式，ST 卡整体丢失）
+        // Dual-format parsing (native format first, SillyTavern fallback) with
+        // per-entry try-catch: a single failure no longer discards the whole
+        // list (the older fallback only supported the native format, losing
+        // entire SillyTavern cards).
         final parsed = <RegexScript>[];
         for (var i = 0; i < rawList.length; i++) {
           final raw = rawList[i];
@@ -267,10 +271,10 @@ class CharacterRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
         debugPrint(
             '[Regex] 双读降级解析完成: ${parsed.length}/${rawList.length} 条 (表中原有 ${scripts.length} 条)');
         if (parsed.length > scripts.length) {
-          // extensions 数据更完整（表为空或部分迁移）→ 用 extensions 重建表
+          // Extensions data is more complete (table empty or partially migrated), so rebuild the table from extensions
           try {
             await _regexRepo.saveForCharacter(characterId, parsed);
-            // 保存后重读表，保证内存 id 与表行 id 一致
+            // Re-read the table after saving so in-memory ids match the table row ids
             final saved = await _regexRepo.getForCharacter(characterId);
             state = saved.isNotEmpty ? saved : parsed;
             debugPrint('[Regex] ✅ 重建表完成: ${state.length} 条');
@@ -296,13 +300,13 @@ class CharacterRegexScriptsNotifier extends StateNotifier<List<RegexScript>> {
 
   Future<void> _saveScripts() async {
     try {
-      // [Phase 2.4] 独立写表，删除 extensions 整行读改写（消除 lost-update 竞态）
+      // Write only to the table; the read-modify-write of the whole extensions row was removed (eliminates lost-update races)
       await _regexRepo.saveForCharacter(characterId, state);
       debugPrint('[Regex] 保存成功: ${state.length} 条');
     } catch (e, stackTrace) {
       debugPrint('❌ 正则保存失败: $e');
       debugPrint('❌ StackTrace: $stackTrace');
-      // [紧急修复-E] Phase 2 误删的 rethrow 恢复：保存失败不再静默，上层可感知
+      // Rethrow restored (it was dropped earlier): save failures are no longer silent and callers can observe them
       rethrow;
     }
   }
@@ -359,8 +363,10 @@ final combinedRegexScriptsProvider = Provider.family<List<RegexScript>, String?>
   return combined;
 });
 
-/// 等待「全局正则 + 指定角色正则」都首次加载完成。
-/// 渲染前 await，确保开场白等首屏消息用到的是就绪后的正则，一次渲染即正确。
+/// Waits until both the global scripts and the specified character's scripts
+/// have finished their first load. Await before rendering so first-screen
+/// messages (e.g., greetings) use ready regex scripts and render correctly
+/// in a single pass.
 final regexScriptsReadyProvider =
     Provider.family<Future<void>, String?>((ref, characterId) {
   final globalReady = ref.read(globalRegexScriptsProvider.notifier).ready;

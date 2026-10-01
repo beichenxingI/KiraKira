@@ -3,11 +3,11 @@ import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/widgets/common/kira_grouped_tile.dart';
 import 'package:kirakira/presentation/widgets/common/kira_pressable.dart';
 
-/// KiraKira 通用设计组件 · iOS 化宪法 v2 版
-/// 深色零阴影、0.5 separator 细边、Cupertino 控件、按压=缩+暗。
-/// 全部读 Theme，明暗主题自动适配。
+/// KiraKira shared design widgets, iOS-style Constitution v2
+/// Zero shadows in dark mode, 0.5 separator hairlines, Cupertino controls, press = scale + darken.
+/// Everything reads Theme and adapts automatically to dark/light.
 
-/// 实色卡片:圆角 12、零阴影、仅浅色留 0.5 separator 细边。
+/// Solid card: radius 12, zero shadows, a 0.5 separator hairline only in light mode.
 class KiraCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -34,12 +34,12 @@ class KiraCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: cardRadius,
-        // 宪法 v2:深色完全无边框;浅色 0.5 separator 细边
+        // Constitution v2: no border at all in dark mode; 0.5 separator hairline in light mode
         border: isDark
             ? null
             : Border.all(color: theme.dividerColor, width: 0.5),
       ),
-      // 去掉 clipBehavior(省 saveLayer);KiraPressable 自带按需裁切
+      // clipBehavior omitted (saves a saveLayer); KiraPressable already clips on demand
       child: onTap != null
           ? KiraPressable(
               onTap: onTap,
@@ -57,16 +57,16 @@ class KiraCard extends StatelessWidget {
   }
 }
 
-/// inset-grouped 分组(A-T4b):**一组一张卡**。
-/// 组头 = 13pt 次级色小字;组内 children 竖排共享一张圆角 10 卡,
-/// 行间自动插 0.5px separator(indent 16)。
+/// Inset-grouped section (A-T4b): one card per group.
+/// Group header = 13pt secondary-color small text; the children stack vertically inside one radius-10 card,
+/// with a 0.5px separator (indent 16) inserted between rows automatically.
 ///
-/// 表单/滑块等"组内是一整块"的场景用 [KiraSection.plain](不插分隔线)。
+/// Use [KiraSection.plain] (no separators) when the group must stay as one block, e.g. forms and slider groups.
 class KiraSection extends StatelessWidget {
   final String title;
   final List<Widget> children;
   final IconData? icon;
-  /// 返工条目2:组头右上可挂操作(如"导入预设"图标)
+  /// An action can hang at the top-right of the group header (e.g. an "import preset" icon)
   final Widget? headerTrailing;
   final bool _plain;
 
@@ -78,7 +78,7 @@ class KiraSection extends StatelessWidget {
     this.headerTrailing,
   }) : _plain = false;
 
-  /// plain 形态:组内是一个整体(滑块组/表单),不自动插分隔线
+  /// plain form: the group is a single block (slider group/form), so no separators are inserted
   KiraSection.plain({
     super.key,
     required this.title,
@@ -96,7 +96,7 @@ class KiraSection extends StatelessWidget {
 
     final cardRadius = BorderRadius.circular(DesignTokens.radiusMd);
 
-    // 组内 items:plain 形态直接摆 child;默认形态行间插 0.5 separator
+    // Group items: plain form places the child directly; default form inserts a 0.5 separator between rows
     final items = <Widget>[];
     for (var i = 0; i < children.length; i++) {
       if (!_plain && i > 0) {
@@ -116,8 +116,8 @@ class KiraSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 组头:13pt、次级色、w600、letterSpacing 0.5(左距 = 边距 16 + 12)
-          // title 为空 = 置顶高频组无组头(C-T4)
+          // Group header: 13pt, secondary color, w600, letterSpacing 0.5 (left offset = margin 16 + 12)
+          // Empty title = pinned high-frequency group with no header (C-T4)
           if (title.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(
@@ -146,12 +146,12 @@ class KiraSection extends StatelessWidget {
                 ],
               ),
             ),
-          // 一组一张卡
+          // One card per group
           Container(
             margin: DesignTokens.paddingScreen,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: theme.cardColor, // darkSurface / lightSurface(白)
+              color: theme.cardColor, // darkSurface / lightSurface (white)
               borderRadius: cardRadius,
               border: isDark
                   ? null
@@ -169,8 +169,8 @@ class KiraSection extends StatelessWidget {
   }
 }
 
-/// 微渐变卡片:仅主页欢迎/营销位允许使用(设置族禁用渐变卡,D 块铁律)。
-/// 圆角 radiusCard(12)、零阴影;深色只留顶部一条高光边。
+/// Subtly gradient card: only allowed in home-page welcome/marketing slots (gradient cards are banned in the settings family).
+/// Radius radiusCard (12), zero shadows; dark mode keeps only a single highlight edge at the top.
 class KiraGradientCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -190,7 +190,7 @@ class KiraGradientCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final base = theme.cardColor;
-    // 微渐变:从左上"受光面"稍亮,到右下"背光面"稍暗,跨度极小
+    // Subtle gradient: slightly lighter at the top-left "lit face", slightly darker at the bottom-right "shaded face", with a very small range
     final lighter = Color.lerp(base, Colors.white, isDark ? 0.06 : 0.5)!;
     final darker = Color.lerp(base, Colors.black, isDark ? 0.12 : 0.03)!;
     return Container(
@@ -218,7 +218,7 @@ class KiraGradientCard extends StatelessWidget {
               ),
               child: child,
             ),
-            // 深色只留顶部高光边(宪法 A-T4e)
+            // Dark mode keeps only the top highlight edge (Constitution A-T4e)
             if (isDark)
               Positioned(
                 top: 0,
@@ -236,9 +236,9 @@ class KiraGradientCard extends StatelessWidget {
   }
 }
 
-/// 列表项:图标 + 标题 + 副标题 + 尾部控件。
-/// ⚠️ 图标色不再强制主色——主色只留"可点主行动"按钮(A-T4d);
-/// 分组卡内请优先用 KiraGroupedTile。
+/// List item: icon + title + subtitle + trailing control.
+/// Icon color is no longer forced to the primary color; primary is reserved for tappable primary-action buttons (A-T4d).
+/// Prefer KiraGroupedTile inside grouped cards.
 class KiraListTile extends StatelessWidget {
   final IconData? icon;
   final String title;

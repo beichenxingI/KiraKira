@@ -84,8 +84,8 @@ class PromptManagerNotifier extends StateNotifier<PromptManagerConfig> {
     await _saveConfig();
   }
 
-  /// 新建自定义提示词:追加到列表末尾(order = 最大值+1,可拖拽调位),
-  /// identifier 用 uuid 对齐 SillyTavern 导入的自定义提示词风格。
+  /// Append a new custom prompt at the end of the list (order = max + 1, repositionable by drag).
+  /// Identifier is a UUID, matching the style of custom prompts imported from SillyTavern.
   Future<void> addCustomSection(
     String name,
     String content,
@@ -109,7 +109,7 @@ class PromptManagerNotifier extends StateNotifier<PromptManagerConfig> {
     await _saveConfig();
   }
 
-  /// 删除自定义提示词(仅 custom 可删,内置段落只能开关)。index 按 sortedSections。
+  /// Delete the custom prompt at [index] into sortedSections; only custom sections are deletable, built-ins can only be toggled.
   Future<void> deleteCustomSectionByIndex(int index) async {
     final sorted = state.sortedSections;
     if (index < 0 || index >= sorted.length) return;

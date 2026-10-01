@@ -9,12 +9,13 @@ import 'package:kirakira/domain/providers/register_providers.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 全局沉浸式模式：隐藏系统状态栏和导航栏，从边缘滑动临时呼出
+  // Global immersive mode: hide the system status and navigation bars,
+  // revealed temporarily by an edge swipe
   await SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.immersiveSticky,
     overlays: [],
   );
-  // 系统栏样式：透明背景 + 亮色图标（呼出时显示）
+  // System bar style: transparent background + light icons (shown when swiped out)
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -26,14 +27,14 @@ void main() async {
     ),
   );
 
-  // 图片缓存上限调到200MB，角色多时减少淘汰频率
+  // Raise the image cache cap to 200MB to reduce eviction with many characters
   PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20;
   FlutterError.onError = (details) { KiraLogger().error('FLUTTER', details.exceptionAsString(), details.stack); };
 
   // Register LLM providers (must be before InitializationModule.create)
   registerLlmProviders();
 
-  // Initialize module（封装所有启动依赖创建与 Provider 覆盖）
+  // Initialize module (creates all startup dependencies and Provider overrides)
   final initModule = await InitializationModule.create();
   KiraLogger().init();
 

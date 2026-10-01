@@ -436,14 +436,14 @@ class MacroService {
     return result;
   }
   /// Process variable macros: {{getvar}}, {{setvar}}, {{getglobalvar}}, {{setglobalvar}}
-  /// 与 SillyTavern 对齐的变量宏，读写局部(per-chat)与全局变量。
+  /// Aligned with SillyTavern variable macros; reads/writes local (per-chat) and global variables.
   String _processVariableMacros(String text) {
     String result = text;
     final vars = VariablesService.instance;
     final chatId = context.chatId;
     bool localChanged = false;
 
-    // {{setvar::name::value}} - 设置局部变量(先设后取，保证同段文本内顺序正确)
+    // {{setvar::name::value}} - Set local variable (set before get, ensuring correct order within the same text)
     result = _replaceAllWithCallback(
       result,
       RegExp(r'\{\{setvar::([^:]+?)::([^}]*)\}\}', caseSensitive: false),
@@ -458,10 +458,10 @@ class MacroService {
       },
     );
     if (localChanged && chatId.isNotEmpty) {
-      vars.saveLocalVariablesToPrefs(chatId); // 一段文本处理完统一落盘一次
+      vars.saveLocalVariablesToPrefs(chatId); // Persist once after the whole text is processed
     }
 
-    // {{setglobalvar::name::value}} - 设置全局变量
+    // {{setglobalvar::name::value}} - Set global variable
     result = _replaceAllWithCallback(
       result,
       RegExp(r'\{\{setglobalvar::([^:]+?)::([^}]*)\}\}', caseSensitive: false),
@@ -469,13 +469,13 @@ class MacroService {
         final name = match.group(1)!.trim();
         final value = match.group(2)!;
         if (name.isNotEmpty) {
-          vars.setGlobalVariable(name, value); // 持久化异步进行，内存同步生效
+          vars.setGlobalVariable(name, value); // Persistence is async; memory takes effect synchronously
         }
         return '';
       },
     );
 
-    // {{getvar::name}} - 读局部变量
+    // {{getvar::name}} - Read local variable
     result = _replaceAllWithCallback(
       result,
       RegExp(r'\{\{getvar::([^}]+?)\}\}', caseSensitive: false),
@@ -487,7 +487,7 @@ class MacroService {
       },
     );
 
-    // {{getglobalvar::name}} - 读全局变量
+    // {{getglobalvar::name}} - Read global variable
     result = _replaceAllWithCallback(
       result,
       RegExp(r'\{\{getglobalvar::([^}]+?)\}\}', caseSensitive: false),
@@ -499,9 +499,9 @@ class MacroService {
       },
     );
 
-    // ── 路径变量宏（支持 JSON Pointer /a/b、点 a.b、括号 a[0] 路径）──
+    // Path variable macros (support JSON Pointer /a/b, dot a.b, and bracket a[0] paths)
 
-    // {{get_message_variable::path}} - 读当前消息 stat_data 的嵌套路径
+    // {{get_message_variable::path}} - Read nested path from current message stat_data
     result = _replaceAllWithCallback(
       result,
       RegExp(r'\{\{get_message_variable::([^}]+?)\}\}', caseSensitive: false),
@@ -512,7 +512,7 @@ class MacroService {
       },
     );
 
-    // {{get_chat_variable::path}} - 读 chat 作用域变量（支持路径）
+    // {{get_chat_variable::path}} - Read chat-scoped variable (supports paths)
     result = _replaceAllWithCallback(
       result,
       RegExp(r'\{\{get_chat_variable::([^}]+?)\}\}', caseSensitive: false),
@@ -524,7 +524,7 @@ class MacroService {
       },
     );
 
-    // {{get_global_variable::path}} - 读全局变量（支持路径）
+    // {{get_global_variable::path}} - Read global variable (supports paths)
     result = _replaceAllWithCallback(
       result,
       RegExp(r'\{\{get_global_variable::([^}]+?)\}\}', caseSensitive: false),
@@ -535,7 +535,7 @@ class MacroService {
       },
     );
 
-    // {{format_message_variable::path}} / {{format_variable::path}} - YAML格式化输出
+    // {{format_message_variable::path}} / {{format_variable::path}} - YAML formatted output
     result = _replaceAllWithCallback(
       result,
       RegExp(r'\{\{format_(?:message_)?variable::([^}]+?)\}\}', caseSensitive: false),
@@ -551,8 +551,8 @@ class MacroService {
     return result;
   }
 
-  /// 路径引擎：支持 JSON Pointer (/a/b)、点 (a.b)、括号 (a[0]/a["k"])
-  /// 原型链路径禁止（__proto__/constructor/prototype）
+  /// Path engine: supports JSON Pointer (/a/b), dot (a.b), and bracket (a[0]/a["k"]) paths
+  /// Prototype-chain paths are rejected (__proto__/constructor/prototype)
   dynamic _getNestedValue(dynamic obj, String path) {
     if (obj == null) return null;
     if (path == '*') return obj;
@@ -591,7 +591,7 @@ class MacroService {
     return cur;
   }
 
-  /// 值转字符串：对象转 JSON，其余 toString
+  /// Value to string: objects encode to JSON, others use toString
   String _valueToString(dynamic val) {
     if (val == null) return '';
     if (val is String) return val;
@@ -603,7 +603,7 @@ class MacroService {
     }
   }
 
-  /// YAML 格式化输出（多行缩进对齐）
+  /// YAML formatted output (multi-line with indent alignment)
   String _formatAsYaml(dynamic obj, {int indent = 0}) {
     if (obj == null) return '';
     final pad = '  ' * indent;

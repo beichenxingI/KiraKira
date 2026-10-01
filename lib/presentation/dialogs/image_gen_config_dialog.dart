@@ -219,7 +219,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
       p == ImageGenProvider.openaiChat ||
       p == ImageGenProvider.gemini;
 
-  // ========== 云端配置 ==========
+  // Cloud config
   Widget _buildCloudConfig(ImageGenSettings settings, bool isDark) {
     final currentModel = settings.model;
     return Column(
@@ -330,7 +330,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
     }
   }
 
-  // ===== 模型选择浮窗（居中 Dialog）=====
+  // Model selection dialog (centered)
   void _showModelSelectDialog(
     List<String> models,
     String? currentModel,
@@ -370,7 +370,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 标题栏
+                  // Title bar
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -410,7 +410,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
                       ],
                     ),
                   ),
-                  // 模型列表（可滚动）
+                  // Model list (scrollable)
                   Flexible(
                     child: ListView(
                       shrinkWrap: true,
@@ -441,7 +441,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
                       }).toList(),
                     ),
                   ),
-                  // 底部按钮
+                  // Bottom buttons
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -501,7 +501,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
     );
   }
 
-  // ========== 本地配置 ==========
+  // Local config
   Widget _buildLocalConfig(ImageGenSettings settings, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -513,7 +513,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
               color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
             )),
         const SizedBox(height: 12),
-        // [latent.moe] 专属配置:API key + 可选 Base URL;无模型名(站点 GPU 池固定)
+        // latent.moe-specific config: API key + optional Base URL; no model name (site GPU pool is fixed).
         if (settings.provider == ImageGenProvider.latentMoe) ...[
           _buildTextField(
             label: 'Latent.moe API Key',
@@ -582,7 +582,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
           ),
         ]
         else if (settings.provider == ImageGenProvider.comfyui) ...[
-          // ComfyUI 专属配置：地址 + 测试连接 + 模型下拉（SD1.5/SDXL）
+          // ComfyUI-specific config: address + test connection + model dropdown (SD1.5/SDXL)
           _buildTextField(
             label: 'ComfyUI 地址',
             value: settings.apiEndpoints['comfyui'] ?? '',
@@ -644,9 +644,9 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
     );
   }
 
-  // ========== ComfyUI 专属组件 ==========
+  // ComfyUI-specific widgets
 
-  /// 测试连接按钮：GET /system_stats 显示 GPU 名称与显存
+  /// Test connection button: GET /system_stats to show GPU name and VRAM.
   Widget _buildComfyUITestButton(ImageGenSettings settings) {
     return ElevatedButton.icon(
       icon: const Icon(Icons.wifi_tethering, size: 18),
@@ -660,7 +660,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
         }
 
         try {
-          // 获取系统信息（5s 超时，防不可达主机挂起）
+          // Fetch system info (5s timeout to avoid hanging on unreachable hosts).
           final dio = Dio(BaseOptions(
             connectTimeout: const Duration(seconds: 5),
             receiveTimeout: const Duration(seconds: 5),
@@ -688,7 +688,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
 
           final gpu = devices.first as Map<String, dynamic>;
           final name = gpu['name'] as String? ?? '未知设备';
-          final vramTotal = ((gpu['vram_total'] as num?) ?? 0) / (1024 * 1024 * 1024); // 转 GB
+          final vramTotal = ((gpu['vram_total'] as num?) ?? 0) / (1024 * 1024 * 1024); // Convert to GB.
           final vramFree = ((gpu['vram_free'] as num?) ?? 0) / (1024 * 1024 * 1024);
 
           if (mounted) {
@@ -707,8 +707,8 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
     );
   }
 
-  /// 模型下拉（复用 fetchedModelsProvider：
-  /// provider==comfyui 时自动 GET /object_info/CheckpointLoaderSimple 拉取）
+  /// Model dropdown (reuses fetchedModelsProvider;
+  /// when provider==comfyui it automatically GETs /object_info/CheckpointLoaderSimple).
   Widget _buildComfyUIModelSelector(ImageGenSettings settings, bool isDark) {
     final fetched = ref.watch(fetchedModelsProvider);
     final models = fetched.models ?? const <String>[];
@@ -765,7 +765,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
     );
   }
 
-  // ========== 快速参数 ==========
+  // Quick params
   Widget _buildQuickParams(ImageGenSettings settings, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -873,7 +873,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
     return '${w ~/ d}:${h ~/ d}';
   }
 
-  // ========== 折叠区 ==========
+  // Collapsible sections
   Widget _buildAutoImageSection(ImageGenSettings settings, bool isDark) {
     return _buildCollapse(
       '自动生图设置', _getAutoStatus(settings), _autoImageExpanded,
@@ -1245,7 +1245,7 @@ class _ImageGenConfigDialogState extends ConsumerState<_ImageGenConfigDialog> {
     );
   }
 
-  // ===== 工具组件 =====
+  // Utility widgets
   Widget _buildTextField({
     required String label,
     required String value,

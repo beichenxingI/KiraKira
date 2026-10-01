@@ -1,20 +1,21 @@
-/// [P6-3] 闭包作用域:栈式变量域,支撑 /let /var 与闭包嵌套。
-/// 语义对齐 ST SlashCommandScope:
-/// - letVariable: 在当前域定义(已存在则容忍覆盖,ST 会抛错)
-/// - setVariable: 沿父链找到定义域并更新;找不到则落到链根(容错)
-/// - getVariable: 沿父链查找;找不到返回空串(容错)
+/// Closure scope: a stack of variable scopes supporting /let, /var and nested closures.
+/// Semantics match ST SlashCommandScope:
+/// - letVariable: defines in the current scope (overwrites silently; ST throws)
+/// - setVariable: walks the parent chain to the defining scope and updates it;
+///   falls back to the chain root if not found
+/// - getVariable: walks the parent chain; returns an empty string if not found
 class SlashScope {
   SlashScope({this.parent});
 
   SlashScope? parent;
 
-  /// 管道值(上一命令的输出)
+  /// Pipe value (output of the previous command)
   Object? pipe;
 
-  /// 闭包局部变量
+  /// Closure-local variables
   final Map<String, Object?> variables = {};
 
-  /// 域内宏(如 /times 的 {{timesIndex}})
+  /// Scope-local macros (e.g. {{timesIndex}} from /times)
   final Map<String, Object?> macros = {};
 
   bool existsInScope(String key) => variables.containsKey(key);
@@ -32,7 +33,7 @@ class SlashScope {
       return value;
     }
     if (parent != null) return parent!.setVariable(key, value);
-    // 链上没有:落到链根定义(容错;ST 抛 VariableNotFound)
+    // Not found on the chain: fall back to defining at the chain root (ST throws VariableNotFound)
     SlashScope root = this;
     while (root.parent != null) {
       root = root.parent!;

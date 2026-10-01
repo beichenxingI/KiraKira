@@ -1,16 +1,16 @@
 // lib/presentation/theme/glass_theme_extension.dart
-/// Glass 主题扩展 · 基于 DesignTokens 的统一玻璃装饰
+/// Glass theme extension: unified glass decoration backed by DesignTokens.
 ///
-/// 注册到 ThemeData.extensions，使用方式：
+/// Register in ThemeData.extensions, then use either:
 /// `Theme.of(context).extension<GlassThemeExtension>()!.card(...)`
-/// 或便捷扩展：`Theme.of(context).glass.card(...)`
+/// or the convenience extension: `Theme.of(context).glass.card(...)`
 library;
 
 import 'package:flutter/material.dart';
 
 import 'design_tokens.dart';
 
-/// Glass 变体主题扩展
+/// Glass variant theme extension
 class GlassThemeExtension extends ThemeExtension<GlassThemeExtension> {
   const GlassThemeExtension();
 
@@ -22,7 +22,7 @@ class GlassThemeExtension extends ThemeExtension<GlassThemeExtension> {
           ThemeExtension<GlassThemeExtension>? other, double t) =>
       this;
 
-  /// Glass 卡片装饰
+  /// Glass card decoration
   BoxDecoration card({
     bool isDark = true,
     double? blur,
@@ -44,14 +44,14 @@ class GlassThemeExtension extends ThemeExtension<GlassThemeExtension> {
           tint.withValues(alpha: (effectiveOpacity + 0.22).clamp(0.0, 0.92)),
       borderRadius: radius,
       border: showBorder ? Border.all(color: borderColor, width: 0.8) : null,
-      // 注意：不使用 BackdropFilter（WebView 平台视图渲染失败）
+      // No BackdropFilter here: it breaks WebView platform view rendering
       boxShadow: showShadow
           ? (isDark ? DesignTokens.shadowGlass : DesignTokens.shadowLevel2)
           : null,
     );
   }
 
-  /// Glass 顶栏装饰
+  /// Glass app bar decoration
   BoxDecoration appBar({bool isDark = true}) => card(
         isDark: isDark,
         blur: isDark ? 22 : 20,
@@ -59,7 +59,7 @@ class GlassThemeExtension extends ThemeExtension<GlassThemeExtension> {
         borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
       );
 
-  /// Glass 输入框装饰
+  /// Glass input decoration
   BoxDecoration input({bool isDark = true}) => card(
         isDark: isDark,
         blur: isDark ? 22 : 20,
@@ -67,7 +67,7 @@ class GlassThemeExtension extends ThemeExtension<GlassThemeExtension> {
         borderRadius: BorderRadius.circular(DesignTokens.radiusInput),
       );
 
-  /// Glass 面板装饰
+  /// Glass panel decoration
   BoxDecoration panel({bool isDark = true}) => card(
         isDark: isDark,
         blur: isDark ? 24 : 20,
@@ -76,7 +76,7 @@ class GlassThemeExtension extends ThemeExtension<GlassThemeExtension> {
       );
 }
 
-/// 便捷获取扩展
+/// Convenience getter extension
 extension GlassThemeExtensionGetter on ThemeData {
   GlassThemeExtension get glass =>
       extension<GlassThemeExtension>() ?? const GlassThemeExtension();

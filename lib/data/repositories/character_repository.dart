@@ -125,7 +125,7 @@ class CharacterRepository {
     return updatedCharacter;
   }
 
-  /// 置顶/取消置顶（isPinned/pinnedAt 存 extensions，无需 schema 迁移）
+  /// Pin/unpin a character (isPinned/pinnedAt are stored in extensions, so no schema migration is needed)
   Future<models.Character?> togglePin(String characterId) async {
     final char = await getCharacter(characterId);
     if (char == null) return null;
@@ -156,7 +156,8 @@ class CharacterRepository {
     // Delete associated character tags
     await (_db.delete(_db.characterTags)..where((t) => t.characterId.equals(id))).go();
     
-    // [紧急修复-F] 清理角色级正则（独立表，防幽灵行/同 id 重导 PK 冲突）
+    // Clean up character-scoped regex scripts (separate table; prevents ghost rows
+    // and primary-key conflicts when re-importing a character with the same ID)
     await (_db.delete(_db.regexScripts)
           ..where((t) => t.scope.equals('character') & t.characterId.equals(id)))
         .go();
@@ -344,14 +345,14 @@ class CharacterRepository {
       final map = jsonDecode(assetsJson) as Map<String, dynamic>;
       if (map.isNotEmpty) {
         final assets = models.CharacterAssets.fromJson(map);
-        // 兼容：老数据 assetsJson 为空但有独立 avatarPath 列
+        // Backward compat: legacy data has an empty assetsJson but a separate avatarPath column
         if (assets.avatarPath == null && avatarPath != null) {
           return assets.copyWith(avatarPath: avatarPath);
         }
         return assets;
       }
     } catch (_) {}
-    // 回退：老角色卡只有 avatarPath 列
+    // Fall back: legacy character cards only have the avatarPath column
     return avatarPath != null
         ? models.CharacterAssets(avatarPath: avatarPath)
         : null;

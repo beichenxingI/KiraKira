@@ -1,5 +1,5 @@
 // lib/presentation/screens/about/about_screen.dart
-/// 关于页 · 版本号 + 版权 + 开源信息
+/// About page: version, copyright and open-source info
 library;
 
 import 'package:flutter/material.dart';
@@ -23,11 +23,11 @@ class AboutScreen extends StatelessWidget {
         padding: DesignTokens.paddingScreen,
         children: [
           const SizedBox(height: DesignTokens.space2xl),
-          // 品牌区
+          // Brand section
           Center(
             child: Column(
               children: [
-                // 品牌图标容器:胶囊圆角(本页无独立 logo 资源,用 auto_awesome 符号)
+                // Brand icon container: fully rounded (this page has no dedicated logo asset, so it uses the auto_awesome icon)
                 Container(
                   width: 96,
                   height: 96,
@@ -43,7 +43,7 @@ class AboutScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: DesignTokens.spaceLg),
-                // 版本号:fontSize3xl w700
+                // Version number: fontSize3xl, w700
                 const Text(
                   'KiraKira',
                   style: TextStyle(
@@ -64,7 +64,7 @@ class AboutScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: DesignTokens.space2xl),
-          // 开源信息卡
+          // Open-source info card
           KiraSection(
             title: l10n.about,
             icon: Icons.info_outline,
@@ -90,7 +90,7 @@ class AboutScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: DesignTokens.spaceLg),
-          // 版权
+          // Copyright
           const Center(
             child: Text(
               'AGPL-3.0 License · © 2026 KiraKira\n基于 NativeTavern 修改',

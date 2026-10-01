@@ -129,12 +129,13 @@ class DebugLogService {
     String? error,
     StackTrace? stackTrace,
   }) {
-    // [P5-6阶段1.2] ERROR/WARN 不受 _isCapturing 门控,环形缓冲常驻 ——
-    // 用户模式(未开捕获)下错误也得留痕,否则排查无从下手(方案2.3-S7)。
+    // ERROR/WARN entries are not gated by _isCapturing; the ring buffer keeps
+    // them permanently so errors leave a trace even when capture is off.
     final alwaysKeep = level == 'ERROR' || level == 'WARN';
     if (!_isCapturing && !alwaysKeep) return;
 
-    // [P5-6阶段1.2] ERROR 同文案 5 秒窗口内去重合并,防高频错误刷爆缓冲/toast
+    // Deduplicate identical ERROR messages within a 5-second window to prevent
+    // high-frequency errors from flooding the buffer/toast
     if (alwaysKeep) {
       final key = '$level|$source|$message';
       final last = _recentErrors[key];
@@ -167,7 +168,7 @@ class DebugLogService {
     );
   }
 
-  /// [P5-6阶段1.2] ERROR/WARN 5 秒去重窗口: key → 上次记录时间
+  /// 5-second dedup window for ERROR/WARN: key to last recorded time
   final Map<String, DateTime> _recentErrors = {};
 
   void _addLog(LogEntry entry) {

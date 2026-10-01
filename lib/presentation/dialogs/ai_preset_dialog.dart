@@ -1,9 +1,9 @@
 // lib/presentation/dialogs/ai_preset_dialog.dart
-/// AI 预设浮窗(极客Core迁移 P3)
-/// 内容完整迁自 ai_presets_screen.dart(757行) + ai_preset_edit_screen.dart:
-/// 信息横幅 · 导入/导出当前配置/存为预设 · 内置预设列表 · 自定义预设列表
-/// (应用/导出/删除/编辑绑定) · 取消使用
-/// 编辑绑定浮窗 = 名称/描述/绑定提示词预设(单选)/绑定全局正则(多选)
+/// AI preset dialog.
+/// Fully migrated from ai_presets_screen.dart (757 lines) + ai_preset_edit_screen.dart:
+/// info banner, import/export current config/save as preset, built-in preset list,
+/// custom preset list (apply/export/delete/edit binding), cancel use.
+/// Edit binding dialog = name/description/bound prompt preset (single select)/bound global regex (multi select)
 library;
 
 import 'dart:convert';
@@ -61,7 +61,7 @@ class _AIPresetDialog extends ConsumerWidget {
                 await ref
                     .read(promptManagerProvider.notifier)
                     .resetToDefault();
-                // 取消使用预设时，同步禁用所有全局正则，避免残留生效。
+                // Cancelling preset use also disables all global regex scripts so none stay active.
                 await ref
                     .read(globalRegexScriptsProvider.notifier)
                     .setActiveScripts([]);
@@ -78,7 +78,7 @@ class _AIPresetDialog extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 信息横幅 ──
+          // Info banner
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -104,7 +104,7 @@ class _AIPresetDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // ── 操作按钮 ──
+          // Action buttons
           Row(
             children: [
               Expanded(
@@ -138,7 +138,7 @@ class _AIPresetDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 内置预设 ──
+          // Built-in presets
           CoreSectionLabel(l10n.builtInPresets),
           const SizedBox(height: 8),
           ...builtInPresets.map(
@@ -151,7 +151,7 @@ class _AIPresetDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 自定义预设 ──
+          // Custom presets
           CoreSectionLabel(l10n.customPresets),
           const SizedBox(height: 8),
           if (customPresets.isEmpty)
@@ -176,7 +176,7 @@ class _AIPresetDialog extends ConsumerWidget {
     );
   }
 
-  // ════════════════════ 预设操作(与原页逻辑一致) ════════════════════
+  // Preset operations (same logic as the original screen)
 
   Future<void> _applyPreset(
       BuildContext context, WidgetRef ref, AIPreset preset) async {
@@ -236,7 +236,7 @@ class _AIPresetDialog extends ConsumerWidget {
       int importedRegexCount = 0;
       final importedRegexIds = <String>[];
       final ext = json['extensions'] as Map<String, dynamic>?;
-      // 正则可能在顶层，也可能在 extensions 里
+      // Regex scripts may live at the top level or inside extensions
       final regexScriptsRaw = (json['regex_scripts'] as List<dynamic>?) ??
           (ext?['regex_scripts'] as List<dynamic>?) ??
           (ext?['regex'] as List<dynamic>?);
@@ -254,13 +254,13 @@ class _AIPresetDialog extends ConsumerWidget {
               importedRegexIds.add(newId);
               importedRegexCount++;
             } catch (_) {
-              // 单条失败跳过,与原页一致
+              // Skip entries that fail individually, matching the original screen
             }
           }
         }
       }
 
-      // 把导入的正则ID记进预设，删预设时按此清理
+      // Record the imported regex IDs on the preset so they can be cleaned up when the preset is deleted
       if (importedRegexIds.isNotEmpty) {
         final updatedPreset = preset.copyWith(
           boundRegexScriptIds: importedRegexIds,
@@ -305,7 +305,7 @@ class _AIPresetDialog extends ConsumerWidget {
 
       final fileName =
           '${name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.json';
-      // [问题1] 统一导出交付:分享 / 保存到文件
+      // Unified export delivery: share / save to file
       await deliverExportFile(
         context: context,
         fileName: fileName,
@@ -369,7 +369,7 @@ class _AIPresetDialog extends ConsumerWidget {
 
       final fileName =
           '${preset.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.json';
-      // [问题1] 统一导出交付:分享 / 保存到文件
+      // Unified export delivery: share / save to file
       await deliverExportFile(
         context: context,
         fileName: fileName,
@@ -411,7 +411,7 @@ class _AIPresetDialog extends ConsumerWidget {
     final activeId = ref.read(activeAIPresetIdProvider);
     final isActive = activeId == preset.id;
 
-    // 方案B：删除此预设导入的正则脚本
+    // Option B: delete the regex scripts imported with this preset
     final boundRegexIds = preset.boundRegexScriptIds;
     int removedRegexCount = 0;
     if (boundRegexIds.isNotEmpty) {
@@ -437,7 +437,7 @@ class _AIPresetDialog extends ConsumerWidget {
     }
   }
 
-  /// 单字段输入 → 底部 Sheet(D-T2 规则 2,与原页一致)
+  /// Single-field input -> bottom sheet (D-T2 rule 2, matches original screen)
   Future<String?> _showNameSheet(
     BuildContext context, {
     required String title,
@@ -503,7 +503,7 @@ class _AIPresetDialog extends ConsumerWidget {
     );
   }
 
-  /// 双字段表单 → 底部 Sheet(与原页一致)
+  /// Two-field form -> bottom sheet (matches original screen)
   Future<Map<String, String>?> _showNameDescSheet(
     BuildContext context, {
     required String title,
@@ -593,7 +593,7 @@ class _AIPresetDialog extends ConsumerWidget {
   }
 }
 
-/// 紧凑操作按钮(导入/导出/存为三连)
+/// Compact action buttons (import/export/save-as trio)
 class _CompactAction extends StatelessWidget {
   const _CompactAction({
     required this.palette,
@@ -640,7 +640,7 @@ class _CompactAction extends StatelessWidget {
   }
 }
 
-/// 预设卡(原 _PresetCard 浮窗形态,信息与操作全保留)
+/// Preset card (dialog form of the original _PresetCard; all info and actions preserved)
 class _PresetCard extends StatelessWidget {
   const _PresetCard({
     required this.preset,
@@ -855,7 +855,7 @@ class _PresetCard extends StatelessWidget {
   }
 }
 
-/// 设置摘要 Chip
+/// Settings summary chip
 class _SettingChip extends StatelessWidget {
   const _SettingChip({
     required this.icon,
@@ -883,7 +883,7 @@ class _SettingChip extends StatelessWidget {
   }
 }
 
-/// 预设编辑绑定浮窗(原 AIPresetEditScreen 浮窗化,字段与逻辑一致)
+/// Preset edit binding dialog (dialog version of AIPresetEditScreen, same fields and logic)
 Future<void> _showPresetEditDialog(
   BuildContext context,
   WidgetRef ref,
@@ -948,7 +948,7 @@ class _AIPresetEditDialogState extends ConsumerState<_AIPresetEditDialog> {
     if (mounted) Navigator.pop(context);
   }
 
-  /// 单选绑定 → CupertinoActionSheet(与原页一致)
+  /// Single-select binding -> CupertinoActionSheet (matches original screen)
   Future<void> _pickPromptPreset(List<PromptManagerPreset> presets) async {
     final selected = await showCupertinoModalPopup<String>(
       context: context,
@@ -976,7 +976,7 @@ class _AIPresetEditDialogState extends ConsumerState<_AIPresetEditDialog> {
         ),
       ),
     );
-    if (selected == null) return; // 取消
+    if (selected == null) return; // cancelled
     setState(
       () => _selectedPromptPresetId = selected.isEmpty ? null : selected,
     );
@@ -1031,7 +1031,7 @@ class _AIPresetEditDialogState extends ConsumerState<_AIPresetEditDialog> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 基本信息 ──
+          // Basic info
           const CoreSectionLabel('基本信息'),
           const SizedBox(height: 8),
           CoreTextField(
@@ -1048,7 +1048,7 @@ class _AIPresetEditDialogState extends ConsumerState<_AIPresetEditDialog> {
           ),
           const SizedBox(height: 20),
 
-          // ── 绑定提示词预设 ──
+          // Bound prompt preset
           const CoreSectionLabel('绑定提示词预设'),
           const SizedBox(height: 4),
           CoreTile(
@@ -1064,7 +1064,7 @@ class _AIPresetEditDialogState extends ConsumerState<_AIPresetEditDialog> {
           ),
           const SizedBox(height: 20),
 
-          // ── 绑定全局正则脚本 ──
+          // Bound global regex scripts
           CoreSectionLabel(
             _selectedRegexIds.isEmpty
                 ? '绑定全局正则脚本'
@@ -1105,7 +1105,7 @@ class _AIPresetEditDialogState extends ConsumerState<_AIPresetEditDialog> {
   }
 }
 
-/// 正则绑定行
+/// Regex binding row
 class _RegexBindTile extends StatelessWidget {
   const _RegexBindTile({
     required this.palette,

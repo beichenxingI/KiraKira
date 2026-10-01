@@ -113,7 +113,7 @@ class Character {
         'modifiedAt': modifiedAt.toIso8601String(),
       };
 
-  // ── 置顶（isPinned/pinnedAt 存 extensions，免 Drift schema 迁移）──
+  // Pinning (isPinned/pinnedAt stored in extensions, avoiding a Drift schema migration)
 
   bool get isPinned => extensions['isPinned'] as bool? ?? false;
 
@@ -122,7 +122,7 @@ class Character {
     return v is String ? DateTime.tryParse(v) : null;
   }
 
-  /// 置顶/取消置顶，返回新实例
+  /// Pin or unpin, returning a new instance
   Character withPinned(bool pinned) {
     final newExtensions = Map<String, dynamic>.from(extensions);
     if (pinned) {
@@ -209,7 +209,7 @@ class CharacterAssets {
 class CharacterBook {
   final String? name;
   final String? description;
-  /// V2/V3 spec requires int; legacy bool values map true→1, false→0. null = unspecified
+  /// V2/V3 spec requires int; legacy bool values map true to 1, false to 0. null = unspecified
   final int? scanDepth;
   final int tokenBudget;
   final bool recursiveScanning;

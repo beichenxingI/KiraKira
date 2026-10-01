@@ -7,7 +7,7 @@ import '../../providers/llm_configs_provider.dart';
 import 'fingerprint_result_widget.dart';
 import 'package:kirakira/presentation/widgets/common/kira_button.dart';
 
-/// 极客Probe - 模型深度检测页面
+/// GeekProbe - model deep detection screen
 class ModelDetectionScreen extends ConsumerStatefulWidget {
   const ModelDetectionScreen({super.key});
 
@@ -16,8 +16,8 @@ class ModelDetectionScreen extends ConsumerStatefulWidget {
       _ModelDetectionScreenState();
 }
 
-/// 档位识别色(G-T2):一档=accent 青 / 二档=primary 星海紫 / 三档=AF52DE。
-/// 渐变两端成对,色板豁免(品牌渐变,非应用主题色)。
+/// Level gradient colors: quick = accent teal / normal = primary purple / deep = AF52DE.
+/// Gradient endpoints come in pairs; exempt from the palette rules (brand gradients, not theme colors).
 List<Color> _gradientFor(DetectionLevel level) {
   switch (level) {
     case DetectionLevel.quick:
@@ -37,7 +37,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     final state = ref.watch(fingerprintProvider);
 
     return Scaffold(
-      // G-T2:统一走 token(纯黑 → 星海近黑)
+      // Uses the shared background token (pure black to near-black)
       backgroundColor: DesignTokens.darkBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -79,7 +79,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── idle：配置 + 三档选择 + 开始 ──────────────────────────────
+  // Idle: judge config + level selection + start button
   Widget _buildIdleView() {
     return SingleChildScrollView(
       key: const ValueKey('idle'),
@@ -99,7 +99,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── 折叠说明区 ──────────────────────────────────────────────
+  // Collapsible info section
   Widget _buildInfoSection() {
     return Container(
       decoration: BoxDecoration(
@@ -139,7 +139,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── running：流光进度 ────────────────────────────────────────
+  // Running: progress view
   Widget _buildRunningView(FingerprintState state) {
     final gradient = _gradientFor(_selectedLevel);
     final progress = state.total > 0 ? state.current / state.total : 0.0;
@@ -176,7 +176,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── 裁判入口 ─────────────────────────────────────────────────
+  // Judge model entry
   Widget _buildJudgeSelector() {
     final judgeId = ref.watch(judgeConfigIdProvider);
     final judgeModel = ref.watch(judgeModelProvider);
@@ -293,7 +293,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── 裁判模型二级选择 ─────────────────────────────────────────
+  // Second-level judge model picker
   Future<void> _pickJudgeModel(String configId) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -378,7 +378,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── 三档选择 ─────────────────────────────────────────────────
+  // Three-level selection
   Widget _buildLevelSelector() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -532,7 +532,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
   }
 
   Widget _buildStartButton() {
-    // G-T2.7:ElevatedButton(0xFF007AFF iOS 蓝) → KiraButton(filled,星海紫)
+    // Replaced the default ElevatedButton (iOS blue) with KiraButton (filled, primary purple)
     return KiraButton(
       onPressed: () {
         ref
@@ -546,7 +546,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── 完成态：报告揭晓 ────────────────────────────────────────
+  // Result state: report reveal
   Widget _buildResultView(FingerprintState state) {
     return _RevealWrapper(
       key: const ValueKey('result'),
@@ -582,7 +582,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── 错误态 ───────────────────────────────────────────────────
+  // Error state
   Widget _buildErrorView(String error) {
     return Center(
       key: const ValueKey('error'),
@@ -632,7 +632,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
   }
 }
 
-/// 报告揭晓动画：scale 0.96→1.0 + 淡入
+/// Report reveal animation: scale 0.96 to 1.0 plus fade-in
 class _RevealWrapper extends StatefulWidget {
   final Widget child;
   const _RevealWrapper({super.key, required this.child});
@@ -676,7 +676,7 @@ class _RevealWrapperState extends State<_RevealWrapper>
   }
 }
 
-/// 流光扫描进度条（克制版：3秒缓慢呼吸，不闪烁）
+/// Scanning progress bar (restrained version: 3-second slow breathing, no flicker)
 class _ScanningProgressBar extends StatefulWidget {
   final double progress;
   final List<Color> gradient;
@@ -720,7 +720,7 @@ class _ScanningProgressBarState extends State<_ScanningProgressBar>
             final fullWidth = constraints.maxWidth;
             return Stack(
               children: [
-                // 填充
+                // Fill
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 400),
                   curve: DesignTokens.curveFade,
@@ -730,7 +730,7 @@ class _ScanningProgressBarState extends State<_ScanningProgressBar>
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                // 呼吸流光
+                // Breathing shimmer
                 AnimatedBuilder(
                   animation: _controller,
                   builder: (context, _) {

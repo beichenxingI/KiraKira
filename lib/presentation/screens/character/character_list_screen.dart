@@ -40,10 +40,11 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
-  /// C-T8:顶部分段 0=我的角色 1=角色市场(不落盘,进页回默认)
+  /// Top segmented control: 0 = My Characters, 1 = Character Market
+  /// (not persisted; resets to default on page entry)
   int _tab = 0;
 
-  // ── 多选状态（仅标准网格支持）──
+  // Multi-select state (standard grid only)
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
 
@@ -72,7 +73,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     });
   }
 
-  /// 批量删除：确认后循环删除，刷新列表
+  /// Batch delete: confirm, then delete each selected character and refresh the list
   Future<void> _deleteSelected(List<Character> all) async {
     final l10n = AppLocalizations.of(context);
     final count = _selectedIds.length;
@@ -103,12 +104,12 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     );
   }
 }
-  /// 批量打包为 ZIP：选格式 → 循环导出 → 打包 → 分享
+  /// Batch export as ZIP: choose format, export each character, package, then share
   Future<void> _exportSelectedAsZip(List<Character> all) async {
     final selected = all.where((c) => _selectedIds.contains(c.id)).toList();
     if (selected.isEmpty) return;
 
-    // 选格式（默认 PNG）
+    // Choose format (default PNG)
     final format = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -132,7 +133,8 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     );
     if (format == null) return;
 
-    // 打包 loading —— 保存 navigator 引用，避免异步后 context 失效关不掉
+    // Show packaging loading dialog; capture the navigator reference so it can
+    // still be closed after async gaps invalidate the context
     final navigator = Navigator.of(context, rootNavigator: true);
     final messenger = ScaffoldMessenger.of(context);
     bool loadingShown = true;
@@ -146,13 +148,14 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     void closeLoading() {
       if (loadingShown) {
         loadingShown = false;
-        navigator.pop(); // 关的一定是这个 loading
+        navigator.pop(); // Always closes this loading dialog
       }
     }
 
     try {
       final importService = ref.read(importServiceProvider);
-      // [Bug1.2] 活跃轨世界书：导出前从 world_infos 表组装（替换导入快照）
+      // Active-track worldbook: assembled from the world_infos table before export
+      // (replaces the import snapshot)
       final worldInfoRepo = ref.read(worldInfoRepositoryProvider);
       final regexRepo = ref.read(regexScriptRepositoryProvider);
       final archive = Archive();
@@ -200,10 +203,10 @@ for (final c in selected) {
       final stamp = '${ts.year}${_two(ts.month)}${_two(ts.day)}_'
           '${_two(ts.hour)}${_two(ts.minute)}${_two(ts.second)}';
 
-      closeLoading(); // 先关 loading
+      closeLoading(); // Close loading first
       _exitSelection();
 
-      // [问题1] 统一导出交付:分享 / 保存到文件
+      // Unified export delivery: share or save to file
       await deliverExportFile(
         context: context,
         fileName: 'KiraKira_$stamp.zip',
@@ -219,11 +222,11 @@ for (final c in selected) {
         );
       }
     } finally {
-      closeLoading(); // 无论成败，loading 一定被关掉，杜绝黑屏
+      closeLoading(); // Always closed on exit, success or failure, to avoid a stuck screen
     }
   }
 
-  /// 导入 ZIP：选压缩包 → 解包 → 按扩展名逐个还原角色
+  /// Import ZIP: pick archive, unpack, and restore each character by file extension
   Future<void> _importFromZip() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -232,7 +235,7 @@ for (final c in selected) {
     if (result == null || result.files.isEmpty) return;
     final zipFile = result.files.first;
 
-    // 拿字节：优先 bytes，否则从 path 读（兼容 content:// 场景）
+    // Get bytes: prefer in-memory bytes, otherwise read from path (handles content:// URIs)
     Uint8List? zipBytes = zipFile.bytes;
     if (zipBytes == null && zipFile.path != null) {
       zipBytes = await File(zipFile.path!).readAsBytes();
@@ -286,11 +289,12 @@ for (final c in selected) {
               c = await importService.importFromCharX(f.path);
               break;
             default:
-              continue; // 非角色卡文件跳过
+              continue; // Skip non-character-card files
           }
-          // 入库（正则随 extensions 一起进库）
+          // Persist to database (regex scripts stored with the extensions)
           final created = await repo.createCharacter(c);
-          // [紧急修复-C] 导入时正则写入独立表（与 import_screen 主路径一致）
+          // On import, regex scripts are written to a dedicated table (same as the
+          // import_screen main path)
           try {
             final rawList = c.extensions['regex_scripts'];
             if (rawList is List && rawList.isNotEmpty) {
@@ -301,7 +305,7 @@ for (final c in selected) {
           } catch (e) {
             debugPrint('[Phase2] ZIP导入正则写表失败(extensions 保留): $e');
           }
-          // 提取内嵌世界书为独立 WorldInfo（复用单个导入逻辑）
+          // Extract the embedded worldbook as a standalone WorldInfo (reuses single-import logic)
           if (c.characterBook != null && c.characterBook!.entries.isNotEmpty) {
             await importEmbeddedLorebook(
                 worldInfoRepo, created.id, c.characterBook!, created.name);
@@ -331,7 +335,7 @@ for (final c in selected) {
   }
   static String _two(int n) => n.toString().padLeft(2, '0');
 
-  // 返工条目5:翻页 PageView —— PageController 取代 _loadedPages/_scrollController
+  // Pagination via PageView: PageController replaces _loadedPages/_scrollController
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
@@ -342,7 +346,7 @@ for (final c in selected) {
     super.dispose();
   }
 
-  /// 每页数量变 → 回第 1 页
+  /// Reset to page 1 when the page size changes
   void _resetPage() {
     _currentPage = 0;
     if (_pageController.hasClients) {
@@ -357,15 +361,15 @@ for (final c in selected) {
     final pageSize = ref.watch(characterGridPageSizeProvider);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 不透明底，避免透出 shell 的聊天壁纸
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // Opaque so the shell's chat wallpaper doesn't show through
       body: RefreshIndicator(
-        // iOS 风下拉刷新(替代 AppBar 刷新按钮,C-T1)
+        // iOS-style pull-to-refresh (replaces the AppBar refresh button)
         onRefresh: () async {
           ref.read(characterListProvider.notifier).refresh();
         },
         child: CustomScrollView(
           slivers: [
-            // ── 常态:Large Title 已砍(返工条目2);选择态:收缩小标题(同一 CustomScrollView)──
+            // Normal state: no Large Title; selection mode shows a compact title in the same CustomScrollView
             if (_selectionMode)
               SliverAppBar(
                 pinned: true,
@@ -393,7 +397,7 @@ for (final c in selected) {
                   ),
                 ],
               ),
-            // ── 搜索框接顶(SafeArea;选择态隐藏)──
+            // Search bar pinned to top via SafeArea (hidden in selection mode)
             if (!_selectionMode && _tab == 0)
               SliverToBoxAdapter(
                 child: SafeArea(
@@ -403,7 +407,7 @@ for (final c in selected) {
                     hintText: l10n.searchCharacters,
                     onChanged: (value) => setState(() {
                       _searchQuery = value;
-                      _resetPage(); // 搜索词变化回第 1 页(返工条目5)
+                      _resetPage(); // Return to page 1 when the search query changes
                     }),
                     onClear: () => setState(() {
                       _searchQuery = '';
@@ -412,7 +416,8 @@ for (final c in selected) {
                   ),
                 ),
               ),
-            // ── 分段控件(C-T8):页面级导航,吸顶;选择模式隐藏;trailing 挂原 AppBar 三按钮(返工条目2)──
+            // Segmented control: page-level navigation, pinned to top; hidden in selection
+            // mode; trailing hosts the former AppBar action buttons
             if (!_selectionMode)
               SliverPersistentHeader(
                 pinned: true,
@@ -436,7 +441,7 @@ for (final c in selected) {
                               }
                             },
                           ),
-                          // C-T6:每页数量档位(4/8/12/16)
+                          // Page-size options (4/8/12/16)
                           IconButton(
                             icon: const Icon(CupertinoIcons.square_grid_2x2, size: 22),
                             tooltip: '每页数量',
@@ -455,7 +460,7 @@ for (final c in selected) {
                 ),
               ),
             const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceSm)),
-            // ── 内容区:tab0 我的角色网格;tab1 角色市场 ──
+            // Content area: tab 0 = My Characters grid; tab 1 = Character Market
             if (_tab == 1)
               SliverFillRemaining(
                 child: _CharacterMarketView(
@@ -478,15 +483,15 @@ for (final c in selected) {
                   ];
                 }
 
-                // 返工条目5:按 pageSize 切多页,PageView 左右滑翻
+                // Split into pages by pageSize; swipe horizontally in PageView to flip
                 final pageCount =
                     (filtered.length + pageSize - 1) ~/ pageSize;
                 if (_currentPage > pageCount - 1) {
-                  _currentPage = pageCount - 1; // 数据收缩后收敛(下次 setState 落盘)
+                  _currentPage = pageCount - 1; // Clamp after the list shrinks (persisted on next setState)
                 }
 
                 return [
-                  // 页码指示 `2/4`(搜索框下方)
+                  // Page indicator "2/4" below the search bar
                   if (pageCount > 1)
                     SliverToBoxAdapter(
                       child: Padding(
@@ -549,7 +554,7 @@ for (final c in selected) {
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
-                            childAspectRatio: 0.80, // C-T7:卡片矮化
+                            childAspectRatio: 0.80, // Shorter card aspect ratio
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
                           ),
@@ -566,7 +571,7 @@ for (final c in selected) {
                                   if (_selectionMode) {
                                     _toggleSelect(c.id);
                                   } else {
-                                    // 浮窗化：点击卡片弹轻量预览浮窗
+                                    // Tapping a card opens a lightweight preview dialog
                                     showCharacterPreviewDialog(context, ref, c);
                                   }
                                 },
@@ -610,7 +615,7 @@ for (final c in selected) {
                 ),
               ],
             ),
-            // 底部避让底栏(胶囊高 62 + 下边距 12 + 呼吸)
+            // Bottom clearance for the tab bar (capsule height 62 + 12 margin + breathing room)
             const SliverToBoxAdapter(child: SizedBox(height: 96)),
           ],
         ),
@@ -618,14 +623,14 @@ for (final c in selected) {
     );
   }
 
-  /// iOS 风格新增菜单(C-T1:FAB 三入口 → 右上 "+" ActionSheet)
+  /// iOS-style add menu (the three former FAB entries moved to the top-right "+" ActionSheet)
   void _showAddActionSheet(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showCupertinoModalPopup<void>(
       context: context,
       builder: (sheetCtx) => CupertinoTheme(
-        // MaterialApp 下兜底:深色下 CupertinoActionSheet 文字走暗色(C-表 #10)
+        // Fallback under MaterialApp: forces dark text on CupertinoActionSheet in dark mode
         data: CupertinoThemeData(
           brightness: isDark ? Brightness.dark : Brightness.light,
         ),
@@ -662,7 +667,7 @@ for (final c in selected) {
     );
   }
 
-  /// C-T6:每页数量档位选择(4/8/12/16,持久化 character_grid_page_size)
+  /// Page-size selector (4/8/12/16, persisted as character_grid_page_size)
   void _showPageSizeSheet(BuildContext context) {
     final current = ref.read(characterGridPageSizeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -679,7 +684,7 @@ for (final c in selected) {
               CupertinoActionSheetAction(
                 onPressed: () {
     ref.read(characterGridPageSizeProvider.notifier).set(n);
-    _resetPage(); // 档位变了回第 1 页(返工条目5)
+    _resetPage(); // Return to page 1 when the page size changes
                   Navigator.pop(sheetCtx);
                 },
                 child: Row(
@@ -714,7 +719,7 @@ class _StaggeredEntrance extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const duration = DesignTokens.durationMd;
-    // 错峰上限 12 项,避免长列表尾部等待过久
+    // Stagger delay capped at 12 items so long lists don't wait too long at the tail
     final delay = index.clamp(0, 12) * 50;
     final total = duration + delay;
     final intervalBegin = delay / total;
@@ -738,10 +743,10 @@ class _StaggeredEntrance extends StatelessWidget {
   }
 }
 
-// TODO(token·待批准): skeletonBase/skeletonHighlight 微光扫动,
-// 提案见总纲 §4。未批准前用 darkCard 实底呼吸兜底。
+// TODO(token): shimmer sweep using skeletonBase/skeletonHighlight awaits approval
+// (see master plan §4); until then the solid darkCard breathing animation is the fallback.
 
-/// 加载骨架:实底 + 400ms 呼吸(0.5↔1.0)
+/// Loading skeleton: solid fill with a 400ms breathing pulse (0.5 to 1.0)
 class _SkeletonGrid extends StatelessWidget {
   const _SkeletonGrid();
 
@@ -763,7 +768,7 @@ class _SkeletonGrid extends StatelessWidget {
         ),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: 0.80, // C-T7:与正式网格同卡比
+          childAspectRatio: 0.80, // Same card aspect ratio as the real grid
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
         ),
@@ -772,7 +777,7 @@ class _SkeletonGrid extends StatelessWidget {
   }
 }
 
-/// 呼吸骨架块:实底 + 透明度呼吸
+/// Breathing skeleton block: solid fill with opacity pulsing
 class _BreathingBox extends StatefulWidget {
   final double borderRadius;
 
@@ -823,7 +828,7 @@ class _EmptyState extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 空态图标容器:胶囊圆角 + muted 色(宪法视觉降噪)
+          // Empty-state icon container: pill radius in a muted color (visual noise reduction)
           Container(
             width: 96,
             height: 96,
@@ -900,7 +905,7 @@ class _CharacterGridCard extends ConsumerWidget {
       clipBehavior: Clip.antiAlias,
       color: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(
-        // C-T7:卡片圆角随卡片级别,深色零阴影(A-T1 铁律),浅色 0.5 separator
+        // Card radius follows the card level; zero shadow in dark mode, 0.5 separator in light mode
         borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
         side: isSelected
             ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2.5)
@@ -919,7 +924,7 @@ class _CharacterGridCard extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // C-T7:头像区占比 4→3,卡片矮化信息更聚
+                  // Avatar area flex cut from 4 to 3 so the shorter card feels more focused
                   Expanded(flex: 3, child: _buildAvatar()),
                   Padding(
                     padding: const EdgeInsets.symmetric(
@@ -927,7 +932,7 @@ class _CharacterGridCard extends ConsumerWidget {
                       vertical: DesignTokens.spaceXs,
                     ),
                     child: Column(
-                      // C-T7:名字/作者居中(iOS 照片网格感)
+                      // Center name/author (iOS photo-grid look)
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -964,7 +969,7 @@ class _CharacterGridCard extends ConsumerWidget {
                   ),
                 ],
               ),
-              // 置顶标记（左上角图钉）
+              // Pinned indicator (top-left pin icon)
               if (character.isPinned)
                 Positioned(
                   top: 8,
@@ -1010,7 +1015,8 @@ class _CharacterGridCard extends ConsumerWidget {
             )
           : _defaultAvatar(),
     );
-    // 条目2:Hero 已拆除——封面与内容随圆形炸开转场一体揭开,不再单独飞
+    // Hero animation removed: cover and content reveal together with the circular
+    // expansion transition instead of flying separately
     return avatar;
   }
 
@@ -1063,13 +1069,13 @@ class _CharacterGridCard extends ConsumerWidget {
       case 'builtin_xiaohongshu_copywriter':
         return const Color(0xFFFF5722); // Orange/Red for social media
       default:
-        return const Color(0xFFF5AEB2); // KiraKira 粉,替代死蓝占位
+        return const Color(0xFFF5AEB2); // KiraKira pink instead of the dead-blue placeholder
     }
   }
 }
-// ━━━ C-T8:顶部吸顶分段控件 ━━━
+// Sticky top segmented control
 
-/// 分段控件吸顶头(SliverPersistentHeader 委托)
+/// Pinned header delegate for the segmented control (SliverPersistentHeader)
 class _SegmentedHeaderDelegate extends SliverPersistentHeaderDelegate {
   const _SegmentedHeaderDelegate({
     required this.tab,
@@ -1079,7 +1085,7 @@ class _SegmentedHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   final int tab;
   final ValueChanged<int> onChanged;
-  /// 返工条目2:Large Title 已砍,原 actions(+/选择/每页)挂在分段行右端
+  /// Large Title removed; former actions (+, select, page size) sit at the right end of the segmented row
   final List<Widget> trailing;
 
   @override
@@ -1101,8 +1107,8 @@ class _SegmentedHeaderDelegate extends SliverPersistentHeaderDelegate {
           Flexible(
             child: CupertinoSlidingSegmentedControl<int>(
               groupValue: tab,
-              // 槽背景按手册 dark=darkCard / light=lightFillTertiary;
-              // thumbColor 不传,交给 Cupertino SDK 自配(iOS 原生深浅语义)
+              // Track background per spec: dark = darkCard, light = lightFillTertiary;
+              // thumbColor is left unset so the Cupertino SDK applies native light/dark semantics
               backgroundColor: isDark
                   ? DesignTokens.darkCard
                   : DesignTokens.lightFillTertiary,
@@ -1132,18 +1138,17 @@ class _SegmentedHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.tab != tab || oldDelegate.trailing != trailing;
 }
 
-// ============================================================
-// [2026-09 已关闭] 角色市场功能
-// 
-// 关闭原因：
-// 1. ACC 国际站：技术不稳定（blob URL 导入失败率高）
-// 2. Chub.ai：NSFW 内容存在法律风险，不符合国内法规
-// 3. 官方站点：暂无合适的托管方案
-// 
-// 保留代码以备未来恢复。用户可通过"本地导入"功能导入角色卡。
-// ============================================================
+// Character market disabled as of 2026-09.
+//
+// Reasons:
+// 1. ACC international site: unstable (high blob URL import failure rate)
+// 2. Chub.ai: NSFW content carries legal risk under domestic regulations
+// 3. Official site: no suitable hosting solution yet
+//
+// Code retained for a possible future restore. Users can still import
+// character cards through the local import feature.
 
-/// 角色市场（双站：Kira官方站 + ACC国际站）
+/// Character market (two sites: Kira official + ACC international)
 class _CharacterMarketView extends ConsumerStatefulWidget {
   final VoidCallback onSwitchToMyCharacters;
 
@@ -1161,7 +1166,7 @@ class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 1, vsync: this);  // [2026-09] 关闭国际站，仅保留 Kira 官方
+    _tabController = TabController(length: 1, vsync: this);  // International site closed; only Kira official remains
   }
 
   @override
@@ -1177,7 +1182,7 @@ class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
 
     return Column(
       children: [
-        // ── 双站切换标签 ──
+        // Site switch tabs
         Container(
           decoration: BoxDecoration(
             color: isDark ? DesignTokens.darkSurface : theme.cardColor,
@@ -1208,7 +1213,7 @@ class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
                 icon: Icon(Icons.home_outlined, size: 18),
                 text: 'Kira官方',
               ),
-              // [2026-09 已关闭] ACC 国际站（技术不稳定 + 法律风险）
+              // ACC international site closed (unstable + legal risk)
               // Tab(
               //   icon: Icon(Icons.public, size: 18),
               //   text: 'ACC国际',
@@ -1216,13 +1221,13 @@ class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
             ],
           ),
         ),
-        // ── 双站内容 ──
+        // Site content
         Expanded(
           child: TabBarView(
             controller: _tabController,
             children: const [
               _KiraMarketTab(),
-              // [2026-09 已关闭] ACC 国际站
+              // ACC international site closed
               // _AccMarketTab(
               //   onSwitchToMyCharacters: widget.onSwitchToMyCharacters,
               // ),
@@ -1234,7 +1239,7 @@ class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
   }
 }
 
-/// Kira官方站（暂时占位，未来接入自建/社区资源）
+/// Kira official site (placeholder for now; self-hosted/community resources planned)
 class _KiraMarketTab extends StatelessWidget {
   const _KiraMarketTab();
 

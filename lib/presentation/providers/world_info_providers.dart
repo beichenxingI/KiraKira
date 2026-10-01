@@ -4,7 +4,7 @@ import 'package:kirakira/data/models/world_info.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:kirakira/core/services/initialization_service.dart';
 
-/// isolate 参数打包（compute 只能传一个参数）
+/// Parameter bundle for the isolate (compute accepts a single argument only)
 class _MatchParams {
   final List<WorldInfoEntry> entries;
   final String contextText;
@@ -12,7 +12,7 @@ class _MatchParams {
   _MatchParams(this.entries, this.contextText, this.maxRecursionDepth);
 }
 
-/// 纯匹配计算——不碰数据库/ref，可在 isolate 里跑
+/// Pure matching logic — touches no database or ref, safe to run in an isolate
 List<WorldInfoEntry> _matchEntriesPure(_MatchParams p) {
   final entries = p.entries;
   final allMatched = <WorldInfoEntry>[];
@@ -76,7 +76,7 @@ List<WorldInfoEntry> _matchEntriesPure(_MatchParams p) {
     recursionDepth++;
   }
 
-  // 常量项
+  // Constant entries
   for (final entry in entries) {
     final isConstant = entry.constant || entry.keys.isEmpty;
     if (isConstant && entry.enabled && !processedIds.contains(entry.id)) {
@@ -126,14 +126,16 @@ class WorldInfoNotifier extends StateNotifier<AsyncValue<List<WorldInfo>>> {
   }
 
   Future<void> _loadWorldInfos() async {
-    // 仅首次加载显示 loading；刷新时保留旧数据，避免界面闪回转圈
+    // Show loading only on the first load; refreshes keep the previous data so
+    // the UI does not flash back to a spinner.
     if (state is! AsyncData) {
       state = const AsyncValue.loading();
     }
     try {
       final worldInfos = await _repository.getAllWorldInfos();
       state = AsyncValue.data(worldInfos);
-      // 同步失效派生 provider，让角色详情/编辑页跟着刷新（世界书、条目编辑后立即可见）
+      // Invalidate derived providers so character detail/editor pages refresh
+      // (worldbook and entry edits become visible immediately)
       _ref.invalidate(characterWorldInfosProvider);
       _ref.invalidate(allWorldInfosProvider);
       _ref.invalidate(globalWorldInfosProvider);
@@ -229,15 +231,17 @@ class WorldInfoMatcher {
     int maxRecursionDepth = 3,
     int tokenBudget = 2000, // Maximum tokens for world info
   }) async {
-    // 数据库读取留在主线程（异步 IO，不卡）
+    // Database reads stay on the main thread (async IO, does not block)
     final allEntries = <WorldInfoEntry>[];
     for (final worldInfoId in worldInfoIds) {
       allEntries.addAll(await _repository.getEntriesForWorldInfo(worldInfoId));
     }
-    // A2修复:多书合并后按 insertion_order 统一排序(稳定序,跨书不再按书分组)
+    // After merging multiple worldbooks, sort once by insertion_order (stable
+    // order; entries are no longer grouped per book)
     allEntries.sort((a, b) => a.insertionOrder.compareTo(b.insertionOrder));
 
-    // 纯计算丢进后台 isolate，主线程全程不卡
+    // Pure computation runs in a background isolate so the main thread never
+    // blocks
     return compute(
       _matchEntriesPure,
       _MatchParams(allEntries, contextText, maxRecursionDepth),

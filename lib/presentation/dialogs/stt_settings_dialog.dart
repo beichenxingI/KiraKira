@@ -1,8 +1,9 @@
 // lib/presentation/dialogs/stt_settings_dialog.dart
-/// STT 识别设置浮窗(极客Core迁移 P1)
-/// 内容完整迁自 stt_settings_screen.dart,字段一个不少:
-/// 可用性警告 · 通用(启用/自动发送/持续监听/显示中间结果)
-/// 提供商(引擎/API密钥) · 识别语言 · 测试试听 · 信息说明 · 恢复默认
+/// STT recognition settings dialog.
+/// Mirrors stt_settings_screen.dart with every field preserved:
+/// availability warning, general settings (enable / auto-send / continuous
+/// listening / show partial results), provider (engine / API key), recognition
+/// language, test playback, information, reset to defaults.
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -39,7 +40,7 @@ class _SttSettingsDialog extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 可用性警告 ──
+          // Availability warning
           availableAsync.when(
             data: (available) => available
                 ? const SizedBox.shrink()
@@ -75,7 +76,7 @@ class _SttSettingsDialog extends ConsumerWidget {
             error: (_, __) => const SizedBox.shrink(),
           ),
 
-          // ── 通用 ──
+          // General
           CoreSectionLabel(l10n.general),
           const SizedBox(height: 4),
           _Group(
@@ -125,7 +126,7 @@ class _SttSettingsDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 提供商 ──
+          // Provider
           CoreSectionLabel(l10n.provider),
           const SizedBox(height: 4),
           _Group(
@@ -180,7 +181,7 @@ class _SttSettingsDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 识别语言 ──
+          // Recognition language
           CoreSectionLabel(l10n.language),
           const SizedBox(height: 4),
           _Group(
@@ -223,7 +224,7 @@ class _SttSettingsDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 测试 ──
+          // Test
           CoreSectionLabel(l10n.test),
           const SizedBox(height: 8),
           CoreSecondaryButton(
@@ -291,7 +292,7 @@ class _SttSettingsDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 信息 ──
+          // Information
           CoreSectionLabel(l10n.information),
           const SizedBox(height: 4),
           CoreInfoRow(
@@ -327,7 +328,7 @@ class _SttSettingsDialog extends ConsumerWidget {
             ),
           const SizedBox(height: 20),
 
-          // ── 恢复默认 ──
+          // Reset to defaults
           CoreSecondaryButton(
             label: l10n.resetToDefaults,
             icon: CupertinoIcons.arrow_counterclockwise,
@@ -341,7 +342,8 @@ class _SttSettingsDialog extends ConsumerWidget {
     );
   }
 
-  /// API Key 表单 → 底部 Sheet(键盘避让,与原页一致)
+  /// API key form shown as a bottom sheet with keyboard avoidance, matching
+  /// the original page.
   void _showApiKeySheet(
     BuildContext context,
     WidgetRef ref,
@@ -413,7 +415,7 @@ class _SttSettingsDialog extends ConsumerWidget {
   }
 }
 
-/// 浮窗内分组容器
+/// Group container used inside the dialog.
 class _Group extends StatelessWidget {
   const _Group({required this.palette, required this.children});
 
@@ -435,7 +437,7 @@ class _Group extends StatelessWidget {
   }
 }
 
-/// 带右侧下拉的行
+/// Row with a trailing dropdown.
 class _DropdownTile extends StatelessWidget {
   const _DropdownTile({
     required this.palette,

@@ -60,10 +60,10 @@ class ActiveChatState {
   final List<ChatMessage> messages;
   final bool isLoading;
   final bool isGenerating;
-  final bool isGeneratingImage; // 自动生图进行中（用于呼吸✨提示）
-  final String? generatingImageMsgId; // 正在自动生图的消息id
-  final double imageGenProgress; // 自动生图进度 0~1
-  final String? imageGenError; // 自动生图失败信息（一次性提醒）
+  final bool isGeneratingImage; // Auto image generation in progress (drives the pulsing indicator)
+  final String? generatingImageMsgId; // ID of the message currently generating an image
+  final double imageGenProgress; // Auto image generation progress, 0~1
+  final String? imageGenError; // Auto image generation error (one-shot notice)
   final String? error;
   final String?
       currentResponderId; // Which character is currently responding (group chat)
@@ -118,7 +118,7 @@ class ActiveChatState {
           ? null
           : (generatingImageMsgId ?? this.generatingImageMsgId),
       imageGenProgress: imageGenProgress ?? this.imageGenProgress,
-      imageGenError: imageGenError, // 一次性，不传即清空
+      imageGenError: imageGenError, // One-shot: cleared when omitted
       error: error,
       currentResponderId: clearCurrentResponder
           ? null
@@ -141,7 +141,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   bool _isCancelling = false;
   int _generationToken = 0;
 
-  // [CHRONICLE-F7] F-6已注入的词条id（召回层去重用，H6）
+  // IDs of entries already injected by the fixed layer, used for recall layer deduplication
   Set<String> _lastF6EntryIds = {};
 
   ActiveChatNotifier({
@@ -164,10 +164,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   /// Cancel current generation
   Future<void> cancelGeneration() async {
     _isCancelling = true;
-    _generationToken++; // 令牌失效：任何在跑的循环立即作废
-    // 循环会因令牌失效直接 return，跳过收尾清理，故在此删掉纯空壳。
-    // 判据同失败处理：最后一条是 assistant 且内容为空 = 没收到任何内容的思考中气泡。
-    // 半截回复 content 非空 → 保留不删。
+    _generationToken++; // Invalidate the token: any running loop aborts immediately
+    // Loops return right away on token invalidation and skip cleanup, so remove the
+    // empty placeholder here. Same criterion as failure handling: the last message is
+    // an assistant with empty content = a thinking bubble that received nothing.
+    // A partial reply with non-empty content is kept.
     final msgs = List<ChatMessage>.from(state.messages);
     if (msgs.isNotEmpty &&
         msgs.last.role == MessageRole.assistant &&
@@ -182,21 +183,22 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     });
   }
 
-  /// [Bug1.1] 更新当前聊天的角色快照（治角色编辑后聊天页用旧数据）。
-  /// 只换 character 字段，不置 isLoading（避免 loadChat 整页闪屏）；
-  /// LLM prompt 组装（sendMessage/_buildContextUpTo）读的就是这份快照。
-  /// 注意：传新实例（内容变了、id 不变）——_charSub 只监听 id，不会触发重注入风暴。
+  /// Updates the active chat's character snapshot (fixes stale data after a character edit).
+  /// Swaps only the character field and does not set isLoading, avoiding a full-page
+  /// reload flicker; LLM prompt assembly (sendMessage/_buildContextUpTo) reads this snapshot.
+  /// Pass a new instance (content changed, id unchanged): _charSub only watches the id,
+  /// so no re-injection storm is triggered.
   void updateCharacterSnapshot(Character character) {
     state = state.copyWith(character: character);
   }
 
   /// Load a chat by ID
   Future<void> loadChat(String chatId) async {
-    _generationToken++; // 切换聊天前作废正在跑的生成，杜绝串台
-    _isCancelling = true; // 先掐断上一个聊天正在跑的生成
+    _generationToken++; // Invalidate any running generation before switching chats
+    _isCancelling = true; // Cut off generation still running for the previous chat
     state = state.copyWith(isLoading: true, error: null);
-    // 关键：本聊天加载后立刻复位，否则这面停止旗会一直举着，
-    // 导致之后所有生成刚收到几个 token 就被 break 掉（空回复但扣费）。
+    // Must reset right after this chat loads; otherwise the stop flag stays set and
+    // every later generation breaks after a few tokens (empty reply but still billed).
     _isCancelling = false;
 
     try {
@@ -210,7 +212,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           await _characterRepository.getCharacter(chat.characterId);
       final messages = await _chatRepository.getMessages(chatId);
 
-      // [临时调试] 验证 loadChat 读到的角色数据
+      // Temporary debug: verify the character data loaded by loadChat
       debugPrint('═══ [loadChat] 读取角色数据 ═══');
       debugPrint('[loadChat] chatId = $chatId');
       debugPrint('[loadChat] characterId = ${chat.characterId}');
@@ -234,7 +236,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
       debugPrint('═══ [loadChat] 结束 ═══\n');
 
-      // 恢复本聊天的局部变量（酒馆助手 getVariables 存档）
+      // Restore this chat's local variables (TavernHelper getVariables archive)
       await VariablesService.instance.loadLocalVariablesFromPrefs(chatId);
 
       // Check if this is a group chat
@@ -275,12 +277,13 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         );
       }
 
-      // ═══ RAG：为本聊天自动准备专属向量集合并激活 ═══
+      // RAG: prepare and activate a dedicated vector collection for this chat
       try {
         final vsService = _ref.read(vectorStorageServiceProvider);
         if (vsService.getCollection(chatId) == null) {
-          // [CHRONICLE Phase 0] 维度从当前 embedding provider 动态取（本地bge=384），
-          // 不再硬编码512（历史笔误，本地模型实际输出384维）
+          // Dimensions are read dynamically from the current embedding provider
+          // (local bge = 384) instead of the hardcoded 512, a historical mistake:
+          // the local model actually outputs 384 dimensions.
           final vsSettings = _ref.read(vectorStorageSettingsProvider);
           vsService.createCollectionWithId(
             id: chatId,
@@ -293,10 +296,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
             .read(vectorStorageSettingsProvider.notifier)
             .setActiveCollection(chatId);
       } catch (e) {
-        // 集合准备失败不阻断聊天加载
+        // Collection setup failures must not block chat loading
       }
 
-      // ═══ [CHRONICLE Phase 1] 旧摘要迁移（一次性，异步不阻塞加载） ═══
+      // One-time legacy summary migration (async, does not block loading)
       if (chat.summaries.isNotEmpty) {
         final orchestrator = _ref.read(chronicleOrchestratorProvider);
         unawaited(orchestrator.migrateOldSummaries(chat));
@@ -349,9 +352,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         final processedGreeting =
             MacroService(macroContext).process(greetingText);
 
-        // 主开场白 + 所有备用开场白(alternate_greetings)一起放进 swipes，
-        // 与 SillyTavern 对齐：swipe 0 是主开场白，swipe 1+ 是备用开场白。
-        // 重前端卡常用 setChatMessage 切到 swipe 1 进入真正的游戏开局。
+        // The primary greeting plus all alternate greetings go into swipes,
+        // matching SillyTavern: swipe 0 is the primary greeting, swipe 1+ are alternates.
+        // Front-loaded cards commonly use setChatMessage to switch to swipe 1 for the
+        // actual story start.
         final allSwipes = <String>[processedGreeting];
         for (final alt in character.alternateGreetings) {
           if (alt.trim().isEmpty) continue;
@@ -522,7 +526,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       error: null,
     );
 
-    // [CHRONICLE Phase 1] Chronicle接管压缩（入队异步总结）；未开启/失败则回落旧总结路径
+    // Chronicle takes over compaction (queues async summarization); falls back to the
+    // legacy summary path when disabled or on failure
     final chronicleHandled = await _ref
         .read(chronicleOrchestratorProvider)
         .checkAndEnqueue(
@@ -563,7 +568,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
-          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          // Validate the token: stop and discard immediately if it expired or the chat
+          // switched, so output can never bleed into another chat
           if (myToken != _generationToken || state.chat?.id != myChatId) {
             return;
           }
@@ -608,8 +614,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         state = state.copyWith(messages: updatedMessages);
       }
 
-      // 空回复处理：AI 什么都没返回 → 删掉空壳消息，提示"收到空回复"，不落库。
-      // 避免留一条空气泡让人误以为卡住。被用户 cancel 的半截不走这里（上面已 break/return）。
+      // Empty reply handling: if the AI returned nothing, drop the placeholder
+      // message, surface an "empty reply" error, and skip persistence so no empty
+      // bubble is left looking stuck. A user-cancelled partial reply never reaches
+      // here (the loop already broke/returned above).
       if (finalContent.trim().isEmpty) {
         final withoutEmpty = List<ChatMessage>.from(state.messages)
           ..removeWhere((m) => m.id == assistantMessage.id);
@@ -633,15 +641,16 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
       state = state.copyWith(isGenerating: false);
 
-      // 自动生图（不阻塞主流程，失败也不影响对话）
+      // Auto image generation (does not block the main flow; failures do not affect the chat)
       _maybeAutoGenerateImage(finalMessage, config);
-      // [autoPlay接线] 新 AI 回复落库后自动朗读（不阻塞主流程）
+      // Auto-play: speak the new AI reply after it is persisted (does not block the main flow)
       _maybeAutoSpeak(finalMessage);
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProvider sendMessage error: $e\n$stackTrace');
-      // 失败（503/400/网络等）时删掉还在"思考中"的空壳消息，避免永远转圈。
-      // 判据：最后一条是 assistant 且内容为空 = 那个没收到任何 token 的空壳。
-      // 若流式已收到部分内容才断，content 非空 → 保留不删。
+      // On failure (503/400/network etc.) remove the still-"thinking" placeholder so
+      // the UI never spins forever. Criterion: the last message is an assistant with
+      // empty content = a placeholder that received no tokens. If the stream broke
+      // after partial content arrived, content is non-empty and the message is kept.
       final msgs = List<ChatMessage>.from(state.messages);
       if (msgs.isNotEmpty &&
           msgs.last.role == MessageRole.assistant &&
@@ -655,8 +664,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       );
     }
   }
-  /// 自动生图：根据 autoImageMode 档位，从 AI 回复中提取 <image> 标签生图。
-  /// 用文件名 ai_auto_{messageId}_* 作为"已生图"标志，杜绝重进重复生成。
+  /// Auto image generation: extracts <image> tags from the AI reply according to the
+  /// autoImageMode setting. File names matching ai_auto_{messageId}_* act as the
+  /// "already generated" marker so re-entry never regenerates duplicates.
   Future<void> _maybeAutoGenerateImage(ChatMessage msg, LLMConfig config) async {
     try {
       final settings = _ref.read(imageGenSettingsProvider);
@@ -668,26 +678,28 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
       final chatId = msg.chatId;
 
-      // 提取 <image>...</image> 标签内容
+      // Extract the <image>...</image> tag content
       String? prompt = ImageGenerationService.extractImagePrompt(msg.content);
       debugPrint('[自动生图] 提取标签: ${prompt ?? "(无标签)"}');
 
       if (prompt == null || prompt.isEmpty) {
-        // 没标签：仅提示词档位不兜底，直接结束
+        // No tag: prompt-only mode has no fallback, so exit here
         if (mode == AutoImageMode.promptOnly) return;
 
-        // 去掉标签后的纯正文
+        // Plain body with the tags stripped out
         final body = msg.content
             .replaceAll(RegExp(r'<image>[\s\S]*?</image>', caseSensitive: false), '')
             .trim();
 
-        // 问题2：无实质内容就跳过（太短的回复没有视觉场景，别生废图）
+        // Skip when there is no substantial content: a reply this short has no visual
+        // scene worth rendering
         if (body.length < 10) {
           debugPrint('[自动生图] 跳过: 正文过短无视觉内容');
           return;
         }
 
-        // 问题1：调一次 LLM 把正文提炼成英文视觉标签（比直接塞正文质量高）
+        // Call the LLM once to distill the body into English visual tags, which yields
+        // better results than sending the raw text
         prompt = await _extractVisualTags(body, config);
         if (prompt == null || prompt.isEmpty) {
           debugPrint('[自动生图] 跳过: 提炼视觉标签失败');
@@ -696,10 +708,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         debugPrint('[自动生图] 提炼标签: $prompt');
       }
 
-      // promptOnly 档位：只提取标签，不出图
+      // promptOnly mode: extract tags without generating an image
       if (mode == AutoImageMode.promptOnly) return;
 
-      // 防重生：检查该消息是否已有自动生成的图片
+      // Duplicate guard: check whether this message already has auto-generated images
       final base = await getApplicationDocumentsDirectory();
       final dir = Directory(p.join(base.path, 'chat_images', chatId));
       if (!await dir.exists()) await dir.create(recursive: true);
@@ -707,21 +719,22 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           .listSync()
           .whereType<File>()
           .any((f) => p.basename(f.path).startsWith('ai_auto_${msg.id}_'));
-      if (already) return; // 已生过图，跳过
+      if (already) return; // Image already generated, skip
 
-      // 调用生图服务（占位符转圈 + 呼吸✨）
+      // Invoke the image service (spinner placeholder with pulsing indicator)
       state = state.copyWith(
         isGeneratingImage: true,
         generatingImageMsgId: msg.id,
         imageGenProgress: 0,
       );
       final service = _ref.read(imageGenServiceProvider);
-      // SSE 进度回调 → 更新占位符进度
+      // SSE progress callback updates the placeholder progress
       service.onProgress = (p) {
         state = state.copyWith(imageGenProgress: p);
       };
       try {
-        // [生图提示词自定义] 在最终 prompt 前拼上用户配置的正面前缀(如 "masterpiece, best quality, ")
+        // Prepend the user-configured positive prefix to the final prompt
+        // (e.g. "masterpiece, best quality, ")
         final prefix = settings.positivePromptPrefix;
         final finalPrompt = (prefix != null && prefix.isNotEmpty)
             ? '$prefix${prompt.trim()}'
@@ -742,7 +755,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
             final name = 'ai_auto_${msg.id}_$i.${result.format}';
             final filePath = p.join(dir.path, name);
             await File(filePath).writeAsBytes(result.images[i]);
-            // 修断层：把生成的图加进消息 attachments，触发气泡显示
+            // Add the generated image to the message's attachments so the bubble renders it
             await addAttachmentToMessage(
               msg.id,
               ChatAttachment(
@@ -757,7 +770,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           debugPrint('[自动生图] 消息 ${msg.id} 生成 ${result.images.length} 张，已加入 attachments');
         }
       } finally {
-        service.onProgress = null; // 解绑，避免影响手动生图
+        service.onProgress = null; // Unbind so manual generation is unaffected
         state = state.copyWith(
           isGeneratingImage: false,
           clearGeneratingImageMsgId: true,
@@ -770,10 +783,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
   }
 
-  /// [autoPlay接线] 新 AI 回复落库后自动朗读。
-  /// 仅在 ttsSettings.autoPlay 开启且消息为非空 assistant 消息时触发；
-  /// 朗读中再来新回复时 speakByStyle 内部先 stop，自动读最新一条。
-  /// 不阻塞主流程，任何异常静默忽略（TTS 失败不影响对话）。
+  /// Speaks a newly persisted AI reply automatically.
+  /// Triggers only when ttsSettings.autoPlay is enabled and the message is a non-empty
+  /// assistant message; if a new reply arrives while already speaking, speakByStyle
+  /// stops first and reads the latest one. Does not block the main flow and swallows
+  /// all exceptions (TTS failures do not affect the chat).
   void _maybeAutoSpeak(ChatMessage msg) {
     try {
       final ttsSettings = _ref.read(ttsSettingsProvider);
@@ -787,11 +801,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
   }
 
-  /// 二次调用 LLM，把一段正文提炼成英文逗号分隔的视觉标签。
-  /// 失败返回 null。注意：这会产生一次额外的 API 调用（额度消耗）。
-  /// [生图提示词自定义] 若 extractionInstruction 非空则替换硬编码默认指令。
-  /// [全自动生图] 若 enableAutoPromptGeneration + autoPromptConfigId 非空,
-  ///   用选中的 API 服务 config 而非默认 llmConfigProvider。
+  /// Makes a second LLM call to distill a passage into comma-separated English visual
+  /// tags. Returns null on failure. Note: this consumes one extra API call.
+  /// If extractionInstruction is non-empty it replaces the hardcoded default instruction.
+  /// When enableAutoPromptGeneration and autoPromptConfigId are set, the selected API
+  /// service config is used instead of the default llmConfigProvider.
   Future<String?> _extractVisualTags(String body, LLMConfig config) async {
     try {
       final truncated = body.length > 600 ? body.substring(0, 600) : body;
@@ -808,7 +822,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         {'role': 'system', 'content': instruction},
         {'role': 'user', 'content': truncated},
       ];
-      // [全自动生图] 优先用用户选中的 API 服务(覆盖 model/key/endpoint)
+      // Prefer the user-selected API service (overrides model/key/endpoint)
       LLMConfig effectiveConfig = config;
       if (settings.enableAutoPromptGeneration &&
           settings.autoPromptConfigId != null) {
@@ -834,8 +848,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
   }
 
-  /// 重试/重生成熵注入：低温度时微抬 temperature（避免相同上下文产出近似内容），
-  /// 并把固定 seed 随机化（-1 表示不发送 seed，由服务端随机）。
+  /// Regeneration entropy injection: nudges temperature up at low settings so identical
+  /// context does not yield near-duplicate output, and randomizes a fixed seed
+  /// (-1 means no seed is sent, letting the server choose).
   LLMConfig _withRegenerateEntropy(LLMConfig config) {
     final double bumped = config.temperature < 0.6
         ? (config.temperature + 0.15).clamp(0.0, 2.0).toDouble()
@@ -853,7 +868,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final lastMessage = state.messages.last;
     if (lastMessage.role != MessageRole.assistant) return;
 
-    // 熵注入：重生成与首次生成上下文相同，需注入熵避免低温度下产出近似内容
+    // Entropy injection: regeneration shares the original context, so entropy is needed
+    // to avoid near-duplicate output at low temperature
     config = _withRegenerateEntropy(config);
 
     state = state.copyWith(isGenerating: true, error: null);
@@ -872,7 +888,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
-          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          // Validate the token: stop and discard immediately if it expired or the chat
+          // switched, so output can never bleed into another chat
           if (myToken != _generationToken || state.chat?.id != myChatId) {
             return;
           }
@@ -999,7 +1016,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     updatedMessages[messageIndex] = updatedMessage;
     state = state.copyWith(messages: updatedMessages);
   }
-  /// 更新单条消息的 per-swipe 变量（MVU setChatMessages 落点）
+  /// Updates per-swipe variables for a single message (MVU setChatMessages target)
   Future<void> updateMessageSwipesData(
       String messageId, List<Map<String, dynamic>> swipesData) async {
     final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
@@ -1015,7 +1032,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     state = state.copyWith(messages: updatedMessages);
   }
 
-  /// [P6-5.3] 隐藏/显示单条消息（/hide /unhide 落点，ST 的 is_system 语义）
+  /// Hides/shows a single message (/hide and /unhide target, SillyTavern is_system semantics)
   Future<void> setMessageHidden(String messageId, bool hidden) async {
     final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
     if (messageIndex < 0) return;
@@ -1082,10 +1099,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final message = state.messages[messageIndex];
     if (message.role != MessageRole.assistant) return;
 
-    // 熵注入：重生成与首次生成上下文相同，需注入熵避免低温度下产出近似内容
+    // Entropy injection: regeneration shares the original context, so entropy is needed
+    // to avoid near-duplicate output at low temperature
     config = _withRegenerateEntropy(config);
 
-    // 先追加一条空占位 swipe，让用户看到"思考中"，知道 reroll 正在进行
+    // Append an empty placeholder swipe first so the user sees a "thinking" state while rerolling
     final placeholderSwipes = List<String>.from(message.swipes)..add('');
     final placeholderMessage = message.copyWith(
       content: '',
@@ -1125,7 +1143,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
             contentBuffer.write(chunk.content);
           }
 
-          // 从当前 state 取最新消息（含占位 swipe），只更新最后那条 swipe
+          // Read the latest message from state (including the placeholder swipe) and
+          // update only the last swipe
           final current = state.messages[messageIndex];
           final streamSwipes = List<String>.from(current.swipes);
           streamSwipes[streamSwipes.length - 1] = contentBuffer.toString();
@@ -1167,7 +1186,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         finalReasoning = response.reasoning;
       }
 
-      // 取流式结束后的最新 state，把最后一条 swipe 定稿并存库
+      // Read the latest state after streaming ends, finalize the last swipe, and persist it
       final latestMessage = state.messages[messageIndex];
       final finalSwipes = List<String>.from(latestMessage.swipes);
       finalSwipes[finalSwipes.length - 1] = finalContent;
@@ -1202,7 +1221,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       );
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProvider regenerateMessage error: $e\n$stackTrace');
-      // 取消或失败时，若最后一条 swipe 是空占位就移除，避免留空壳
+      // On cancel or failure, remove the trailing empty placeholder swipe so no empty shell remains
       final msgs = List<ChatMessage>.from(state.messages);
       final current = msgs[messageIndex];
       if (current.swipes.length > 1 && current.swipes.last.trim().isEmpty) {
@@ -1244,24 +1263,26 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       await _generateAssistantResponse(config);
     }
   }
-  /// 重试：按被点消息的角色分流。
-  /// - AI 消息：删掉这条及之后所有，从上一条重新生成。
-  /// - 用户消息：保留这条，删掉之后所有，接着这条重新生成。
+  /// Retry: branches on the role of the tapped message.
+  /// - Assistant message: delete it and everything after it, then regenerate from the
+  ///   previous message.
+  /// - User message: keep it, delete everything after it, then regenerate from it.
   Future<void> retryMessage(String messageId, LLMConfig config) async {
     final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
     if (messageIndex < 0) return;
     final message = state.messages[messageIndex];
 
-    // 确定要保留到第几条（含）：AI 保留到上一条，用户保留到自己。
+    // Determine how far to keep (inclusive): for an assistant message keep up to the
+    // previous one, for a user message keep through itself.
     final keepUpTo =
         message.role == MessageRole.assistant ? messageIndex : messageIndex + 1;
 
-    // 先把要删的 id 全部固定下来（避免 state 变动导致漏删）
+    // Capture all IDs to delete up front so state changes cannot cause missed deletions
     final deleteIds =
         state.messages.sublist(keepUpTo).map((m) => m.id).toList();
-    // 先更新内存 state，UI 立即反映
+    // Update in-memory state first so the UI reflects it immediately
     state = state.copyWith(messages: state.messages.sublist(0, keepUpTo));
-    // 再逐条从数据库删除，单条失败不影响其他
+    // Then delete from the database one by one; a single failure does not affect the rest
     for (final delId in deleteIds) {
       try {
         await _chatRepository.deleteMessage(delId);
@@ -1270,12 +1291,12 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
     }
 
-    // 基于剩余上下文重新生成一条 AI 回复
+    // Generate a new AI reply from the remaining context
     await _generateAssistantResponse(config);
   }
 
-  /// 继续：仅 AI 消息可用。新建一条 AI 气泡，
-  /// 上下文包含被继续的这条消息，让模型衔接着往下写新内容。
+  /// Continue: only available for assistant messages. Creates a new assistant bubble
+  /// whose context includes the message being continued so the model picks up from it.
   Future<void> continueMessage(String messageId, LLMConfig config) async {
     if (state.chat == null) return;
     final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
@@ -1285,10 +1306,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     state = state.copyWith(isGenerating: true, error: null);
     try {
-      // 上下文截到被继续的消息为止（含），模型据此衔接
+      // Truncate the context through the continued message (inclusive) so the model
+      // continues from it
       final context = await _buildContextUpTo(messageIndex + 1);
 
-      // 新建一条空的 AI 气泡，内容从空开始
+      // Create a new empty assistant bubble that starts from scratch
       final newMessage = ChatMessage(
         id: _generateId(),
         chatId: state.chat!.id,
@@ -1422,7 +1444,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
-          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          // Validate the token: stop and discard immediately if it expired or the chat
+          // switched, so output can never bleed into another chat
           if (myToken != _generationToken || state.chat?.id != myChatId) {
             return;
           }
@@ -1483,10 +1506,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
       state = state.copyWith(isGenerating: false);
 
-      // 重新生成：删掉该消息的旧自动图，再重新生图
+      // On regeneration, clear this message's old auto-generated images before regenerating
       await _clearAutoImages(finalMessage);
       _maybeAutoGenerateImage(finalMessage, config);
-      // [autoPlay接线] 重新生成的回复也自动朗读
+      // Auto-play the regenerated reply as well
       _maybeAutoSpeak(finalMessage);
     } catch (e, stackTrace) {
       debugPrint(
@@ -1497,7 +1520,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       );
     }
   }
-  /// 删除某条消息的旧自动生成图（重新生成时调用，让防重生失效以便重新出图）。
+  /// Removes a message's old auto-generated images (called on regeneration to reset
+  /// the duplicate guard).
   Future<void> _clearAutoImages(ChatMessage msg) async {
     try {
       final base = await getApplicationDocumentsDirectory();
@@ -1514,13 +1538,14 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       debugPrint('[自动生图] 清理旧图失败: $e');
     }
   }
-  /// 重新生成某条消息的自动配图：先生成成功，才替换旧图；失败则旧图纹丝不动。
+  /// Regenerates a message's auto image: the old image is replaced only after generation
+  /// succeeds, so a failure leaves the existing image untouched.
   Future<void> regenerateAutoImage(String messageId, LLMConfig config) async {
     final idx = state.messages.indexWhere((m) => m.id == messageId);
     if (idx < 0) return;
     final msg = state.messages[idx];
 
-    // 提取原 <image> 标签 prompt（不改提示词，就用原来的）
+    // Extract the original <image> tag prompt and reuse it unchanged
     final prompt = ImageGenerationService.extractImagePrompt(msg.content);
     if (prompt == null || prompt.isEmpty) {
       state = state.copyWith(imageGenError: '未找到图像标签，无法重新生成');
@@ -1530,7 +1555,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final settings = _ref.read(imageGenSettingsProvider);
     final service = _ref.read(imageGenServiceProvider);
 
-    // 占位符转圈（复用块1的状态）
+    // Spinner placeholder (reuses the same state as the first block)
     state = state.copyWith(
       isGeneratingImage: true,
       generatingImageMsgId: msg.id,
@@ -1541,8 +1566,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     };
 
     try {
-      // 1. 先生成到内存，旧图完全不动
-      // [生图提示词自定义] 拼正面前缀
+      // 1. Generate into memory first; the old image stays untouched
+      // Prepend the configured positive prompt prefix
       final prefix = settings.positivePromptPrefix;
       final finalPrompt = (prefix != null && prefix.isNotEmpty)
           ? '$prefix${prompt.trim()}'
@@ -1561,15 +1586,16 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         throw Exception('未返回图片');
       }
 
-      // 2. 生成成功了，才开始替换 —— 到这一步失败风险已过
+      // 2. Replacement starts only after generation succeeds; the failure risk has passed
       final base = await getApplicationDocumentsDirectory();
       final dir = Directory(p.join(base.path, 'chat_images', msg.chatId));
       if (!await dir.exists()) await dir.create(recursive: true);
 
-      // 2a. 旧图重命名保留（会话相册仍可见），并让防重生失效
+      // 2a. Rename old images so they stay visible in the session gallery, and the
+      // duplicate guard resets
       await _clearAutoImages(msg);
 
-      // 2b. 从 attachments 移除旧的 ai_auto 图
+      // 2b. Remove the old ai_auto images from attachments
       final kept = msg.attachments
           .where((a) => !a.id.startsWith('ai_auto_${msg.id}_'))
           .toList();
@@ -1579,8 +1605,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       msgs[idx] = cleared;
       state = state.copyWith(messages: msgs);
 
-      // 2c. 写新图 + 挂新 attachment（照 674-685 的模式）
-      // 用时间戳让新图路径唯一，避开 base64 缓存(同名会命中旧图缓存导致不刷新)
+      // 2c. Write the new image and attach it to the message
+      // The timestamp keeps the new path unique so the base64 cache cannot serve the old image
       final ts = DateTime.now().millisecondsSinceEpoch;
       for (var i = 0; i < result.images.length; i++) {
         final name = 'ai_auto_${msg.id}_${ts}_$i.${result.format}';
@@ -1599,7 +1625,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
       debugPrint('[重新生成] 消息 ${msg.id} 完成，旧图已保留');
     } catch (e) {
-      // 3. 失败：旧图/旧 attachments 全程未动，气泡原图仍在
+      // 3. On failure: old images and attachments were never touched, so the bubble
+      // still shows the original
       debugPrint('[重新生成] 失败: $e');
       state = state.copyWith(imageGenError: '重新生成失败，已保留原图');
     } finally {
@@ -1617,10 +1644,12 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       {bool excludeLastAssistant = false}) async {
     final messages = <Map<String, dynamic>>[];
 
-    // 自动生图：非关闭时，注入配图指令，教 AI 输出 <image> 视觉标签
+    // Auto image generation: when not off, inject the illustration instruction that
+    // teaches the AI to emit <image> visual tags
     final imgSettings = _ref.read(imageGenSettingsProvider);
     if (imgSettings.autoImageMode != AutoImageMode.off && imgSettings.enabled) {
-      // [生图提示词自定义] 用户自定义 <image> 标签指令优先;空则用硬编码默认
+      // User-defined <image> tag instruction takes priority; the hardcoded default is
+      // used when empty
       final tagInstruction = imgSettings.imageTagInstruction;
       final content = (tagInstruction != null && tagInstruction.isNotEmpty)
           ? tagInstruction
@@ -1634,8 +1663,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final character = state.character;
     final chat = state.chat;
 
-    // [CHRONICLE UI整合] 全局设置一次读取，后续窗口/固定层/召回层复用。
-    // Chronicle开启时旧RAG原文注入被接管关闭（F-7召回wiki摘要替代）。
+    // Read the global settings once; reused by the window, fixed layer, and recall
+    // layer below. When Chronicle is enabled, legacy raw RAG text injection is taken
+    // over and disabled (the recall layer's wiki summaries replace it).
     final chronicleSettings = _ref.read(chronicleSettingsProvider);
 
     // Get chat messages - use summaries if available
@@ -1659,9 +1689,12 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       chatMessages = recentMessages;
     }
 
-    // ═══ [CHRONICLE Phase 1] 四窗口滑动替换全量注入 ═══
-    // Chronicle开启时接管历史切分：未总结(所有未归档,末尾最高注意力) / 热(近归档) /
-    // 温 / 冷(旧归档)，各窗口=hotWindowSize轮（×2转条）。隐藏楼层(isHidden)不进提示词。失败回落旧行为。
+    // Four-window sliding split replaces full-history injection
+    // When Chronicle is enabled it takes over history splitting: unarchived (all
+    // unarchived, highest attention at the end) / hot (recently archived) / warm /
+    // cold (older archived), each window covering hotWindowSize turns (x2 messages).
+    // Hidden messages (isHidden) never enter the prompt. Falls back to the legacy
+    // behavior on failure.
     // Split result is captured so zone boundary markers can be inserted below.
     WindowedMessages? chronicleWindowed;
     if (chat != null && chronicleSettings.enabled) {
@@ -1690,7 +1723,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       worldInfoEntries =
           await _findMatchingWorldInfoEntries(character, chatMessages);
     }
-    // [Chronicle已接管上下文注入，旧RAG检索块已移除]
+    // Chronicle has taken over context injection; the legacy RAG retrieval block was removed
 
     // Get Prompt Manager configuration
     final promptConfig = _ref.read(promptManagerProvider);
@@ -1754,10 +1787,12 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
     }
 
-    // [CHRONICLE Phase 0] F/B/W 显式分桶：
-    //   F桶(front)=聊天历史之前；B桶(before)=按depth插入历史中间；W桶(absolute)=历史之后。
-    //   bucket 为 null 时按既有规则自动推导（depth-based 判定 + chatHistory 相对位置），
-    //   保证现有角色卡/世界书/jailbreak 注入行为完全不变。
+    // Explicit F/B/W bucketing:
+    //   F (front) = before chat history; B (before) = inserted into history by depth;
+    //   W (absolute) = after chat history.
+    //   When bucket is null it is derived by the existing rules (depth-based check plus
+    //   the relative position of chatHistory), keeping character card / worldbook /
+    //   jailbreak injection behavior exactly as before.
     final fSections = <PromptSection>[];
     final bSections = <PromptSection>[];
     final wSections = <PromptSection>[];
@@ -1770,7 +1805,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
 
       final bucket = section.bucket;
-      // B桶：显式 before，或（自动推导时）既有 depth-based 判定
+      // Bucket B: explicit before, or the existing depth-based check when auto-derived
       if (bucket == PromptBucket.before ||
           (bucket == null &&
               section.injectionPosition == 1 &&
@@ -1809,9 +1844,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       messages.addAll(sectionMessages);
     }
 
-    // 变量状态注入：从消息 swipesData 回溯取最后一条有效 stat_data，
-    // 与 MVU getLastValidVariable 的读取语义一致。
-    // 格式对齐 酒馆 MVU 变量持久化格式。
+    // Variable state injection: scan message swipesData backwards for the latest valid
+    // stat_data, matching the read semantics of MVU getLastValidVariable.
+    // Format aligns with the Tavern MVU variable persistence format.
     final statData = _getLatestStatData(chatMessages);
     if (statData != null && statData.isNotEmpty) {
       const maxLen = 5000;
@@ -1845,9 +1880,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           '📌 Added summary to context: ${latestSummary.content.substring(0, min(100, latestSummary.content.length))}...');
     }
 
-    // ═══ [CHRONICLE-F6] Wiki固定层注入（Phase 2） ═══
-    // 内容：锚点/始终注入词条 + 主要实体状态 + 关键关系 + 活跃情感 + 高重要事件标题。
-    // 预算：650 token（调整E安全裕度，估算±30%），超预算按importance升序裁剪。
+    // Wiki fixed layer injection
+    // Contents: anchor/always-injected entries + main entity states + key relationships
+    // + live emotions + high-importance event titles.
+    // Budget: 650 tokens with a ±30% estimation error; content over the budget is
+    // trimmed in ascending importance order.
     if (chat != null && chronicleSettings.enabled) {
       try {
         final chronicleRepo = _ref.read(chronicleRepositoryProvider);
@@ -1855,7 +1892,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         final entities = await chronicleRepo.getMainEntities(chat.id);
         final relationships = await chronicleRepo.getKeyRelationships(chat.id);
         final emotions = await chronicleRepo.getActiveEmotions(chat.id);
-        // F-7去重用：记录已注入的词条id
+        // Record the injected entry IDs so the recall layer can deduplicate against them
         _lastF6EntryIds = fixedEntries.map((e) => e.id).toSet();
 
         final brief = _buildChronicleMemoryBrief(
@@ -1878,9 +1915,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
     }
 
-    // ═══ [CHRONICLE-F7] Wiki召回层注入（Phase 3，调整D：与RAG并列不替换） ═══
-    // 混合打分召回wiki词条（向量0.5+关键词0.2+时间0.1+情感0.1+重要度0.1），
-    // 去重F-6已注入条目（H6），预算400 token（调整E），话题切换时异步触发提前总结。
+    // Wiki recall layer injection (runs alongside RAG rather than replacing it)
+    // Recalls wiki entries with a hybrid score (vector 0.5 + keyword 0.2 + recency 0.1
+    // + emotion 0.1 + importance 0.1), excludes entries already injected by the fixed
+    // layer, uses a 400 token budget, and triggers an early summary asynchronously on
+    // topic shift.
     if (chat != null && chronicleSettings.enabled && chatMessages.isNotEmpty) {
       try {
         ChatMessage? lastUserMsg;
@@ -1911,7 +1950,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
                 '[CHRONICLE] F-7召回层注入：${recallResult.entryIds.length}条词条');
           }
           if (recallResult.topicShift) {
-            // 话题切换 → 异步提前总结，不阻塞本次发送
+            // Topic shift triggers an asynchronous early summary without blocking this send
             unawaited(_ref
                 .read(chronicleOrchestratorProvider)
                 .onTopicShift(chat.id, state.messages));
@@ -2078,7 +2117,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   }
 
   /// Build messages for a single prompt section
-  /// 从消息列表回溯取最后一条有效 stat_data（与 MVU getLastValidVariable 同语义）
+  /// Scans the message list backwards for the latest valid stat_data (same semantics
+  /// as MVU getLastValidVariable)
   Map<String, dynamic>? _getLatestStatData(List<ChatMessage> messages) {
     for (int i = messages.length - 1; i >= 0; i--) {
       final msg = messages[i];
@@ -2096,9 +2136,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     return null;
   }
 
-  /// A3-T1: 判定 section.content 是否仍是「预填默认文案」(非用户手改)。
-  /// 空 或 与 getDefaultContent 相同 → 视为未动;不同 → 用户真改过。
-  /// 用于实现优先级: 用户手改 > 角色卡字段 > 默认文案。
+  /// Determines whether section.content is still the prefilled default (not user-edited).
+  /// Empty or identical to getDefaultContent counts as untouched; anything else means
+  /// the user actually edited it. Implements the priority:
+  /// user edit > character card field > default text.
   bool _isUntouchedSectionContent(PromptSection section) {
     final c = section.content;
     if (c == null || c.trim().isEmpty) return true;
@@ -2106,9 +2147,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         PromptSection.getDefaultContent(section.type).trim();
   }
 
-  /// [CHRONICLE-F6] 构建固定层记忆摘要块。
-  /// 优先级：①锚点词条 ②主要实体状态 ③关键关系 ④活跃情感 ⑤高重要事件标题。
-  /// 预算控制（调整E）：token为±30%估算 → 字符预算=token*3.35，超限按词条importance升序裁剪。
+  /// Builds the fixed-layer memory brief block.
+  /// Priority: (1) anchor entries (2) main entity states (3) key relationships
+  /// (4) live emotions (5) high-importance event titles.
+  /// Budget control: tokens are a ±30% estimate, so char budget = token*3.35;
+  /// content over the limit is trimmed in ascending entry importance order.
   String _buildChronicleMemoryBrief({
     required List<MemoryEntry> fixedEntries,
     required List<MemoryEntity> entities,
@@ -2123,8 +2166,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     final sections = <String>[];
 
-    // ① 锚点/始终注入词条：先按importance降序裁剪（预算语义不变），再按turnIndex升序排列
-    // 时序修复：注入带轮次前缀，主模型可判断事件先后，避免因果混乱
+    // (1) Anchor/always-injected entries: trimmed in descending importance first (the
+    // budget semantics are unchanged), then sorted ascending by turnIndex.
+    // Ordering fix: entries carry a turn prefix so the main model can tell the order of
+    // events and avoid confusing cause and effect.
     if (fixedEntries.isNotEmpty) {
       String turnLabel(int idx) => idx <= 0 ? '早期' : '第$idx轮';
       String lineOf(MemoryEntry e) =>
@@ -2134,7 +2179,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       final kept = <MemoryEntry>[];
       var used = 0;
       for (final e in byImportance) {
-        final cost = lineOf(e).length + 1; // +1 换行
+        final cost = lineOf(e).length + 1; // +1 for the newline
         if (kept.isNotEmpty && used + cost > budgetChars) break;
         kept.add(e);
         used += cost;
@@ -2144,7 +2189,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       sections.add('【关键记忆】\n${lines.join('\n')}');
     }
 
-    // ② 主要实体当前状态
+    // (2) Current state of main entities
     if (entities.isNotEmpty) {
       final lines = <String>[];
       for (final e in entities) {
@@ -2156,7 +2201,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       sections.add('【人物与实体】\n${lines.join('\n')}');
     }
 
-    // ③ 关键关系
+    // (3) Key relationships
     if (relationships.isNotEmpty) {
       final lines = <String>[];
       for (final r in relationships) {
@@ -2169,7 +2214,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       sections.add('【关系】\n${lines.join('\n')}');
     }
 
-    // ④ 活跃情感
+    // (4) Live emotions
     if (emotions.isNotEmpty) {
       final lines = <String>[];
       for (final emo in emotions) {
@@ -2180,7 +2225,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       sections.add('【当前情感】\n${lines.join('\n')}');
     }
 
-    // 组装 + 预算裁剪：从尾部（低优先级段）开始丢，词条段在①内部已按importance排序
+    // Assemble and trim to budget: drop sections from the tail (lowest priority) first;
+    // the entry section is already sorted by importance within (1).
     final buffer = StringBuffer();
     for (var i = 0; i < sections.length; i++) {
       final section = sections[i];
@@ -2188,11 +2234,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         if (buffer.isNotEmpty) buffer.writeln();
         buffer.write(section);
       } else if (i == 0) {
-        // ①段自身超预算：保留头部（高importance已在最前）
+        // Section (1) alone exceeds the budget: keep its head (highest importance is first)
         buffer.write(section.substring(0, budgetChars));
         break;
       } else {
-        break; // 低优先级段放不下就丢弃
+        break; // Drop lower-priority sections that do not fit
       }
     }
 
@@ -2213,8 +2259,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     switch (section.type) {
       case PromptSectionType.systemPrompt:
-        // A3-T1 优先级修复: 用户手改 > 角色卡 system_prompt > 默认文案。
-        // (旧逻辑: 默认配置预填的通用文案恒非空恒胜出,角色卡 system_prompt 被静默丢弃)
+        // Priority fix: user edit > character card system_prompt > default text.
+        // (The old logic let the prefilled generic default always win because it was
+        // never empty, silently discarding the character card's system_prompt.)
         final String content;
         if (!_isUntouchedSectionContent(section)) {
           content = section.content!;
@@ -2406,8 +2453,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         break;
 
       case PromptSectionType.postHistoryInstructions:
-        // A3-T2 同源修复: 与 systemPrompt 相同的优先级反转缺陷——
-        // 默认越狱文案预填恒胜出,角色卡 post_history_instructions 被静默丢弃。
+        // Same fix as systemPrompt: the prefilled default jailbreak text always won the
+        // priority inversion, silently discarding the character card's
+        // post_history_instructions.
         final String content;
         if (!_isUntouchedSectionContent(section)) {
           content = section.content!;
@@ -2490,7 +2538,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     // Get chat messages up to (but not including) the specified index
     var chatMessages = state.messages.sublist(0, messageIndex);
 
-    // [CHRONICLE Phase 1] 四窗口滑动（重生成/编辑路径与主路径一致）
+    // Four-window sliding split (regenerate/edit path matches the main path)
     // Split result is captured so zone boundary markers can be inserted below.
     WindowedMessages? chronicleWindowed;
     if (chat != null) {
@@ -2509,7 +2557,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           chatMessages = windowed.injectionOrder;
         }
       } catch (_) {
-        // 失败回落旧行为
+        // Fall back to the legacy behavior on failure
       }
     }
 
@@ -2570,7 +2618,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
     }
 
-    // [CHRONICLE Phase 0] F/B/W 显式分桶（与 _buildContext 同规则，保持既有行为）
+    // Explicit F/B/W bucketing (same rules as _buildContext, preserving existing behavior)
     final fSections = <PromptSection>[];
     final bSections = <PromptSection>[];
     final wSections = <PromptSection>[];
@@ -2841,7 +2889,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       });
     }
 
-    // Add image attachments as base64（isolate 中读文件+编码，避免主线程卡顿）
+    // Add image attachments as base64 (file read and encoding run in an isolate to
+    // avoid blocking the main thread)
     for (final attachment in msg.attachments) {
       try {
         if (File(attachment.path).existsSync()) {
@@ -2869,9 +2918,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     return DateTime.now().millisecondsSinceEpoch.toString() +
         (DateTime.now().microsecond % 1000).toString().padLeft(3, '0');
   }
-  /// RAG：把一条消息 embed 后幂等写入本聊天的向量集合。
-  /// document.id 用 messageId → swipe/重生成/编辑同一消息只保留最新一条。
-  /// 整段容错：embedding 失败只跳过，绝不阻断对话。
+  /// Embeds a message and writes it idempotently into this chat's vector collection.
+  /// document.id uses messageId so swipes/regeneration/edits of the same message keep
+  /// only the latest entry. Fully fault-tolerant: an embedding failure is skipped and
+  /// never blocks the conversation.
   Future<void> _indexMessageToVector({
     required String chatId,
     required String messageId,
@@ -2882,12 +2932,12 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       if (text.isEmpty) return;
 
       final vsSettings = _ref.read(vectorStorageSettingsProvider);
-      if (!vsSettings.enabled) return; // 用户没开 RAG 就不做，省算力
+      if (!vsSettings.enabled) return; // Skip when RAG is disabled by the user, saving compute
 
       final vsService = _ref.read(vectorStorageServiceProvider);
-      // 集合应已由 loadChat 建好；保险起见没有就建
+      // loadChat should already have created the collection; create it here as a safety net
       if (vsService.getCollection(chatId) == null) {
-        // [CHRONICLE Phase 0] 维度动态取（本地bge=384），不硬编码512
+        // Dimensions are read dynamically (local bge = 384) instead of hardcoded 512
         vsService.createCollectionWithId(
           id: chatId,
           name: state.chat?.title ?? 'Chat',
@@ -2987,8 +3037,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
   }
 
-  /// 手动全量总结：忽略阈值与现有总结，基于全部消息重新生成一份，覆盖旧总结。
-  /// 返回 null 表示成功，否则返回错误信息。用于自动总结失败/效果差时的保底手刹。
+  /// Manual full summary: ignores the threshold and existing summaries, regenerates one
+  /// from all messages, and replaces the old summaries. Returns null on success or an
+  /// error message otherwise; acts as a fallback when auto-summarization fails or
+  /// produces poor results.
   Future<String?> manualSummarize() async {
     final chat = state.chat;
     if (chat == null) return '当前没有可总结的对话';
@@ -2997,7 +3049,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     final config = _ref.read(llmConfigProvider);
 
-    // 放开输出限制，避免总结被 maxTokens 截断
+    // Raise the output limit so the summary is not truncated by maxTokens
     final summaryConfig = config.copyWith(maxTokens: 16384);
 
     try {
@@ -3009,7 +3061,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
       persona ??= await _personaRepository.getDefaultPersona();
 
-      // 全量：总结全部消息，且不基于旧总结（existingSummaries 传空 = 全新生成）
+      // Full pass: summarize every message without building on old summaries (passing
+      // empty existingSummaries generates from scratch)
       final summary = await _summarizationService.generateSummary(
         messages: state.messages,
         existingSummaries: const [],
@@ -3018,7 +3071,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         userName: persona?.name.isNotEmpty == true ? persona!.name : 'User',
       );
 
-      // 替换（而非追加）：手动总结推倒重来，只保留这一份
+      // Replace rather than append: a manual summary starts over and only this one is kept
       final updatedChat = chat.copyWith(summaries: [summary]);
       await _chatRepository.updateChat(updatedChat);
       state = state.copyWith(chat: updatedChat);
@@ -3061,9 +3114,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     return sortedMessages.length;
   }
 
-  // ============================================
-  // AUTHOR'S NOTE METHODS
-  // ============================================
+  // Author's Note methods
 
   /// Update Author's Note content
   Future<void> updateAuthorNote(String content) async {
@@ -3109,9 +3160,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     state = state.copyWith(chat: updatedChat);
   }
 
-  // ============================================
-  // BOOKMARK / BRANCHING METHODS
-  // ============================================
+  // Bookmark / branching methods
 
   /// Get the message index for a given message ID
   int getMessageIndex(String messageId) {
@@ -3164,9 +3213,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     return state.messages.any((m) => m.id == bookmark.messageId);
   }
 
-  // ============================================
-  // GROUP CHAT METHODS
-  // ============================================
+  // Group chat methods
 
   /// Send a message in group chat and get responses from characters
   Future<void> sendGroupMessage(
@@ -3351,7 +3398,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
-          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          // Validate the token: stop and discard immediately if it expired or the chat
+          // switched, so output can never bleed into another chat
           if (myToken != _generationToken || state.chat?.id != myChatId) {
             return;
           }

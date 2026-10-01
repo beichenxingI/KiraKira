@@ -1,14 +1,15 @@
-/// [P6-3] 斜杠命令与注册表。
-/// 命令回调收到 [SlashArgs],返回值成为管道输出(ST 的 callback(args, value) → pipe)。
+/// Slash commands and the command registry.
+/// Command callbacks receive [SlashArgs]; the return value becomes the pipe
+/// output (ST's callback(args, value) to pipe).
 library;
 
 import 'slash_ast.dart';
 import 'slash_scope.dart';
 
-/// 命令回调签名。返回值:任意对象,runner 会字符串化进管道。
+/// Command callback signature. Return value: any object; the runner stringifies it into the pipe.
 typedef SlashCommandCallback = Future<Object?> Function(SlashArgs args);
 
-/// 命令定义。
+/// Command definition.
 class SlashCommand {
   const SlashCommand({
     required this.name,
@@ -18,22 +19,23 @@ class SlashCommand {
     this.splitUnnamedArgumentCount,
   });
 
-  /// 命令名(不含斜杠)
+  /// Command name (without the slash)
   final String name;
 
-  /// 别名(同样可注册查找)
+  /// Aliases (also registered for lookup)
   final List<String> aliases;
 
   final SlashCommandCallback callback;
 
-  /// 无名参数是否按值列表传给回调(/if /while /times /let /var 为 true)
+  /// Whether unnamed arguments are passed to the callback as a list of values
+  /// (/if /while /times /let /var are true)
   final bool splitUnnamedArgument;
 
-  /// 配合 splitUnnamedArgument:前 N 个各自成值,其余合并成一个
+  /// Used with splitUnnamedArgument: the first N values stand alone, the rest are merged into one
   final int? splitUnnamedArgumentCount;
 }
 
-/// 命令回调的参数包。
+/// Argument bundle passed to command callbacks.
 class SlashArgs {
   SlashArgs({
     required this.scope,
@@ -41,25 +43,25 @@ class SlashArgs {
     this.env,
   });
 
-  /// 命名参数(key → 值;值为 String 或 SlashClosureNode)
+  /// Named arguments (key to value; value is a String or SlashClosureNode)
   final Map<String, Object?> named = {};
 
-  /// 无名参数列表(String | SlashClosureNode)
+  /// Unnamed argument list (String | SlashClosureNode)
   List<Object?> unnamed = [];
 
-  /// 当前作用域
+  /// Current scope
   final SlashScope scope;
 
-  /// 执行上下文(abort/break)
+  /// Execution context (abort/break)
   final SlashExecContext ctx;
 
-  /// 平台服务桥(发送/生成等),由宿主注入;纯逻辑命令可为 null
+  /// Platform service bridge (send/generation etc.), injected by the host; may be null for pure logic commands
   final SlashEnv? env;
 
-  /// 是否有实际无名参数(含注入的 pipe)
+  /// Whether there is an actual unnamed argument (including injected pipe)
   bool hasUnnamedArg = false;
 
-  // ── 便捷取值 ──
+  // Convenience accessors
 
   String? namedString(String name) {
     final v = named[name];
@@ -71,7 +73,7 @@ class SlashArgs {
   String namedStringOr(String name, String fallback) =>
       namedString(name) ?? fallback;
 
-  /// 无名参数转单个字符串(多段按空格连接,闭包取原文)
+  /// Unnamed arguments as a single string (parts joined by spaces, closures use raw text)
   String unnamedAsString() {
     if (unnamed.isEmpty) return '';
     return unnamed.map(_valueToString).join(' ');
@@ -83,14 +85,14 @@ class SlashArgs {
   }
 }
 
-/// 执行上下文:abort 全局传播,break 只断当前闭包/循环体。
+/// Execution context: abort propagates globally, break only stops the current closure/loop body.
 class SlashExecContext {
   SlashExecContext([SlashAbortController? controller])
       : abortController = controller ?? SlashAbortController();
 
   final SlashAbortController abortController;
 
-  /// /break 请求:断掉当前闭包的执行
+  /// /break request: stops execution of the current closure
   bool breakRequested = false;
 }
 
@@ -104,8 +106,8 @@ class SlashAbortController {
   }
 }
 
-/// 平台服务桥:命令需要触达宿主能力时经此注入。
-/// 由 webview_chat_stage 在注册平台命令时构造。
+/// Platform service bridge: injected when a command needs to reach host capabilities.
+/// Constructed by webview_chat_stage when registering platform commands.
 class SlashEnv {
   SlashEnv({
     this.chatId,
@@ -132,29 +134,29 @@ class SlashEnv {
   final void Function(String text)? setInput;
   final void Function(String command)? onUnsupported;
 
-  /// [P6-4] 写单个变量(宿主负责持久化+引擎同步)。
-  /// type: 'global' | 'chat';name 空 = 清空整桶(flushvar 语义)。
+  /// Writes a single variable (the host handles persistence and engine sync).
+  /// type: 'global' | 'chat'; empty name clears the whole bucket (flushvar semantics).
   final Future<void> Function(
           String type, String name, Object? value,
           {String? index, String? asType})?
       onSetVar;
 
-  /// [P6-4] 删变量(name 空 = 清空整桶)。
+  /// Deletes a variable (empty name clears the whole bucket).
   final Future<void> Function(String type, String name)? onDeleteVar;
 
-  /// [P6-4] /genraw 静默生成:发一次请求回文本。
+  /// /genraw silent generation: sends one request and returns the text.
   final Future<String> Function(String prompt)? generateRaw;
 
-  /// [P6-5.1] /buttons 按钮选择弹窗:返回选中项,取消返回 null。
+  /// /buttons selection dialog: returns the selected item, or null on cancel.
   final Future<String?> Function(List<String> labels)? showButtons;
 
-  /// [P6-5.3] 楼层操作:消息数 / 隐藏显示 / swipe 切换
+  /// Message operations: message count / hide & show / swipe switching
   final int Function()? messageCount;
   final Future<void> Function(int index, bool hidden)? setMessageHidden;
   final Future<void> Function(int index, int swipeIndex)? swipeTo;
 }
 
-/// 全局命令注册表。key 全小写,查找不区分大小写。
+/// Global command registry. Keys are lowercase; lookups are case-insensitive.
 class SlashCommandRegistry {
   static final Map<String, SlashCommand> _commands = {};
 

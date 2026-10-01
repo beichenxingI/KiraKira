@@ -3,7 +3,7 @@
 <html>
 <head>
 <script>
-// ── 老 WebView 兼容 polyfill（早于一切业务脚本执行）──
+// Legacy WebView compatibility polyfill (runs before any feature script).
 if (!Object.hasOwn) {
   Object.hasOwn = function(o, p){ return Object.prototype.hasOwnProperty.call(o, p); };
 }
@@ -28,7 +28,7 @@ if (!Array.prototype.at) {
 if (!String.prototype.at) {
   String.prototype.at = function(n){ n = Math.trunc(n) || 0; if (n < 0) n += this.length; return (n < 0 || n >= this.length) ? undefined : this[n]; };
 }
-// [优化] 调试扫描总开关:Dart 侧按 kDebugMode 烘入(debug build=诊断保留,生产=关)
+// Debug scan master switch: baked in from the Dart side per kDebugMode (debug build keeps diagnostics, production disables them).
 window.__kiraDebug = __KIRA_DEBUG__;
 </script>
 <meta charset="UTF-8">
@@ -1100,9 +1100,12 @@ window.__kiraDebug = __KIRA_DEBUG__;
 </div>
 <script>
 __KIRA_CHAT_BRIDGE__
-  // ── [P5-6阶段1.1] 主文档错误转发: onerror/unhandledrejection/console.error → Flutter日志 ──
-  // 之前主文档JS抛错只有WebView devtools可见,Flutter/用户全盲(方案2.3-S3)。
-  // 去重: 每条错误文本首次出现才发送,防道渊5s轮询类重复刷屏。转发函数自身try/catch防死循环。
+  // Main-document error forwarding: onerror/unhandledrejection/console.error -> Flutter log.
+  // Previously main-document JS errors were only visible in WebView devtools; Flutter and
+  // the user were completely blind (design 2.3-S3).
+  // Dedup: each error text is sent only on first appearance, so repeated reports from
+  // 5s polling loops do not flood the log. The forwarder itself is wrapped in try/catch
+  // to prevent an infinite loop.
   (function () {
     var __mainSeenErrs = {};
     function __mainLog(text, level) {
@@ -1142,9 +1145,10 @@ __KIRA_CHAT_BRIDGE__
   })();
   var __allModels = [];
   var __currentModel = '';
-  // ── [P5-6阶段2.1] 共享 method 表: TH方法名 → 桥请求type ──
-  // 中转器(iframe通路A)与主文档最小TavernHelper(通路B直连)同表查法,
-  // 保持"method名 = typeMap key = Dart门面method名"一个约定,三层不漂。
+  // Shared method table: TavernHelper method name -> bridge request type.
+  // The relay (iframe path A) and the minimal main-document TavernHelper (path B direct)
+  // resolve through the same table, preserving the single convention
+  // "method name = typeMap key = Dart facade method name" so the three layers never drift.
   window.__TH_METHOD_TO_BRIDGE = {
     getChatMessages: 'th_getMessages',
     setChatMessage:  'th_setMessage',
@@ -1200,7 +1204,7 @@ __KIRA_CHAT_BRIDGE__
     var listEl = document.getElementById('config-list');
     var nameEl = document.getElementById('config-current-name');
     if(!sw || !listEl || !nameEl) return;
-    // 只有一个方案(或没有)时,不显示方案切换
+    // Hide the preset switcher when there is only one preset (or none).
     if(__configs.length <= 1){ sw.style.display = 'none'; return; }
     sw.style.display = 'block';
     var activeCfg = __configs.filter(function(c){ return c.active; })[0];
@@ -1211,13 +1215,13 @@ __KIRA_CHAT_BRIDGE__
       el.className = 'config-item' + (c.active ? ' active' : '');
       el.textContent = c.name;
       el.onclick = function(){
-        if(c.active){ sw.classList.remove('open'); return; } // 点当前方案只收起
+        if(c.active){ sw.classList.remove('open'); return; } // clicking the current preset only collapses it
         sendToFlutter('switchConfig', { configId: c.id });
         sw.classList.remove('open');
       };
       listEl.appendChild(el);
     });
-    // 点"当前方案"行展开/收起
+    // Click the "current preset" row to expand/collapse.
     var cur = document.getElementById('config-current');
     if(cur){ cur.onclick = function(){ sw.classList.toggle('open'); }; }
   }
@@ -1317,9 +1321,9 @@ __KIRA_CHAT_BRIDGE__
   });
   registerBridgeHandler('closeFunctionPanel', function(){ __closeFuncPanel(); });
 
-  // ── [浮窗化] HTML 组件库 ──────────────────────────────────────────────
-  // 面板内通用 UI 组件工厂,所有设置面板复用。
-  // ES5 风格(兼容老 WebView),var + function 表达式。
+  // HTML component library for dialogs/panels.
+  // Generic in-panel UI component factories, reused by every settings panel.
+  // ES5 style for legacy WebView support: var + function expressions.
 
   function spSection(title) {
     var h = document.createElement('div');
@@ -1381,7 +1385,7 @@ __KIRA_CHAT_BRIDGE__
     s.type = 'range';
     s.className = 'sp-slider';
     s.min = min; s.max = max; s.step = step; s.value = value;
-    // [P0修复] input只更新显示值,不发bridge消息;change(松手)才发送
+    // The input only updates the displayed value and sends no bridge message; change (pointer release) is what sends.
     s.addEventListener('input', function(e) {
       val.textContent = e.target.value + (unit || '');
     });
@@ -1586,7 +1590,7 @@ __KIRA_CHAT_BRIDGE__
     document.body.appendChild(ov);
   }
 
-  // ── [浮窗化] 设置面板管理 ─────────────────────────────────────────────
+  // Settings panel management.
   var __currentPanel = null;
   var __panelData = null;
 
@@ -1641,12 +1645,14 @@ __KIRA_CHAT_BRIDGE__
   });
   registerBridgeHandler('settingsPanelData', function(p) {
     if (!p) return;
-    // [Bug3] 带 targetPanel 的推送仅当该面板正打开时才生效：防跨面板数据污染
-    // （如 TTS 面板开着时收到生图数据推送，会把 __panelData 污染成生图数据，
-    // 面板重渲成空壳）。无 targetPanel 的推送（面板内 action 回推）保持原行为。
+    // Pushes carrying a targetPanel only apply while that panel is open: prevents
+    // cross-panel data contamination (e.g. an image-generation data push arriving while
+    // the TTS panel is open would turn __panelData into image data and re-render the
+    // panel as an empty shell). Pushes without targetPanel (panel-internal action
+    // callbacks) keep their original behavior.
     if (p.targetPanel && p.targetPanel !== __currentPanel) return;
     __panelData = p.data || __panelData;
-    // 异步操作完成后可推送新数据刷新面板
+    // After an async operation completes, push new data to refresh the panel.
     if (p.refresh && __currentPanel) {
       var cEl = document.getElementById('sp-content');
       if (cEl) {
@@ -1654,7 +1660,7 @@ __KIRA_CHAT_BRIDGE__
           cEl.innerHTML = '';
           __renderPanel(cEl, __currentPanel, __panelData);
         } catch (e) {
-          // 与 openSettingsPanel 一致:渲染异常兜底在面板内,不冒到 bridge 层
+          // Same as openSettingsPanel: render exceptions are contained inside the panel and do not propagate to the bridge layer.
           cEl.innerHTML = '';
           cEl.appendChild(spEmpty('面板渲染失败: ' + e));
         }
@@ -1662,7 +1668,7 @@ __KIRA_CHAT_BRIDGE__
     }
   });
 
-  // ── [浮窗化] 正则面板渲染 ─────────────────────────────────────────────
+  // Regex panel rendering.
   var _regexState = {tab: 'global', mode: 'list', editId: null};
   function renderRegexPanel(container, data) {
     container.innerHTML = '';
@@ -1835,7 +1841,7 @@ __KIRA_CHAT_BRIDGE__
     }
   }
 
-  // ── [浮窗化] 面板渲染调度器 ─────────────────────────────────────────
+  // Panel render scheduler.
   function __renderPanel(container, panel, data) {
     switch (panel) {
       case 'regex': renderRegexPanel(container, data); break;
@@ -1856,7 +1862,7 @@ __KIRA_CHAT_BRIDGE__
     }
   }
 
-  // ── [浮窗化] 气泡背景面板 ─────────────────────────────────────────────
+  // Bubble background panel.
   function renderBackgroundPanel(container, data) {
     container.innerHTML = '';
     var d = data || {};
@@ -1988,7 +1994,7 @@ __KIRA_CHAT_BRIDGE__
     return wrap;
   }
 
-  // ── [浮窗化] TTS语音面板 ─────────────────────────────────────────────
+  // TTS voice panel.
   function renderTtsPanel(container, data) {
     container.innerHTML = '';
     var d = data || {};
@@ -2018,7 +2024,7 @@ __KIRA_CHAT_BRIDGE__
     ], d.provider || 'system',
     function(v){ spAction('setProvider',{provider:v}); }));
 
-    // 云端引擎显示 API Key；sherpa 显示模型名 + 导入按钮
+    // Cloud engines show the API key; sherpa shows the model name plus an import button.
     if (['elevenlabs','azure','qwenTts','baiduTts','mimoTts'].indexOf(d.provider) !== -1) {
       card2.appendChild(spInput('tts-api-key', 'API Key',
         d.apiKey || '', 'API 密钥', 'password',
@@ -2078,7 +2084,7 @@ __KIRA_CHAT_BRIDGE__
     }));
   }
 
-  // ── [浮窗化] 变量管理面板 ────────────────────────────────────────────
+  // Variable management panel.
   var _varState = {tab: 'global'};
   function renderVariablesPanel(container, data) {
     container.innerHTML = '';
@@ -2164,7 +2170,7 @@ __KIRA_CHAT_BRIDGE__
     container.appendChild(btnRow);
   }
 
-  // ── [Chronicle融合] Chronicle 超级记忆面板 ──────────────────────────
+  // Chronicle super-memory panel.
   function renderChroniclePanel(container, data) {
     container.innerHTML = '';
 
@@ -2269,14 +2275,14 @@ __KIRA_CHAT_BRIDGE__
       function(v) { spAction('setCustomPromptSuffix', {value: v}); }));
   }
 
-  // ── [Chronicle融合] Wiki 记忆库管理面板（运行监控+记忆管理） ─────────
+  // Wiki memory-bank management panel (runtime monitoring + memory management).
   var _wikiState = {tab: 'entries', filterType: 'all', searchText: ''};
 
   function renderWikiPanel(container, data) {
     container.innerHTML = '';
     var d = data || {};
 
-    // 重新总结失败横幅（下次操作后自动消失）
+    // Re-summarize failure banner (auto-dismisses after the next operation).
     if (d.wikiError) {
       var errBanner = document.createElement('div');
       errBanner.className = 'wiki-error-banner';
@@ -2302,14 +2308,14 @@ __KIRA_CHAT_BRIDGE__
   function _renderWikiEntriesTab(container, d) {
     var stats = d.stats || {};
 
-    // 顶部统计行
+    // Top statistics row.
     var statLine = document.createElement('div');
     statLine.className = 'wiki-stat-line';
     statLine.textContent = '已归档 ' + (stats.archivedMessageCount||0) + ' 条消息 · 词条 ' +
       (stats.entryCount||0) + ' 条 · 实体 ' + (stats.entityCount||0) + ' 个';
     container.appendChild(statLine);
 
-    // 筛选条：类型筛选
+    // Filter bar: type filter.
     var filterRow = document.createElement('div');
     filterRow.className = 'wiki-filter-row';
     filterRow.appendChild(spTabs([
@@ -2326,7 +2332,7 @@ __KIRA_CHAT_BRIDGE__
     var listWrap = document.createElement('div');
     container.appendChild(listWrap);
 
-    // 搜索框：input只重渲染词条列表，不重建输入框（保持焦点）
+    // Search box: input only re-renders the entry list, never rebuilds the input (keeps focus).
     var searchWrap = document.createElement('div');
     searchWrap.className = 'sp-input-wrap';
     var searchInput = document.createElement('input');
@@ -2363,7 +2369,7 @@ __KIRA_CHAT_BRIDGE__
       });
     }
 
-    // 实体子区（折叠，默认收起）
+    // Entity sub-section (collapsible, collapsed by default).
     var entities = d.entities || [];
     container.appendChild(spCollapse('实体（' + entities.length + '个）', function(body) {
       if (entities.length === 0) {
@@ -2409,7 +2415,7 @@ __KIRA_CHAT_BRIDGE__
     edit.className = 'wiki-edit-form';
     edit.style.display = 'none';
 
-    // ── 摘要行 ──
+    // Summary row.
     var head = document.createElement('div');
     head.className = 'wiki-entry-head';
     var colorBox = document.createElement('span');
@@ -2435,7 +2441,7 @@ __KIRA_CHAT_BRIDGE__
     head.appendChild(flags);
     view.appendChild(head);
 
-    // ── 展开详情 ──
+    // Expanded details.
     var body = document.createElement('div');
     body.className = 'wiki-entry-body';
     body.style.display = 'none';
@@ -2464,7 +2470,7 @@ __KIRA_CHAT_BRIDGE__
     meta.textContent = (typeLabels[e.type] || e.type || '') + ' · 第' + (e.turnIndex||0) + '轮 · ' + timeText;
     body.appendChild(meta);
 
-    // 源消息折叠区（只显示id列表）
+    // Source message collapse section (id list only).
     var srcIds = e.sourceMessageIds || [];
     if (srcIds.length > 0) {
       body.appendChild(spCollapse('源消息（' + srcIds.length + '条）', function(sbody) {
@@ -2475,7 +2481,7 @@ __KIRA_CHAT_BRIDGE__
       }, false));
     }
 
-    // 重新总结（单条词条，LLM重总结替换旧词条）
+    // Re-summarize (single entry; the LLM re-summary replaces the old entry).
     var resum = document.createElement('div');
     resum.className = 'wiki-edit-form';
     resum.style.display = 'none';
@@ -2497,7 +2503,7 @@ __KIRA_CHAT_BRIDGE__
       resum.appendChild(rsBtn);
     }
 
-    // 操作按钮
+    // Action buttons.
     var actions = document.createElement('div');
     actions.className = 'wiki-entry-actions';
     actions.appendChild(spButton('编辑', 'secondary', function() {
@@ -2528,7 +2534,7 @@ __KIRA_CHAT_BRIDGE__
       body.style.display = body.style.display === 'none' ? 'block' : 'none';
     });
 
-    // ── 内联编辑表单 ──
+    // Inline edit form.
     var vTitle = e.title || '';
     var vContent = e.content || '';
     var vImp = e.importance || 5;
@@ -2660,8 +2666,9 @@ __KIRA_CHAT_BRIDGE__
     var statusLabels = {pending:'等待', running:'运行中', done:'完成', failed:'失败'};
     var statusColors = {pending:'#8A8A8A', running:'#5B8CFF', done:'#52C41A', failed:'#FF4D4F'};
 
-    // [Chronicle可视化] 五区工作状态卡（置顶；数据经桥异步拉取后填入占位，
-    // 不整面板重渲——用户滚动位置不受影响；过期响应按节点存活丢弃）
+    // Five-zone work-status card (pinned to top; data is fetched asynchronously over the
+    // bridge and written into placeholders -- no full panel re-render, so the user's
+    // scroll position is unaffected; stale responses are dropped if the node is gone).
     var vizCard = document.createElement('div');
     vizCard.className = 'sp-card';
     vizCard.appendChild(spSection('工作状态可视化'));
@@ -2672,7 +2679,7 @@ __KIRA_CHAT_BRIDGE__
     container.appendChild(vizCard);
 
     window.__sendRequest('getChronicleVisualization', {}).then(function(data) {
-      if (!vizBody.parentNode) return; // 面板已关闭/重渲，丢弃过期响应
+      if (!vizBody.parentNode) return; // panel closed / re-rendered; drop the stale response
       vizBody.innerHTML = '';
       if (data && data.error) {
         vizBody.appendChild(spEmpty('加载失败: ' + data.error));
@@ -2685,7 +2692,7 @@ __KIRA_CHAT_BRIDGE__
       vizBody.appendChild(spEmpty('加载失败: ' + ((err && err.message) || err)));
     });
 
-    // 归档进度条
+    // Archive progress bar.
     var archived = stats.archivedMessageCount || 0;
     var total = stats.totalMessageCount || 0;
     var pct = total > 0 ? Math.min(100, Math.round(archived / total * 100)) : 0;
@@ -2705,7 +2712,7 @@ __KIRA_CHAT_BRIDGE__
     progCard.appendChild(barOuter);
     container.appendChild(progCard);
 
-    // 任务队列
+    // Task queue.
     var taskCard = document.createElement('div');
     taskCard.className = 'sp-card';
     taskCard.appendChild(spSection('任务队列'));
@@ -2775,7 +2782,7 @@ __KIRA_CHAT_BRIDGE__
     }
     container.appendChild(taskCard);
 
-    // 立即总结
+    // Summarize now.
     var sumCard = document.createElement('div');
     sumCard.className = 'sp-card';
     sumCard.appendChild(spSection('手动整理'));
@@ -2783,7 +2790,7 @@ __KIRA_CHAT_BRIDGE__
     sumCard.appendChild(spButton('立即整理记忆', 'primary', function() {
       spAction('manualSummarize', {});
     }));
-    // 全量重新总结（破坏性操作，二次确认）
+    // Full re-summarize (destructive; requires confirmation).
     var fullBtn = spButton('重新总结全部历史', 'danger', function() {
       spConfirm('重新总结全部历史',
         '将清除本聊天所有现有词条和归档记录，重新对全部消息进行总结。此操作不可撤销。',
@@ -2799,7 +2806,7 @@ __KIRA_CHAT_BRIDGE__
     }
     container.appendChild(sumCard);
 
-    // Prompt区
+    // Prompt section.
     var promptCard = document.createElement('div');
     promptCard.className = 'sp-card';
     promptCard.appendChild(spSection('提示词'));
@@ -2820,7 +2827,7 @@ __KIRA_CHAT_BRIDGE__
     container.appendChild(promptCard);
   }
 
-  // ── [Chronicle可视化] 五区工作状态渲染（inline SVG，无 emoji） ──────
+  // Five-zone work-status rendering (inline SVG, no emoji).
   var _chronSvgIcons = {
     unsummarized: '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" fill="currentColor"/></svg>',
     hot: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M12 2C9 5 7 8.5 7 12.5a5 5 0 0 0 10 0C17 8.5 15 5 12 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="currentColor" fill-opacity=".2"/><path d="M12 9.5c-1 1.5-2 2.7-2 4a2 2 0 0 0 4 0c0-1.3-1-2.5-2-4z" fill="currentColor"/></svg>',
@@ -2837,7 +2844,7 @@ __KIRA_CHAT_BRIDGE__
 
   function buildChronicleStatusHTML(container, data) {
     var html = '';
-    // 未总结区（最高优先级 + 归档进度条）
+    // Unarchived zone (highest priority + archive progress bar).
     var startF = data.unarchivedStartFloor || 0;
     var endF = data.unarchivedEndFloor || 0;
     var count = data.unarchivedCount || 0;
@@ -2864,7 +2871,7 @@ __KIRA_CHAT_BRIDGE__
       + '<div class="chron-progress-bar"><div class="chron-progress-fill" style="width:' + pct + '%"></div>'
       + '<span class="chron-progress-text">' + pct.toFixed(1) + '%</span></div>'
       + '</div>';
-    // 热/温/冷/只词条分区
+    // Hot/warm/cold/read-only entry zones.
     var zones = data.zones || [];
     zones.forEach(function(z) {
       html += '<div class="chron-zone chron-zone-' + (z.key || 'frozen') + '">'
@@ -2885,7 +2892,7 @@ __KIRA_CHAT_BRIDGE__
         + '</div>'
         + '</div>';
     });
-    // 空状态
+    // Empty state.
     if (zones.length === 0) {
       html += '<div class="chron-empty"><div>暂无归档记忆</div>'
         + '<div class="chron-empty-desc">继续聊天，超级记忆会自动归档</div></div>';
@@ -2893,7 +2900,7 @@ __KIRA_CHAT_BRIDGE__
     container.innerHTML = html;
   }
 
-  // ── [浮窗化] STT 语音识别面板 ────────────────────────────────────────
+  // STT speech-recognition panel.
   function renderSttPanel(container, data) {
     container.innerHTML = '';
     container.appendChild(spSection('基础'));
@@ -2948,7 +2955,7 @@ __KIRA_CHAT_BRIDGE__
     container.appendChild(spDesc('长按输入框（键盘未弹出时）触发语音输入，松开自动识别。'));
   }
 
-  // ── [浮窗化] 导出/导入面板 ───────────────────────────────────────────
+  // Export/import panel.
   function renderExportPanel(container, data) {
     container.innerHTML = '';
     var d = data || {};
@@ -2980,7 +2987,7 @@ __KIRA_CHAT_BRIDGE__
     }));
   }
 
-  // ── [浮窗化] 采样参数面板 ────────────────────────────────────────────
+  // Sampling parameter panel.
   function renderSamplingPanel(container, data) {
     container.innerHTML = '';
     var d = data || {};
@@ -3084,7 +3091,7 @@ __KIRA_CHAT_BRIDGE__
     }));
   }
 
-  // ── [浮窗化] 人设管理面板 ────────────────────────────────────────────
+  // Persona management panel.
   var _personaState = {mode: 'list', editId: null};
   function renderPersonaPanel(container, data) {
     container.innerHTML = '';
@@ -3184,7 +3191,7 @@ __KIRA_CHAT_BRIDGE__
     }
   }
 
-  // ── [浮窗化] 精灵图面板（占位配置） ──────────────────────────────────
+  // Sprite panel (placeholder configuration).
   function renderSpritePanel(container, data) {
     container.innerHTML = '';
     container.appendChild(spDesc('精灵图渲染层正在开发中，配置已保存但暂不在聊天页显示。'));
@@ -3225,7 +3232,7 @@ __KIRA_CHAT_BRIDGE__
     }));
   }
 
-  // ── [浮窗化] 预设&提示词面板 ─────────────────────────────────────────
+  // Preset & prompt panel.
   var _presetState = {tab: 'presets'};
   function renderPresetPanel(container, data) {
     container.innerHTML = '';
@@ -3340,7 +3347,7 @@ __KIRA_CHAT_BRIDGE__
     }
   }
 
-  // ── [浮窗化] 世界书面板（三级导航） ──────────────────────────────────
+  // Worldbook panel (three-level navigation).
   var _worldState = {tab:'global', level:'books', editBookId:null, editEntryId:null};
   function renderWorldInfoPanel(container, data) {
     container.innerHTML = '';
@@ -3586,7 +3593,7 @@ __KIRA_CHAT_BRIDGE__
     }
   }
 
-  // ── [浮窗化] 生图设置面板 ────────────────────────────────────────────
+  // Image generation settings panel.
   function renderImageGenPanel(container, data) {
     container.innerHTML = '';
     var d = data || {};
@@ -3762,31 +3769,36 @@ __KIRA_CHAT_BRIDGE__
 
   function isRichHtml(s) {
     if (!s) return false;
-    // [MD修复2] 文档级证据:以标签开头(<字母/<!)才算HTML卡片;
-    // 旧子串级判定把"正文提到 <script>/<body> 的纯文本"整条塞进iframe(排版全毁)
+    // Document-level evidence: only content starting with a tag (<letter or <!) counts as an HTML card;
+    // the old substring-level check stuffed any plain text mentioning <script>/<body> into an iframe
+    // (layout completely broken).
     var t = String(s).replace(/^\s+/, '');
     return /^<[a-zA-Z!]/.test(t);
   }
 
 function injectBridge(html, id, floorIdx) {
-    // [P3-E2] floorIdx: 该 iframe 所属消息的数字楼层下标(0 起,= floor-1)。
-    // 卡的 getCurrentMessageId() 返回的是本 iframe 的字符串 id(_id),
-    // Mvu facade 的 message_id 解析器需要把字符串 id / 本楼层号映射到快照数组的数字下标。
+    // floorIdx: numeric floor index of the message this iframe belongs to (0-based, = floor - 1).
+    // The card's getCurrentMessageId() returns this iframe's string id (_id);
+    // the Mvu facade's message_id resolver maps that string id / this floor number to the
+    // numeric index of the snapshot array.
     var _thFloorIdx = (typeof floorIdx === 'number' && !isNaN(floorIdx)) ? floorIdx : -1;
     var _libs=(typeof window.__KIRA_LIBS!=="undefined")?window.__KIRA_LIBS:{};
     var _macros=(typeof window.__KIRA_MACRO_VALUES!=="undefined")?window.__KIRA_MACRO_VALUES:{user:"User",char:"Assistant"};
     var _libScript="";
-    // [P3-C/T1] 无条件注入,与引擎房 createEngineRoom 同一套库同一方式(存在即注入,不再 indexOf 猜)
+    // Unconditional injection, same library and method as the engine room's createEngineRoom
+    // (inject if present; no more indexOf guessing).
     try{
       if(_libs.jquery){_libScript+="<script>"+decodeB64Utf8(_libs.jquery)+"<\/script>";}
       if(_libs.lodash){_libScript+="<script>"+decodeB64Utf8(_libs.lodash)+"<\/script>";}
       if(_libs.toastrCss){_libScript+="<style>"+decodeB64Utf8(_libs.toastrCss)+"<\/style>";}
       if(_libs.toastrJs){_libScript+="<script>"+decodeB64Utf8(_libs.toastrJs)+"<\/script>";}
-      // [P3-C/T2] yaml v2 IIFE(挂全局 YAML),MVU parseString 与 EJS 模板都引用裸 YAML 全局
+      // yaml v2 IIFE (attaches the global YAML); both MVU parseString and EJS templates reference the bare YAML global.
       if(_libs.yaml){_libScript+="<script>"+decodeB64Utf8(_libs.yaml)+"<\/script>";}
     }catch(e){parent.postMessage({__thLog:true,text:"[兼容库] 内联失败: "+e},"*");}
-  // [P3-B/T1] card iframe 三重错误捕手：必须早于卡自身任何脚本（patch 经 replace(/<head>/) 插在 <head> 后，
-  // 卡脚本在 body）。错误统一经 parent.postMessage __thLog 上报，tag [WV-10] CARD-ERR，id 用 JSON.stringify 安全内插。
+  // Card iframe triple error catcher: must run before any of the card's own scripts (the patch is
+  // inserted after <head> via replace(/<head>/), while card scripts live in body).
+  // Errors are reported uniformly through parent.postMessage __thLog, tagged [WV-10] CARD-ERR,
+  // with the id interpolated via JSON.stringify for safe escaping.
   var _guardErr = '<script>(function(){' +
       'var _ciderr=' + JSON.stringify(id) + ';' +
       'function _wv10e(s){try{parent.postMessage({__thLog:true,text:"[WV-10] CARD-ERR id="+_ciderr+" "+String(s).substring(0,300)},"*");}catch(_){}}' +
@@ -3797,10 +3809,13 @@ function injectBridge(html, id, floorIdx) {
       '_wv10e(Array.prototype.slice.call(arguments).map(function(x){return (typeof x==="object")?"[obj]":String(x);}).join(" "));' +
       'if(_ce0){_ce0.apply(_c0,arguments);}};' +
       '})();<\/script>';
-  // [P3-B/T2] 缺失全局探测：只检测不修复，一条日志看清卡缺什么。整段 try，探针本身绝不许抛错。
-  // [P3-C/T4] 探针加自增序号+时间戳:seq 记在主文档 window(随每次 injectBridge 调用+1,
-  // iframe 重建必重走 injectBridge → 同 id 多条日志即多次重建的直接证据);
-  // 另加 3s 后二次探测 CARD-ENV2,捕获异步加载后的最终态(首探对异步库必误判 N)。
+  // Missing-global probe: detect only, never fix -- one log line shows exactly what the card lacks.
+  // Entire block is wrapped in try; the probe itself must never throw.
+  // Probe carries a self-incrementing seq + timestamp: seq lives on the main-document window
+  // (incremented on every injectBridge call; an iframe rebuild always re-runs injectBridge, so
+  // multiple logs with the same id are direct evidence of repeated rebuilds).
+  // A second probe runs after 3s (CARD-ENV2) to capture the final state after async loading
+  // (the first probe always misreports N for async libraries).
   var _envFields='" $="+_t(window.$)+" _="+_t(window._)+" toastr="+_t(window.toastr)+" z="+_t(window.z)+" YAML="+_t(window.YAML)+" Mvu="+_t(window.Mvu)+" eventOn="+_t(window.eventOn)+" registerVariableSchema="+_t(window.registerVariableSchema)';
   window.__cardEnvSeq=(window.__cardEnvSeq||0)+1;
   var _envSeq=window.__cardEnvSeq;
@@ -3812,8 +3827,9 @@ function injectBridge(html, id, floorIdx) {
       'parent.postMessage({__thLog:true,text:"[WV-10] CARD-ENV2 seq=' + _envSeq + ' t="+Date.now()+" id="+_cidenv+' + _envFields + '},"*");' +
       '}catch(_){}},3000);' +
       '}catch(_){} })();<\/script>';
-  // [P3-B/T3] 空 body 兜底：iframe 加载完成后短延时，若 body 无可渲染内容(无元素子节点/无可见文本/无高度)，
-  // 上报 [WV-10] CARD-BLANK 并在 iframe 内显示一行可见提示，宁要一行丑字也不要一片透明。
+  // Empty-body fallback: short delay after iframe load; if the body has no renderable content
+  // (no element children / no visible text / no height), report [WV-10] CARD-BLANK and show one
+  // visible line inside the iframe -- one ugly line beats a fully transparent card.
   var _guardBlank = '<script>(function(){' +
       'var _cidb=' + JSON.stringify(id) + ';' +
       'function _chkBlank(){try{' +
@@ -3831,14 +3847,17 @@ function injectBridge(html, id, floorIdx) {
       'function _arm(){setTimeout(_chkBlank,1500);}' +
       'if(document.readyState==="complete"){_arm();}else{window.addEventListener("load",_arm);}' +
       '})();<\/script>';
-  // [Bug4] 裸XML片段判定(无文档结构):仅这类片段注入 pre-wrap 保留换行(治以
-  // <logic_check> 等标签开头的消息走 iframe 通道时裸\n被折叠);
-  // 完整HTML卡片(自带 <style>/DOCTYPE,源码含缩进换行)不加 —— pre-wrap 会把
-  // 源码缩进换行渲染出来,炸掉卡片排版。卡片自带样式在 <head> 之后按级联覆盖。
+  // Bare XML fragment detection (no document structure): only these fragments get injected with
+  // pre-wrap so newlines survive (fixes messages starting with tags such as <logic_check>
+  // being routed through the iframe channel and having raw \n collapsed).
+  // Full HTML cards (with their own <style>/DOCTYPE, source contains indented newlines) are
+  // excluded -- pre-wrap would render the source indentation and destroy the card layout.
+  // Card-provided styles are applied after <head> and override by cascade order.
   var _bareFrag = !(/<!DOCTYPE|<html[\s>]|<style/i.test(html));
   var patch = _guardErr + _libScript + _guardEnv + '<style>' +
-      // [MD修复] 默认前景色:半成品HTML文档(无自带样式)不再黑字透明不可读;
-      // 卡片自带样式在 <head> 之后,同特异性下按级联顺序覆盖此默认值
+      // Default foreground color: half-finished HTML documents (no styles of their own) are no
+      // longer unreadable black-on-transparent text;
+      // card-provided styles sit after <head> and override this default at equal specificity by cascade order.
       'html,body{overflow:visible !important;color:#E0E0E0;' + (_bareFrag ? 'white-space:pre-wrap;' : '') + '}' +
       '</style>' +
       '<script>(function(){' +
@@ -3897,8 +3916,8 @@ function injectBridge(html, id, floorIdx) {
       '},configurable:true,writable:true});' +
       '}' +
       '})();' +
-      // [诊断] bridge 注入成功标志:进入任何 iframe 时 Flutter 日志必现 [BRIDGE-INIT]。
-      // 缺失 = injectBridge 未跑到(patch 未注入 / 卡片无 data-html / frame 未创建)。
+      // Diagnostic flag: on entering any iframe, the Flutter log must show [BRIDGE-INIT].
+      // Missing = injectBridge never ran (patch not injected / card has no data-html / frame never created).
       'try{parent.postMessage({__thLog:true,text:"[BRIDGE-INIT] polyfills installed, readyState="+document.readyState},"*");}catch(_di){}' +
       '(function(){' +
       'var _log=function(level){return function(){' +
@@ -3931,10 +3950,10 @@ function injectBridge(html, id, floorIdx) {
       'var p=__thPending[d.rid];if(!p)return;delete __thPending[d.rid];' +
       'if(d.ok)p.resolve(d.result);else p.reject(new Error(d.error||"th failed"));' +
       '});' +
-      // ⚠️ 死代码：以下 _TH.getXxxLorebook 等注入已迁移到 tavern_helper_facade.dart，
-      //    引擎房实际加载的是那份（见 _injectEngineFacade / buildTavernHelperFacadeJs）。
-      //    这里保留未删，改动无效，勿在此处修改世界书 API。待清理。
-      // 第一梯队 API：裸挂 window + TavernHelper 命名空间（规格要求两者都可用）
+      // Dead code: the _TH.getXxxLorebook injections below have moved to tavern_helper_facade.dart,
+      //    which is what the engine room actually loads (see _injectEngineFacade / buildTavernHelperFacadeJs).
+      //    Kept here but inert -- do not modify the worldbook API in this block. Pending cleanup.
+      // First-tier API: attached bare to window and to the TavernHelper namespace (the spec requires both).
       'var _TH={};' +
       '_TH.getChatMessages=function(range,option){return __thCall("getChatMessages",[range,option||{}]);};' +
       '_TH.setChatMessage=function(content,index,option){return __thCall("setChatMessage",[content,index,option||{}]);};' +
@@ -3943,7 +3962,7 @@ function injectBridge(html, id, floorIdx) {
       '_TH.deleteChatMessages=function(ids,option){return __thCall("deleteChatMessages",[ids,option||{}]);};' +
       '_TH.triggerSlash=function(cmd){return __thCall("triggerSlash",[cmd]);};' +
       '_TH.setInput=function(t){return __thCall("setInput",[t]);};' +
-      // [P6-5.1] 卡片门面同享 toastr/弹窗桥(与引擎房门面同形)
+      // Card facade shares the toastr/dialog bridge (same shape as the engine-room facade).
       '_TH.toastr={' +
       'info:function(m,t){return __thCall("th_toast",["info",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},' +
       'success:function(m,t){return __thCall("th_toast",["success",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},' +
@@ -3957,17 +3976,19 @@ function injectBridge(html, id, floorIdx) {
       '};' +
       '_TH.ask=function(text){return _TH.callGenericPopup(text,2,"").then(function(r){return r===1;}).catch(function(){return false;});};' +
       '_TH.callPopup=_TH.ask;' +
-      // [P3-C/T3] __lastMsgId 用 injectBridge 第二参(该 iframe 所属消息的真实 id,见 setMessages 建 frame 处 m.id),不再恒 0
+      // __lastMsgId uses injectBridge's second argument (the real id of the message this iframe
+      // belongs to; see m.id where setMessages creates the frame) instead of always 0.
       '_TH.__lastMsgId=' + JSON.stringify(id) + ';' +
       '_TH.getCurrentMessageId=function(){return _TH.__lastMsgId;};' +
       '_TH.getIframeName=function(){return _TH.__lastMsgId;};' +
       'window.getIframeName=_TH.getIframeName;' +
-      // [P3-E3] getVariables/getAllVariables 改走本地同步快照(在下方 __thVars 段重定义),
-      // 此处先移除原 __thCall 异步版, 防卡同步读拿到 Promise。
+      // getVariables/getAllVariables switch to the local synchronous snapshot (redefined in the
+      // __thVars section below);
+      // the original async __thCall version is removed here so a synchronous card read never receives a Promise.
       '_TH.setVariables=function(vars,option){return __thCall("setVariables",[vars,option||{}]);};' +
       '_TH.replaceVariables=function(vars,option){return __thCall("replaceVariables",[vars,option||{}]);};' +
       '_TH.getTavernHelperVersion=function(){return "4.9.1";};' +
-      // ── MVU 启动依赖:关卡三(唯一脚本)/关卡七(generate空桩) ──
+      // MVU startup dependencies: gate 3 (single script) / gate 7 (generate stub).
       '_TH.getScriptId=function(){return "kirakira-mvu-0";};' +
       'window.getScriptId=_TH.getScriptId;' +
       '_TH.registerAsUniqueScript=function(id){' +
@@ -3979,9 +4000,9 @@ function injectBridge(html, id, floorIdx) {
       'window.generate=_TH.generate;' +
       '_TH.generateRaw=function(cfg){return Promise.resolve("");};' +
       'window.generateRaw=_TH.generateRaw;' +
-      // 把外层的真实角色名/用户名烤进 iframe(照 __KIRA_LIBS 套路)
+      // Bake the real outer character name / user name into the iframe (same approach as __KIRA_LIBS).
       'window.__KIRA_MACRO_VALUES=' + JSON.stringify(_macros) + ';' +
-      // substitudeMacros：同步宏替换，读 Dart 预注入的 __KIRA_MACRO_VALUES
+      // substitudeMacros: synchronous macro substitution, reads __KIRA_MACRO_VALUES pre-injected by Dart.
       '_TH.substitudeMacros=function(t){' +
       'if(typeof t!=="string")return t;' +
       'var v=window.__KIRA_MACRO_VALUES||{user:"User",char:"Assistant"};' +
@@ -4010,7 +4031,7 @@ function injectBridge(html, id, floorIdx) {
       'window.getCharacterLorebooks=_TH.getCharacterLorebooks;' +
       'window.getLorebooks=_TH.getLorebooks;' +
       'window.setLorebookEntries=_TH.setLorebookEntries;' +
-      // ── 事件总线（iframe 本地实现） ──────────────────
+      // Event bus (iframe-local implementation).
       '_TH.__events={};' +
       '_TH.__eventOn=function(type,listener){(_TH.__events[type]=_TH.__events[type]||[]).push(listener);return {stop:function(){_TH.__eventRemove(type,listener);}};};' +
       '_TH.eventOn=function(type,listener){return _TH.__eventOn(type,listener);};' +
@@ -4022,17 +4043,21 @@ function injectBridge(html, id, floorIdx) {
       '_TH.eventClearAll=function(){_TH.__events={};};' +
       '_TH.eventEmit=function(type){var args=Array.prototype.slice.call(arguments,1);var l=(_TH.__events[type]||[]).slice();for(var i=0;i<l.length;i++){try{l[i].apply(null,args);}catch(e){console.error("[事件]"+type,e);}}};' +
       '_TH.eventEmitAndWait=function(type){var args=Array.prototype.slice.call(arguments,1);var l=(_TH.__events[type]||[]).slice();var results=[];for(var i=0;i<l.length;i++){try{results.push(l[i].apply(null,args));}catch(e){console.error("[事件]"+type,e);}}return Promise.all(results);};' +
-      // tavern_events 常量表
+      // tavern_events constant table.
       'window.tavern_events={' +
       'MESSAGE_RECEIVED:"message_received",MESSAGE_UPDATED:"message_updated",MESSAGE_SWIPED:"message_swiped",MESSAGE_DELETED:"message_deleted",MORE_MESSAGES_LOADED:"more_messages_loaded",CHAT_CHANGED:"chat_changed",CHARACTER_MESSAGE_RENDERED:"character_message_rendered",USER_MESSAGE_RENDERED:"user_message_rendered",GENERATION_AFTER_COMMANDS:"generation_after_commands",GENERATION_STARTED:"generation_started",GENERATION_STOPPED:"generation_stopped",GENERATION_ENDED:"generation_ended",STREAM_TOKEN_RECEIVED:"stream_token_received",CONNECTED:"connected",DISCONNECTED:"disconnected",EXTENSION_SETTINGS_LOADED:"extension_settings_loaded",CHARACTER_SELECTED:"character_selected",CHARACTER_DELETED:"character_deleted",CHARACTER_RENAMED:"character_renamed",CHARACTER_CREATED:"character_created",CHAT_DELETED:"chat_deleted",GROUP_UPDATED:"group_updated",PRESET_RENAMED_BEFORE:"preset_renamed_before",MAIN_API_CHANGED:"main_api_changed",WORLDINFO_ENTRIES_LOADED:"worldinfo_entries_loaded",WORLDINFO_SCAN_DONE:"worldinfo_scan_done"' +
       '};' +
       'window.iframe_events={GENERATION_STARTED:"iframe_generation_started",GENERATION_ENDED:"iframe_generation_ended",STREAM_TOKEN_RECEIVED_FULLY:"iframe_stream_token_received_fully",STREAM_TOKEN_RECEIVED_INCREMENTALLY:"iframe_stream_token_received_incrementally"};' +
-      // ── [P3-D/T2] 酒馆助手官方 errorCatched / waitGlobalInitialized ──
-      // errorCatched(util.d.ts): 包装任意函数, 返回同功能函数, 报错走 toastr 通知。
-      // 修正了诊断报告 §7 桩的两个错误: 同步 try/catch 抓不到 async fn 的 rejection
-      // (init 正是 async) → thenable 路径单独挂 rejection 处理; 是否重抛官方未规定,
-      // 本轮选不重抛(避免异常冒到 jQuery ready 队列), 做显式开关 _EC_RETHROW 可一行翻转。
-      // 弹窗与 console.error 都要: console.error 会被转发链变成 CARD-ERR 可见性日志。
+      // Official Tavern Helper errorCatched / waitGlobalInitialized.
+      // errorCatched(util.d.ts): wraps any function and returns a function with the same
+      // behavior; errors are reported through a toastr notification.
+      // Fixes two bugs in the diagnostic report's section-7 stub: a synchronous try/catch
+      // cannot catch an async function's rejection (init is async) -> the thenable path
+      // attaches its own rejection handler; whether to rethrow is unspecified officially,
+      // and this round chooses not to rethrow (keeps exceptions out of the jQuery ready
+      // queue), with the explicit _EC_RETHROW switch to flip it in one line.
+      // Both the dialog and console.error are required: console.error is turned by the
+      // forwarding chain into a visible CARD-ERR log.
       'var _EC_RETHROW=false;' +
       'function _ecReport(e){' +
       'try{if(window.toastr&&toastr.error)toastr.error(String((e&&e.message)||e),"脚本错误");}catch(_e1){}' +
@@ -4055,12 +4080,14 @@ function injectBridge(html, id, floorIdx) {
       '}' +
       '};' +
       '};' +
-      // waitGlobalInitialized(global.d.ts): 等到该全局初始化完毕并返回它。
-      // 修正诊断报告 §7 桩的错误: 立即 resolve(undefined) 会让 init() 第二行
-      // await waitGlobalInitialized("Mvu") 拿到 undefined → Mvu.events TypeError。
-      // 正确语义: 已存在→立即 resolve; 不存在→100ms 轮询, 永不 reject/永不超时
-      // (P3-E 注入 Mvu 后仍在等待的 init 自然继续)。等超 10 秒打一条日志(只一次),
-      // 含 global 名与消息 id 便于诊断; interval 随 iframe 销毁终止(有界泄漏)。
+      // waitGlobalInitialized(global.d.ts): wait until that global is initialized and return it.
+      // Fixes the diagnostic report's section-7 stub bug: resolving immediately with undefined
+      // made init()'s second line, await waitGlobalInitialized("Mvu"), receive undefined ->
+      // Mvu.events TypeError.
+      // Correct semantics: already present -> resolve immediately; absent -> poll every 100ms,
+      // never reject and never time out (an init still waiting for Mvu injection simply
+      // simply continues). After 10s, log once with the global name and message id for
+      // diagnosis; the interval stops when the iframe is destroyed (bounded leak).
       '_TH.waitGlobalInitialized=function(name){' +
       'if(typeof window[name]!=="undefined")return Promise.resolve(window[name]);' +
       'return new Promise(function(resolve){' +
@@ -4072,15 +4099,20 @@ function injectBridge(html, id, floorIdx) {
       '},100);' +
       '});' +
       '};' +
-      // ── [P3-E3] card 本地变量快照 store(主文档 __syncVarsToCard 广播的信封 __thVars) ──
+      // Card-local variable snapshot store (the __thVars envelope broadcast by the main
+      // document's __syncVarsToCard).
       // __thVars: {message: {floorIdx: MvuData}, chat: {}, global: {}, lastMsgId, swipes: {floorIdx: sid}}
-      // 收到即存; window.Mvu 的定义被门控到"首份含 stat_data 的 message 级 MvuData 到达"(防假空数据)。
+      // Stored on arrival; the window.Mvu definition is gated on "the first message-level
+      // MvuData carrying stat_data arrives" (guards against false empty data).
       '__TH_MSG_ID=' + JSON.stringify(id) + ';' +
       '__TH_FLOOR_IDX=' + JSON.stringify(_thFloorIdx) + ';' +
-      // [P3-E2] Mvu facade(对象,函数不能跨 iframe 传,卡侧自建同名 facade)。
-      // events 常量照 exported.mvu.d.ts / 上游源码硬编码, 'mag_variable_initiailized'
-      // 的拼写错误是官方自带, 不许"修正"。先放 __TH_MVU_FACADE 暂存,
-      // 快照门控通过后 __thArmMvu 才把它挂成 window.Mvu(for-in 挂窗不会提前定义它)。
+      // Mvu facade (an object; functions cannot cross iframes, so the card builds its own
+      // same-named facade locally).
+      // Event constants are hard-coded from exported.mvu.d.ts / upstream source; the
+      // 'mag_variable_initiailized' typo is official and must not be "fixed". Held in
+      // __TH_MVU_FACADE first;
+      // only after the snapshot gate passes does __thArmMvu attach it as window.Mvu
+      // (attaching via for-in would define it prematurely).
       'window.__TH_MVU_FACADE={' +
       'events:{VARIABLE_INITIALIZED:"mag_variable_initiailized",VARIABLE_UPDATE_STARTED:"mag_variable_update_started",COMMAND_PARSED:"mag_command_parsed",VARIABLE_UPDATE_ENDED:"mag_variable_update_ended",BEFORE_MESSAGE_UPDATE:"mag_before_message_update"},' +
       'getMvuData:function(option){return __TH_GET_MVU_DATA(option);},' +
@@ -4117,18 +4149,22 @@ function injectBridge(html, id, floorIdx) {
       'if(typeof d.lastMsgId==="number"&&d.lastMsgId>window.__thVars.lastMsgId){window.__thVars.lastMsgId=d.lastMsgId;}' +
       '}catch(err){parent.postMessage({__thLog:true,text:"[Mvu] card 快照处理失败: "+err},"*");}' +
       '});' +
-      // [P3-E3] 主文档转发的 MVU 事件(__mvuEvent 中��成 __thEvent)→ card 本地总线重放。
-      // 卡 eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, ...) 注册进 _TH.__events, 在此被点火。
+      // MVU events forwarded by the main document (converted to __thEvent) are replayed
+      // onto the card-local bus.
+      // A card's eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, ...) registers into _TH.__events
+      // and is fired here.
       'window.addEventListener("message",function(e){' +
       'var d=e.data;if(!d||!d.__thEvent)return;' +
       'try{_TH.eventEmit.apply(_TH,[d.type].concat(d.args||[]));' +
       'parent.postMessage({__thLog:true,text:"[Mvu] card("+_id+") 事件点火 "+d.type+" 监听数="+((_TH.__events[d.type]||[]).length)},"*");}catch(err){' +
       'parent.postMessage({__thLog:true,text:"[Mvu] card 事件点火失败 "+d.type+": "+err},"*");}' +
       '});' +
-      // [P3-E3] patch 执行即向主文档索要已到快照(iframe 重建/懒加载恢复补发)
+      // As soon as the patch runs it requests the snapshot already received from the main
+      // document (replayed after iframe rebuild / lazy-load recovery).
       'try{parent.postMessage({__thVars:true,__thRequestSnap:true},"*");}catch(_snapE){}' +
-      // VariableOption 照 function/variables.d.ts: number | 'latest' | 负深度索引;
-      // 扩展: 本 iframe 的字符串 id(卡的 getCurrentMessageId 返回 _id)→ 本楼层下标
+      // VariableOption per function/variables.d.ts: number | 'latest' | negative depth index;
+      // extension: this iframe's string id (the card's getCurrentMessageId returns _id)
+      // -> this floor's index.
       '__TH_RESOLVE_MID=function(option){' +
       'var mid=(option&&option.message_id!==undefined)?option.message_id:"latest";' +
       'if(typeof mid==="string"){' +
@@ -4160,7 +4196,8 @@ function injectBridge(html, id, floorIdx) {
       '__TH_REPLACE_MVU_DATA=function(mvu_data,option){' +
       'option=option||{};' +
       'var t=option.type||"chat";' +
-      // 乐观更新本地快照(卡写完立刻读必须读到新值), stat_data 在场则顺带过挂载门控
+      // Optimistically update the local snapshot (a read immediately after the card writes must
+      // see the new value); when stat_data is present, also satisfy the mount gate.
       'if(t==="message"){' +
       'var fi=__TH_RESOLVE_MID(option);' +
       'if(typeof fi==="number"&&fi>=0){window.__thVars.message[fi]=mvu_data||{};' +
@@ -4168,10 +4205,12 @@ function injectBridge(html, id, floorIdx) {
       '}else{window.__thVars[t]=mvu_data||{};}' +
       'return __thCall("setVariables",[mvu_data||{},option]);' +
       '};' +
-      // ── [P3-E3] getAllVariables/getVariables 同步化: 读本地快照(全局→chat→楼层 叠加)。
-      // 卡 populateCharacterData 同步读 getAllVariables();原 __thCall 异步版返回 Promise
-      // 导致 _.get(Promise,"stat_data") 为空 → 状态栏无数字。message 楼层: 本楼层优先,
-      // 否则取 ≤ 本楼层的最近有效 MvuData(MVU getLastValidVariable 语义)。
+      // getAllVariables/getVariables made synchronous: read the local snapshot (global -> chat -> floor overlay).
+      // The card's populateCharacterData reads getAllVariables() synchronously; the original
+      // async __thCall version returned a Promise, which made _.get(Promise,"stat_data")
+      // empty -> no numbers in the status bar. message floor: this floor takes priority,
+      // otherwise take the most recent valid MvuData at or below this floor (MVU
+      // getLastValidVariable semantics).
       'function __thBuildAllVars(){' +
       'var out={};' +
       'function _deep(dst,src){for(var k in (src||{})){if(!Object.prototype.hasOwnProperty.call(src,k))continue;' +
@@ -4179,8 +4218,10 @@ function injectBridge(html, id, floorIdx) {
       '_deep(out,window.__thVars.global);_deep(out,window.__thVars.chat);' +
       'var fi=(__TH_FLOOR_IDX>=0)?__TH_FLOOR_IDX:window.__thVars.lastMsgId;' +
       'for(var i=fi;i>=0;i--){if(window.__thVars.message[i]&&window.__thVars.message[i].stat_data!==undefined){_deep(out,window.__thVars.message[i]);break;}}' +
-      // [G2] 空快照可见化: 三层全空时打一条节流日志(只首次), 快照到达后重置。
-      // 行为不变(仍返空对象, 不打断卡的 _.get 链), 只是把"静默返空"变成可观察。
+      // Empty-snapshot visibility: when all three layers are empty, emit one throttled log
+      // (first occurrence only), reset once a snapshot arrives.
+      // Behavior is unchanged (still returns an empty object and never breaks the card's _.get
+      // chain); it only makes "silently return empty" observable.
       'var _empty=!window.__thSnapArrived&&out.stat_data===undefined&&Object.keys(out).length===0;' +
       'if(_empty&&!window.__thEmptyAllVarsLogged){window.__thEmptyAllVarsLogged=true;' +
       'parent.postMessage({__thLog:true,text:"[Mvu] getAllVariables 快照未就绪, 返回空 (id="+_id+", floor="+__TH_FLOOR_IDX+")"},"*");}' +
@@ -4193,7 +4234,7 @@ function injectBridge(html, id, floorIdx) {
       'if(t==="message"){var fi=__TH_RESOLVE_MID(option);return (typeof fi==="number"&&fi>=0)?(window.__thVars.message[fi]||{}):{};}' +
       'return window.__thVars[t]||{};' +
       '};' +
-      // 全部裸挂到 window
+      // All attached bare to window.
       'for(var _k in _TH){if(_TH.hasOwnProperty(_k)){window[_k]=_TH[_k];}}' +
       'window.TavernHelper=_TH;' +
       '(function(){try{' +
@@ -4203,9 +4244,9 @@ function injectBridge(html, id, floorIdx) {
       'return Promise.resolve();};}' +
       'if(!navigator.clipboard.readText){navigator.clipboard.readText=function(){return Promise.resolve("");};}' +
       '}catch(e){parent.postMessage({__thLog:true,text:"[polyfill] clipboard 失败: "+e},"*");}})();' +
-      // ── SillyTavern.getContext() 骨架 ──────────────────
+      // SillyTavern.getContext() skeleton.
       'var _ctx={' +
-      // 已实现能力：接真实事件总线
+      // Implemented: wired to the real event bus.
       'eventSource:{' +
       'on:function(t,l){return _TH.eventOn(t,l);},' +
       'once:function(t,l){return _TH.eventOnce(t,l);},' +
@@ -4215,10 +4256,10 @@ function injectBridge(html, id, floorIdx) {
       'makeFirst:function(t,l){return _TH.eventMakeFirst(t,l);}' +
       '},' +
       'eventTypes:window.tavern_events,' +
-      // 已实现能力：变量、消息读写走 _TH
+      // Implemented: variable and message reads/writes go through _TH.
       'getChatMessages:function(r,o){return _TH.getChatMessages(r,o);},' +
       'setChatMessage:function(c,i,o){return _TH.setChatMessage(c,i,o);},' +
-      // 安全占位：未实现字段给空默认值，读取不崩
+      // Safe placeholder: unimplemented fields return empty defaults so reads never crash.
       'chat:[],' +
       'characters:[],' +
       'characterId:0,' +
@@ -4228,13 +4269,13 @@ function injectBridge(html, id, floorIdx) {
       'extensionSettings:{},' +
       'name1:"You",' +
       'name2:((window.__KIRA_MACRO_VALUES&&window.__KIRA_MACRO_VALUES.char)||""),' +
-      // 安全占位：常被调用的方法给 noop，避免 undefined 调用崩溃
+      // Safe placeholder: commonly called methods are no-ops to avoid undefined-call crashes.
       'saveChat:function(){return Promise.resolve();},' +
       'saveMetadata:function(){return Promise.resolve();},' +
       'reloadCurrentChat:function(){return Promise.resolve();},' +
       'getRequestHeaders:function(){return {"Content-Type":"application/json"};},' +
       'renderExtensionTemplateAsync:function(){return Promise.resolve("");},' +
-      // [P6-5.1] 弹窗 API(与引擎房 getContext 同形)
+      // Dialog API (same shape as the engine-room getContext).
       'POPUP_TYPE:_TH.POPUP_TYPE,' +
       'POPUP_RESULT:_TH.POPUP_RESULT,' +
       'callGenericPopup:function(c,t,i,o){return _TH.callGenericPopup(c,t,i,o);},' +
@@ -4244,21 +4285,23 @@ function injectBridge(html, id, floorIdx) {
       'try{Object.defineProperty(window.SillyTavern,"chat",{configurable:true,get:function(){return window.__chatMessages||[];}});}catch(e){window.SillyTavern.chat=window.__chatMessages||[];}' +
       'window.getContext=function(){return _ctx;};' +
       '})();<\/script>' + _guardBlank +
-      // [诊断] 卡片诊断入口:不依赖任何事件,解析即执行;console.error 被上方 console
-      // 捕获转发为 [卡片:error] → Flutter 必现 [CARD-DIAG]。patch 注入 <head> 时
-      // 这段在 head 尾、无 head 时在 </body> 前 —— 同样解析即执行,诊断等价。
+      // Card diagnostic entry point: depends on no events, runs as soon as it parses; console.error
+      // is captured and forwarded above as [卡片:error] -> Flutter must show [CARD-DIAG]. When the
+      // patch injects into <head>, this block sits at the end of head, or before </body> when there
+      // is no head -- it runs on parse either way, so diagnostics are equivalent.
       '<script>try{console.error("[CARD-DIAG] script executed, readyState="+document.readyState);' +
       'try{localStorage.getItem("__test");console.error("[CARD-DIAG] localStorage OK");}' +
       'catch(e){console.error("[CARD-DIAG] localStorage FAIL: "+(e&&e.message||e));}' +
       '}catch(e2){}<\/script>';
-    // [P3-D/T3] 替换串一律用函数形式: 字符串第二参会把卡里的 $&/$'/$`/$1-9 当替换引用吞掉/展开。
+    // Replacement strings always use the function form: a string second argument would treat
+    // $&/$'/$`/$1-9 inside the card as replacement references and expand or swallow them.
     if (/<head>/i.test(html)) return html.replace(/<head>/i, function(){ return '<head>' + patch; });
     if (/<html/i.test(html)) return html.replace(/<html[^>]*>/, function(m){ return m + patch; });
     if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, function(){ return patch + '</body>'; });
     return html + patch;
   }
 
-  // [WV-4/5] 探针基线:全局计数、活跃 interval 计数、顶层错误捕获(只观测,不改行为)
+  // Probe baseline: global counters, live interval count, top-level error capture (observe only, no behavior change).
   window.__wvBaseGlobals = Object.keys(window).length;
   window.__wvActiveIntervals = 0;
   (function(){
@@ -4279,7 +4322,7 @@ function injectBridge(html, id, floorIdx) {
     if (d && d.__thLog) {
       sendToFlutter('log', { text: d.text });
     }
-    // [P3-E3] card 索要快照应答(仅回给来源 iframe)
+    // Card snapshot request response (sent only back to the requesting iframe).
     if (d && d.__thVars && d.__thRequestSnap) {
       var items = window.__snapAll();
       for (var qi = 0; qi < items.length; qi++) {
@@ -4288,16 +4331,16 @@ function injectBridge(html, id, floorIdx) {
       sendToFlutter('log', { text: '[变量同步] 快照回放给 card, 条数=' + items.length });
       return;
     }
-    // [P3-E3] 引擎房 MVU 事件 → card 本地事件总线中继
+    // Engine-room MVU events -> card-local event bus relay.
     if (d && d.__mvuEvent) {
       try {
-        // [P5-9/P1] 同事件同时喂主文档本地总线(getContext().eventSource)
+        // The same event is also fed to the main-document local bus (getContext().eventSource).
         if (window.__localEventBus) { try { window.__localEventBus._fire(d.type, d.args || []); } catch (_lb) {} }
-        // [P5-12] 预设/设置变更 → 清主文档 JS 侧预设缓存
+        // Preset/settings change -> invalidate the main-document JS-side preset cache.
         if (d.type === 'preset_changed' || d.type === 'settings_updated') { try { if (window.__KIRA_PRESET_CACHE_CLEAR) window.__KIRA_PRESET_CACHE_CLEAR(); } catch (_pc) {} }
         var cards2 = document.querySelectorAll('iframe[data-frame-id]:not([data-frame-id="engine-room"])');
         for (var mi = 0; mi < cards2.length; mi++) {
-          // 跳过事件来源帧,防止脚本房↔主文档无限循环
+          // Skip the frame that sourced the event to prevent a script-room <-> main-document infinite loop.
           if (cards2[mi].contentWindow === e.source) continue;
           if (cards2[mi].contentWindow) {
             cards2[mi].contentWindow.postMessage({ __thEvent: true, type: d.type, args: d.args || [] }, '*');
@@ -4312,11 +4355,11 @@ function injectBridge(html, id, floorIdx) {
       return;
     }
   });
-  // ── 外层 → 引擎房 iframe 的点火中继 ──
+  // Outer document -> engine-room iframe trigger relay.
   window.__emitToEngine = function(type, args, msgs) {
     try {
-      // [P5-9/P1] 主文档实时值维护(独立于引擎房存在与否):
-      //   msgs 快照进 __chatMessages;生成开始/结束驱动 __isStreaming。
+      // Main-document live value maintenance (independent of whether the engine room exists):
+      //   msgs snapshotted into __chatMessages; generation start/end drives __isStreaming.
       if (msgs) { window.__chatMessages = msgs; }
       if (type === 'generation_started') { window.__isStreaming = true; }
       else if (type === 'message_received' || type === 'generation_ended' || type === 'generation_stopped') { window.__isStreaming = false; }
@@ -4345,12 +4388,14 @@ function injectBridge(html, id, floorIdx) {
       return false;
     } catch(e) { return false; }
   };
-// ── 外层 → 引擎房:推真实变量进镜像(反向同步) ──
+// Outer document -> engine room: push real variables into the mirror (reverse sync).
   window.__kiraVarSnap = window.__kiraVarSnap || { message: {}, chat: {}, global: {}, lastMsgId: -1 };
   window.__syncVarsToEngine = function(type, data, messageId, lastMsgId, swipeId) {
     try {
-      // [P3-E3] 主文档快照 + card 广播: 与引擎房路径并列, 不改引擎房现有行为。
-      // message 级: 快照存 {floorIdx: MvuData}; chat/global: 存整表; lastMsgId 单调更新。
+      // Main-document snapshot + card broadcast: runs in parallel with the engine-room path,
+      // without changing existing engine-room behavior.
+      // message level: snapshot stores {floorIdx: MvuData}; chat/global: store the whole table;
+      // lastMsgId updates monotonically.
       if (type === 'message') {
         if (typeof messageId === 'number' && messageId >= 0) {
           window.__kiraVarSnap.message[messageId] = data || {};
@@ -4395,7 +4440,8 @@ function injectBridge(html, id, floorIdx) {
       return false;
     }
   };
-  // [P3-E3] card iframe 索要已到快照(iframe 重建/懒加载恢复后补发; __thVars 带 __thRequestSnap=true)
+  // Card iframe requests the snapshot already received (replayed after iframe rebuild /
+  // lazy-load recovery; __thVars carries __thRequestSnap=true).
   window.__snapAll = function() {
     var s = window.__kiraVarSnap || {};
     var out = [];
@@ -4408,9 +4454,12 @@ function injectBridge(html, id, floorIdx) {
     if (s.global) out.push({ type: 'global', data: s.global, lastMsgId: s.lastMsgId });
     return out;
   };
-  // [P3-E2] 主文档接住 MVU 自挂的 window.Mvu(上游 global/index.ts 挂到 window.parent)。
-  // MVU 跑在引擎房(iframe) → Mvu 落在主文档; 是否挂上取决于 store.should_enable
-  // (registerAsUniqueScript 选主), 为假则永不挂载且静默。轮询 10 秒给结论。
+  // The main document catches the window.Mvu that MVU self-attaches (upstream global/index.ts
+  // attaches it to window.parent).
+  // MVU runs in the engine room (iframe), so Mvu lands on the main document; whether it attaches
+  // depends on store.should_enable
+  // (registerAsUniqueScript elects the owner); if false it never attaches and stays silent.
+  // Poll for 10 seconds to reach a conclusion.
   (function() {
     var _t0 = Date.now();
     var _iv = setInterval(function() {
@@ -4426,8 +4475,10 @@ function injectBridge(html, id, floorIdx) {
     }, 200);
   })();
 
-  // ── [P5-6阶段2.1] TH方法位置参数拍平成桥payload(与各 th_* handler 的约定对齐)。
-  // 中转器(iframe通路A)与主文档最小TH(通路B直连)共用,防止两处漂移。
+  // Flatten a TH method's positional arguments into a bridge payload (aligned with each th_*
+  // handler's contract).
+  // Shared by the relay (iframe path A) and the minimal main-document TH (path B direct) to
+  // prevent the two from drifting apart.
   function __thNormVarOption(opt) {
     var o = opt || {};
     try {
@@ -4437,7 +4488,7 @@ function injectBridge(html, id, floorIdx) {
         } else {
           var _nm = parseInt(o.message_id, 10);
           if (!isNaN(_nm)) o = Object.assign({}, o, { message_id: _nm });
-          else { o = Object.assign({}, o); delete o.message_id; } // 'latest' → 宿主自定位
+          else { o = Object.assign({}, o); delete o.message_id; } // 'latest' -> the host resolves it itself
         }
       }
     } catch (_nvoE) {}
@@ -4489,28 +4540,30 @@ function injectBridge(html, id, floorIdx) {
     } else if (method === 'th_getRegexes') {
       payload = { type: args[0] || 'global' };
     } else if (method === 'th_saveExtensionSettings') {
-      // [P5-8/P1] MVU/道渊 saveSettingsDebounced 持久化:args[0]=extensionSettings 快照
+      // MVU/DaoYuan saveSettingsDebounced persistence: args[0] = extensionSettings snapshot.
       payload = { settings: args[0] || {} };
     } else if (method === 'th_getPresetNames' || method === 'th_getLoadedPresetName') {
       payload = {};
     } else if (method === 'th_getPreset') {
-      // [P5-9/P1] args[0]=预设名('in_use' 由 Dart 解析为当前激活)
+      // args[0] = preset name ('in_use' is resolved to the active one by Dart).
       payload = { name: args[0] };
     } else if (method === 'th_setPreset') {
       payload = { name: args[0], preset: args[1] || {} };
     } else if (method === 'th_generate') {
-      // [P5-9/P1] args[0]='normal'|'continue'|{user_input:'...'}
+      // args[0]='normal'|'continue'|{user_input:'...'}
       payload = { arg: args[0] };
     } else if (method === 'th_executeSlash') {
-      // [P6-3] EJS execute() 后端:args[0]=斜杠脚本
+      // EJS execute() backend: args[0] = slash script.
       payload = { command: args[0] };
     } else if (method === 'th_toast') {
-      // [P6-5.1] toastr 桥:args=[level, message, title]
-      // [降噪] title 必须透传:MVU 框架提示的 title 一律是 '[MVU]...',Dart 侧按前缀
-      // 统一降级为日志。此前 title 被丢弃,只能靠正文黑名单,漏一个字就失效。
+      // toastr bridge: args = [level, message, title].
+      // Noise reduction: the title must be passed through verbatim -- MVU framework prompts
+      // always use a title starting with '[MVU]...', which the Dart side downgrades to a log
+      // by prefix. Previously the title was discarded and only a body blacklist was used,
+      // which failed on a single missed character.
       payload = { level: args[0] || 'info', message: args[1] == null ? '' : String(args[1]), title: args[2] == null ? '' : String(args[2]) };
     } else if (method === 'th_popup') {
-      // [P6-5.1] callGenericPopup 桥:args=[text, type, inputValue]
+      // callGenericPopup bridge: args = [text, type, inputValue].
       payload = { text: args[0] == null ? '' : String(args[0]), type: args[1] == null ? 1 : args[1], inputValue: args[2] == null ? '' : String(args[2] || '') };
     } else if (method === 'createLorebookEntries') {
       payload = { name: args[0], entries: args[1] || [] };
@@ -4522,9 +4575,9 @@ function injectBridge(html, id, floorIdx) {
     return payload;
   }
 
-  // ── 酒馆助手 API：顶层中转 ────────────────────────────────────────
-  // 收 iframe 的 __thRequest → 走桥的请求-响应到 Flutter →
-  // 结果用 __thResponse postMessage 回对应 iframe。
+  // Tavern Helper API: top-level relay.
+  // Receives __thRequest from an iframe -> performs the bridge request/response with Flutter ->
+  // returns the result to that iframe via __thResponse postMessage.
   window.addEventListener('message', function(e) {
     var d = e.data;
     if (!d || !d.__thRequest) return;
@@ -4538,17 +4591,19 @@ function injectBridge(html, id, floorIdx) {
       }, '*');
     }
 
-    // method → 桥的请求 type(共享表,见顶部 __TH_METHOD_TO_BRIDGE)
+    // method -> bridge request type (shared table, see __TH_METHOD_TO_BRIDGE at the top).
     var typeMap = window.__TH_METHOD_TO_BRIDGE;
-    // [P3-C/T5] 降噪:同 method 只在首次出现打一条,防刷屏淹没 CARD-ENV 探针;
-    // 下方成功/失败日志不受影响(失败必须可见是铁律)。
+    // Noise reduction: log each method only on its first occurrence so repeated calls do not
+    // drown out the CARD-ENV probe;
+    // the success/failure logs below are unaffected (failures must always be visible -- hard rule).
     var _seen = window.__thSeenMethods || (window.__thSeenMethods = {});
     if (!_seen[method]) { _seen[method] = 1; sendToFlutter('log', { text: '[TH中转] 收到iframe请求 method=' + method }); }
-    // [P5-7D修复B] 优先方法名查表;th_ 开头视为桥 type 直传(facade 世界书API历史传法)
+    // Prefer table lookup by method name; a name starting with th_ is passed straight through
+    // as the bridge type (the legacy way the facade worldbook API sent requests).
     var type = typeMap[method] || (typeof method === 'string' && method.indexOf('th_') === 0 ? method : null);
     if (!type) { reply(false, null, 'unknown method: ' + method); return; }
 
-    // 把卡片的位置参数拍平成 payload(共用 __thBuildPayload)
+    // Flatten the card's positional arguments into a payload (shared __thBuildPayload).
     var payload = __thBuildPayload(method, args);
     __sendRequest(type, payload)
       .then(function(res) {
@@ -4564,22 +4619,27 @@ function injectBridge(html, id, floorIdx) {
       });
   });
 
-  // ── [P5-6阶段2.1] 主文档最小 TavernHelper(方案C1) ─────────────────────
-  // ST 顶层页面天然有 window.TavernHelper(官方类型 function/index.d.ts 注释实证),
-  // 道渊类"把代码送去顶层执行"的卡赌的就是这个不变量。本平台此前顶层没有 → 通路C全灭。
-  // 职责分区(防冲突): 只挂读+replaceWorldbook;
-  // 严禁 registerAsUniqueScript/getScriptId/th_unique_check/事件总线/Mvu/generateRaw ——
-  // MVU选主与事件扇出只应发生在 引擎房门面→主文档中继 一条链上,主文档出现第二套会双头。
+  // Minimal main-document TavernHelper (design C1).
+  // ST's top-level page naturally has window.TavernHelper (verified against the official
+  // type function/index.d.ts comments); "send code to the top level" cards from DaoYuan-style
+  // scripts bet on exactly that invariant. This platform previously had none at the top level,
+  // so path C was entirely dead.
+  // Responsibility split (prevents conflicts): attach reads + replaceWorldbook only;
+  // strictly forbidden: registerAsUniqueScript/getScriptId/th_unique_check/event bus/Mvu/generateRaw --
+  // MVU ownership election and event fan-out must happen on exactly one chain
+  // (engine-room facade -> main-document relay); a second set on the main document would create two masters.
   (function () {
     if (window.__KIRA_TH) return;
     var TH = {};
     window.__KIRA_TH = TH;
 
-    // ── 读合并(照抄 tavern_helper_facade.dart:84-94 的 __thCallRead)──
-    // 道渊 5s 轮询: 单次往返>5s 时叠加桥消息;读幂等,同方法+同参数在途复用同一Promise。
+    // Read coalescing (mirrors __thCallRead in tavern_helper_facade.dart:84-94).
+    // DaoYuan-style 5s polling: when a single round trip exceeds 5s, bridge messages stack up;
+    // reads are idempotent, so an identical method + arguments in flight reuses the same Promise.
     var __thInFlight = {};
     function __thCall(method, args) {
-      // [P5-7D修复B] 优先方法名查表;以 th_ 开头视为桥 type 直传(历史实现两套并存)
+      // Prefer table lookup by method name; a name starting with th_ is passed straight through
+      // as the bridge type (two historical implementations coexist).
       var table = window.__TH_METHOD_TO_BRIDGE || {};
       var type = table[method] || (typeof method === 'string' && method.indexOf('th_') === 0 ? method : null);
       if (!type) return Promise.reject(new Error('unknown method: ' + method));
@@ -4597,7 +4657,7 @@ function injectBridge(html, id, floorIdx) {
       return p;
     }
 
-    // ── [P6-5.1] UI 交互 API(主文档 TH 同样暴露 toastr/弹窗) ──
+    // UI interaction API (the main-document TH also exposes toastr/dialogs).
     TH.toastr = {
       info: function (m, t) { return __thCall('th_toast', ['info', m == null ? '' : String(m), t == null ? '' : String(t)]).catch(function () { return ''; }); },
       success: function (m, t) { return __thCall('th_toast', ['success', m == null ? '' : String(m), t == null ? '' : String(t)]).catch(function () { return ''; }); },
@@ -4612,7 +4672,7 @@ function injectBridge(html, id, floorIdx) {
     TH.ask = function (text) { return TH.callGenericPopup(text, 2, '').then(function (r) { return r === 1; }).catch(function () { return false; }); };
     TH.callPopup = TH.ask;
 
-    // ── 只读 API(走既有桥,受读合并保护) ──
+    // Read-only API (goes over the existing bridge, protected by read coalescing).
     TH.getWorldbookNames = function () { return __thCallRead('th_wiGetLorebooks', []); };
     TH.getWorldbook = function (name) { return __thCallRead('th_wiGetEntries', [name]); };
     TH.getLorebookEntries = function (name) { return __thCallRead('th_wiGetEntries', [name]); };
@@ -4623,7 +4683,7 @@ function injectBridge(html, id, floorIdx) {
       return __thCallRead('th_wiGetCharLorebooks', [name || 'current']);
     };
     TH.getCharacterLorebooks = TH.getCharWorldbookNames;
-    // [P5-6阶段2.4] 酒馆正则只读桥(th_getRegexes handler, RegexScript→TavernRegex形状)
+    // Read-only bridge for ST's own regexes (th_getRegexes handler, RegexScript -> TavernRegex shape).
     TH.getTavernRegexes = function (option) {
       var type = (option && option.type) || 'global';
       return __thCallRead('th_getRegexes', [type]);
@@ -4631,12 +4691,14 @@ function injectBridge(html, id, floorIdx) {
     TH.getEnabledLorebookList = function () { return __thCallRead('th_wiGetEnabledList', []); };
     TH.getLorebookSettings = function () { return __thCallRead('th_wiGetLorebookSettings', []); };
     TH.getTavernHelperVersion = function () { return '4.9.1'; };
-    // [P5-9/P2] ST 本体版本号(玄枢启动门槛 getTavernVersion>="1.13.4")
+    // ST core version number (the XuanShu startup gate requires getTavernVersion >= "1.13.4").
     TH.getTavernVersion = function () { return '1.13.4'; };
-    // ── [P5-9/P1] 预设管理 API(主文档同源,道渊/狐神经顶层跑时也能用) ──
-    // [P5-12] JS 侧会话级预设缓存(方案1,与脚本房 facade 同构):
-    //   命中返回同一对象引用,零桥往返;失效口:setPreset 成功 /
-    //   __mvuEvent 中继里的 preset_changed / settings_updated(见 1056 行旁)。
+    // Preset management API (same origin on the main document, so it also works when
+    // DaoYuan/FoxNerve scripts run at the top level).
+    // Session-level JS-side preset cache (design 1, same structure as the script-room facade):
+    //   a cache hit returns the same object reference with zero bridge round trips; invalidation
+    //   points: successful setPreset /
+    //   preset_changed / settings_updated relayed in __mvuEvent (see next to line 1056).
     window.__KIRA_PRESET_CACHE = window.__KIRA_PRESET_CACHE || {};
     window.__KIRA_PRESET_CACHE_CLEAR = function () {
       try {
@@ -4658,7 +4720,8 @@ function injectBridge(html, id, floorIdx) {
       });
     };
     TH.getLoadedPresetName = function () { return __thCallRead('th_getLoadedPresetName', []); };
-    // updatePresetWith: 读→updater→写(ST 语义;updater 返回 undefined 时用就地修改后的对象)
+    // updatePresetWith: read -> updater -> write (ST semantics; if the updater returns
+    // undefined, the in-place modified object is used).
     TH.updatePresetWith = function (name, updater) {
       return TH.getPreset(name).then(function (preset) {
         if (!preset) return Promise.reject(new Error('preset not found: ' + name));
@@ -4666,10 +4729,11 @@ function injectBridge(html, id, floorIdx) {
         return TH.setPreset(name, (u === undefined || u === null) ? preset : u);
       }).then(function () { return TH.getPreset(name); });
     };
-    // [P5-9/P1] 生成控制(generate 结果靠 generation_ended 事件,不在返回值)
+    // Generation control (the generate result arrives via the generation_ended event, not the return value).
     TH.generate = function (arg) { return __thCall('th_generate', [arg === undefined ? 'normal' : arg]); };
     TH.stopGeneration = function () { return __thCall('th_stopGeneration', []); };
-    // 纯JS读主环境宏值(注入见 _injectMacroValues),不过桥
+    // Read macro values straight from the main environment in pure JS (injection via
+    // _injectMacroValues); no bridge round trip.
     TH.substitudeMacros = function (str) {
       var out = String(str == null ? '' : str);
       try {
@@ -4690,15 +4754,16 @@ function injectBridge(html, id, floorIdx) {
       return 0;
     };
 
-    // ── [P5-6阶段2.3] getScriptTrees 纯JS只读(不过桥) ──
-    // 数据源 __KIRA_PRESET_SCRIPTS(preset+卡脚本合并列表,Dart注入),剥content防肥大。
-    // 道渊第4条报警(状态栏模式N项误开计数)依赖此API。
+    // getScriptTrees: pure-JS read-only (no bridge round trip).
+    // Data source __KIRA_PRESET_SCRIPTS (merged preset + card script list, injected by Dart);
+    // content is stripped to avoid bloating the payload.
+    // DaoYuan's fourth alarm (status-bar mode mis-enabled item count) depends on this API.
     TH.getScriptTrees = function (options) {
       var type = (options && options.type) || 'global';
       var all = (window.__KIRA_PRESET_SCRIPTS || []);
       var list;
       if (type === 'preset') {
-        // 预设脚本无独立标记时降级为全部;卡侧一般只取 enabled 计数
+        // When a preset script has no independent marker, fall back to all of them; the card side generally only reads the enabled count.
         list = all;
       } else if (type === 'character') {
         list = all;
@@ -4715,7 +4780,7 @@ function injectBridge(html, id, floorIdx) {
       }));
     };
 
-    // ── 写 API(不走读合并;Dart侧写handler会失效读缓存) ──
+    // Write API (not coalesced; Dart-side write handlers invalidate the read cache).
     TH.replaceWorldbook = function (name, entries) {
       if (!Array.isArray(entries)) return Promise.reject(new Error('entries must be an array'));
       return __thCall('th_wiSetEntries', [name, entries]);
@@ -4727,10 +4792,11 @@ function injectBridge(html, id, floorIdx) {
     } catch (e) {}
   })();
 
-  // ── [P5-9/P1] 主文档本地事件总线(只读供 getContext().eventSource) ──
-  // 狐神/玄枢的 agent 守卫依赖 getTopWin().SillyTavern.getContext() 拿到
-  // chat/chatCompletionSettings/isStreaming/eventSource。事件由 __mvuEvent 中继
-  // 喂入(见下方 relay),本总线只开 on/once/removeListener,不开放 emit(防双头,P5-6 红线)。
+  // Main-document local event bus (read-only, backs getContext().eventSource).
+  // The agent guards in FoxNerve/XuanShu rely on getTopWin().SillyTavern.getContext()
+  // exposing chat/chatCompletionSettings/isStreaming/eventSource. Events are fed in by the
+  // __mvuEvent relay (see relay below); this bus only offers on/once/removeListener and
+  // deliberately not emit (prevents a second master; hard rule).
   (function () {
     if (window.__localEventBus) return;
     var listeners = {};
@@ -4748,7 +4814,7 @@ function injectBridge(html, id, floorIdx) {
         var l = listeners[type]; if (!l) return;
         var i = l.indexOf(handler); if (i >= 0) l.splice(i, 1);
       },
-      // 内部点火口(仅 __mvuEvent relay 调用)
+      // Internal fire entry (called only by the __mvuEvent relay).
       _fire: function (type, args) {
         var l = listeners[type]; if (!l) return;
         args = args || [];
@@ -4758,23 +4824,25 @@ function injectBridge(html, id, floorIdx) {
           }
         }
       },
-      // 调试用只读计数
+      // Read-only counters for debugging.
       _count: function (type) { return (listeners[type] || []).length; }
     };
     window.__chatMessages = window.__chatMessages || [];
     window.__isStreaming = false;
   })();
 
-  // ── [P5-6阶段2.1] window.SillyTavern 最小骨架: 仅 extensionSettings 读 ──
-  // 道渊 bp 串直接读 getContext().extensionSettings.mvu_settings / EjsTemplate。
-  // 数据源: Dart onLoadStop 注入的 __KIRA_MAIN_ENV;注入失败降级空对象并打日志。
+  // Minimal window.SillyTavern skeleton: extensionSettings read only.
+  // DaoYuan's bp strings read getContext().extensionSettings.mvu_settings / EjsTemplate directly.
+  // Data source: __KIRA_MAIN_ENV injected by Dart's onLoadStop; if injection fails, degrade to
+  // an empty object and log.
   (function () {
     if (window.SillyTavern) return;
-    var warnLogged = false;  // 缺失日志只打一次
+    var warnLogged = false;  // the missing-global warning is logged only once
     window.SillyTavern = {
       getContext: function () {
-        // [P5-7D修复A] 每次现读 __KIRA_MAIN_ENV,不做 IIFE 闭包捕获 ——
-        // 静态 script 执行时注入尚未发生(在 onLoadStop 后),闭包捕获必得空对象。
+        // Read __KIRA_MAIN_ENV freshly on every access instead of capturing it in an IIFE closure --
+        // when the static script runs, injection has not happened yet (it occurs after onLoadStop),
+        // so a closure capture would always be empty.
         var env = window.__KIRA_MAIN_ENV || {};
         if (!window.__KIRA_MAIN_ENV && !warnLogged) {
           warnLogged = true;
@@ -4783,7 +4851,7 @@ function injectBridge(html, id, floorIdx) {
         return {
           extensionSettings: {
             mvu_settings: (env && env.mvu) || {},
-            // [P5-8/P1] EjsTemplate 17键与 facade 同形(道渊顶层读取场景)
+            // EjsTemplate's 17 keys match the facade shape (top-level read scenario for DaoYuan).
             EjsTemplate: {
               enabled: !!(env && env.ejsLoaded),
               generate_enabled: true,
@@ -4804,7 +4872,7 @@ function injectBridge(html, id, floorIdx) {
               sandbox: false
             }
           },
-          // [P5-9/P1] getContext 增肥:主文档为顶层宿主,脚本经 getTopWin() 读这里
+          // getContext fattened: the main document is the top-level host, and scripts read it here via getTopWin().
           chat: window.__chatMessages || [],
           chatId: window.__KIRA_CHAT_ID || '',
           chatMetadata: {},
@@ -4814,7 +4882,8 @@ function injectBridge(html, id, floorIdx) {
           eventTypes: window.tavern_events || {}
         };
       },
-      // [P5-8/P1] 主文档侧持久化桥:把 getContext 暴露的 extensionSettings 快照送 Dart 落盘。
+      // Main-document persistence bridge: send the extensionSettings snapshot exposed by
+      // getContext to Dart for disk persistence.
       saveSettingsDebounced: function () {
         try {
           if (typeof window.__sendRequest === 'function') {
@@ -4828,7 +4897,7 @@ function injectBridge(html, id, floorIdx) {
     };
   })();
 
-  // ── [P5-6阶段2.1] bp-result 错误监听: 卡的catch吞得掉自己的错误,吞不掉我们先看到的事件 ──
+  // bp-result error listener: a card's own catch can swallow its errors, but not the events we observe first.
   window.addEventListener('bp-result', function (ev) {
     try {
       var d = ev && ev.detail;
@@ -4839,7 +4908,8 @@ function injectBridge(html, id, floorIdx) {
   });
 
 
-  // iframe虚拟化：屏幕外超过一屏的iframe清空srcdoc，滚回来时恢复
+  // iframe virtualization: iframes more than one screen off-screen have their srcdoc cleared,
+  // restored when scrolled back into range.
   (function() {
     if (typeof IntersectionObserver === 'undefined') return;
     var obs = new IntersectionObserver(function(entries) {
@@ -4848,7 +4918,7 @@ function injectBridge(html, id, floorIdx) {
         var html = f.getAttribute('data-html');
         if (!html) return;
         if (entry.isIntersecting) {
-          // 进入缓冲区：恢复渲染
+          // Enter buffer zone: restore rendering.
           if (!f.getAttribute('data-blob-loaded')) {
             var lastH = f.getAttribute('data-last-height');
             if (lastH) f.style.height = lastH;
@@ -4867,7 +4937,7 @@ function injectBridge(html, id, floorIdx) {
             }
           }
         } else {
-          // 离开缓冲区：记录高度，清空srcdoc
+          // Leave buffer zone: record height, then clear srcdoc.
           var h = f.style.height;
           if (h) f.setAttribute('data-last-height', h);
           var _g = f.closest('.msg-group'); if (_g && h) { var _gh = parseFloat(h) + 60; _g.style.containIntrinsicSize = '100px ' + _gh + 'px'; }
@@ -4876,12 +4946,13 @@ function injectBridge(html, id, floorIdx) {
         }
       });
     }, {
-      // [Part6] 200%:屏外2倍viewport才卸载(原100%),快速滚动时卡片闪白更少
+      // 200%: unload only beyond two viewports off-screen (was 100%), so fast scrolling
+      // flashes cards white less often.
       rootMargin: '200% 0px 200% 0px',
       threshold: 0
     });
 
-    // 监听所有现有和未来的iframe
+    // Observe all existing and future iframes.
     function observeFrames() {
       document.querySelectorAll('iframe.card-frame').forEach(function(f) {
         if (!f.getAttribute('data-observed')) {
@@ -4891,13 +4962,14 @@ function injectBridge(html, id, floorIdx) {
       });
     }
 
-    // 新消息追加时自动监听新iframe
+    // Automatically observe new iframes when messages are appended.
     var mo = new MutationObserver(observeFrames);
     mo.observe(document.getElementById('__kira_root'), {childList: true, subtree: true});
     observeFrames();
   })();
 
-  // 星标菜单：星标触发，弹出图标菜单（挂在气泡内部底部，替代旧外挂工具条）
+  // Star menu: the star action opens an icon menu (anchored at the bottom inside the bubble,
+  // replacing the old external toolbar).
   function buildStarMenu(id, isUser, isLatestAi) {
     var wrap = document.createElement('div');
     wrap.className = 'msg-star-wrap';
@@ -4960,14 +5032,14 @@ function injectBridge(html, id, floorIdx) {
     try {
       var arr = JSON.parse(decodeB64Utf8(b64));
       var root = document.getElementById('__kira_root');
-      // [WV-3] 注入模式与数量(FULL-REBUILD=全量清空重建 / PREPEND=历史前插 / APPEND=追加)
+      // Injection mode and count (FULL-REBUILD = clear and rebuild everything / PREPEND = insert history at the front / APPEND = append).
       try { sendToFlutter('log', { text: '[WV-3] setMessages mode=' + ((options && options.initial) ? 'FULL-REBUILD' : ((options && options.prepend) ? 'PREPEND' : 'APPEND')) + ' count=' + arr.length }); } catch (_wv3a) {}
       
-      // 头像+名字：存全局，所有气泡共享同一份，不重复解码
+      // Avatar + name: stored globally and shared by all bubbles, never decoded twice.
       if (options && options.avatars) {
         window.__avatars = options.avatars;
       }
-      // [P3-E3] 楼层下标(0起) → 消息id 映射, 供 Mvu facade message_id 解析与 Dart 写回换算
+      // Floor index (0-based) -> message id map, used by the Mvu facade message_id resolver and by Dart write-back conversion.
       try {
         window.__kiraMsgFloorMap = window.__kiraMsgFloorMap || {};
         for (var _fi = 0; _fi < arr.length; _fi++) {
@@ -4976,16 +5048,19 @@ function injectBridge(html, id, floorIdx) {
           }
         }
       } catch (_mfmE) {}
-      // initial: 初始渲染，清空root
+      // initial: initial render, clears root.
       if (options && options.initial) {
-        // [锚点] 重建前记录视口中心所在楼层(仅用户已离开底部时),渲染+补发完成后恢复
-        // [加固A1] 已有pending锚点时不覆盖:连环重渲染沿用最初锚点,防位置漂移
+        // Before rebuilding, record the floor at the viewport center (only when the user has left
+        // the bottom) and restore it after render + backfill complete.
+        // Never overwrite an existing pending anchor: chained re-renders keep the original anchor
+        // to prevent positional drift.
         try {
           if (!__stickBottom && __scrollAnchor === null) {
             var _midY = window.scrollY + window.innerHeight / 2;
             var _floorMsgs = document.querySelectorAll('.msg[data-floor]');
-            // [加固] 优先取"视口中点落在其内部"的那条消息:恢复 block:center 回到同一条,
-            // 编辑导致消息高度变化时漂移最小;取不到再退回"中点下方第一条"
+            // Prefer the message whose midpoint falls inside it: restoring with block:center
+            // lands on the same message, minimizing drift when an edit changes message height;
+            // if none qualifies, fall back to the first message below the midpoint.
             for (var _fi2 = 0; _fi2 < _floorMsgs.length; _fi2++) {
               var _r2 = _floorMsgs[_fi2].getBoundingClientRect();
               if ((_r2.top + window.scrollY) <= _midY && (_r2.bottom + window.scrollY) > _midY) {
@@ -5016,11 +5091,11 @@ function injectBridge(html, id, floorIdx) {
         try {
         var group = document.createElement('div');
         group.className = 'msg-group ' + m.role;
-        // [闪屏修复] group 级 id 锚点:纯 iframe 卡片消息没有 .msg[data-id] 节点,
-        // 定点删除必须能定位到 group
+        // Flicker fix: group-level id anchor -- pure iframe card messages have no .msg[data-id]
+        // node, so targeted deletion must be able to locate the group.
         group.setAttribute('data-msg-id', m.id);
 
-        // 气泡上方头像+名字（AI左/用户右），system 不加
+        // Avatar + name above the bubble (AI left / user right); system messages get none.
         var av = window.__avatars;
         if (av && (m.role === 'assistant' || m.role === 'user')) {
           var header = document.createElement('div');
@@ -5046,7 +5121,7 @@ function injectBridge(html, id, floorIdx) {
           }
           group.appendChild(header);
         }
-        // 文档前的旁白文字，作为独立气泡渲染在 iframe 之上
+        // Narration text preceding the document, rendered as its own bubble above the iframe.
         if (m.prose && m.prose.trim() !== '') {
           var pr = document.createElement('div');
           pr.className = 'msg ' + m.role;
@@ -5116,14 +5191,15 @@ function injectBridge(html, id, floorIdx) {
             }
           }
           wrap.appendChild(segsGroup);
-          // [Bug5] 附件渲染在气泡下方（附件 HTML 是独立字段，不再拼进 html）
+          // Attachments render below the bubble (attachment HTML is a separate field, no longer concatenated into html).
           if (m.attachmentsHtml) wrap.insertAdjacentHTML('beforeend', m.attachmentsHtml);
-          // [P3-K1] hasSegs 分支补挂载 wrap：建完不挂,所有 seg frame/prose 游离(t3 实测 cardIframes=0)
+          // hasSegs branch must also mount the wrap: if it is built but never attached, every
+          // seg frame/prose stays orphaned (measured: cardIframes=0 in t3).
           injectMessageOverlays(wrap, m.id, m.role === 'user', m.isLatestAi, m.floor);
           group.appendChild(wrap);
         } else if (typeof m.rich === 'boolean' ? m.rich : isRichHtml(m.html)) {
-          // [MD修复2] 优先消费 Dart 序列化里的显式 rich 标记(文档级判定),
-          // isRichHtml 仅作旧载荷兜底
+          // Prefer the explicit rich marker from Dart's serializer (document-level detection);
+          // isRichHtml only serves as a fallback for old payloads.
           var frame = document.createElement('iframe');
           frame.className = 'card-frame';
           frame.style.width = '100%';
@@ -5153,23 +5229,26 @@ function injectBridge(html, id, floorIdx) {
             }
           })(frame, m.html, m.id);
           var _cfWrap = createCardFrameWrap(frame, m.id);
-          // [Bug5] 附件渲染在卡片下方（wrap 挂在 _cfWrap 之后，附件有值时 wrap 必挂，
-          // 否则无 reasoning 的富文本消息附件丢失）
+          // Attachments render below the card (the wrap is mounted after _cfWrap; whenever
+          // attachments are present the wrap must be mounted, otherwise attachments are lost
+          // on rich-text messages without reasoning).
           if (m.attachmentsHtml) wrap.insertAdjacentHTML('beforeend', m.attachmentsHtml);
           injectMessageOverlays(_cfWrap, m.id, false, m.isLatestAi, m.floor);
           group.appendChild(_cfWrap);
-          // [P3-K1] isRichHtml 分支补挂载 wrap：reasoning 塞在 wrap 里，不挂出来 reasoning 必丢(t4 实测)
+          // isRichHtml branch must also mount the wrap: reasoning lives inside the wrap, so if it
+          // is not attached the reasoning is always lost (measured in t4).
           if (wrap.children.length > 0) group.appendChild(wrap);
         } else {
           var c = document.createElement('div');
-          // [Bug5] 附件渲染在气泡下方；纯图消息（无文字有附件）不再误显 typing-indicator
+          // Attachments render below the bubble; image-only messages (no text, attachments present)
+          // no longer falsely show the typing indicator.
           var hasAttHtml = !!(m.attachmentsHtml && String(m.attachmentsHtml).trim() !== '');
           c.innerHTML = (m.html && m.html.trim() !== '')
             ? m.html
             : (hasAttHtml ? '' : '<div class="typing-indicator"><span></span><span></span><span></span></div>');
           if (hasAttHtml) c.insertAdjacentHTML('beforeend', m.attachmentsHtml);
           wrap.appendChild(c);
-          // EJS 渲染失败标红
+          // EJS render failure shown in red.
           if (m.ejsError) {
             var errBadge = document.createElement('div');
             errBadge.style.cssText = 'margin-top:4px;padding:4px 8px;border-radius:6px;'
@@ -5186,19 +5265,20 @@ function injectBridge(html, id, floorIdx) {
         }
 
         wrap.setAttribute('data-floor', m.floor || 0);
-        applyMsgTranslation(m.id); // 翻译缓存重挂载（全量重建后恢复译文）
+        applyMsgTranslation(m.id); // re-attach the translation cache (restores translations after a full rebuild)
         if (m.role === 'assistant' && m.swipeCount && m.swipeCount > 1) {
           group.appendChild(buildSwipeBar(m.id, m.swipeIndex, m.swipeCount));
         }
 
-        // prepend: 追加历史，插入头部
+        // prepend: append history by inserting at the head.
         if (options && options.prepend) {
           root.insertBefore(group, root.firstChild);
         } else {
           root.appendChild(group);
         }
         } catch(e) {
-          // [P1-B1] 单条渲染故障隔离：某条消息建节点/插入抛错，只降级为该条可见占位，继续下一条。
+          // Per-message render fault isolation: if building/inserting one message's node throws,
+          // only that message degrades to a visible placeholder and the loop continues.
           var _err = (e && e.message) ? e.message : String(e);
           if (_err.length > 120) _err = _err.substring(0, 120);
           console.error('[WV-9] RENDER-FAIL id=' + (m && m.id) + ' ' + e);
@@ -5217,8 +5297,9 @@ function injectBridge(html, id, floorIdx) {
         }
       }
 
-      // [WV-4/WV-5] 每轮 setMessages 后的资源与冲突计数(只观测,不改行为)
-      // [优化] __kiraDebug 门控:长聊全文档扫描(万级节点)是每次渲染的纯观测开销,生产默认关
+      // Resource and conflict counters after each setMessages round (observe only, no behavior change).
+      // Gated by __kiraDebug: a full-document scan of a long chat (tens of thousands of nodes)
+      // is pure observation overhead on every render, so it is off by default in production.
       if (window.__kiraDebug) {
         try {
           var _ids = document.querySelectorAll('[id]');
@@ -5229,18 +5310,21 @@ function injectBridge(html, id, floorIdx) {
         } catch (_wv4e) {}
       }
 
-      // 图片懒加载：给未加 loading 属性的 img 补上,滚到附近才加载
+      // Image lazy loading: add the loading attribute to imgs that lack it so they load near the viewport.
       root.querySelectorAll('img:not([loading])').forEach(function(img) {
         img.setAttribute('loading', 'lazy');
       });
-      // [锚点] 每轮渲染后尝试恢复阅读位置:initial 清屏后锚点楼层可能尚未补发回来,
-      // tryRestoreAnchor 找不到就继续等(用户手势才取消);prepend/append 模式下幂等无害。
+      // After each render round, try to restore the reading position: after an initial clear the
+      // anchor floor may not have been backfilled yet, so tryRestoreAnchor keeps waiting if it
+      // finds nothing (only a user gesture cancels it); idempotent and harmless under
+      // prepend/append modes.
       requestAnimationFrame(tryRestoreAnchor);
       if (options && !options.prepend) {
         scrollToBottomWhenStable();
       }
     } catch(e) {
-      // [P1-B2] 外层兜底：绝不把已渲染内容整页抹掉。仅保留已渲染部分，末尾追加可见错误条。
+      // Outer safety net: never wipe already-rendered content from the page. Keep the rendered
+      // portion and append a visible error bar at the end.
       console.error('[WV-9] SETMESSAGES-FATAL ' + e);
       try {
         var _r = document.getElementById('__kira_root');
@@ -5255,15 +5339,16 @@ function injectBridge(html, id, floorIdx) {
       } catch(_e2) {}
     }
   }
-  // 滚动到指定楼层
+  // Scroll to a given floor.
   function scrollToFloor(floor) {
     var el = document.querySelector('[data-floor="' + floor + '"]');
     if (el) { el.scrollIntoView({ behavior: 'instant', block: 'start' }); } else if (parseInt(floor) <= 1) { window.scrollTo({ top: 0, behavior: 'instant' }); }
   }
 
-  // 滚动到底部(最新消息)：右下角按钮与 Dart 桥共用。
-  // [顶栏] 平滑滚动期间加闸门:不打扰贴底跟随与顶栏显隐(跳底不隐藏顶栏);
-  // 500ms 后关闸并同步一次按钮显隐。
+  // Scroll to the bottom (latest message): shared by the bottom-right button and the Dart bridge.
+  // While smooth scrolling is in progress a gate is held so sticky-bottom follow and top-bar
+  // show/hide are not disturbed (jump-to-bottom does not hide the top bar);
+  // the gate is released after 500ms and button visibility is synced once.
   function scrollToBottom() {
     __programScroll++;
     __stickBottom = true;
@@ -5274,7 +5359,7 @@ function injectBridge(html, id, floorIdx) {
     }, 500);
   }
 
-  // 版本切换条：‹ 当前/总数 ›
+  // Version switch bar: < current/total >.
   function buildSwipeBar(id, index, count) {
     var bar = document.createElement('div');
     bar.className = 'swipe-bar';
@@ -5302,53 +5387,57 @@ function injectBridge(html, id, floorIdx) {
   function scrollToBottomWhenStable() {
     var root = document.getElementById('__kira_root');
 
-    // [聊天页大改] 改为 RAF 循环直跳,直到高度稳定 2 帧或跑满 500ms 退出
-    // 原先用固定时点补滚(立即+120ms+400ms),流式输出时若内容持续增长,
-    // 补滚时点之间会"追着跑"产生视觉抖动;RAF 循环每帧直跳 scrollTop=scrollHeight
-    // 即使内容持续撑开也始终贴底,用户感觉"AI 在吐字,气泡不动"而非"画面追底"
+    // Replaced with a RAF loop that jumps directly until the height is stable for 2 frames or
+    // the 500ms budget runs out.
+    // The old approach used fixed-time corrective scrolls (immediately + 120ms + 400ms); while
+    // streaming, content kept growing between those points and the viewport "chased" it,
+    // causing visible jitter. Jumping to scrollTop=scrollHeight every frame keeps the view
+    // pinned to the bottom even as content expands, so the user perceives "AI is typing and the
+    // bubble stays put" rather than "the screen is chasing the bottom".
     var _stableFrames = 0;
     var _lastScrollTop = -1;
     var _startTime = Date.now();
-    var MAX_DURATION = 500; // 与成熟聊天端对齐:流式期间最多跑 500ms
+    var MAX_DURATION = 500; // matches mature chat clients: runs at most 500ms while streaming
 
     function snapBottom() {
-      if (!__stickBottom || __scrollAnchor !== null) return; // 用户翻历史时不打扰;锚点待恢复期间不拽底
-      __programScroll++; // 开闸:标记接下来是程序触发的滚动
+      if (!__stickBottom || __scrollAnchor !== null) return; // do not disturb the user browsing history; do not yank to the bottom while an anchor is pending restoration
+      __programScroll++; // open the gate: mark the following scroll as programmatic
       var last = root.lastElementChild;
       if (last) {
         last.scrollIntoView({behavior: 'instant', block: 'end'});
       } else {
         window.scrollTo(0, document.body.scrollHeight);
       }
-      // 下一帧关闸,容忍这次程序滚动引发的 scroll 事件
+      // Release the gate on the next frame, tolerating the scroll event caused by this programmatic scroll.
       requestAnimationFrame(function () {
         if (__programScroll > 0) __programScroll--;
-        syncBottomButton(); // 闸门吞了滚动事件,显式同步一次按钮显隐
+        syncBottomButton(); // the gate swallowed the scroll event, so sync button visibility explicitly once
       });
     }
 
     snapBottom();
 
-    // 异步内容(iframe 卡片 / 图片)加载完会改变文档高度,
-    // 每个加载完成后补滚一次,避免撑开后视口相对上移(发送后"上跳")
+    // Async content (iframe cards / images) changes the document height once loaded;
+    // scroll once more after each finishes so the viewport does not shift up relative to the
+    // content ("jumping up" after sending).
     var media = root.querySelectorAll('iframe, img');
     for (var i = 0; i < media.length; i++) {
       var el = media[i];
-      // 已加载完的 img 直接跳过;未完成的挂 load 监听
+      // Skip imgs already loaded; attach a load listener to the rest.
       if (el.tagName === 'IMG' && el.complete) continue;
       el.addEventListener('load', snapBottom, {once: true});
       el.addEventListener('error', snapBottom, {once: true});
     }
 
-    // RAF 循环:每帧检查 scrollTop 是否稳定,连续 2 帧稳定则退出
+    // RAF loop: check each frame whether scrollTop is stable; exit after 2 stable frames.
     function rafLoop() {
       snapBottom();
       var cur = window.scrollY || 0;
       var target = document.body.scrollHeight - window.innerHeight;
-      // 离目标 < 2px 且与上一帧相同 = 这帧没动 = 稳定一次
+      // Within 2px of the target and identical to the previous frame = no movement this frame = one stable frame.
       if (Math.abs(cur - target) < 2 && cur === _lastScrollTop) {
         _stableFrames++;
-        if (_stableFrames >= 2) return; // 连续 2 帧稳定,退出
+        if (_stableFrames >= 2) return; // stable for 2 consecutive frames, exit
       } else {
         _stableFrames = 0;
       }
@@ -5359,14 +5448,16 @@ function injectBridge(html, id, floorIdx) {
     }
     requestAnimationFrame(rafLoop);
   }
-  // 智能滚动跟随：记录用户是否贴在底部
+  // Smart scroll follow: track whether the user is pinned to the bottom.
   var __stickBottom = true;
-  var __programScroll = 0; // 程序滚动闸门：>0 时忽略 scroll 事件，避免程序滚动把自己判成"离底"
-  // [顶栏] 滚动方向状态机:±8px 迟滞,方向变化(或回到顶部)才上报 → 桥流量≈顶栏切换次数
+  var __programScroll = 0; // programmatic scroll gate: while > 0, scroll events are ignored so a programmatic scroll cannot mark the view as "away from bottom"
+  // Scroll-direction state machine: +/-8px hysteresis; report only on a direction change (or
+  // when back at the top) so bridge traffic ~= number of top-bar toggles.
   var __lastScrollY = 0;
   var __lastSentDir = null;
   var SCROLL_THRESHOLD = 8;
-  // 回底按钮显隐统一入口(用户滚动/程序滚动关闸后都调一次,防闸门吞事件导致状态滞留)
+  // Single entry point for back-to-bottom button visibility (called once after user scrolls and
+  // after programmatic scrolling with the gate released, so a swallowed event cannot leave stale state).
   function syncBottomButton() {
     var b = document.getElementById('btn-scroll-bottom');
     if (!b) return;
@@ -5378,14 +5469,14 @@ function injectBridge(html, id, floorIdx) {
   window.addEventListener('scroll', function () {
     var y = window.scrollY || document.documentElement.scrollTop || 0;
     var lastY = __lastScrollY;
-    __lastScrollY = y; // 程序滚动也校准基准:否则跳层后用户轻滚会拿 stale 值误判方向
-    if (__programScroll > 0) return; // 程序触发的滚动，不更新 stickBottom/按钮/顶栏
+    __lastScrollY = y; // calibrate the baseline even for programmatic scrolls; otherwise a light user scroll after a floor jump would judge direction from a stale value
+    if (__programScroll > 0) return; // programmatic scroll: do not update stickBottom / button / top bar
     var nearBottom = (window.innerHeight + y) >=
         (document.body.scrollHeight - 40);
-    __stickBottom = nearBottom; // 只有真·用户滚动才更新
-    // 回到底部按钮显隐：离底显示,贴底隐藏
+    __stickBottom = nearBottom; // updated only on genuine user scrolling
+    // Back-to-bottom button visibility: shown away from the bottom, hidden when pinned.
     syncBottomButton();
-    // [顶栏] 方向检测:y<=0 强制报 top(顶栏必显),其余按迟滞阈值判方向
+    // Direction detection: y <= 0 forces "top" (top bar must show); otherwise decide by the hysteresis threshold.
     var dir = null;
     if (y <= 0) {
       dir = 'top';
@@ -5400,17 +5491,21 @@ function injectBridge(html, id, floorIdx) {
     }
   });
 
-  // ── [锚点] 全量重建的阅读位置恢复(消息丢失/窗口乱跳修复 Part 5) ──────────────
-  // 问题:后台重渲染(生成结束/MVU写回/卡片脚本)只回填最近30条,用户读在历史区时
-  // 正读的楼层被整段拆走 + 视口被钳到底部。方案:重建前记录视口中心楼层,
-  // 渲染+补发完成后滚回原位。
+  // Reading-position restoration after a full rebuild (fixes message loss / random view jumps, part 5).
+  // Problem: a background re-render (generation end / MVU write-back / card script) only
+  // backfills the most recent 30 messages; while the user is reading the history zone, the floor
+  // they are on is torn away and the viewport is clamped to the bottom. Solution: record the
+  // floor at the viewport center before rebuilding and scroll back after render + backfill finish.
+  // The anchor is cancelled only by a genuine user gesture: the clamp of scrollY caused by a
+  // clear also emits a scroll event, so scroll events cannot be used to infer user intent --
+  // otherwise the anchor would be wiped the moment it is recorded.
   var __scrollAnchor = null;
-  // 锚点只被"真实用户手势"取消:清屏引发的 scrollY 钳制同样走 scroll 事件,
-  // 不能拿 scroll 判用户意图,否则锚点刚记录就被冲掉。
   ['wheel', 'touchstart', 'keydown'].forEach(function (evt) {
     window.addEventListener(evt, function () {
-      // [Bug4] 设置面板挡住聊天，此时手势不针对聊天页，不取消锚点——
-      // 面板内操作触发全量兜底重建后，关闭面板仍可恢复阅读位置。
+      // A settings panel is covering the chat, so this gesture is not aimed at the chat page and
+      // must not cancel the anchor --
+      // after a panel action triggers a full fallback rebuild, closing the panel can still
+      // restore the reading position.
       if (__currentPanel) return;
       __scrollAnchor = null;
     }, { passive: true });
@@ -5418,12 +5513,12 @@ function injectBridge(html, id, floorIdx) {
   function tryRestoreAnchor() {
     if (__scrollAnchor === null) return;
     var el = document.querySelector('[data-floor="' + __scrollAnchor + '"]');
-    if (!el) return; // 锚点楼层还没补发回来,继续等(setMessages 每轮都会再调)
+    if (!el) return; // anchor floor not backfilled yet, keep waiting (setMessages calls this again every round)
     var f = __scrollAnchor;
     __scrollAnchor = null;
-    __programScroll++; // 恢复滚动不污染贴底判定/回底按钮/顶栏方向
+    __programScroll++; // the restoration scroll must not pollute the bottom-pinned check / back-to-bottom button / top bar direction
     el.scrollIntoView({ block: 'center', behavior: 'instant' });
-    __stickBottom = false; // 落点在历史区:关闭贴底跟随,防流式 appendToken/延时 snapBottom 拽底
+    __stickBottom = false; // landing in the history zone: turn off bottom-pinned follow so streaming appendToken / delayed snapBottom cannot yank the view down
     requestAnimationFrame(function () {
       if (__programScroll > 0) __programScroll--;
       syncBottomButton();
@@ -5431,9 +5526,11 @@ function injectBridge(html, id, floorIdx) {
     try { sendToFlutter('log', { text: '[锚点] 恢复 floor=' + f }); } catch (_ae1) {}
   }
 
-  // 前景卡包裹层：iframe + 收起按钮。
-  // data-frame-id 供离屏卸载/MVU 用，data-card-id 供 cardHeight 接收与收起按钮定位用。
-  // 高度同步走父文档 syncHeight()：load后RO监听contentDocument，getBoundingClientRect测量。
+  // Card wrapper layer: iframe + collapse button.
+  // data-frame-id is used by offscreen unload/Mvu; data-card-id by cardHeight receipt and
+  // collapse-button positioning.
+  // Height sync goes through the parent document's syncHeight(): after load, an RO watches
+  // contentDocument and measures with getBoundingClientRect.
   function createCardFrameWrap(frame, frameId) {
     var w = document.createElement('div');
     w.className = 'card-frame-wrap';
@@ -5451,9 +5548,9 @@ function injectBridge(html, id, floorIdx) {
           try {
             var win = doc.defaultView || doc.parentWindow;
             if (!win) return (doc.body && doc.body.scrollHeight) || 0;
-            // 先获取"自然"高度（含min-height）
+            // First take the "natural" height (min-height included).
             var naturalH = (doc.body && doc.body.scrollHeight) || (doc.documentElement && doc.documentElement.scrollHeight) || 0;
-            // 临时消除min-height，量真实内容高度
+            // Temporarily remove min-height to measure the true content height.
             var style = doc.createElement('style');
             style.textContent = '* { min-height: 0 !important; min-width: 0 !important; }';
             (doc.head || doc.documentElement).appendChild(style);
@@ -5464,8 +5561,10 @@ function injectBridge(html, id, floorIdx) {
             } finally {
               if (style.parentNode) style.parentNode.removeChild(style);
             }
-            // 内容高度合理(>=100px)说明有真实内容，用它过滤min-height虚高
-            // 内容高度极小说明内容依赖fixed布局或min-height，回退自然高度
+            // A reasonable content height (>=100px) means real content exists; use it to filter
+            // out the inflated min-height.
+            // A tiny content height means the content relies on fixed layout or min-height, so
+            // fall back to the natural height.
             if (contentH >= 100) return contentH;
             return naturalH > 0 ? naturalH : 300;
           } catch(e) { return 0; }
@@ -5512,7 +5611,8 @@ function injectBridge(html, id, floorIdx) {
           });
         }
         syncHeight();
-        // 超时保底：2s后opacity仍为0时强制显示并重试（contentDocument未就绪时的兜底）
+        // Timeout fallback: if opacity is still 0 after 2s, force it visible and retry (covers the
+        // case where contentDocument is not ready).
         setTimeout(function() {
           if (frame.style.opacity !== '1') {
             frame.style.opacity = '1';
@@ -5526,8 +5626,9 @@ function injectBridge(html, id, floorIdx) {
         }
       } catch(e) {}
     });
-    // [兜底] load事件因外部资源(Google Fonts/CDN)超时未触发时，Fix2永远不跑 → 卡片永远透明
-    // 此处在load事件外部无条件注册，3s后强制检查
+    // Fallback: if the load event never fires because an external resource (Google Fonts/CDN)
+    // times out, Fix2 never runs -> the card stays transparent forever.
+    // Registered unconditionally outside the load event to force a check after 3s.
     setTimeout(function() {
       if (frame.style.opacity !== '1') {
         frame.style.opacity = '1';
@@ -5549,11 +5650,11 @@ function injectBridge(html, id, floorIdx) {
     return w;
   }
 
-  // ── 流式 Markdown 渲染：补全未闭合代码块 + 轻量 Markdown（粗体/斜体/列表/代码/链接/标题）──
+  // Streaming Markdown rendering: close unclosed code blocks + lightweight Markdown (bold/italic/list/code/link/heading).
   function __escHtml(s){
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
-  // 统计未闭合的 ``` 围栏（行级），奇数则补一个闭合围栏。
+  // Count unclosed ``` fences (line level); if odd, append a closing fence.
   function completeCodeBlocks(text){
     if(!text) return text;
     var lines = String(text).split('\n');
@@ -5586,7 +5687,7 @@ function injectBridge(html, id, floorIdx) {
       blocks.push('<pre class="stream-code"><code>' + __escHtml(body) + '</code></pre>');
       return '\u0000CB' + (blocks.length-1) + '\u0000';
     });
-    src = __escHtml(src);   // 转义剩余文本（块内代码已在上面单独转义）
+    src = __escHtml(src);   // escape the remaining text (code inside the block was already escaped above)
     var lines = src.split('\n');
     var html = [], para = [], bq = [];
     var inUl=false, inOl=false;
@@ -5600,14 +5701,14 @@ function injectBridge(html, id, floorIdx) {
       if(/^\s*$/.test(line)){ closeAll(); continue; }
       var hm = line.match(/^(#{1,6})\s+(.*)$/);
       if(hm){ closeAll(); var lv=hm[1].length; html.push('<h'+lv+'>'+__streamInline(hm[2])+'</h'+lv+'>'); continue; }
-      // 引用：转义后 > 已变成 &gt;
+      // Quote: after escaping, > has become &gt;.
       var qm = line.match(/^&gt;\s?(.*)$/);
       if(qm){ flushPara(); if(inUl){html.push('</ul>');inUl=false;} if(inOl){html.push('</ol>');inOl=false;} bq.push(__streamInline(qm[1])); continue; }
       var um = line.match(/^[-*+]\s+(.*)$/);
       if(um){ flushPara(); flushBq(); if(inOl){html.push('</ol>');inOl=false;} if(!inUl){html.push('<ul>');inUl=true;} html.push('<li>'+__streamInline(um[1])+'</li>'); continue; }
       var om = line.match(/^\d+\.\s+(.*)$/);
       if(om){ flushPara(); flushBq(); if(inUl){html.push('</ul>');inUl=false;} if(!inOl){html.push('<ol>');inOl=true;} html.push('<li>'+__streamInline(om[1])+'</li>'); continue; }
-      // 段落行：离开列表/引用，按 breaks:true 用 <br> 连接连续段落行
+      // Paragraph lines: leave list/quote mode and join consecutive paragraph lines with <br> (breaks:true).
       flushBq(); if(inUl){html.push('</ul>');inUl=false;} if(inOl){html.push('</ol>');inOl=false;}
       para.push(__streamInline(line));
     }
@@ -5617,49 +5718,54 @@ function injectBridge(html, id, floorIdx) {
   window.__escHtml = __escHtml;
   window.__renderStreamMd = streamMarkdown;
 
-  // 流式增量追加：原始文本累加为唯一真相，rAF 节流渲染成 Markdown（含未闭合代码块补全）
+  // Streaming incremental append: raw text accumulates as the single source of truth, and a
+  // rAF-throttled render converts it to Markdown (including unclosed code block completion).
   function appendToken(id, token) {
     var wrap = document.querySelector('.msg[data-id="' + id + '"]');
     if (!wrap) return;
     var stream = wrap.querySelector('.stream-text');
     if (!stream) {
-      // [WV-3] 首个 token 到达时若 wrap 里已有内容(旧卡),会被整块清掉——症状5候选机制
+      // When the first token arrives, existing content in the wrap (from an old card) is wiped
+      // wholesale -- candidate mechanism behind symptom 5.
       try { sendToFlutter('log', { text: '[WV-3] appendToken CLEARED-WRAP id=' + id + ' hadHtml=' + (wrap.innerHTML.length > 0) }); } catch (_wv3b) {}
       wrap.innerHTML = '';
       stream = document.createElement('div');
       stream.className = 'stream-text';
       wrap.appendChild(stream);
     }
-    stream._raw = (stream._raw || '') + token;   // 原始文本：渲染的唯一真相（不被 innerHTML 抹掉）
+    stream._raw = (stream._raw || '') + token;   // raw text: the single source of truth for rendering (never wiped by innerHTML)
     if (stream._rafPending) return;
     stream._rafPending = true;
     requestAnimationFrame(function(){
       stream._rafPending = false;
-      if (!stream.parentNode) return;   // 已被 updateMessage 清掉，不再渲染
+      if (!stream.parentNode) return;   // already removed by updateMessage; do not render again
       var raw = stream._raw || '';
       try {
         stream.style.whiteSpace = '';
         stream.innerHTML = (window.__renderStreamMd ? window.__renderStreamMd(raw) : (window.__escHtml ? window.__escHtml(raw) : raw));
       } catch(e) {
-        // 渲染异常回退纯文本（pre-wrap 保换行），生成结束时仍会被 Dart 最终渲染覆盖
+        // On render exception, fall back to plain text (pre-wrap preserves newlines); the final
+        // Dart render still overwrites it when generation ends.
         stream.style.whiteSpace = 'pre-wrap';
         stream.textContent = raw;
       }
-      if (__stickBottom && __scrollAnchor === null) window.scrollTo(0, document.body.scrollHeight); // [加固A3] 锚点待恢复期间不拽底
+      if (__stickBottom && __scrollAnchor === null) window.scrollTo(0, document.body.scrollHeight); // do not yank to the bottom while an anchor is pending restoration
     });
   }
   registerBridgeHandler('appendToken', function (p) {
     appendToken(p.id, p.token);
   });
 
-  // ── [闪屏修复] 定点更新/删除:替代"任何变化都整页 initial 重建" ──────────────
-  // 全量重建 = root.innerHTML='' + 逐条重画,是重试/生成结束闪屏的直接原因。
-  // 定点更新只换一条气泡的内容;失败(节点缺失/卡片消息)回 needFullPush 由 Dart 兜底。
+  // Flicker fix: targeted update/delete instead of "rebuild the whole page with initial on any change".
+  // A full rebuild (root.innerHTML='' + redrawing every message) is the direct cause of flicker
+  // on retries and generation end.
+  // Targeted update swaps only one bubble's content; on failure (node missing / card message) it
+  // falls back to needFullPush for Dart to handle.
   registerBridgeHandler('updateMessage', function (p) {
     try {
       var id = p && p.id;
       if (!id) return;
-      if (p.rich === true) { // 卡片需 iframe,定点更新覆盖不了
+      if (p.rich === true) { // the card needs an iframe, which a targeted update cannot cover
         sendToFlutter('action', { action: 'needFullPush', id: id });
         return;
       }
@@ -5679,13 +5785,13 @@ function injectBridge(html, id, floorIdx) {
       }
       var c = document.createElement('div');
       c.innerHTML = (p.html && String(p.html).trim() !== '') ? p.html : '';
-      // [Bug5] 定点更新也渲染附件（附件是独立字段，不拼进 html）
+      // Targeted updates also render attachments (attachments are a separate field, not concatenated into html).
       if (p.attachmentsHtml && String(p.attachmentsHtml).trim() !== '') {
         c.insertAdjacentHTML('beforeend', p.attachmentsHtml);
       }
       wrap.appendChild(c);
       if (_sStar) wrap.appendChild(_sStar); if (_sFloor) wrap.appendChild(_sFloor);
-      applyMsgTranslation(id); // 定点更新清空了内容，翻译层需要重挂
+      applyMsgTranslation(id); // the targeted update cleared the content, so the translation layer must be re-attached
       if (__stickBottom && __scrollAnchor === null) {
         window.scrollTo(0, document.body.scrollHeight);
       }
@@ -5712,14 +5818,16 @@ function injectBridge(html, id, floorIdx) {
     }
   });
 
-  // ── 翻译结果：缓存 + 显示在气泡内容下方浅色小字 ─────────────────────────
-  // Dart 侧调 LLM 翻译完成后经桥推送 {id, text}；文本为空则移除。
-  // 缓存挂在 window 上，全量重推/定点更新后由 applyMsgTranslation 重新挂载。
+  // Translation result: cached and shown as small light text below the bubble content.
+  // After Dart finishes an LLM translation it pushes {id, text} over the bridge; empty text
+  // removes it.
+  // The cache lives on window and is re-attached by applyMsgTranslation after a full push or
+  // targeted update.
   window.__kiraTranslations = window.__kiraTranslations || {};
   function applyMsgTranslation(id) {
     if (!id) return;
     var wrap = document.querySelector('.msg[data-id="' + id + '"]');
-    // 富文本卡片消息可能没有 .msg[data-id] 节点，回退到 iframe 外层包裹层
+    // Rich-text card messages may have no .msg[data-id] node; fall back to the iframe's outer wrapper.
     var host = wrap;
     if (!wrap) {
       var fw = document.querySelector('[data-frame-id="' + id + '"]');
@@ -5733,7 +5841,7 @@ function injectBridge(html, id, floorIdx) {
         break;
       }
     }
-    if (!window.__kiraTranslations.hasOwnProperty(id)) return; // 无缓存不处理
+    if (!window.__kiraTranslations.hasOwnProperty(id)) return; // no cache entry, nothing to do
     var text = window.__kiraTranslations[id];
     if (!text || String(text).trim() === '') {
       if (el && el.parentNode) el.parentNode.removeChild(el);
@@ -5765,13 +5873,14 @@ function injectBridge(html, id, floorIdx) {
     var tgt = e.target;
     if (!tgt || !tgt.closest) return;
 
-    // 回到底部悬浮按钮(document 级委托:按钮 DOM 在本脚本之后才解析,不能就地 getElementById)
+    // Back-to-bottom floating button (document-level delegation: the button DOM is parsed after
+    // this script, so getElementById cannot be used inline).
     if (tgt.closest('#btn-scroll-bottom')) {
       scrollToBottom();
       return;
     }
 
-    // 气泡图片：点击全屏查看（缩放/关闭在 Flutter 侧）
+    // Bubble images: click for fullscreen view (zoom/close handled on the Flutter side).
     var att = tgt.closest('.att-img');
     if (att) {
       sendToFlutter('action', {
@@ -5781,18 +5890,19 @@ function injectBridge(html, id, floorIdx) {
       });
       return;
     }
-    // 前景卡收起按钮
+    // Card collapse button.
     var collapseTarget = tgt.closest('[data-collapse-card]');
     if (collapseTarget) {
       var cardId = collapseTarget.getAttribute('data-collapse-card');
       var fr = document.querySelector('iframe.card-frame[data-card-id="' + cardId + '"]');
       var wr = fr && fr.closest('.card-frame-wrap');
       if (fr) {
-        // 先加锁再改高度——顺序不能反，防止解锁瞬间 iframe 重报高度又被夹/弹回
+        // Lock before changing height -- the order cannot be reversed, otherwise the iframe's
+        // height re-report at unlock time gets clamped or bounced back.
         fr.setAttribute('data-collapsed', '1');
         fr.style.height = '300px';
         if (wr) wr.classList.remove('expanded');
-        // 同步隐藏同 segs-group 内的 prose 文字段
+        // Also hide the prose text spans in the same segs-group.
         var sg = fr.closest('.segs-group');
         if (sg) {
           var proses = sg.querySelectorAll('.seg-prose');
@@ -5801,16 +5911,18 @@ function injectBridge(html, id, floorIdx) {
       }
       return;
     }
-    // 点击已折叠的卡片展开（折叠态 iframe pointer-events:none，点击穿透落到 wrap）
+    // Click a collapsed card to expand it (a collapsed iframe has pointer-events:none, so the
+    // click passes through to the wrap).
     var collapsedWrap = tgt.closest('.card-frame-wrap');
     if (collapsedWrap) {
       var cfr = collapsedWrap.querySelector('iframe.card-frame[data-collapsed="1"]');
       if (cfr) {
         var savedH = cfr.getAttribute('data-content-height') || (window.innerHeight + 'px');
-        // 先改高度、加展开态，下一帧再解锁——防止解锁瞬间 iframe 重报高度又被夹/弹回
+        // Change height and add the expanded state first, unlock on the next frame -- otherwise
+        // the iframe's height re-report at unlock time gets clamped or bounced back.
         cfr.style.height = savedH;
         collapsedWrap.classList.add('expanded');
-        // 同步恢复同 segs-group 内的 prose 文字段
+        // Also restore the prose text spans in the same segs-group.
         var sg2 = cfr.closest('.segs-group');
         if (sg2) {
           var proses2 = sg2.querySelectorAll('.seg-prose');
@@ -5820,7 +5932,7 @@ function injectBridge(html, id, floorIdx) {
         return;
       }
     }
-    // ── 菜单定位辅助：fixed定位脱离父容器overflow裁剪 ──
+    // Menu positioning helper: fixed positioning escapes the parent container's overflow clipping.
     function _openMenuFixed(menu, starBtn) {
       if (!menu._origParent) menu._origParent = menu.parentElement;
       menu._origStar = starBtn;
@@ -5847,7 +5959,7 @@ function injectBridge(html, id, floorIdx) {
       menu.style.position = ''; menu.style.bottom = ''; menu.style.top = '';
       menu.style.left = ''; menu.style.right = '';
     }
-    // 星标点击：开/关菜单
+    // Star click: toggle the menu.
     var _starClick = tgt.closest('[data-star]');
     if (_starClick) {
       var _sid = _starClick.getAttribute('data-star');
@@ -5864,11 +5976,11 @@ function injectBridge(html, id, floorIdx) {
       }
       return;
     }
-    // 菜单外点击：关所有菜单
+    // Click outside a menu: close all menus.
     if (!tgt.closest('.msg-menu') && !tgt.closest('[data-star]')) {
       document.querySelectorAll('.msg-menu.open').forEach(function(m) { _closeMenuFixed(m); });
     }
-    // 菜单项 & 版本切换按钮
+    // Menu items & version switch buttons.
     var _actBtn = tgt.closest('.menu-item[data-act]') || tgt.closest('.swipe-btn[data-act]');
     if (_actBtn) {
       if (_actBtn.disabled) return;
@@ -5882,8 +5994,10 @@ function injectBridge(html, id, floorIdx) {
   registerBridgeHandler('setMessages', function(p) { setMessages(p.data, {initial: p.initial, prepend: p.prepend, avatars: p.avatars}); });
   registerBridgeHandler('scrollToFloor', function(p) { scrollToFloor(p.floor); });
   registerBridgeHandler('scrollToBottom', function() { scrollToBottom(); });
-  // [顶栏] 顶栏显隐:改 body padding-top 把顶栏那条空间让给/还给消息区。
-  // WebView 几何恒定(全出血),不 resize 平台视图 → 不触发 HC 重合成顿卡。
+  // Top bar show/hide: adjust body padding-top to give the top bar's strip of space to or back
+  // from the message area.
+  // WebView geometry stays constant (full bleed), so the platform view is never resized ->
+  // no HC re-composition stutter.
   registerBridgeHandler('topBarInsets', function (p) {
     try {
       var bar = (p && p.visible) ? (p.barHeight || 0) : 0;
@@ -5893,9 +6007,10 @@ function injectBridge(html, id, floorIdx) {
       var delta = next - cur;
       if (Math.abs(delta) < 0.5) return;
       document.body.style.paddingTop = next + 'px';
-      // 弹窗/面板的顶部留白跟随同一变量(它们 inset:0 从屏幕顶起算)
+      // Dialog/panel top spacing follows the same variable (they use inset:0 measured from the screen top).
       try { document.documentElement.style.setProperty('--top-inset', next + 'px'); } catch (_cs0) {}
-      // padding-top 变化会整体平移内容:按差值补偿 scrollY,视觉位置保持不动
+      // Changing padding-top shifts the whole content: compensate scrollY by the delta so the
+      // visual position stays put.
       __programScroll++;
       window.scrollTo(0, Math.max(0, (window.scrollY || 0) + delta));
       requestAnimationFrame(function () {
@@ -5905,9 +6020,10 @@ function injectBridge(html, id, floorIdx) {
       try { sendToFlutter('log', { text: '[顶栏] inset ' + cur + '→' + next }); } catch (_te0) {}
     } catch (e) {}
   });
-  // ── [弹窗] HTML弹窗体系(Dart→JS):showConfirm / showPrompt / showBottomSheet ──
-  // 结果统一 sendToFlutter('dialogResult', {callbackId, result, value}) 回传;
-  // 任何异常路径也必须回传一次,否则 Dart 侧 Completer 永久挂起。
+  // HTML dialog system (Dart -> JS): showConfirm / showPrompt / showBottomSheet.
+  // Results are always returned via sendToFlutter('dialogResult', {callbackId, result, value});
+  // every exception path must also return exactly once, otherwise the Dart-side Completer hangs
+  // forever.
   function buildDialogOverlay(sheetMode) {
     var overlay = document.createElement('div');
     overlay.className = 'dialog-overlay' + (sheetMode ? ' sheet' : '');
@@ -5925,7 +6041,7 @@ function injectBridge(html, id, floorIdx) {
     var row = document.createElement('div');
     row.className = 'dialog-buttons';
     specs.forEach(function (s) {
-      if (!s.text) return; // 空文本=不渲染该按钮(单按钮提示框)
+      if (!s.text) return; // empty text = do not render this button (single-button prompt)
       var b = document.createElement('button');
       b.className = 'dialog-btn ' + (s.cls || 'dialog-btn-cancel');
       b.textContent = s.text;
@@ -6018,27 +6134,30 @@ function injectBridge(html, id, floorIdx) {
     } catch (e) {
       sendToFlutter('dialogResult', { callbackId: p && p.callbackId, result: false });
     }
-  });  // [键盘] 键盘显隐:body 底部 padding 补偿(WebView 几何恒定,不加 padding 时
-  // 贴底用户的最新消息落在键盘后方且已到滚动上限,永远滚不出来)
-  // [聊天页大改] 输入栏已迁入 WebView(position:fixed),body padding-bottom 必须
-  // 始终预留输入栏高度 + safe-area,否则最后一条消息的工具栏会被输入栏遮住。
-  // 键盘弹出时再额外加键盘高度,让被键盘遮住的最新消息可滚出。
-  // 估算:输入栏高度 ≈ 60px(40px 按钮 + 10px 上下 padding + 10px gap)
-  //      + safe-area-inset-bottom(由 layoutVars 桥注入)
+  });  // Keyboard show/hide: body bottom padding compensation (WebView geometry stays constant;
+  // without padding, a bottom-pinned user's latest message lands behind the keyboard at the
+  // scroll limit and can never be scrolled out).
+  // The input bar now lives in the WebView (position:fixed), so body padding-bottom must always
+  // reserve input bar height + safe-area; otherwise the toolbar of the last message is covered
+  // by the input bar.
+  // When the keyboard opens, the keyboard height is added on top so the message hidden behind
+  // the keyboard can scroll out.
+  // Estimate: input bar height ~= 60px (40px button + 10px vertical padding + 10px gap)
+  //      + safe-area-inset-bottom (injected by the layoutVars bridge)
   registerBridgeHandler('keyboardInsets', function (p) {
     var kb = (p && p.visible) ? (p.height || 0) : 0;
     var safeBottom = 0;
     try {
       safeBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom') || '0', 10) || 0;
     } catch (_sb) {}
-    var inputBarReserve = 60; // 输入栏基础高度(含 padding)
-    // body padding-bottom = 输入栏高度 + safe-area + 键盘高度
-    // - 键盘未弹起:60 + safe-area,消息能滚过输入栏,工具栏露出
-    // - 键盘弹起:60 + safe-area + kb,消息能滚过键盘 + 输入栏
+    var inputBarReserve = 60; // base input bar height (padding included)
+    // body padding-bottom = input bar height + safe-area + keyboard height
+    // - keyboard closed: 60 + safe-area, messages can scroll past the input bar, toolbar visible
+    // - keyboard open: 60 + safe-area + kb, messages can scroll past the keyboard + input bar
     document.body.style.paddingBottom = (kb + inputBarReserve + safeBottom) + 'px';
     try { sendToFlutter('log', { text: '[键盘] visible=' + (p && p.visible) + ' height=' + kb + ' bodyPad=' + (kb + inputBarReserve + safeBottom) }); } catch (_ke0) {}
     if (kb > 0 && __stickBottom) {
-      // 贴底用户:补滚一次让最新消息露出键盘上沿
+      // Bottom-pinned user: scroll once more so the latest message clears the top of the keyboard.
       __programScroll++;
       window.scrollTo(0, document.body.scrollHeight);
       requestAnimationFrame(function () {
@@ -6047,30 +6166,31 @@ function injectBridge(html, id, floorIdx) {
       });
     }
   });
-  // [聊天页大改] 布局 CSS 变量统一注入
-  // Flutter 侧 _injectLayoutVars 把所有几何值一次性下发,这里只负责落到 documentElement
-  // 变量: --keyboard-height / --status-bar-height / --nav-bar-height
+  // Unified layout CSS variable injection.
+  // Flutter's _injectLayoutVars sends all geometry values at once; this side only writes them
+  // onto documentElement.
+  // Variables: --keyboard-height / --status-bar-height / --nav-bar-height
   //       --app-viewport-height / --safe-area-inset-top / --safe-area-inset-bottom
-  //       --top-bar-visible / --top-bar-height(供 input container / dynamic island / modal 定位用)
+  //       --top-bar-visible / --top-bar-height (used by the input container / dynamic island / modal for positioning)
   registerBridgeHandler('layoutVars', function (p) {
     try {
       var r = document.documentElement.style;
       if (!p) return;
-      // 键盘高度(px,0=未弹起):输入栏 bottom 跟随,动态岛 bottom 跟随
+      // Keyboard height (px, 0 = closed): input bar bottom follows it, dynamic island bottom follows it.
       r.setProperty('--keyboard-height', (p.keyboardHeight || 0) + 'px');
-      // 状态栏高度:顶部安全区
+      // Status bar height: top safe area.
       r.setProperty('--status-bar-height', (p.statusBarHeight || 0) + 'px');
-      // 导航栏高度:底部安全区(手势条/虚拟键)
+      // Navigation bar height: bottom safe area (gesture bar / virtual keys).
       r.setProperty('--nav-bar-height', (p.navBarHeight || 0) + 'px');
-      // WebView 实际可视高度(已减键盘):模态 max-height 用
+      // WebView actual visible height (keyboard already subtracted): used for modal max-height.
       r.setProperty('--app-viewport-height', (p.viewportHeight || window.innerHeight) + 'px');
-      // safe-area 别名(供 CSS env() fallback 链:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))
+      // safe-area aliases (back the CSS env() fallback chain: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))
       r.setProperty('--safe-area-inset-top', (p.statusBarHeight || 0) + 'px');
       r.setProperty('--safe-area-inset-bottom', (p.navBarHeight || 0) + 'px');
-      // 顶栏显隐(供需要避让顶栏的浮层判断)
+      // Top bar visibility (for overlays that must avoid the top bar).
       r.setProperty('--top-bar-visible', p.topBarVisible ? '1' : '0');
       r.setProperty('--top-bar-height', (p.topBarHeight || 0) + 'px');
-      // [新菜单] 主题色变量（浮窗背景/文字/强调色跟随 Flutter 主题）
+      // Theme color variables (panel background / text / accent follow the Flutter theme).
       r.setProperty('--kira-panel-bg', p.panelBg || '#12141C');
       r.setProperty('--kira-panel-radius', (p.panelRadius || 24) + 'px');
       r.setProperty('--kira-scrim', p.scrim || 'rgba(0,0,0,.5)');
@@ -6080,10 +6200,10 @@ function injectBridge(html, id, floorIdx) {
       r.setProperty('--kira-text-3', p.text3 || '#8A8A8A');
       r.setProperty('--kira-input-bg', p.inputBg || '#20242C');
       r.setProperty('--kira-divider', p.divider || 'rgba(255,255,255,.05)');
-      // [聊天页大改] 同步设置 body padding-bottom,保证首屏(键盘未弹起时)
-      // 最后一条消息的工具栏不被输入栏遮住。
-      // 公式与 keyboardInsets handler 一致:输入栏 60px + safe-area + 键盘高度
-      // 这里读不到 keyboard height 时取 0(layoutVars 比 keyboardInsets 更早下发)
+      // Also set body padding-bottom so that on first paint (keyboard closed) the toolbar of the
+      // last message is not covered by the input bar.
+      // Same formula as the keyboardInsets handler: input bar 60px + safe-area + keyboard height;
+      // keyboard height reads as 0 here because layoutVars is delivered before keyboardInsets.
       var kb = (p.keyboardHeight || 0);
       var safeBottom = (p.navBarHeight || 0);
       document.body.style.paddingBottom = (kb + 60 + safeBottom) + 'px';
@@ -6092,13 +6212,16 @@ function injectBridge(html, id, floorIdx) {
     }
   });
 
-  // [聊天页大改] 底部动态岛通知:Flutter 侧通过 showToast 桥下发 {icon, text, duration}
-  // 取代 SnackBar(避免 HC 跨引擎合成开销),完全在 WebView 内渲染
+  // Bottom dynamic island notification: Flutter delivers {icon, text, duration} through the
+  // showToast bridge,
+  // replacing SnackBar (avoids HC cross-engine compositing cost) and rendered entirely inside
+  // the WebView.
   var _toastTimer = null;
   function showDynamicToast(icon, text, duration) {
     var el = document.getElementById('dynamicIslandToast');
     if (!el) return;
-    // 清除上一个:立即移除 show 类,等下一帧再上新内容,触发重新入场动画
+    // Clear the previous one: remove the show class immediately, then set the new content one
+    // frame later so the entrance animation replays.
     if (_toastTimer) {
       clearTimeout(_toastTimer);
       _toastTimer = null;
@@ -6109,7 +6232,8 @@ function injectBridge(html, id, floorIdx) {
     if (iconEl) iconEl.textContent = icon || '';
     if (textEl) textEl.textContent = text || '';
     el.setAttribute('aria-hidden', 'false');
-    // 双 RAF:第一帧让浏览器确认 remove 已应用,第二帧再加 show 触发 transition
+    // Double RAF: the first frame lets the browser confirm the removal was applied, the second
+    // adds show to trigger the transition.
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         el.classList.add('show');
@@ -6129,10 +6253,10 @@ function injectBridge(html, id, floorIdx) {
     }
   });
 
-  // [聊天页大改] 输入栏:textarea 自适应高度 + 按钮事件 + inputBarState 桥处理
-  //   按钮:func(功能菜单) / upload(图片上传) / send-发送 / send-generating→stop
-  //   Flutter 通过 inputBarState 推送 {generating, text, tokenCount, attachments, sttEnabled, sttListening}
-  //   通过 sttResult 推送 {text} 填回 textarea
+  // Input bar: textarea auto-height + button events + inputBarState bridge handling.
+  //   Buttons: func (function menu) / upload (image upload) / send -> send / send-generating -> stop.
+  //   Flutter pushes {generating, text, tokenCount, attachments, sttEnabled, sttListening} via inputBarState.
+  //   sttResult pushes {text} to fill the textarea.
   document.addEventListener('DOMContentLoaded', function () {
     var ta = document.getElementById('chatTextarea');
     var sendBtn = document.getElementById('sendBtn');
@@ -6141,7 +6265,7 @@ function injectBridge(html, id, floorIdx) {
     var btnImage = document.getElementById('btnImage');
     var previewBar = document.getElementById('attachmentPreviewBar');
 
-    // textarea 自适应高度:1~120px(与 CSS max-height 对齐)
+    // textarea auto-height: 1~120px (aligned with the CSS max-height).
     function autoResize() {
       if (!ta) return;
       ta.style.height = 'auto';
@@ -6149,17 +6273,18 @@ function injectBridge(html, id, floorIdx) {
       ta.style.height = newH + 'px';
     }
 
-    // 发送消息:桥到 Flutter inputSend,清空 textarea + 重置高度
-    // 空内容时直接 return,不用 disabled 拦截(让按钮始终可点,符合移动端习惯)
+    // Send message: bridge to Flutter inputSend, then clear the textarea and reset its height.
+    // Empty content returns directly instead of blocking with disabled (keeps the button always
+    // tappable, matching mobile conventions).
     function handleSend() {
       if (!ta || !sendBtn) return;
-      // 生成中:sendBtn 当前是停止按钮
+      // Generating: sendBtn is currently the stop button.
       if (sendBtn.classList.contains('is-generating')) {
         try { sendToFlutter('inputStop', {}); } catch (_se) {}
         return;
       }
       var text = ta.value.trim();
-      if (!text) return; // 空内容不发送,但不拦截按钮
+      if (!text) return; // empty content is not sent, but the button is not blocked
       try { sendToFlutter('inputSend', { text: ta.value }); } catch (_se2) {}
       ta.value = '';
       autoResize();
@@ -6169,8 +6294,9 @@ function injectBridge(html, id, floorIdx) {
       ta.addEventListener('input', function () {
         autoResize();
       });
-      // [聊天页大改 Part 6] STT:长按 textarea(键盘未弹起时)触发语音条
-      // 键盘已弹起(--keyboard-height > 100)时不拦截,交给系统正常输入
+      // STT: long-press the textarea (only while the keyboard is closed) to trigger the voice bar.
+      // When the keyboard is already open (--keyboard-height > 100) nothing is intercepted; the
+      // system handles normal input.
       var _longPressTimer = null;
       var _isVoiceMode = false;
       var voiceBar = document.getElementById('voiceBar');
@@ -6194,21 +6320,21 @@ function injectBridge(html, id, floorIdx) {
         try { sendToFlutter('sttStop', {}); } catch (_vs1) {}
       }
       function _isSttEnabled() {
-        // Flutter 通过 inputBarState.sttEnabled 推送当前 STT 开关
-        // 没收到时默认 false,避免误触发
+        // Flutter pushes the current STT toggle through inputBarState.sttEnabled;
+        // default to false when nothing has been received to avoid false triggers.
         return !!window.__KIRA_STT_ENABLED;
       }
-      // touchstart/touchmove/touchend 三件套,400ms 长按阈值
+      // touchstart/touchmove/touchend trio, 400ms long-press threshold.
       ta.addEventListener('touchstart', function (e) {
-        if (_isKeyboardVisible()) return; // 键盘已弹起,不拦截
-        if (!_isSttEnabled()) return;     // STT 未开启,不触发
+        if (_isKeyboardVisible()) return; // keyboard already open; do not intercept
+        if (!_isSttEnabled()) return;     // STT not enabled; do not trigger
         _longPressTimer = setTimeout(function () {
           _enterVoiceMode();
         }, 400);
       }, { passive: true });
       ta.addEventListener('touchmove', function () {
         if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
-        // 移动中也算松开:如果正在录音,停止
+        // Moving counts as release too: stop recording if one is in progress.
         if (_isVoiceMode) _exitVoiceMode();
       }, { passive: true });
       ta.addEventListener('touchend', function () {
@@ -6221,7 +6347,7 @@ function injectBridge(html, id, floorIdx) {
       });
     }
 
-    // 图片按钮:切换小浮层(发送图片/会话图片)
+    // Image button: toggle the small overlay (send image / session images).
     var imagePickerPopup = document.getElementById('imagePickerPopup');
     var btnPickImage = document.getElementById('btnPickImage');
     var btnSessionImages = document.getElementById('btnSessionImages');
@@ -6263,18 +6389,19 @@ function injectBridge(html, id, floorIdx) {
         __hideImagePickerPopup();
       }
     });
-    // 发送按钮:统一走 handleSend(内部根据 is-generating 类分流)
+    // Send button: always routed through handleSend (which branches on the is-generating class).
     if (sendBtn) {
       sendBtn.addEventListener('click', function () {
         handleSend();
       });
     }
-    // inputBarState:Flutter 推送状态变化(generating / attachments / stt)
-    // 不动 sendBtn.disabled — 按钮始终可点,空内容由 handleSend 内部 return 拦截
+    // inputBarState: state changes pushed by Flutter (generating / attachments / stt).
+    // sendBtn.disabled is deliberately never touched -- the button stays tappable and empty
+    // content is intercepted by the early return inside handleSend.
     registerBridgeHandler('inputBarState', function (p) {
       try {
         if (!p) return;
-        // 1. 生成中状态:send-btn 切换图标 + 加 is-generating 类(不设 disabled)
+        // 1. Generating state: swap the send-btn icon and add the is-generating class (no disabled).
         if (sendBtn && sendIconSend && sendIconStop) {
           var gen = !!p.generating;
           if (gen) {
@@ -6292,11 +6419,11 @@ function injectBridge(html, id, floorIdx) {
             }
           }
         }
-        // [聊天页大改 Part 6] STT 开关:缓存到全局变量,供 textarea 长按检测读取
+        // STT toggle: cached in a global so the textarea long-press detector can read it.
         if (typeof p.sttEnabled === 'boolean') {
           window.__KIRA_STT_ENABLED = p.sttEnabled;
         }
-        // 2. 待发图片预览
+        // 2. Pending image preview.
         if (previewBar) {
           var atts = p.attachments;
           if (Array.isArray(atts) && atts.length > 0) {
@@ -6326,13 +6453,14 @@ function injectBridge(html, id, floorIdx) {
         try { sendToFlutter('log', { text: '[输入栏] 状态更新失败: ' + e }); } catch (_ibs0) {}
       }
     });
-    // sttResult:Flutter 推送 STT 识别结果,追加到 textarea
+    // sttResult: Flutter pushes the STT recognition result, appended to the textarea.
     registerBridgeHandler('sttResult', function (p) {
       try {
         if (!ta || !p || !p.text) return;
         ta.value += p.text;
         autoResize();
-        // 不动 sendBtn.disabled — 按钮始终可点,空内容由 handleSend 内部 return 拦截
+        // sendBtn.disabled is never touched -- the button stays tappable and empty content is
+        // intercepted by the early return inside handleSend.
         showDynamicToast('🎤', '识别完成');
       } catch (e) {
         try { sendToFlutter('log', { text: '[STT结果] 填入失败: ' + e }); } catch (_sr0) {}
@@ -6345,10 +6473,11 @@ function injectBridge(html, id, floorIdx) {
       var imgs = document.querySelectorAll(sel);
       for (var i = 0; i < imgs.length; i++) {
         (function(img){
-          // 图片加载完成后，高度撑开会改变 body 高度；
-          // 主动触发 reflow，让 WebView 重新计算滚动边界，否则会卡住无法上滑。
+          // Once an image finishes loading, its expanded height changes the body height;
+          // force a reflow so the WebView recalculates the scroll bounds, otherwise scrolling
+          // up gets stuck.
           img.onload = function(){
-            void document.body.offsetHeight; // 强制 reflow
+            void document.body.offsetHeight; // force a reflow
             window.dispatchEvent(new Event('resize'));
           };
           img.src = 'data:' + (p.mime || 'image/jpeg') + ';base64,' + p.b64;
@@ -6360,10 +6489,10 @@ function injectBridge(html, id, floorIdx) {
   });
   registerBridgeHandler('setGenerating', function(p) {
     try {
-      // 定位目标消息气泡（wrap 带 data-id）
+      // Locate the target message bubble (the wrap carries data-id).
       var wrap = document.querySelector('[data-id="' + p.msgId + '"]');
       if (!wrap) return;
-      // 找该气泡的附件区，没有就建一个
+      // Find that bubble's attachment area; create one if it does not exist.
       var box = wrap.querySelector('.att-wrap');
       if (!box) {
         box = document.createElement('div');
@@ -6371,7 +6500,7 @@ function injectBridge(html, id, floorIdx) {
         var msg = wrap.querySelector('.msg') || wrap;
         msg.appendChild(box);
       }
-      // 已存在同 genId 的占位则不重复插
+      // Do not insert a duplicate placeholder if one with the same genId already exists.
       if (box.querySelector('[data-gen-id="' + p.genId + '"]')) return;
       var ph = document.createElement('div');
       ph.className = 'att-generating';
@@ -6427,12 +6556,14 @@ function injectBridge(html, id, floorIdx) {
         + (libs.lodash ? '<script>' + decodeB64Utf8(libs.lodash) + '<\/script>' : '')
         + (libs.toastrJs ? '<script>' + decodeB64Utf8(libs.toastrJs) + '<\/script>' : '')
         + (libs.vue ? '<script>' + decodeB64Utf8(libs.vue) + '<\/script>' : '')
-                // [P3-N] 脚本房补 YAML:MVU bundle 用裸 YAML 全局(真机实测 YAML is not defined),
-        // 引擎房 1879 行已有同款注入,脚本房是独立 iframe 不能共享
+                // Script-room YAML patch: the MVU bundle uses a bare YAML global (verified on device:
+                // YAML is not defined),
+        // The engine room already has the same injection at line 1879; the script room is a
+        // separate iframe and cannot share it.
         + (libs.yaml ? '<script>' + decodeB64Utf8(libs.yaml) + '<\/script>' : '')
         + '<script>window.errorCatched=function(fn){return function(){try{return fn.apply(this,arguments);}catch(e){console.error(e);}}};'
         + '(function(){var s={};try{localStorage.getItem("__kira_probe");}catch(e){Object.defineProperty(window,"localStorage",{configurable:true,value:{getItem:function(k){return s[k]||null;},setItem:function(k,v){s[k]=String(v);},removeItem:function(k){delete s[k];},clear:function(){s={};}}});parent.postMessage({__thLog:true,text:"[SCRIPT] 使用内存态 localStorage"},"*");}})();<\/script>'
-        // [P6-5.2] 正则规则快照(getRegexedString 同步引擎用)
+        // Regex rule snapshot (feeds the getRegexedString synchronous engine).
         + '<script>window.__KIRA_REGEX_RULES=' + JSON.stringify(window.__KIRA_REGEX_RULES||[]) + ';<\/script>'
         + '<script>' + (window.__ENGINE_FACADE_JS || '') + '<\/script>'
         + '<script>(function(){function send(p){try{parent.postMessage({__thLog:true,text:"[SCRIPT] "+p},"*");}catch(_){} }var o=console.error;console.error=function(){send("console.error "+Array.prototype.join.call(arguments," "));o.apply(console,arguments);};window.onerror=function(m,s,l,c,x){send("onerror "+m+" @"+l+":"+c);};window.addEventListener("unhandledrejection",function(x){send("unhandledrejection "+x.reason);});})();<\/script>'
@@ -6440,17 +6571,23 @@ function injectBridge(html, id, floorIdx) {
       var frame=document.createElement('iframe'); frame.setAttribute('data-frame-id','preset-scripts-room'); frame.style.cssText='width:0;height:0;border:0;';
       frame.srcdoc=doc; host.appendChild(frame);
       frame.addEventListener('load',function(){ sendScriptLog('加载 '+scripts.length+' 个脚本'); var W=frame.contentWindow, D=frame.contentDocument;
-        // [P3-M] 按 scripts 数组顺序串行注入:classic 同步立即执行;module 等 onload/onerror 后再注下一个,
-        // 否则并行 forEach 不能保证 module 加载顺序,前置 module 未挂上时后续 import 引用会 z is not defined。
+        // Inject the scripts array serially in order: classic scripts execute synchronously
+        // immediately; module scripts wait for onload/onerror before injecting the next one,
+        // otherwise a parallel forEach cannot guarantee module load order and later import
+        // references fail with "z is not defined" while an earlier module is still pending.
         var queue = (scripts || []).slice();
-        // [P3-N] zod shim:MVU/mvu_zod 期望全局 z 为 zod 包 namespace(实测用法 r=z; r.z.looseObject,
-        // looseObject 是 zod v4 API)。zod v4 无 UMD 构建,走不了 __KIRA_LIBS 的 base64 老路,
-        // 改用 ESM shim 排队首,依赖 P3-M 的串行队列保证它先于其余 module 完成。
+        // zod shim: MVU/mvu_zod expects the global z to be the zod package namespace (observed
+        // usage r = z; r.z.looseObject,
+        // and looseObject is a zod v4 API). zod v4 ships no UMD build, so the old base64 route
+        // through __KIRA_LIBS is unavailable;
+        // an ESM shim is queued first instead, relying on the serial queue to complete it
+        // before the remaining modules.
         var _hasMod = queue.some(function(s){ return s && s.content && /(^|[\r\n;])\s*(import|export)[\s'"(]/.test(s.content); });
         if (_hasMod) {
-          // [P3-N/2] module script 的 onload/onerror 在本 WebView 不触发(CDN 已排除:200/435KB 可达),
-          // 队列会死锁。改用动态 import()——它是表达式,能被 try/catch 抓住(P3-I 记账第4条的正解),
-          // 且由 shim 自己回调驱动队列,不依赖元素事件。
+          // module script onload/onerror never fires in this WebView (CDN ruled out: 200/435KB
+          // reachable), so the queue would deadlock. Switch to dynamic import() -- it is an
+          // expression, so it can be caught by try/catch (the correct fix),
+          // and the queue is driven by the shim's own callback instead of element events.
           queue.unshift({ name: '__zod_shim', enabled: true, shim: true, content: [
             "(async function(){ try {",
             "  var Z = await import('https://testingcf.jsdelivr.net/npm/zod@4.5.4/+esm');",
@@ -6477,8 +6614,9 @@ function injectBridge(html, id, floorIdx) {
                replaceWorldbook: typeof (W.TavernHelper && W.TavernHelper.replaceWorldbook)
              },
              mvu: typeof W.Mvu,
-             // [P5-6阶段3.2] 读脚本房iframe自己的计时器计数(W=frame.contentWindow),
-             // 主文档计数看不到iframe内的轮询;加了宿主兜底防门面未注入旧帧
+             // Read the script-room iframe's own timer counts (W = frame.contentWindow);
+             // main-document counts cannot see polling inside the iframe, and a host-side
+             // fallback guards against old frames where the facade was never injected.
              timers: (W === window) ? (window.__kiraTimerCount || 0) : (W.__kiraTimerCount != null ? W.__kiraTimerCount : (window.__kiraTimerCount || 0)),
              performance: {
                heap: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1024 / 1024) : 'unknown',
@@ -6491,10 +6629,12 @@ function injectBridge(html, id, floorIdx) {
           var s = queue.shift();
           if(!s||s.enabled===false||s.disabled===true||!s.content){ injectOne(); return; }
           var nm=(s.name||s.id||'unnamed');
-          // [P5-9/P0-2] 每脚本唯一 ID：门面 getScriptId() 按当前注入脚本返回，供脚本级变量/按钮隔离。
+          // Unique ID per script: the facade's getScriptId() returns the currently injected
+          // script, used to isolate script-level variables and buttons.
           var _sid=(s.id&&typeof s.id==='string'&&s.id.length>0)?s.id:(s.name||'unnamed');
           W.__KIRA_CURRENT_SCRIPT_ID=_sid;
-          // [P5-9/P0-3] 脚本级变量 hydrate:把 Dart 注入的持久化快照填进门面脚本缓存。
+          // Script-level variable hydrate: fill the facade's script cache with the persistent
+          // snapshot injected by Dart.
           if(typeof W.__kiraSetScriptVars==='function'){var _sv=W.__KIRA_SCRIPT_VARS_SNAPSHOT||{};W.__kiraSetScriptVars(_sid,_sv[_sid]||{});}
           var isMod=/(^|[\r\n;])\s*(import|export)[\s'"(]/.test(s.content);
           try {
@@ -6532,7 +6672,7 @@ function injectBridge(html, id, floorIdx) {
     try {
       var host = document.getElementById('__engineRoomHost');
       if (!host) { parent.postMessage({__thLog:true,text:'[引擎房] host 容器缺失'},'*'); return; }
-      if (host.querySelector('iframe')) { return; } // 已建,不重复
+      if (host.querySelector('iframe')) { return; } // already built, do not repeat
       var facadeJs = window.__ENGINE_FACADE_JS || '';
       if (!facadeJs) { parent.postMessage({__thLog:true,text:'[引擎房] 门面未注入'},'*'); return; }
       var macros = window.__KIRA_MACRO_VALUES || {user:'User',char:'Assistant'};
@@ -6540,11 +6680,11 @@ function injectBridge(html, id, floorIdx) {
         + (window.__KIRA_LIBS && window.__KIRA_LIBS.lodash ? '<script>' + decodeB64Utf8(window.__KIRA_LIBS.lodash) + '<\/script>' : '')
         + (window.__KIRA_LIBS && window.__KIRA_LIBS.jquery ? '<script>' + decodeB64Utf8(window.__KIRA_LIBS.jquery) + '<\/script>' : '')
         + (window.__KIRA_LIBS && window.__KIRA_LIBS.toastrJs ? '<script>' + decodeB64Utf8(window.__KIRA_LIBS.toastrJs) + '<\/script>' : '')
-        // [P3-C/T2] 引擎房补 YAML(MVU parseString 解析(initvar) 与 EJS function_call 模板都用裸 YAML 全局)
+        // Engine-room YAML patch (MVU parseString for initvar and EJS function_call templates both use the bare YAML global).
         + (window.__KIRA_LIBS && window.__KIRA_LIBS.yaml ? '<script>' + decodeB64Utf8(window.__KIRA_LIBS.yaml) + '<\/script>' : '')
         + '<script>window.__KIRA_MACRO_VALUES=' + JSON.stringify(macros) + ';<\/script>'
         + '<script>window.__KIRA_CHAT_ID=' + JSON.stringify(window.__KIRA_CHAT_ID||'') + ';<\/script>'
-        // [P6-5.2] 正则规则快照(getRegexedString 同步引擎用)
+        // Regex rule snapshot (feeds the getRegexedString synchronous engine).
         + '<script>window.__KIRA_REGEX_RULES=' + JSON.stringify(window.__KIRA_REGEX_RULES||[]) + ';<\/script>'
         + '<script>' + facadeJs + '<\/script>'
         + '<script>'
@@ -6593,7 +6733,7 @@ function injectBridge(html, id, floorIdx) {
               ms.src = URL.createObjectURL(bl);
               frame.contentDocument.head.appendChild(ms);
               parent.postMessage({__thLog:true,text:'[引擎房] MVU 模块已注入'},'*');
-              // ── EJS 注入（Mimic：桩 + 15 路径替换）──
+              // EJS injection (Mimic: stub + 15 path replacements).
               try {
                 var ejsB64 = window.__KIRA_EJS_BUNDLE;
                 var stubB64 = window.__KIRA_EJS_STUB;
@@ -6637,9 +6777,11 @@ function injectBridge(html, id, floorIdx) {
                   ejsMs.src = distUrl;
                   frame.contentDocument.head.appendChild(ejsMs);
 
-                  // P2 修正:此处原有 checkScript.textContent=... 验证脚本,
-                  // 但 checkScript 从未定义,行必抛 ReferenceError 被 catch,
-                  // 导致下方「EJS 模块已注入」日志永不出现、排障被误导,已删除。
+                  // This spot previously had a checkScript.textContent=... verification script,
+                  // but checkScript was never defined, so the line always threw ReferenceError into
+                  // the catch,
+                  // which made the "EJS module injected" log below never appear and misled debugging;
+                  // it has been removed.
                   parent.postMessage({__thLog:true,text:'[引擎房] EJS 模块已注入'},'*');
                 } else {
                   parent.postMessage({__thLog:true,text:'[引擎房] EJS bundle/stub 缺失'},'*');
@@ -6674,9 +6816,9 @@ function injectBridge(html, id, floorIdx) {
   function resetEngineRoom() {
     try {
       var host = document.getElementById('__engineRoomHost');
-      if (host) host.innerHTML = '';  // 拆旧
+      if (host) host.innerHTML = '';  // tear down the old one
     } catch(e) {}
-    createEngineRoom();               // 建新
+    createEngineRoom();               // build the new one
   }
   window.resetEngineRoom = resetEngineRoom;
 
@@ -6703,7 +6845,7 @@ function injectBridge(html, id, floorIdx) {
           window.__shadowWriting = true;
           window.__sendRequest('th_pmToggleSection', {
             type: s.type, identifier: s.identifier, name: s.name,
-            // [P5-7D修复C] 发目标态: 当前OFF(disabled类在)→发true(要开)
+            // Send the target state: currently OFF (the disabled class is present) -> send true (turn on).
             enabled: li.classList.contains('completion_prompt_manager_prompt_disabled')
           }).then(function(result){
             var current = (result || []).filter(function(x){
@@ -6727,8 +6869,10 @@ function injectBridge(html, id, floorIdx) {
       renderSections((payload && payload.sections) || []);
     });
   }
-  // [P5-6阶段1.3] 方案A' 双保险: ready 后主动拉取一次 sections 喂给隐藏列表。
-  // 覆盖"listenManual 在极端时序下未生效"的可能; renderSections 幂等(先清空再填),与A同发无害。
+  // Belt-and-braces design A': proactively pull the sections list once after ready to feed the
+  // hidden list.
+  // Covers the possibility that listenManual did not take effect under extreme timing;
+  // renderSections is idempotent (clears before filling), so sending it alongside A is harmless.
   if (typeof __sendRequest === 'function' && typeof renderSections === 'function') {
     __sendRequest('th_pmGetSections', {}).then(function(sections){
       renderSections(sections || []);

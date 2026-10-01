@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'settings_providers.dart';
 
-/// 北斗七星：七个位置分别钉了哪个角色 id（null = 空的暗星）
+/// Big Dipper: character id pinned to each of the seven slots (null = empty slot)
 const String _bigDipperKey = 'big_dipper_slots';
 
 final bigDipperProvider =
@@ -14,7 +14,7 @@ final bigDipperProvider =
 class BigDipperNotifier extends StateNotifier<List<String?>> {
   final SharedPreferences _prefs;
 
-  // 七个位置，初始全空
+  // Seven slots, all empty initially
   BigDipperNotifier(this._prefs) : super(List.filled(7, null)) {
     _load();
   }
@@ -22,7 +22,7 @@ class BigDipperNotifier extends StateNotifier<List<String?>> {
   void _load() {
     final raw = _prefs.getStringList(_bigDipperKey);
     if (raw != null && raw.length == 7) {
-      // 存储时用空字符串代表 null
+      // Empty string encodes null in storage
       state = raw.map((e) => e.isEmpty ? null : e).toList();
     }
   }
@@ -34,7 +34,7 @@ class BigDipperNotifier extends StateNotifier<List<String?>> {
     );
   }
 
-  /// 把角色钉到第 index 个位置
+  /// Pins a character to the slot at [index]
   Future<void> setSlot(int index, String? characterId) async {
     if (index < 0 || index > 6) return;
     final next = [...state];
@@ -43,6 +43,6 @@ class BigDipperNotifier extends StateNotifier<List<String?>> {
     await _save();
   }
 
-  /// 清空某个位置
+  /// Clears the given slot
   Future<void> clearSlot(int index) => setSlot(index, null);
 }

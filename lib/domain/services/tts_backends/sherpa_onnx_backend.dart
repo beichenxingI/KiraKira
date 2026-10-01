@@ -9,11 +9,12 @@ import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 import '../tts_model_service.dart';
 import 'tts_backend.dart';
 
-/// sherpa-onnx 本地离线 TTS 后端。
+/// sherpa-onnx local offline TTS backend.
 ///
-/// 模型由用户导入（tar.bz2 → <docDir>/KiraKira/models/tts/），
-/// manifest.json 记录清单。合成用 OfflineTts（FFI，阻塞 → Isolate.run），
-/// 输出 Float32 PCM → writeWave 写临时 WAV → just_audio 播放。
+/// Models are user-imported (tar.bz2 extracted to <docDir>/KiraKira/models/tts/)
+/// and listed in manifest.json. Synthesis uses OfflineTts via FFI (blocking, so
+/// wrapped in Isolate.run), producing Float32 PCM written to a temp WAV file
+/// via writeWave and played back with just_audio.
 class SherpaOnnxBackend implements TtsBackend {
   static bool _bindingsInitialized = false;
 
@@ -43,15 +44,15 @@ class SherpaOnnxBackend implements TtsBackend {
     }
 
     if (!_bindingsInitialized) {
-      sherpa.initBindings(); // 抄 STT（stt_service.dart 同款模式）
+      sherpa.initBindings(); // Same pattern as STT (stt_service.dart)
       _bindingsInitialized = true;
     }
 
     final config = _buildConfig(entry);
-    // sherpa_onnx 的 FFI 绑定不能跨 isolate，必须在主 isolate 创建
+    // sherpa_onnx FFI bindings cannot cross isolates; create on the main isolate
     _tts = sherpa.OfflineTts(config);
 
-    // 生成 sid 音色列表
+    // Build the sid voice list
     final numSpeakers = entry.numSpeakers;
     _voices = List.generate(
       numSpeakers,
@@ -135,7 +136,7 @@ class SherpaOnnxBackend implements TtsBackend {
     String text, {
     String? voiceId,
     double rate = 1.0,
-    double pitch = 1.0, // sherpa 不支持音调，忽略
+    double pitch = 1.0, // sherpa does not support pitch; ignored
     double volume = 1.0,
   }) async {
     if (!_isInitialized || _tts == null) await initialize();
@@ -146,13 +147,14 @@ class SherpaOnnxBackend implements TtsBackend {
     final speed = rate.clamp(0.5, 2.0);
     final player = _player ??= AudioPlayer();
 
-    // generate 是同步 FFI 调用，但必须在主 isolate（因为绑定不能跨 isolate）
+    // generate is a synchronous FFI call and must run on the main isolate
+    // (bindings cannot cross isolates)
     final audio = tts.generate(text: text, sid: sid, speed: speed);
     if (audio.samples.isEmpty) {
       throw Exception('sherpa TTS 合成结果为空（文本或 sid 无效）');
     }
 
-    // PCM → WAV 临时文件
+    // PCM to a temp WAV file
     final tmpDir = await getTemporaryDirectory();
     final wavPath = p.join(
         tmpDir.path, 'tts_${DateTime.now().millisecondsSinceEpoch}.wav');
@@ -162,14 +164,14 @@ class SherpaOnnxBackend implements TtsBackend {
       sampleRate: audio.sampleRate,
     );
 
-    // just_audio 播放，await 到完成
+    // just_audio playback, awaited until completion
     await player.setFilePath(wavPath);
     await player.play();
     await player.playerStateStream.firstWhere(
       (s) => s.processingState == ProcessingState.completed,
     );
 
-    // 临时文件清理
+    // Temp file cleanup
     File(wavPath).delete().catchError((_) => File(wavPath));
   }
 
@@ -192,7 +194,7 @@ class SherpaOnnxBackend implements TtsBackend {
   Future<void> dispose() async {
     await _player?.dispose();
     _player = null;
-    _tts?.free(); // 必须 free，否则内存泄漏
+    _tts?.free(); // Must free, otherwise memory leaks
     _tts = null;
     _isInitialized = false;
   }
@@ -204,7 +206,7 @@ class SherpaOnnxBackend implements TtsBackend {
   String get displayName => '本地离线 TTS';
 
   @override
-  bool get supportsPitch => false; // sherpa 不支持音调控制
+  bool get supportsPitch => false; // sherpa does not support pitch control
 
   @override
   bool get supportsRate => true;
@@ -212,7 +214,7 @@ class SherpaOnnxBackend implements TtsBackend {
   @override
   String get configHint => '需导入模型文件（.tar.bz2），推荐 vits-icefall-zh-aishell3 (30MB)';
 
-  /// 读取模型清单（供 UI/调试）
+  /// Load the model manifest (for UI/debugging)
   Future<List<TtsModelEntry>> loadManifest() =>
       TtsModelService.instance.loadManifest();
 }

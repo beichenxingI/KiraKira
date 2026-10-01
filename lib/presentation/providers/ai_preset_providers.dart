@@ -241,8 +241,8 @@ class AIPresetManager {
           (p) => p.name == preset.provider,
           orElse: () => LLMProvider.openai,
         );
-        // Force switch: first change to a different provider then back,
-        // or use forceRefreshProvider which we added
+        // forceSetProvider refreshes the connection settings directly;
+        // no switch-away-and-back workaround needed
         await llmNotifier.forceSetProvider(targetProvider);
       } catch (_) {
         // Ignore invalid provider strings
@@ -275,8 +275,9 @@ class AIPresetManager {
       await promptNotifier.resetToDefault();
     }
 
-    // Apply bound regex scripts —— 无论是否为空都调用：
-    // 空列表会禁用所有全局正则，从而清除上一个预设残留的正则。
+    // Apply bound regex scripts — call unconditionally, even with an empty
+    // list: an empty list disables all global scripts, clearing leftovers
+    // from the previous preset.
     {
       final regexNotifier = _ref.read(globalRegexScriptsProvider.notifier);
       await regexNotifier.setActiveScripts(preset.boundRegexScriptIds);

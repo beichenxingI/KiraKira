@@ -152,10 +152,11 @@ class STTResult {
 
 /// STT Service for speech-to-text functionality
 ///
-/// [STTProvider.sherpa]：本地离线识别。内置 sherpa-onnx 流式 Zipformer2-CTC
-/// 中文 int8 模型（assets/models/stt/），首次使用时拷贝到应用文档目录，
-/// 录音用 record 包采集 16kHz 单声道 PCM16，实时喂给流式识别器。
-/// 其余 provider 暂为占位（不产生识别结果）。
+/// [STTProvider.sherpa] runs local offline recognition. Bundles a sherpa-onnx
+/// streaming Zipformer2-CTC Chinese int8 model (assets/models/stt/), copied to
+/// the app documents directory on first use. Recording uses the record package
+/// to capture 16kHz mono PCM16 fed in real time to the streaming recognizer.
+/// Other providers are placeholders (produce no recognition results).
 class STTService {
   static bool _bindingsInitialized = false;
 
@@ -183,7 +184,7 @@ class STTService {
   bool get isListening => _isListening;
   STTSettings get settings => _settings;
 
-  /// 把识别模型从 assets 拷贝到 <docDir>/KiraKira/models/stt/（仅首次）
+  /// Copy the recognition model from assets to <docDir>/KiraKira/models/stt/ (first use only)
   Future<String> _prepareModelFiles() async {
     final appDir = await getApplicationDocumentsDirectory();
     final dir = Directory(p.join(appDir.path, 'KiraKira', 'models', 'stt'));
@@ -241,7 +242,7 @@ class STTService {
     final providerChanged = settings.provider != _settings.provider;
     _settings = settings;
     if (providerChanged) {
-      // 切换 provider 后需按新配置重新初始化
+      // Re-initialize with the new config after switching provider
       _isInitialized = false;
     }
   }
@@ -282,7 +283,7 @@ class STTService {
           _teardown(emitStopped: true);
         });
       } else {
-        // 其他 provider 暂为占位
+        // Other providers are placeholders for now
         _isListening = true;
         onListeningStarted?.call();
         debugPrint('STT: provider ${_settings.provider.id} not implemented yet');
@@ -372,7 +373,7 @@ class STTService {
         await _recorder.stop();
       }
     } catch (_) {
-      // 录音器可能已自行停止
+      // The recorder may have already stopped on its own
     }
     _stream?.free();
     _stream = null;

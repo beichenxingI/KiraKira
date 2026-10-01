@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/chat_background.dart';
 import 'settings_providers.dart';
 
-/// 主页背景独立存储 key，和聊天背景（global_chat_background）完全分开
+/// Storage key for the home background, fully separate from the chat background (global_chat_background)
 const String _homeBackgroundKey = 'home_screen_background';
 
 final homeBackgroundProvider =

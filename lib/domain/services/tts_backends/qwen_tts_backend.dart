@@ -8,17 +8,17 @@ import 'package:path_provider/path_provider.dart';
 
 import 'tts_backend.dart';
 
-/// 阿里 Qwen-TTS 后端。
+/// Alibaba Qwen-TTS backend.
 ///
-/// DashScope HTTP：POST {base}/api/v1/services/aigc/multimodal-generation/generation，
-/// Bearer 认证，返回 output.audio.url（wav，24h 有效）→ 下载 → just_audio 播放。
+/// DashScope HTTP: POST {base}/api/v1/services/aigc/multimodal-generation/generation,
+/// Bearer auth, returns output.audio.url (wav, valid for 24h) then download and play with just_audio.
 ///
-/// qwen3-tts-flash 不支持 rate/pitch 数值参数（仅 instructions）；
-/// cosyvoice 系列走 SpeechSynthesizer 端点，支持 rate/pitch/volume。
+/// qwen3-tts-flash does not support numeric rate/pitch parameters (instructions only);
+/// the cosyvoice family uses the SpeechSynthesizer endpoint and supports rate/pitch/volume.
 class QwenTtsBackend implements TtsBackend {
   final String? apiKey;
   final String? model; // qwen3-tts-flash / cosyvoice-v3-flash 等
-  final String? baseUrl; // 可选自定义
+  final String? baseUrl; // optional custom
 
   static const _defaultBaseUrl = 'https://dashscope.aliyuncs.com';
   static const _defaultModel = 'qwen3-tts-flash';
@@ -28,7 +28,7 @@ class QwenTtsBackend implements TtsBackend {
 
   bool _isCosyvoice = false;
 
-  // Qwen-TTS 系统音色（节选常用 20 个；cosyvoice 音色按模型版本配对）
+  // Qwen-TTS system voices (common 20 selected; cosyvoice voices are paired per model version)
   static const _qwenVoices = <Map<String, String>>[
     {'value': 'Cherry', 'label': '芊悦·阳光小姐姐'},
     {'value': 'Serena', 'label': '苏瑶·温柔'},
@@ -52,7 +52,7 @@ class QwenTtsBackend implements TtsBackend {
     {'value': 'Rocky', 'label': '阿强·粤语'},
   ];
 
-  // CosyVoice v3-flash 常用音色
+  // CosyVoice v3-flash common voices
   static const _cosyVoices = <Map<String, String>>[
     {'value': 'longanyang', 'label': '阳光大男孩'},
     {'value': 'longanhuan_v3', 'label': '欢脱元气女'},
@@ -99,7 +99,7 @@ class QwenTtsBackend implements TtsBackend {
 
     late final Response<dynamic> response;
     if (_isCosyvoice) {
-      // CosyVoice：SpeechSynthesizer 端点，支持 rate/pitch/volume 数值
+      // CosyVoice: SpeechSynthesizer endpoint, supports numeric rate/pitch/volume
       response = await _dio.post(
         '/api/v1/services/audio/tts/SpeechSynthesizer',
         options: Options(headers: {
@@ -122,7 +122,7 @@ class QwenTtsBackend implements TtsBackend {
         },
       );
     } else {
-      // Qwen-TTS：multimodal-generation 端点（无 rate/pitch 数值参数）
+      // Qwen-TTS: multimodal-generation endpoint (no numeric rate/pitch parameters)
       response = await _dio.post(
         '/api/v1/services/aigc/multimodal-generation/generation',
         options: Options(headers: {
@@ -150,7 +150,7 @@ class QwenTtsBackend implements TtsBackend {
       throw Exception('Qwen-TTS 错误 $code: $message');
     }
 
-    // 下载 wav → 临时文件 → just_audio 播放（OSS URL 24h 有效，立即用）
+    // Download the wav to a temp file and play with just_audio (the OSS URL is valid for 24h, use it immediately)
     final tmpDir = await getTemporaryDirectory();
     final wavPath = p.join(
         tmpDir.path, 'tts_${DateTime.now().millisecondsSinceEpoch}.wav');
@@ -164,7 +164,7 @@ class QwenTtsBackend implements TtsBackend {
     File(wavPath).delete().catchError((_) => File(wavPath));
   }
 
-  /// 解析 DashScope 错误码为用户友好提示
+  /// Maps DashScope error codes to user-friendly hints
   static String friendlyError(Object error) {
     final msg = error.toString();
     if (msg.contains('429') || msg.contains('rate limit')) {
@@ -207,7 +207,7 @@ class QwenTtsBackend implements TtsBackend {
   String get displayName => '阿里通义 TTS';
 
   @override
-  bool get supportsPitch => _isCosyvoice; // 仅 cosyvoice 支持数值 pitch
+  bool get supportsPitch => _isCosyvoice; // only cosyvoice supports numeric pitch
 
   @override
   bool get supportsRate => _isCosyvoice;

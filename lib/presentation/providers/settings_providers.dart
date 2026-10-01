@@ -41,7 +41,7 @@ final llmServiceProvider = Provider<LLMService>((ref) {
   throw UnimplementedError('Must be overridden in ProviderScope');
 });
 
-/// Provider for EJS render registry(活跃聊天页登记 EJS 渲染函数)
+/// Provider for the EJS render registry (registers EJS render functions for the active chat page)
 final ejsRenderRegistryProvider = Provider<EJSRenderRegistry>((ref) {
   throw UnimplementedError('Must be overridden in ProviderScope');
 });
@@ -52,11 +52,12 @@ class LLMConfigNotifier extends StateNotifier<LLMConfig> {
   static const _configKey = 'llm_config';
   static const _providerConfigKeyPrefix = 'llm_provider_config_';
 
-  /// Phase 3: Map a multi-config provider string to the LLMProvider enum.
-  /// [Bug1] 行 provider 来源有两种：ai_config 弹窗写枚举名（'deepSeek' 驼峰），
-  /// LlmConfigEditScreen 写 'custom' 等小写字符串。原映射只匹配小写 'deepseek'
-  /// 且缺 gemini/qwen 等 case，其余全部落到 openAICompatible → 保存后
-  /// applyActiveMultiConfig 把运行时 provider 错误翻转。改 toLowerCase + 全枚举。
+  /// Map a multi-config provider string to the LLMProvider enum.
+  /// Provider strings come from two sources: the ai_config dialog writes enum
+  /// names ('deepSeek' camelCase), while LlmConfigEditScreen writes lowercase
+  /// strings such as 'custom'. Matching must be case-insensitive and cover every
+  /// enum case; otherwise values fall through to openAICompatible and
+  /// applyActiveMultiConfig flips the runtime provider to the wrong value.
   static LLMProvider _mapMultiConfigProvider(String s) {
     switch (s.toLowerCase()) {
       case 'deepseek':
@@ -82,7 +83,7 @@ class LLMConfigNotifier extends StateNotifier<LLMConfig> {
     }
   }
 
-  /// Phase 3: Load the active (isDefault) entry from the llm_configs table.
+  /// Load the active (isDefault) entry from the llm_configs table.
   Future<void> applyActiveMultiConfig() async {
     final row = await (_db.select(_db.llmConfigs)
           ..where((t) => t.isDefault.equals(true)))
@@ -266,7 +267,7 @@ class LLMConfigNotifier extends StateNotifier<LLMConfig> {
         // Use default config on error
       }
     }
-    // 冷启动时用多LLM方案的 active 配置覆盖，保证聊天页与API服务页一致
+    // Overwrite with the active multi-LLM config on cold start so the chat page and the API service page stay consistent
     await applyActiveMultiConfig();
   }
 
@@ -349,19 +350,20 @@ class LLMConfigNotifier extends StateNotifier<LLMConfig> {
     state = state.copyWith(model: model);
     _saveConfig();
     _saveCurrentProviderConfig(); // Also save to per-provider config for persistence
-    _persistModelToActiveConfig(model); // 同步 model 到 DB 激活方案，避免冷启动被旧值覆盖
+    _persistModelToActiveConfig(model); // Sync model to the active DB config so a cold start does not overwrite it with a stale value
   }
-  /// 只把 model 一列回写到 DB 中 isDefault=true 的方案行，
-  /// 保证冷启动时 applyActiveMultiConfig 读到的是最新选择的模型。
-  /// 注意：只 update model 一列，绝不触碰 apiKey/endpoint，避免误伤其他字段。
+  /// Write back only the model column of the isDefault=true row so that
+  /// applyActiveMultiConfig reads the latest selected model on cold start.
+  /// Only the model column is updated; apiKey/endpoint are never touched.
   Future<void> _persistModelToActiveConfig(String model) async {
-    // [Bug1] 用 get()+first 容忍瞬时双 isDefault=true 窗口（如 onSaveAsNew/
-    // onSave 新建分支的 upsert 与 setActive 事务之间），getSingleOrNull 遇多行
-    // 会抛 StateError 使本次回写静默失败。
+    // Use get()+first to tolerate a transient window where two rows have
+    // isDefault=true (e.g., between the upsert and setActive transactions of
+    // the onSaveAsNew/onSave branches); getSingleOrNull would throw
+    // StateError on multiple rows and silently abort this write-back.
     final rows = await (_db.select(_db.llmConfigs)
           ..where((t) => t.isDefault.equals(true)))
         .get();
-    if (rows.isEmpty) return; // 无激活方案（纯单配置模式），无需回写
+    if (rows.isEmpty) return; // No active config (single-config mode); nothing to write back
     await (_db.update(_db.llmConfigs)
           ..where((t) => t.id.equals(rows.first.id)))
         .write(LlmConfigsCompanion(
@@ -990,7 +992,7 @@ final tokenizerServiceProvider = Provider<TokenizerService>((ref) {
 /// Provider for chat summarization service
 final chatSummarizationServiceProvider = Provider<ChatSummarizationService>((ref) {
   final llmService = ref.watch(llmServiceProvider);
-  // [CHRONICLE v1.0] tokenizer依赖已随旧自动总结停用一并移除
+  // Tokenizer dependency was removed together with the deprecated auto-summarization feature
   return ChatSummarizationService(llmService);
 });
 enum MetricsStatus { idle, measuring, success, error }
@@ -1000,7 +1002,7 @@ class ConnectionMetricsState {
   final int? ttftMs;
   final double? charsPerSec;
   final String? error;
-  // 稳定性深度检测（独立状态）
+  // Stability deep check (independent status)
   final MetricsStatus stabilityStatus;
   final String? stabilityRating;
   const ConnectionMetricsState({
@@ -1054,7 +1056,7 @@ class ConnectionMetricsNotifier
     }
   }
 
-  /// 稳定性深度检测：连测3次，看首Token延迟的波动
+  /// Stability deep check: run 3 consecutive tests and measure first-token latency variance
   Future<void> measureStability(LLMConfig config) async {
     state = state.copyWith(stabilityStatus: MetricsStatus.measuring);
     try {
@@ -1069,7 +1071,7 @@ class ConnectionMetricsNotifier
               .reduce((a, b) => a + b) /
           samples.length;
       final stdDev = variance <= 0 ? 0.0 : math.sqrt(variance);
-      final cv = mean > 0 ? stdDev / mean : 0.0; // 变异系数
+      final cv = mean > 0 ? stdDev / mean : 0.0; // coefficient of variation
       final String rating;
       if (cv < 0.15) {
         rating = '稳定';

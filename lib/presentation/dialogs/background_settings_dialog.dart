@@ -1,9 +1,9 @@
 // lib/presentation/dialogs/background_settings_dialog.dart
-/// 聊天背景设置浮窗(外观三项迁移)
-/// 内容完整迁自 background_settings_screen.dart,字段一个不少:
-/// 角色头像背景(仅全局:启用/透明度/模糊) · 对话染色(引号/括号色)
-/// 预览 · 渐变预设 · 纯色预设 · 自定义图片(选图/URL)
-/// 气泡透明度调整 · 清除背景
+/// Chat background settings dialog (appearance settings migration).
+/// Mirrors background_settings_screen.dart with every field preserved:
+/// character avatar background (global only: enable / opacity / blur), quote
+/// coloring (quote / bracket colors), preview, gradient presets, solid color
+/// presets, custom image (picker / URL), bubble opacity, clear background.
 library;
 
 import 'dart:io';
@@ -99,7 +99,7 @@ class _BackgroundSettingsDialogState
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 角色头像背景设置(仅全局)
+          // Character avatar background setting (global only)
           if (!isCharacterSpecific) ...[
             _buildCharacterAvatarSetting(),
             const SizedBox(height: 16),
@@ -107,29 +107,29 @@ class _BackgroundSettingsDialogState
             const SizedBox(height: 16),
           ],
 
-          // 预览
+          // Preview
           _buildPreviewSection(),
           const SizedBox(height: 16),
 
-          // 渐变预设
+          // Gradient presets
           _buildSectionHeader(l10n.gradientPresets),
           const SizedBox(height: 8),
           _buildGradientPresets(),
           const SizedBox(height: 16),
 
-          // 纯色预设
+          // Solid color presets
           _buildSectionHeader(l10n.solidColors),
           const SizedBox(height: 8),
           _buildColorPresets(),
           const SizedBox(height: 16),
 
-          // 自定义图片
+          // Custom image
           _buildSectionHeader(l10n.customImage),
           const SizedBox(height: 8),
           _buildImageSection(),
           const SizedBox(height: 16),
 
-          // 调整(仅当有背景时)
+          // Adjustments (only when a background is set)
           if (_currentBackground.type != BackgroundType.none) ...[
             _buildSectionHeader(l10n.adjustments),
             const SizedBox(height: 8),
@@ -238,7 +238,7 @@ class _BackgroundSettingsDialogState
     );
   }
 
-  // ── 对话染色设置 ──
+  // Quote color settings
   Widget _buildQuoteColorCard() {
     final state = ref.watch(quoteColorStateProvider);
     return Container(

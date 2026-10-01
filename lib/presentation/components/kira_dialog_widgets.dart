@@ -61,7 +61,7 @@ class KiraDashedButton extends StatelessWidget {
   }
 }
 
-/// 虚线添加按钮（圆形，用于列表内"添加"操作）
+/// Dashed "add" button (circular, for in-list add actions)
 class KiraDashedAddButton extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -115,7 +115,7 @@ class KiraDashedAddButton extends StatelessWidget {
   }
 }
 
-/// 折叠卡片内容区触发器：显示当前值，点击弹出编辑浮窗
+/// Collapsible card content-area trigger: shows the current value; tapping opens the edit dialog
 class KiraEditTrigger extends StatelessWidget {
   final String? value;
   final String placeholder;
@@ -177,7 +177,7 @@ class KiraEditTrigger extends StatelessWidget {
   }
 }
 
-/// 标签 Chip（含删除按钮）
+/// Tag chip (with delete button)
 class KiraTagChip extends StatelessWidget {
   final String label;
   final Color color;
@@ -230,7 +230,7 @@ class KiraTagChip extends StatelessWidget {
   }
 }
 
-/// 胶囊保存按钮（主色渐变，全宽）
+/// Pill save button (primary gradient, full width)
 class KiraSaveButton extends StatelessWidget {
   final String label;
   final bool enabled;
@@ -286,7 +286,7 @@ class KiraSaveButton extends StatelessWidget {
   }
 }
 
-/// 渐变下划线（透明→紫→透明）
+/// Gradient underline (transparent to purple to transparent)
 class KiraGradientUnderline extends StatelessWidget {
   const KiraGradientUnderline({super.key});
 
@@ -307,7 +307,7 @@ class KiraGradientUnderline extends StatelessWidget {
   }
 }
 
-/// 居中胶囊按钮组（取消/确认）
+/// Centered pill button row (cancel/confirm)
 class KiraDialogActions extends StatelessWidget {
   final String cancelText;
   final String confirmText;
@@ -393,7 +393,7 @@ class KiraDialogActions extends StatelessWidget {
   }
 }
 
-/// 圆形图标按钮（用于头像编辑、删除等）
+/// Circular icon button (for avatar editing, delete, etc.)
 class KiraCircleIconButton extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -434,12 +434,12 @@ class KiraCircleIconButton extends StatelessWidget {
   }
 }
 
-/// 根据字符串生成稳定颜色（哈希取模）
+/// Produces a stable color from a string (hash modulo)
 Color kiraHashColor(String text) {
   return KiraDialogTheme.tagColorFor(text);
 }
 
-/// 通用居中面板阴影（浮窗内容卡）
+/// Generic centered panel shadow (dialog content card)
 BoxShadow kiraPanelShadow({double alpha = 0.07, Color? color}) {
   return BoxShadow(
     color: (color ?? Colors.black).withValues(alpha: alpha),
@@ -448,7 +448,7 @@ BoxShadow kiraPanelShadow({double alpha = 0.07, Color? color}) {
   );
 }
 
-/// 限制数字输入范围
+/// Clamps numeric input to a range
 int kiraClampInt(String? text, int min, int fallback) {
   if (text == null) return fallback;
   final v = int.tryParse(text.trim());
@@ -456,7 +456,7 @@ int kiraClampInt(String? text, int min, int fallback) {
   return v;
 }
 
-/// min helper（kira_dialog 内部使用）
+/// min-width helper (used internally by kira_dialog)
 double kiraMinWidth(BuildContext context, double max) {
   return min(MediaQuery.of(context).size.width - 40, max);
 }

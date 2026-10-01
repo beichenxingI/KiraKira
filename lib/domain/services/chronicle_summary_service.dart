@@ -5,19 +5,23 @@ import 'package:kirakira/data/models/chat.dart';
 import 'package:kirakira/data/models/chronicle.dart' as models;
 import 'package:kirakira/domain/services/llm_service.dart';
 
-/// [CHRONICLE Phase 2] Wiki结构化总结服务。
+/// Wiki structured summarization service.
 ///
-/// 单次LLM调用产出三层输出：
-/// ① 事件词条（MemoryEntry）② 实体/关系patch ③ 情感节点
-/// JSON解析失败 → 降级纯文本词条（H5：保持与旧总结同等质量，不阻断）。
+/// A single LLM call produces three outputs: event entries (MemoryEntry),
+/// entity/relationship patches, and emotion nodes.
+/// On JSON parse failure, falls back to a plain-text entry (same quality as
+/// the old summary, never blocks).
 class ChronicleSummaryService {
   final LLMService _llmService;
 
   ChronicleSummaryService(this._llmService);
 
-  /// 总结Prompt模板（内置专业记忆提取版本，{custom_suffix}承接用户自定义指令）。
-  /// 设计参考：Zep/Graphiti时序知识图谱（时序标记+事实失效）、MemGPT分层记忆、
-  /// A-MEM结构化笔记。硬性约束前置+编号列表+正反例，提升中端模型遵循率。
+  /// Summary prompt template (built-in professional memory extraction version;
+  /// {custom_suffix} carries user-defined instructions).
+  /// Design references: Zep/Graphiti temporal knowledge graphs (temporal markers
+  /// plus fact invalidation), MemGPT layered memory, A-MEM structured notes.
+  /// Hard constraints up front, numbered lists, and positive/negative examples
+  /// improve compliance on mid-tier models.
   static const String basePrompt = '''
 你是角色扮演记忆整理助手。从新增对话中提取记忆词条，更新现有词条库；没有值得记录的内容就输出空数组，宁缺毋滥。
 
@@ -59,9 +63,10 @@ class ChronicleSummaryService {
 
 {custom_suffix}''';
 
-  /// 生成结构化总结（支持分段渐进式提炼）。
+  /// Generate a structured summary (supports multi-pass progressive refinement).
   ///
-  /// passes=1: 单次调用；passes>1: 多段渐进，每段产出临时词条供下段参考。
+  /// passes=1: single call; passes>1: progressive chunks, each producing temp
+  /// entries for the next pass to reference.
   Future<models.ChronicleSummaryOutput> summarize({
     required List<ChatMessage> messages,
     required String existingWikiText,
@@ -131,7 +136,8 @@ class ChronicleSummaryService {
         allEmotions.addAll(partialOutput.emotions);
         allDeprecatedIds.addAll(partialOutput.deprecatedIds);
 
-        // fallback兜底：该段JSON解析失败时，把原文转为词条，不丢弃信息
+        // Fallback: if JSON parsing fails for this chunk, convert the raw text
+        // to an entry so no information is lost
         if (partialOutput.entries.isEmpty &&
             partialOutput.fallbackText != null &&
             partialOutput.fallbackText!.trim().isNotEmpty) {
@@ -149,7 +155,7 @@ class ChronicleSummaryService {
           ));
         }
 
-        // 把本轮产出拼入临时wiki，供下轮参考
+        // Append this pass's output to the temp wiki for the next pass to reference
         if (pass < passes - 1) {
           accumulatedTempWiki += '\n\n## 临时词条（第${pass + 1}段产出）\n';
           for (final e in partialOutput.entries) {
@@ -182,7 +188,7 @@ class ChronicleSummaryService {
     );
   }
 
-  /// 单段总结（内部方法）
+  /// Summarize a single chunk (internal method)
   Future<models.ChronicleSummaryOutput> _summarizeChunk({
     required List<ChatMessage> messages,
     required String existingWikiText,
@@ -217,13 +223,14 @@ class ChronicleSummaryService {
             '${currentPass > 1 ? '前几段已提炼出临时词条（见上文），本段需保持上下文连贯。' : ''}\n'
         : '';
 
-    // 用户自定义追加 + 成人内容补充指令（独立字段，拼入同一占位符）
+    // User-defined suffix plus mature-content instruction (separate fields,
+    // joined into the same placeholder)
     final customSuffix = [
       settings.customPromptSuffix,
       settings.matureContentSuffix,
     ].where((s) => s.trim().isNotEmpty).join('\n\n');
 
-    // 本次额外要求（单条重新总结场景，追加在custom_suffix之后）
+    // Extra requirements for this run (single-entry re-summarization; appended after custom_suffix)
     final extraBlock = extraRequirement.trim().isNotEmpty
         ? '\n## 本次额外要求\n${extraRequirement.trim()}\n'
         : '';

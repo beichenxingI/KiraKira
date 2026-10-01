@@ -14,11 +14,12 @@ import 'package:kirakira/presentation/screens/import/import_screen.dart'
     show importServiceProvider, urlImportServiceProvider;
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 
-/// AI Character Cards (aicharactercards.com) 全屏沉浸式浏览器
+/// Full-screen immersive browser for AI Character Cards (aicharactercards.com).
 ///
-/// 国际SFW角色卡社区。系统返回键先返回网页历史，到第一页才退出。
-/// 在角色详情页显示「导入到Kira」浮动按钮。
-/// 点击网站下载按钮时通过JS拦截自动导入角色卡。
+/// International SFW character card community. The system back button walks through
+/// page history first and only exits on the first page.
+/// An "Import to Kira" floating button is shown on character detail pages.
+/// Site download button clicks are intercepted via JS to import cards automatically.
 class AccWebViewScreen extends ConsumerStatefulWidget {
   final VoidCallback? onCharacterImported;
 
@@ -35,7 +36,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
   bool _canGoBack = false;
   bool _canGoForward = false;
   String _currentUrl = '';
-  String? _currentCharacterUrl; // 记录当前角色页面URL，用于下载fallback
+  String? _currentCharacterUrl; // Current character page URL, used as download fallback
   bool _vpnBannerDismissed = false;
   bool _isImporting = false;
   bool _showControls = false;
@@ -59,7 +60,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
   @override
   void dispose() {
     _hideControlsTimer?.cancel();
-    // 恢复全局沉浸式模式（与 main.dart 一致）
+    // Restore the global immersive mode (matches main.dart)
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.immersiveSticky,
       overlays: [],
@@ -79,7 +80,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
     }
   }
 
-  /// 系统返回键逻辑：先返回网页历史，到第一页才退出
+  /// System back behavior: walk back through web history, exit only on the first page
   Future<void> _onPopInvoked(bool didPop) async {
     if (didPop) return;
     final canGoBack = await _controller?.canGoBack() ?? false;
@@ -99,7 +100,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            // ── 全屏 WebView ──
+            // Full-screen WebView
             Positioned.fill(
               child: Listener(
                 onPointerDown: (_) => _toggleControls(),
@@ -134,7 +135,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
                       _isLoading = true;
                       _currentUrl = urlStr;
                     });
-                    // 记录角色页面URL
+                    // Track the character page URL
                     if (_isCharacterPageUrl(urlStr)) {
                       _currentCharacterUrl = urlStr;
                       debugPrint('[AccWebView] On character page: $urlStr');
@@ -146,7 +147,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
                       _isLoading = false;
                       _currentUrl = urlStr;
                     });
-                    // 记录角色页面URL
+                    // Track the character page URL
                     if (_isCharacterPageUrl(urlStr)) {
                       _currentCharacterUrl = urlStr;
                     }
@@ -194,7 +195,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
               ),
             ),
 
-            // ── 顶部进度条 ──
+            // Top progress bar
             if (_isLoading)
               Positioned(
                 top: 0,
@@ -209,7 +210,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
                 ),
               ),
 
-            // ── 顶部控制栏 ──
+            // Top control bar
             if (_showControls)
               Positioned(
                 top: 0,
@@ -218,7 +219,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
                 child: _buildTopControlBar(context),
               ),
 
-            // ── 底部控制栏 ──
+            // Bottom control bar
             if (_showControls)
               Positioned(
                 bottom: 0,
@@ -227,7 +228,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
                 child: _buildBottomControlBar(context),
               ),
 
-            // ── 角色详情页导入按钮 ──
+            // Import button on character detail pages
             if (_isOnCharacterPage() && !_isImporting && !_showControls)
               Positioned(
                 right: DesignTokens.spaceMd,
@@ -242,7 +243,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
                 ),
               ),
 
-            // ── VPN 提示横幅 ──
+            // VPN hint banner
             if (!_vpnBannerDismissed && !_showControls)
               Positioned(
                 bottom: DesignTokens.spaceMd,
@@ -256,7 +257,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
     );
   }
 
-  // ─── UI Builders ───
+  // UI builders
 
   Widget _buildTopControlBar(BuildContext context) {
     return Container(
@@ -383,10 +384,10 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
     );
   }
 
-  // ─── Logic ───
+  // Logic
 
-  /// 判断URL是否是角色详情页
-  /// AI Character Cards 角色页格式: https://aicharactercards.com/character-cards/{slug}/
+  /// Whether the URL is a character detail page.
+  /// Character page format: https://aicharactercards.com/character-cards/{slug}/
   bool _isCharacterPageUrl(String url) {
     if (url.isEmpty) return false;
     final uri = Uri.tryParse(url);
@@ -402,7 +403,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
   bool _isOnCharacterPage() => _isCharacterPageUrl(_currentUrl);
 
   bool _isCharacterCardUrl(String url) {
-    // AI Character Cards 官方PNG卡接口
+    // Official AI Character Cards PNG card API
     if (url.contains('aicharactercards.com/wp-json/pngapi')) {
       return true;
     }
@@ -475,7 +476,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
     }
   }
 
-  /// 从字节直接导入（用于 blob URL）
+  /// Import directly from bytes (used for blob URLs)
   Future<void> _importFromBytes(Uint8List bytes) async {
     if (_isImporting) return;
     setState(() => _isImporting = true);
@@ -496,7 +497,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
       final repo = ref.read(characterRepositoryProvider);
       final created = await repo.createCharacter(character);
 
-      // [紧急修复-C] 导入时正则写入独立表（与 import_screen 主路径一致）
+      // Write regex scripts to a dedicated table on import (matches the import_screen main path)
       try {
         final rawList = character.extensions['regex_scripts'];
         if (rawList is List && rawList.isNotEmpty) {
@@ -549,7 +550,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
     }
   }
 
-  // ─── JS Injection ───
+  // JS injection
 
   Future<void> _injectLanguageScript() async {
     try {
@@ -568,7 +569,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
     }
   }
 
-  /// 注册 JS Handler，供网页端调用下载拦截
+  /// Registers the JS handlers the page uses to trigger download interception
   void _registerDownloadHandler() {
     _controller?.addJavaScriptHandler(
       handlerName: 'kiraDownloadCharacter',
@@ -578,7 +579,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
           url = args[0]?.toString();
         }
         debugPrint('[AccWebView] JS handler called with: $url');
-        // URL为空时使用当前角色页面URL
+        // Fall back to the current character page URL when empty
         if (url == null || url.isEmpty || url == 'null') {
           url = _currentCharacterUrl;
           debugPrint('[AccWebView] Fallback to current character URL: $url');
@@ -591,7 +592,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
       },
     );
 
-    // 处理 blob URL（base64 内容）
+    // Handle blob URLs (base64 payload)
     _controller?.addJavaScriptHandler(
       handlerName: 'kiraDownloadCharacterBlob',
       callback: (args) async {
@@ -614,7 +615,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
     );
   }
 
-  /// 注入下载拦截脚本：检测下载按钮点击，传递当前页面URL
+  /// Injects the download interceptor: detects download button clicks and passes the current page URL
   Future<void> _injectDownloadInterceptor() async {
     try {
       await _controller?.evaluateJavascript(source: r'''
@@ -622,16 +623,16 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
           if (window._kiraDownloadInterceptor) return;
           window._kiraDownloadInterceptor = true;
 
-          // 点击事件监听：检测下载按钮
+          // Click listener: detect download buttons
           document.addEventListener('click', function(e) {
             var el = e.target;
-            // 向上查找5层，检测可点击元素是否是下载按钮
+            // Walk up 5 ancestors to check whether the clicked element is a download button
             for (var i = 0; i < 5; i++) {
               if (!el || el === document.body) break;
 
               var isDownloadButton = false;
 
-              // 方法1: 检查 href 是否匹配下载链接
+              // Check 1: href matches a download link
               var href = el.href || el.getAttribute && el.getAttribute('href') || '';
               if (href && (
                 href.includes('pngapi') ||
@@ -641,17 +642,17 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
                 isDownloadButton = true;
               }
 
-              // 方法2: 检查 download 属性
+              // Check 2: download attribute present
               if (el.getAttribute && el.getAttribute('download')) {
                 isDownloadButton = true;
               }
 
-              // 方法3: 检查文本内容是否包含下载相关词汇
+              // Check 3: text content contains download-related words
               if (el.textContent) {
                 var text = el.textContent.toLowerCase().trim();
                 if (text === 'download' || text === '下载' ||
                     text.includes('chara_card') || text.includes('.png')) {
-                  // 仅当元素是按钮或链接时才匹配（避免误触整页文本）
+                  // Only match when the element is a button or link (avoids triggering on full-page text)
                   var tag = el.tagName;
                   if (tag === 'A' || tag === 'BUTTON' ||
                       (el.className && typeof el.className === 'string' &&
@@ -661,7 +662,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
                 }
               }
 
-              // 方法4: 检查 class/id 包含 download
+              // Check 4: class/id contains download
               if (el.className && typeof el.className === 'string') {
                 if (el.className.toLowerCase().includes('download')) {
                   isDownloadButton = true;
@@ -701,7 +702,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
                   return false;
                 }
 
-                // 传递当前页面URL（而非href），由Flutter端构造CDN链接
+                // Pass the current page URL (not the href); the Flutter side builds the CDN link
                 var currentUrl = window.location.href;
                 console.log('[Kira] Passing page URL:', currentUrl);
                 try {
@@ -716,7 +717,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
             }
           }, true);
 
-          // [暴力兜底] 拦截所有 blob URL 点击（不判断是否为下载按钮）
+          // Brute-force fallback: intercept every blob URL click (no download-button check)
           document.addEventListener('click', function(e) {
             var el = e.target;
             for (var i = 0; i < 5; i++) {
@@ -748,7 +749,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
             }
           }, true);
 
-          // 拦截编程式 <a>.click() 触发的下载
+          // Intercept downloads triggered by programmatic <a>.click()
           var origClick = HTMLAnchorElement.prototype.click;
           HTMLAnchorElement.prototype.click = function() {
             var href = this.href || '';
@@ -775,7 +776,7 @@ class _AccWebViewScreenState extends ConsumerState<AccWebViewScreen> {
     }
   }
 
-  // ─── Dialogs ───
+  // Dialogs
 
   void _showImportingDialog() {
     showDialog<void>(

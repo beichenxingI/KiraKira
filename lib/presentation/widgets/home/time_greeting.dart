@@ -1,7 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 
-/// 跟随时间段变化的问候语，放在主页时间旁
+/// Time-of-day greeting shown next to the clock on the home page
 class TimeGreeting extends StatelessWidget {
   final TextStyle? style;
   const TimeGreeting({super.key, this.style});

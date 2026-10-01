@@ -1,5 +1,6 @@
-/// [P6-3] 斜杠命令执行器:解析 + 依次执行,处理管道/pipe 注入/闭包/abort/break。
-/// 语义对齐 ST SlashCommandClosure.executeDirect。
+/// Slash command executor: parse + sequential execution, handling pipes,
+/// pipe injection, closures, abort and break.
+/// Semantics match ST SlashCommandClosure.executeDirect.
 library;
 
 import 'dart:convert';
@@ -9,7 +10,7 @@ import 'slash_command.dart';
 import 'slash_parser.dart';
 import 'slash_scope.dart';
 
-/// 执行结果(对齐 ST SlashCommandClosureResult)。
+/// Execution result (matches ST SlashCommandClosureResult).
 class SlashResult {
   const SlashResult({
     this.pipe = '',
@@ -34,9 +35,10 @@ class SlashResult {
       };
 }
 
-/// 全局宏解析钩子:runner 先替换 {{pipe}}/{{var::}}/{{timesIndex}},
-/// 再把剩余文本交给此钩子处理({{getvar::}} 等 ST 变量宏)。
-/// 由宿主(webview_chat_stage)注入,通常接 VariablesService.processVariableMacrosSync。
+/// Global macro resolution hook: the runner first replaces {{pipe}}/{{var::}}/{{timesIndex}},
+/// then hands the remaining text to this hook (ST variable macros such as {{getvar::}}).
+/// Injected by the host (webview_chat_stage), usually bound to
+/// VariablesService.processVariableMacrosSync.
 typedef SlashMacroResolver = String Function(String input);
 
 class SlashRunner {
@@ -44,7 +46,8 @@ class SlashRunner {
 
   static SlashMacroResolver? globalMacroResolver;
 
-  /// 执行入口。返回管道结果,绝不抛异常(错误封装在 isError)。
+  /// Execution entry point. Returns the pipe result and never throws
+  /// (errors are wrapped in isError).
   static Future<SlashResult> execute(
     String text, {
     SlashScope? scope,
@@ -64,9 +67,10 @@ class SlashRunner {
     }
   }
 
-  /// 执行一个闭包。
-  /// [parentScope] 的 pipe 会带入;闭包形参按 [providedArgs] 位置绑定;
-  /// [initialMacros] 预置域内宏(如 /times 的 {{timesIndex}})。
+  /// Executes a closure.
+  /// [parentScope]'s pipe is carried in; closure formal parameters are bound
+  /// by position from [providedArgs]; [initialMacros] pre-seeds scope macros
+  /// (e.g. {{timesIndex}} from /times).
   static Future<SlashResult> executeClosure(
     SlashClosureNode closure, {
     SlashScope? parentScope,
@@ -85,7 +89,7 @@ class SlashRunner {
     }
     final ctx = SlashExecContext(abort);
 
-    // 闭包形参绑定:调用方提供的按位置,其余用声明时的默认值
+    // Closure parameter binding: caller-provided values by position, others use declared defaults
     for (var i = 0; i < closure.argumentList.length; i++) {
       final arg = closure.argumentList[i];
       Object? v;
@@ -118,13 +122,13 @@ class SlashRunner {
 
       final args = SlashArgs(scope: scope, ctx: ctx, env: env);
 
-      // 命名参数:解析值(闭包立即执行则求值,否则原样)
+      // Named arguments: resolve values (immediate closures are evaluated, others passed as-is)
       for (final a in ex.namedArgumentList) {
         args.named[a.name] =
             await _resolveValue(a.value, scope, env, ctx.abortController);
       }
 
-      // 无名参数
+      // Unnamed arguments
       if (ex.unnamedArgumentList.isEmpty) {
         if (!isFirst && ex.injectPipe) {
           args.unnamed = [_pipeToString(scope.pipe)];
@@ -150,7 +154,7 @@ class SlashRunner {
         args.hasUnnamedArg = args.unnamed.isNotEmpty;
       }
 
-      // 执行
+      // Execute
       Object? result;
       try {
         result = await cmd.callback(args);
@@ -164,12 +168,12 @@ class SlashRunner {
         );
       }
 
-      // /break:断当前闭包,break 已由回调把值写入 pipe
+      // /break: stops the current closure; the callback already wrote the value to pipe
       if (ctx.breakRequested) {
         breaked = true;
       }
 
-      // 管道更新(闭包结果经 /run 等已是字符串;回调返回值字符串化)
+      // Pipe update (closure results via /run etc. are already strings; callback return values are stringified)
       if (result is SlashResult) {
         scope.pipe = result.pipe;
         if (result.isAborted) ctx.abortController.abort(result.errorMessage ?? 'aborted');
@@ -195,9 +199,10 @@ class SlashRunner {
     );
   }
 
-  // ── 内部 ──
+  // Internals
 
-  /// 解析参数值:立即闭包求值,延迟闭包原样传,字符串做宏替换。
+  /// Resolves an argument value: immediate closures are evaluated, deferred
+  /// closures are passed as-is, strings get macro substitution.
   static Future<Object?> _resolveValue(
     Object v,
     SlashScope scope,
@@ -217,7 +222,8 @@ class SlashRunner {
     return _substituteMacros(v.toString(), scope);
   }
 
-  /// 宏替换:{{pipe}} → {{var::name}}/{{var::name::index}} → 域内宏 → 全局钩子。
+  /// Macro substitution: {{pipe}} to {{var::name}}/{{var::name::index}} to
+  /// scope macros to global hook.
   static String _substituteMacros(String text, SlashScope scope) {
     if (!text.contains('{{')) {
       return text;
@@ -238,7 +244,7 @@ class SlashRunner {
       (m) => _scopeVarLookup(scope, m.group(1)!.trim(), null),
     );
 
-    // 域内宏(如 {{timesIndex}})
+    // Scope-local macros (e.g. {{timesIndex}})
     result = result.replaceAllMapped(
         RegExp(r'{{\s*(\w+)\s*}}', caseSensitive: false), (m) {
       final v = scope.getMacro(m.group(1)!);

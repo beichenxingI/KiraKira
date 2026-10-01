@@ -11,8 +11,9 @@ import 'package:kirakira/presentation/providers/world_info_providers.dart';
 final selectedCharacterIdProvider = StateProvider<String?>((ref) => null);
 
 /// Character list provider
-/// [Phase 1.1] autoDispose：列表页退出自动销毁缓存，重进必重查数据库，
-/// 无需手动 invalidate；消除统计页/世界书页的陈旧缓存。
+/// autoDispose drops the cache when the list page exits, so re-entering always
+/// re-queries the database with no manual invalidation; eliminates stale caches
+/// on the statistics and worldbook pages.
 final characterListProvider = AsyncNotifierProvider.autoDispose<CharacterListNotifier, List<Character>>(() {
   return CharacterListNotifier();
 });
@@ -28,7 +29,7 @@ class CharacterListNotifier extends AutoDisposeAsyncNotifier<List<Character>> {
   }
 
   Future<void> refresh() async {
-    // 保留旧数据，避免每次保存/删除时列表页闪骨架屏
+    // Keep previous data so the list page does not flash a skeleton on every save/delete
     state = await AsyncValue.guard(() async {
       final repo = ref.read(characterRepositoryProvider);
       final list = await repo.getAllCharacters();
@@ -37,7 +38,7 @@ class CharacterListNotifier extends AutoDisposeAsyncNotifier<List<Character>> {
     });
   }
 
-  /// 排序：置顶在前（pinnedAt 倒序）→ 其余按创建时间倒序
+  /// Sort: pinned first (pinnedAt descending), then the rest by creation time descending
   static void _sortPinnedFirst(List<Character> list) {
     list.sort((a, b) {
       if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
@@ -52,9 +53,10 @@ class CharacterListNotifier extends AutoDisposeAsyncNotifier<List<Character>> {
     final repo = ref.read(characterRepositoryProvider);
     final createdCharacter = await repo.createCharacter(character);
 
-    // [紧急修复-C] 导入时把 extensions['regex_scripts'] 写入独立表。
-    // Phase 2 后正则消费侧只查表；若导入不写表，只能靠 Provider 首次加载的
-    // 双读降级兜底（ST 格式卡兜底解析失败 → 正则整体丢失）。
+    // On import, write extensions['regex_scripts'] into its own table.
+    // After phase 2 the regex consumers only read the table; if the import does
+    // not write it, the only fallback is the dual-read on first Provider load
+    // (ST-format card fallback parsing fails, so all regexes are lost).
     try {
       final rawList = createdCharacter.extensions['regex_scripts'];
       if (rawList is List && rawList.isNotEmpty) {
@@ -63,13 +65,17 @@ class CharacterListNotifier extends AutoDisposeAsyncNotifier<List<Character>> {
             .importCharacterScriptsFromRaw(createdCharacter.id, rawList);
       }
     } catch (e) {
-      // 写表失败不阻断建卡；extensions 原数据保留，加载时双读兜底
+      // A table write failure must not block character creation; the original
+      // extensions data is kept and dual-read covers loading
       debugPrint('[Phase2] 导入正则写表失败(extensions 保留): $e');
     }
 
-    // 条目1:新建角色同步生成绑定空世界书(角色正则集存 extensions,天然自带空集)
-    // A2修复:仅当角色卡【不带内嵌世界书】时才建壳——导入带书的卡不再产生
-    // 空壳遮蔽真书(消费侧已改非空优先,此处从源头不再制造空壳)。
+    // Creating a character also generates its bound empty worldbook (the
+    // character regex set lives in extensions, which naturally carries an empty set).
+    // Only create the shell when the card has no embedded worldbook: importing a
+    // card that ships with a book no longer produces an empty shell that shadows
+    // the real book (consumers already prefer non-empty; this avoids creating
+    // shells at the source).
     final hasEmbeddedBook =
         createdCharacter.characterBook != null &&
         createdCharacter.characterBook!.entries.isNotEmpty;
@@ -82,7 +88,8 @@ class CharacterListNotifier extends AutoDisposeAsyncNotifier<List<Character>> {
               characterId: createdCharacter.id,
             );
       } catch (_) {
-        // 建书失败不阻断建卡;编辑器 WorldBook tab 仍有手动新建入口
+        // Failing to create the worldbook must not block character creation;
+        // the editor's WorldBook tab still offers a manual create entry
       }
     }
     await refresh();

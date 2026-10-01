@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 
-// TODO(token·待批准): avatarFallback 11 色(明度灰阶+1 主色)无图兜底,
-// 提案见总纲 §4。未批准前用 darkSurface/surfaceContainerHighest 兜底。
+// TODO(token, pending approval): avatarFallback 11 colors (lightness grayscale + 1 primary) as missing-image fallback,
+// proposal in outline §4. Until approved, fall back to darkSurface/surfaceContainerHighest.
 
-/// 已解析路径的静态缓存：同一个 imagePath 只解析一次，
-/// 避免每次重建都异步解析导致闪一帧占位符（白图根因）。
+/// Static cache of resolved paths: each imagePath is resolved only once,
+/// avoiding an async resolution on every rebuild that flashes a placeholder frame (root cause of the white image).
 final Map<String, String> _resolvedPathCache = {};
 
 Future<String> _resolveAvatarPath(String imagePath) async {
@@ -20,7 +20,7 @@ Future<String> _resolveAvatarPath(String imagePath) async {
 
 String? _cachedPath(String imagePath) => _resolvedPathCache[imagePath];
 
-/// 加载占位底色:深色用 darkSurface,浅色由 Theme 适配
+/// Placeholder background color while loading: darkSurface in dark mode, Theme-adapted in light mode
 Color _placeholderColor(BuildContext context) {
   final theme = Theme.of(context);
   return theme.brightness == Brightness.dark
@@ -46,8 +46,8 @@ class CharacterAvatarImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 按控件实际分配宽度 × 屏幕像素密度算解码宽度，
-        // 列表小图用小尺寸、详情大图用大尺寸，自适应不糊。
+        // Decode width = the widget's actually allocated width x device pixel ratio,
+        // so small list thumbnails decode small and large detail images decode large, staying sharp at any size.
         final dpr = MediaQuery.of(context).devicePixelRatio;
         final logicalW =
             constraints.maxWidth.isFinite && constraints.maxWidth > 0
@@ -119,7 +119,7 @@ class CharacterAvatarCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 圆形头像直径约 2*radius，按高分屏预留，解码宽度取 radius*6。
+    // Circular avatar diameter is about 2*radius; leaving headroom for high-DPI screens, decode width is radius*6.
     final int decodeWidth = (radius * 6).round();
     final cached = _cachedPath(imagePath);
     if (cached != null) {
@@ -188,7 +188,7 @@ class CharacterBackgroundImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 背景图铺满屏幕，需要较高分辨率，降采样宽度给大一些。
+    // Background image covers the full screen and needs higher resolution, so the downsample width is larger.
     const int decodeWidth = 1080;
     final cached = _cachedPath(imagePath);
     if (cached != null) {

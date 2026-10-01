@@ -20,13 +20,13 @@ final imageGenSettingsProvider = StateNotifierProvider<ImageGenSettingsNotifier,
 /// Notifier for image generation settings
 class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
   static const _prefsKey = 'image_gen_settings';
-  // [密钥安全] API 密钥只存 secure storage，SharedPreferences 不落明文
+  // API keys are stored only in secure storage, never in plaintext in SharedPreferences
   static const _secureStorage = FlutterSecureStorage();
   static const _secureApiKeysKey = 'image_gen_apikeys';
   static const _securePromptOptApiKey = 'image_gen_promptopt_apikey';
   final ImageGenerationService _service;
 
-  // 上次写入 secure storage 的密钥（滑杆等高频保存时密钥未变化则跳过 Keystore 写入）
+  // Keys last written to secure storage; skip the Keystore write when unchanged during high-frequency saves (e.g., slider updates)
   Map<String, String> _lastSavedApiKeys = const {};
   String? _lastSavedPromptOptKey;
 
@@ -41,7 +41,7 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
       if (jsonStr == null) return;
       final json = jsonDecode(jsonStr) as Map<String, dynamic>;
 
-      // [密钥安全] 密钥从 secure storage 读；prefs 里的旧明文一次性迁移后清除
+      // Keys are read from secure storage; legacy plaintext in prefs is migrated once, then cleared
       Map<String, String> secureKeys = {};
       try {
         final raw = await _secureStorage.read(key: _secureApiKeysKey);
@@ -72,7 +72,7 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
       }
       json['apiKeys'] = migrated;
 
-      // promptOptApiKey 同样迁移
+      // promptOptApiKey is migrated the same way
       String? secureOpt;
       try {
         secureOpt = await _secureStorage.read(key: _securePromptOptApiKey);
@@ -92,7 +92,7 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
       state = ImageGenSettings.fromJson(json);
       _service.updateSettings(state);
 
-      // 迁移完成后立即清除 prefs 明文
+      // Clear plaintext from prefs once migration completes
       if (didMigrate) {
         final stripped = Map<String, dynamic>.from(json);
         stripped['apiKeys'] = <String, String>{};
@@ -109,7 +109,7 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final json = state.toJson();
-      // [密钥安全] 密钥只写 secure storage，prefs 不落明文
+      // Keys are written only to secure storage, never in plaintext to prefs
       final keysToStore = Map<String, String>.from(state.apiKeys)
         ..removeWhere((_, v) => v.isEmpty);
       if (!mapEquals(_lastSavedApiKeys, keysToStore)) {
@@ -137,8 +137,7 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
   }
 
   void setProvider(ImageGenProvider provider) {
-    // Also update the default model and clear custom endpoint when provider changes
-    // When switching providers, don't reset the apiEndpoint - each provider has its own
+    // Each provider keeps its own apiEndpoint, so it is not reset on provider switch
     state = state.copyWith(provider: provider);
     _saveSettings();
   }
@@ -201,7 +200,7 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
     _saveSettings();
   }
 
-  // [生图提示词自定义]
+  // Image generation prompt customization
   void setPositivePromptPrefix(String? prefix) {
     state = state.copyWith(positivePromptPrefix: prefix);
     _saveSettings();
@@ -217,7 +216,7 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
     _saveSettings();
   }
 
-  // [全自动生图] 额外调 LLM 优化提示词
+  // Full-auto image generation: additionally calls an LLM to optimize the prompt
   void setEnableAutoPromptGeneration(bool value) {
     state = state.copyWith(enableAutoPromptGeneration: value);
     _saveSettings();
@@ -228,7 +227,7 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
     _saveSettings();
   }
 
-  // [提示词优化] 独立生图 API 配置
+  // Prompt optimization: separate image generation API configuration
   void setPromptOptBaseUrl(String? baseUrl) {
     state = state.copyWith(promptOptBaseUrl: baseUrl?.isEmpty == true ? null : baseUrl);
     _saveSettings();
@@ -500,20 +499,20 @@ class FetchedModelsNotifier extends StateNotifier<FetchedModelsState> {
       final models = await _service.fetchModels();
       debugPrint('  Fetched models: $models');
       
-      if (!mounted) return; // 页面已销毁，避免 after dispose 崩溃
+      if (!mounted) return; // Page disposed; avoid updating state after dispose
       if (models != null && models.isNotEmpty) {
         state = FetchedModelsState(models: models);
       } else {
-        // [硬编码修复] 不再把 defaultModels 塞进 state.models,
-        // 否则 UI 无法区分"真实拉取"和"硬编码回退" → 永远显示 DALL-E 3/2。
-        // null = 没拉到真实模型,UI 走手动输入分支。
+        // Do not fall back to defaultModels in state.models: the UI cannot
+        // distinguish a real fetch from a hardcoded fallback and would always
+        // show DALL-E 3/2. null = no real models fetched, so the UI shows manual input.
         debugPrint('  No models returned, state.models = null (UI shows manual input)');
         state = const FetchedModelsState();
       }
     } catch (e) {
       debugPrint('  Error fetching models: $e');
-      if (!mounted) return; // 同上
-      // [硬编码修复] error 时也不塞 defaultModels,只存错误信息
+      if (!mounted) return; // Same as above (page disposed)
+      // On error, also avoid falling back to defaultModels; store only the error
       state = FetchedModelsState(
         error: e.toString(),
       );

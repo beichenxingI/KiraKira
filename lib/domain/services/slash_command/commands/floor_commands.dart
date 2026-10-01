@@ -1,10 +1,12 @@
-/// [P6-5.3] 楼层操作命令:/messages /hide /unhide /swipe。
-/// 索引语义:支持负数(-1=最后一条,TH 惯例 len+1+idx)。
+/// Message operation commands: /messages /hide /unhide /swipe.
+/// Index semantics: negative numbers supported (-1 = last message,
+/// TH convention len+1+idx).
 library;
 
 import '../slash_command.dart';
 
-/// 解析楼层索引:数字直接用;负数按 TH 惯例换算;缺省默认最后一条。
+/// Resolves a message index: numbers used as-is; negatives converted per TH
+/// convention; defaults to the last message.
 int? _resolveIndex(String? raw, int count) {
   if (count <= 0) return null;
   if (raw == null || raw.trim().isEmpty) return count - 1;
@@ -54,7 +56,7 @@ void registerFloorSlashCommands() {
     callback: (args) async {
       final count = args.env?.messageCount?.call() ?? 0;
       if (count == 0) return '';
-      // named: message=楼层 swipe=swipe序号;unnamed[0]: left/right 相对切换
+      // named: message=floor index, swipe=swipe number; unnamed[0]: left/right relative switching
       final messageIdx = _resolveIndex(args.namedString('message'), count) ??
           count - 1;
       final swipeArg = args.namedString('swipe');
@@ -72,11 +74,11 @@ void registerFloorSlashCommands() {
         }
       }
       if (dir == 'left' || dir == 'right') {
-        // 相对切换由宿主读当前 swipe 后计算;这里传 -1/-2 约定由宿主翻译
+        // Relative switching is computed by the host after reading the current swipe; -1/-2 are passed here as conventions the host translates
         await env!.swipeTo!(messageIdx, dir == 'left' ? -2 : -1);
         return '';
       }
-      // 无参:默认右切(新 swipe)
+      // No arguments: default to swiping right (new swipe)
       await env!.swipeTo!(messageIdx, -1);
       return '';
     },

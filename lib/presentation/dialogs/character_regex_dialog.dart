@@ -7,7 +7,7 @@ import '../theme/design_tokens.dart';
 import '../widgets/regex/regex_widgets.dart';
 import 'regex_rule_edit_dialog.dart';
 
-/// 角色正则管理浮窗（编辑浮窗内入口）
+/// Character regex management dialog (entry point from the editor dialog).
 void showCharacterRegexDialog(
   BuildContext context,
   WidgetRef ref, {
@@ -55,7 +55,7 @@ class _CharacterRegexDialog extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 标题栏
+              // Title bar
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
                 child: Row(
@@ -87,7 +87,7 @@ class _CharacterRegexDialog extends ConsumerWidget {
                   height: 1,
                   color:
                       isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0)),
-              // 正则列表
+              // Regex list
               Flexible(
                 child: scripts.isEmpty
                     ? Padding(
@@ -137,7 +137,7 @@ class _CharacterRegexDialog extends ConsumerWidget {
                   height: 1,
                   color:
                       isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0)),
-              // 添加按钮
+              // Add button
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: SizedBox(
@@ -159,13 +159,13 @@ class _CharacterRegexDialog extends ConsumerWidget {
     );
   }
 
-  /// 新建/编辑正则
+  /// Create / edit regex.
   void _openEditor(BuildContext context, WidgetRef ref, RegexScript? script) {
     if (script != null) {
       showRegexRuleEditDialog(context, ref, script: script);
       return;
     }
-    // 新建：创建空脚本后打开完整编辑浮窗
+    // Create: add a blank script, then open the full editor dialog.
     final notifier =
         ref.read(characterRegexScriptsProvider(characterId).notifier);
     final blank = RegexScript(

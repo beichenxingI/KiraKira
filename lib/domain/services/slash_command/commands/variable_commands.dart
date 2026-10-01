@@ -1,5 +1,6 @@
-/// [P6-4] 变量命令族(P0)。语义对齐 ST variables.js。
-/// 读写走 SlashEnv 钩子(宿主负责持久化+引擎同步),本地只读走 VariablesService。
+/// Variable command family. Semantics match ST variables.js.
+/// Reads/writes go through SlashEnv hooks (the host handles persistence and
+/// engine sync); local-only reads go through VariablesService.
 library;
 
 import 'dart:convert';
@@ -9,7 +10,7 @@ import 'package:kirakira/domain/services/variables_service.dart';
 import '../slash_command.dart';
 import '../slash_ast.dart';
 
-/// pipe 字符串化:Map/List 转 JSON,其余 toString。
+/// Pipe stringification: Map/List to JSON, everything else to toString.
 String slashPipeString(Object? v) {
   if (v == null) return '';
   if (v is String) return v;
@@ -22,11 +23,11 @@ String slashPipeString(Object? v) {
   }
 }
 
-/// 注册变量命令(幂等)。
+/// Registers variable commands (idempotent).
 void registerVariableSlashCommands() {
   final svc = VariablesService.instance;
 
-  // ── chat 局部变量 ──
+  // Chat-local variables
   SlashCommandRegistry.register(SlashCommand(
     name: 'setvar',
     aliases: ['setchatvar'],
@@ -109,7 +110,7 @@ void registerVariableSlashCommands() {
     },
   ));
 
-  // ── global 全局变量 ──
+  // Global variables
   SlashCommandRegistry.register(SlashCommand(
     name: 'setglobalvar',
     callback: (args) async {
@@ -180,7 +181,7 @@ void registerVariableSlashCommands() {
     },
   ));
 
-  // ── listvar:局部变量名清单(JSON 数组) ──
+  // listvar: list of local variable names (JSON array)
   SlashCommandRegistry.register(SlashCommand(
     name: 'listvar',
     aliases: ['listchatvar'],

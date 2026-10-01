@@ -2,10 +2,10 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'tts_backend.dart';
 import '../tts_service.dart' show TTSVoice, TTSProvider;
 
-/// flutter_tts 系统 TTS 后端。
+/// flutter_tts system TTS backend.
 ///
-/// 迁移自 tts_service.dart 原有 flutter_tts 逻辑（L270-297 initialize /
-/// L533-568 _speakText / L570-579 stop），行为保持一致。
+/// Migrated from the original flutter_tts logic in tts_service.dart
+/// (initialize/_speakText/stop); behavior kept identical.
 class FlutterTtsBackend implements TtsBackend {
   final FlutterTts _tts = FlutterTts();
   final void Function()? onStart;
@@ -20,8 +20,8 @@ class FlutterTtsBackend implements TtsBackend {
   @override
   Future<void> initialize() async {
     if (_isInitialized) return;
-    await _tts.setLanguage('zh-CN'); // 默认中文
-    await _tts.awaitSpeakCompletion(true); // speak() 等到读完再返回
+    await _tts.setLanguage('zh-CN'); // Default to Chinese
+    await _tts.awaitSpeakCompletion(true); // speak() returns after reading finishes
     _tts.setCompletionHandler(() {
       onComplete?.call();
     });
@@ -33,7 +33,7 @@ class FlutterTtsBackend implements TtsBackend {
     _isInitialized = true;
   }
 
-  /// 从系统拉取真实可用的语音列表（迁移自 tts_service.dart L300-329）
+  /// Fetch the real available voices from the system
   Future<void> _loadSystemVoices() async {
     try {
       final raw = await _tts.getVoices;
@@ -87,12 +87,12 @@ class FlutterTtsBackend implements TtsBackend {
     double volume = 1.0,
   }) async {
     if (!_isInitialized) await initialize();
-    // flutter_tts: rate 范围 0~1（0.5=正常），UI 的 0.5~2.0 映射为 /2
+    // flutter_tts: rate range is 0-1 (0.5 = normal); UI's 0.5-2.0 is mapped by /2
     await _tts.setSpeechRate((rate / 2.0).clamp(0.0, 1.0));
     await _tts.setPitch(pitch.clamp(0.5, 2.0));
     await _tts.setVolume(volume.clamp(0.0, 1.0));
     if (voiceId != null && voiceId.isNotEmpty) {
-      // voiceId 格式 'name|locale'
+      // voiceId format is 'name|locale'
       final parts = voiceId.split('|');
       await _tts.setVoice({
         'name': parts.first,
@@ -100,7 +100,7 @@ class FlutterTtsBackend implements TtsBackend {
       });
     }
     onStart?.call();
-    // awaitSpeakCompletion(true) 下，这里会等到读完
+    // With awaitSpeakCompletion(true), this waits until reading finishes
     await _tts.speak(text);
     onComplete?.call();
   }
@@ -112,12 +112,12 @@ class FlutterTtsBackend implements TtsBackend {
 
   @override
   Future<void> pause() async {
-    // 平台差异由 flutter_tts 处理；桌面端无操作
+    // Platform differences handled by flutter_tts; no-op on desktop
   }
 
   @override
   Future<void> resume() async {
-    // 同上
+    // Same as pause
   }
 
   @override
@@ -126,7 +126,7 @@ class FlutterTtsBackend implements TtsBackend {
   }
 
   @override
-  bool get isLocal => false; // 系统 TTS 依赖系统服务
+  bool get isLocal => false; // System TTS depends on system services
 
   @override
   String get displayName => '系统 TTS';

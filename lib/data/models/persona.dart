@@ -83,7 +83,7 @@ class Persona with _$Persona {
     required DateTime createdAt,
     required DateTime updatedAt,
     
-    // === New fields for SillyTavern compatibility ===
+    // New fields for SillyTavern compatibility
     
     /// Connections to characters/groups
     @Default([]) List<PersonaConnection> connections,

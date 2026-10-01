@@ -2,26 +2,24 @@ import 'package:dio/dio.dart';
 import 'package:kirakira/data/models/vector_storage.dart';
 import 'package:kirakira/domain/services/local_embedder.dart';
 
-/// 把文字转成向量（embedding）的引擎。
+/// Engine for converting text to vectors (embeddings).
 ///
-/// 当前实现：调用 OpenAI 兼容的 /embeddings 端点（云端）。
+/// Current implementation: calls an OpenAI-compatible /embeddings endpoint (cloud).
 ///
-/// ── 致未来的你 ──────────────────────────────────────────────
-/// 如果你正在读这段注释，八成是来接本地模型的。欢迎回来。
-/// 云端 embedding 有两个痛点：中转站定价虚高（见过 22元/1M 的离谱货），
-/// 以及重度记忆用户迟早被账单劝退。本地模型（bge-small / MiniLM 的
-/// int8 量化版，几十MB）能一举解决——零 token 费、零延迟、隐私不出设备。
-/// 接入点就在下面的 generateEmbedding：把"发 HTTP 请求"换成"调本地
-/// ONNX 推理"即可，上层的检索/存储/prompt 注入全都不用动。
-/// 加油，这个功能值得。
-/// ────────────────────────────────────────────────────────
+/// Notes for future maintainers:
+/// Cloud embedding has two pain points: inflated relay pricing (seen as high as
+/// 22 CNY/1M) and heavy memory users eventually being priced out by the bill.
+/// A local model (int8-quantized bge-small / MiniLM, tens of MB) solves both:
+/// zero token cost, zero latency, and privacy since data never leaves the device.
+/// The integration point is generateEmbedding below: swap the HTTP request for
+/// local ONNX inference; the retrieval/storage/prompt injection layers need no changes.
 class EmbeddingService {
   final Dio _dio = Dio();
 
-  // 本地推理器（懒加载，仅 local provider 用到时才初始化模型）
+  // Local inference engine (lazy-loaded; the model is initialized only when the local provider is used)
   LocalEmbedder? _localEmbedder;
 
-  /// 把单段文字转成向量。失败抛异常，由调用方处理。
+  /// Convert a single text to a vector. Throws on failure; callers handle it.
   Future<List<double>> generateEmbedding(
     String text,
     VectorStorageSettings settings,
@@ -30,7 +28,7 @@ class EmbeddingService {
     return results.first;
   }
 
-  /// 批量把多段文字转成向量（入库时用，一次请求省往返）。
+  /// Batch conversion of multiple texts to vectors (used for storage; one request saves round trips).
   Future<List<List<double>>> generateEmbeddings(
     List<String> texts,
     VectorStorageSettings settings,
@@ -45,7 +43,7 @@ class EmbeddingService {
     }
   }
 
-  /// 本地 ONNX 推理：逐条转向量。首次调用会加载模型（约24MB），稍慢。
+  /// Local ONNX inference: converts one text at a time. First call loads the model (~24MB), which is slow.
   Future<List<List<double>>> _generateLocal(List<String> texts) async {
     _localEmbedder ??= LocalEmbedder();
     final out = <List<double>>[];
@@ -55,7 +53,7 @@ class EmbeddingService {
     return out;
   }
 
-  /// OpenAI 兼容的 /embeddings 调用（OpenAI 官方、各类中转站通用）。
+  /// OpenAI-compatible /embeddings call (works with the official OpenAI API and various relay endpoints).
   Future<List<List<double>>> _generateOpenAICompatible(
     List<String> texts,
     VectorStorageSettings settings,
@@ -65,11 +63,11 @@ class EmbeddingService {
       throw Exception('未配置 Embedding API Key');
     }
 
-    // 归一化 baseUrl：允许用户填到 /v1 或不填，统一拼出 /embeddings
+    // Normalize baseUrl: allow users to include /v1 or omit it, and always build /embeddings
     var baseUrl = (settings.embeddingApiUrl?.trim().isNotEmpty ?? false)
         ? settings.embeddingApiUrl!.trim()
         : 'https://api.openai.com/v1';
-    baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), ''); // 去尾部斜杠
+    baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), ''); // Strip trailing slashes
     final url = baseUrl.endsWith('/embeddings')
         ? baseUrl
         : '$baseUrl/embeddings';

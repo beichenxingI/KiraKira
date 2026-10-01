@@ -1,12 +1,12 @@
 // lib/presentation/widgets/common/kira_pressable.dart
-/// KiraPressable · iOS 按压手感统一组件(宪法 §四.1)
+/// KiraPressable, the unified iOS press-feedback component (Constitution §4.1)
 ///
-/// 行为锁定:按下 → scale 0.97(可关)+ opacity 0.6,200ms easeOut;
-/// 松手即回。**全 App 数值统一,任何 Block 不得修改默认值**——
-/// 需要新档位请加命名参数,不动默认。
+/// Locked behavior: press scales to 0.97 (can be disabled) plus opacity 0.6, 200ms easeOut;
+/// release returns immediately. Values are unified app-wide and the defaults must not be changed;
+/// to add a new level, add a named parameter instead of touching the default.
 ///
-/// 不包 Material/InkWell,彻底无水波纹(ThemeData 已全局 NoSplash 兜底,
-/// 正解仍是替换 InkWell)。
+/// Wraps no Material/InkWell, so there is no ripple at all (ThemeData already falls back to NoSplash globally;
+/// the proper fix is still to replace InkWell).
 library;
 
 import 'package:flutter/material.dart';
@@ -17,20 +17,20 @@ class KiraPressable extends StatefulWidget {
     required this.child,
     this.onTap,
     this.borderRadius,
-    this.scaleEnabled = true, // 导航项/小按钮传 false
-    this.pressScale = 0.97, // 特殊档位(如底栏中球 0.93)
+    this.scaleEnabled = true, // pass false for nav items / small buttons
+    this.pressScale = 0.97, // special level (e.g. bottom-bar center ball 0.93)
   });
 
   final Widget child;
   final VoidCallback? onTap;
 
-  /// 供高亮裁切;列表行给 null 即可(不透明高亮交给自身背景)
+  /// Used for highlight clipping; list rows can pass null (an opaque highlight is left to their own background)
   final BorderRadius? borderRadius;
 
-  /// 关闭后按压只有 opacity 反馈(导航项/底栏等大面积元素避免缩放廉价感)
+  /// When off, pressing only gives opacity feedback (avoids the cheap scaling feel on large elements like nav items / bottom bar)
   final bool scaleEnabled;
 
-  /// 按压缩放档位;默认 0.97 锁定,任何块不得改默认值,用本参数调档
+  /// Press scale level; the 0.97 default is locked and must not be changed, tune levels through this parameter
   final double pressScale;
 
   @override
@@ -41,7 +41,7 @@ class _KiraPressableState extends State<KiraPressable> {
   bool _pressed = false;
 
   void _setPressed(bool value) {
-    if (widget.onTap == null) return; // 不可点时无按压反馈
+    if (widget.onTap == null) return; // no press feedback when not tappable
     if (_pressed == value) return;
     setState(() => _pressed = value);
   }

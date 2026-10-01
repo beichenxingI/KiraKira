@@ -61,7 +61,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 16),
 
-          // 自动生图三档开关
+          // Auto image generation: three-way mode selector
           _buildSection(
             context: context,
             title: '自动生图',
@@ -120,7 +120,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 16),
 
-          // [提示词配置] 三字段合一:负面词 + 正面前缀 + image标签指令
+          // Prompt configuration: three fields combined (negative prompt + positive prefix + image tag instruction)
           _buildSection(
             context: context,
             title: '提示词配置',
@@ -182,7 +182,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 16),
 
-          // [全自动生图] 额外调 AI 优化提示词 + 模型选择(复用 API 服务配置)
+          // Fully automatic generation: optional extra AI prompt optimization + model selection (reuses API service config)
           _buildSection(
             context: context,
             title: '全自动生图提示词优化',
@@ -204,20 +204,20 @@ class ImageGenSettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 16),
 
-          // ☁️ 云端生图 — 卡片选择 API 服务(从 llmConfigsProvider 读,不手动填)
+          // Cloud image generation — cards select an API service (read from llmConfigsProvider, no manual entry)
           _buildSection(
             context: context,
             title: '☁️ 云端生图',
             children: [
               ..._buildCloudApiCards(context, ref, settings),
-              // 模型选择(选中卡片后自动获取该服务的生图模型)
+              // Model selection (after a card is chosen, fetch that service's image models)
               _buildModelSelector(context, ref, settings),
             ],
           ),
 
           const SizedBox(height: 16),
 
-          // 💻 本地/其他生图 — NovelAI, A1111, ComfyUI, LocalDream
+          // Local/other image generation — NovelAI, A1111, ComfyUI, LocalDream
           _buildSection(
             context: context,
             title: '💻 本地 / 其他',
@@ -226,8 +226,8 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                 title: const Text('提供商'),
                 subtitle: Text(settings.provider.displayName),
                 trailing: DropdownButton<ImageGenProvider>(
-                  // [崩溃修复] 云端卡片选中后 provider=openai/gemini 不在本下拉列表里,
-                  // value 必须在 items 中或为 null,否则 assert 崩溃
+                  // After a cloud card is selected, provider=openai/gemini is not in this dropdown;
+                  // value must be present in items or null, otherwise the assert crashes
                   value: [
                     ImageGenProvider.novelai,
                     ImageGenProvider.latentMoe,
@@ -245,7 +245,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                           }
                         }
                       : null,
-                  // 只显示非云端提供商(openai/gemini 走卡片)
+                  // Only non-cloud providers are listed (openai/gemini use the cards)
                   items: [
                     ImageGenProvider.novelai,
                     ImageGenProvider.latentMoe,
@@ -272,7 +272,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                   }).toList(),
                 ),
               ),
-              // 本地/其他提供商需要手动配 endpoint
+              // Local/other providers require a manually configured endpoint
               if (settings.provider == ImageGenProvider.novelai ||
                   settings.provider == ImageGenProvider.latentMoe ||
                   settings.provider == ImageGenProvider.automatic1111 ||
@@ -312,7 +312,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
             context: context,
             title: AppLocalizations.of(context).defaultParameters,
             children: [
-              // 分辨率: 快捷按钮 + 自定义输入
+              // Resolution: quick buttons + custom input
               Padding(
                 padding: const EdgeInsets.all(DesignTokens.spaceMd),
                 child: Column(
@@ -320,7 +320,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                   children: [
                     const Text('图像分辨率', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 12),
-                    // 快捷选择
+                    // Quick selection
                     Row(
                       children: [
                         _buildResQuickBtn(context, ref, settings, '512×512', 512, 512),
@@ -331,7 +331,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // 自定义宽高
+                    // Custom width/height
                     Row(
                       children: [
                         Expanded(
@@ -377,7 +377,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    // 当前比例
+                    // Current aspect ratio
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
@@ -537,7 +537,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
             ),
           ],
 
-          // Latent.moe specific info(异步队列生图,无 NovelAI 专有参数)
+          // Latent.moe-specific info (async queued generation, no NovelAI-specific parameters)
           if (settings.provider == ImageGenProvider.latentMoe) ...[
             const SizedBox(height: 16),
             _buildSection(
@@ -668,7 +668,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           ),
         ]),
           ),
-          // root push 子页,无胶囊底栏,保留呼吸位
+          // Root-pushed subpage with no capsule tab bar; keep the breathing space
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
@@ -680,18 +680,18 @@ class ImageGenSettingsScreen extends ConsumerWidget {
     required String title,
     required List<Widget> children,
   }) {
-    // D-T0:inset-grouped 一组一张卡(A-T4b 语义)
+    // Inset-grouped: one card per section
     return KiraSection(title: title, children: children);
   }
 
-  // ── 云端生图:API 服务卡片 ──
+  // Cloud image generation: API service cards
 
   List<Widget> _buildCloudApiCards(
       BuildContext context, WidgetRef ref, ImageGenSettings settings) {
     final configs = ref.watch(llmConfigsProvider).configs;
     final theme = Theme.of(context);
 
-    // 显示所有 API 方案(中转站/OpenAI/Gemini 等都是 OpenAI 兼容接口,都能调 /images/generations)
+    // Show all API configs (proxies/OpenAI/Gemini etc. are OpenAI-compatible endpoints that can all call /images/generations)
     if (configs.isEmpty) {
       return [
         Padding(
@@ -734,9 +734,10 @@ class ImageGenSettingsScreen extends ConsumerWidget {
                       .read(imageGenSettingsProvider.notifier)
                       .setModel(config.model!);
                 }
-                // [模型列表] 用 modelFetchProvider(API 服务同款拉取器,无硬编码回退)获取模型
-                // [Bug1修复] 必须覆盖 provider 枚举,否则用活跃聊天的 provider →
-                //   活跃聊天是 Claude 时走 claude 分支返回硬编码列表,根本不请求中转站
+                // Fetch models via modelFetchProvider (same fetcher as the API service, no hardcoded fallback)
+                // Must override the provider enum; otherwise the active chat's provider is used, and
+                //   when the active chat is Claude the claude branch returns a hardcoded list
+                //   without ever hitting the proxy
                 final activeConfig = ref.read(llmConfigProvider);
                 final llmProvider = LLMProvider.values.firstWhere(
                   (p) => p.name == config.provider,
@@ -846,19 +847,19 @@ class ImageGenSettingsScreen extends ConsumerWidget {
   }
 
   ImageGenProvider? _mapConfigToImageProvider(String provider) {
-    // 中转站/OpenAI兼容/OpenRouter → 用 OpenAI 生图接口(/images/generations)
-    // Gemini → 用 Gemini 生图接口
-    // 其他(claude/deepseek/qwen/ollama 等)也默认按 OpenAI 兼容处理(中转站最常见)
+    // Proxy/OpenAI-compatible/OpenRouter use the OpenAI image API (/images/generations)
+    // Gemini uses the Gemini image API
+    // Others (claude/deepseek/qwen/ollama, etc.) also default to OpenAI-compatible (most common for proxies)
     switch (provider.toLowerCase()) {
       case 'gemini':
       case 'google':
         return ImageGenProvider.gemini;
       default:
-        return ImageGenProvider.openai; // openai/openAICompatible/openRouter/其他 → OpenAI 兼容
+        return ImageGenProvider.openai; // openai/openAICompatible/openRouter/others map to OpenAI-compatible
     }
   }
 
-  // ── 分辨率快捷按钮 ──
+  // Resolution quick-select buttons
 
   Widget _buildResQuickBtn(
       BuildContext context, WidgetRef ref, ImageGenSettings settings,
@@ -909,7 +910,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
     return '${w ~/ d}:${h ~/ d}';
   }
 
-  /// [全自动生图] 从 API 服务(llmConfigsProvider)选择用哪个配置来调 LLM 提炼提示词
+  /// Select which API config (from llmConfigsProvider) is used to call the LLM for prompt extraction
   Widget _buildAutoPromptConfigSelector(
       BuildContext context, WidgetRef ref, ImageGenSettings settings) {
     final configsState = ref.watch(llmConfigsProvider);
@@ -935,7 +936,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
               );
               return;
             }
-            // 选完写回 autoPromptConfigId,null = 用活跃配置
+            // Write the selection back to autoPromptConfigId; null = use the active config
             showModalBottomSheet<String>(
               context: context,
               builder: (sheetCtx) => SafeArea(
@@ -969,7 +970,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
             });
           },
         ),
-        // 提取指令(高级):仅额外调用 AI 时生效
+        // Extraction instruction (advanced): only takes effect when the extra AI call is enabled
         Padding(
           padding: const EdgeInsets.all(DesignTokens.spaceMd),
           child: TextField(
@@ -990,10 +991,10 @@ class ImageGenSettingsScreen extends ConsumerWidget {
     );
   }
 
-  /// [Bug2修复] 现代化模型判断:扩宽关键词 + 排除对话/多模态模型
+  /// Improved model detection: broader keywords + exclusion of chat/multimodal models
   bool _isImageModel(String modelId) {
     final lower = modelId.toLowerCase();
-    // 生图模型关键词(扩大覆盖面)
+    // Image-model keywords (broad coverage)
     final imageKeywords = [
       'dall-e', 'dalle', 'gpt-image',
       'stable-diffusion', 'sdxl', 'sd3', 'sd1', 'sd2',
@@ -1001,7 +1002,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
       'imagen', 'firefly', 'kolors', 'playground', 'pixart', 'cogview',
     ];
     final hasImageKeyword = imageKeywords.any((kw) => lower.contains(kw));
-    // 排除多模态对话模型(含这些后缀/前缀的通常不是生图模型)
+    // Exclude multimodal chat models (IDs with these suffixes/prefixes are usually not image models)
     final isVisionChat = lower.contains('-vision') || lower.contains('-vl') ||
         lower.contains('gpt-4o') ||
         (lower.contains('qwen-') && lower.contains('image'));
@@ -1012,13 +1013,13 @@ class ImageGenSettingsScreen extends ConsumerWidget {
     final fetchState = ref.watch(modelFetchProvider);
     final currentModel = settings.model.isNotEmpty ? settings.model : '';
 
-    // [Bug2修复] 用 _isImageModel 筛选(扩宽+排除)
+    // Filter with _isImageModel (broadened keywords + exclusions)
     final imageModels = fetchState.models.where(_isImageModel).toSet().toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 标题 + 刷新按钮
+        // Title + refresh button
         Row(
           children: [
             Text(AppLocalizations.of(context).model,
@@ -1032,7 +1033,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
               onPressed: settings.enabled && fetchState.status != ModelFetchStatus.loading
                   ? () {
                       final activeConfig = ref.read(llmConfigProvider);
-                      // [Bug1修复] 刷新也要覆盖 provider
+                      // Refresh must also override the provider
                       final llmProvider = LLMProvider.values.firstWhere(
                         (p) => p.name == settings.provider.id,
                         orElse: () => LLMProvider.openAICompatible,
@@ -1051,14 +1052,14 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           ],
         ),
 
-        // 加载中
+        // Loading
         if (fetchState.status == ModelFetchStatus.loading)
           const Padding(
             padding: EdgeInsets.all(8),
             child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
           ),
 
-        // 有生图模型 → 下拉选择(API 真实返回,无硬编码)
+        // Image models found: show dropdown (real API response, no hardcoding)
         if (fetchState.status != ModelFetchStatus.loading && imageModels.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 4),
@@ -1077,7 +1078,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
             }).toList(),
           ),
           const SizedBox(height: 16),
-          // 分割线 "或者"
+          // "Or" divider
           Row(
             children: [
               const Expanded(child: Divider()),
@@ -1091,7 +1092,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           const SizedBox(height: 16),
         ],
 
-        // 无生图模型时的提示(拉取成功但没匹配到生图模型)
+        // Hint when no image models matched (fetch succeeded but nothing matched)
         if (fetchState.status == ModelFetchStatus.success &&
             imageModels.isEmpty && fetchState.models.isNotEmpty) ...[
           Padding(
@@ -1101,7 +1102,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           ),
         ],
 
-        // 拉取失败提示
+        // Fetch failure hint
         if (fetchState.status == ModelFetchStatus.error && fetchState.errorMessage != null) ...[
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 8),
@@ -1110,7 +1111,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
           ),
         ],
 
-        // [常驻] 自定义模型输入框 — 无论是否拉取到模型,都可用
+        // Custom model input — always available regardless of fetch results
         Padding(
           padding: const EdgeInsets.only(top: 4),
           child: TextField(
@@ -1131,7 +1132,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
 
         const SizedBox(height: 12),
 
-        // [常驻] 常用生图模型快捷选择
+        // Common image models quick selection
         const Text('常用模型', style: TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 6),
         Wrap(
@@ -1157,7 +1158,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
     final controller = TextEditingController(text: settings.apiKey);
     final l10n = AppLocalizations.of(context);
 
-    // D-T2 规则 2:单字段输入 → 底部 Sheet(键盘顶起)
+    // Single-field input uses a bottom sheet (keyboard-resized)
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1220,7 +1221,7 @@ class ImageGenSettingsScreen extends ConsumerWidget {
     final controller = TextEditingController(text: settings.apiEndpoint);
     final l10n = AppLocalizations.of(context);
 
-    // D-T2 规则 2:单字段输入 → 底部 Sheet
+    // Single-field input uses a bottom sheet
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1342,7 +1343,7 @@ class _ImageGenTestWidgetState extends ConsumerState<_ImageGenTestWidget> {
             onPressed: widget.enabled && _controller.text.isNotEmpty && !genState.isGenerating
                 ? () {
                     final settings = ref.read(imageGenSettingsProvider);
-                    // [生图提示词自定义] 手动测试也拼正面前缀
+                    // Manual tests also prepend the positive prompt prefix
                     final prefix = settings.positivePromptPrefix;
                     final raw = _controller.text;
                     final finalPrompt = (prefix != null && prefix.isNotEmpty)

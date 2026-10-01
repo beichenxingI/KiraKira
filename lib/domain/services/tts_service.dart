@@ -65,9 +65,9 @@ class TTSVoice {
 }
 
 /// TTS Settings
-/// 单个声音的配置（正文/对话/旁白各一份）
+/// Per-voice-style configuration (one each for narration/dialogue/aside)
 class VoiceStyle {
-  final bool enabled;   // 该类文本是否朗读
+  final bool enabled;   // Whether this text type is spoken
   final String? voiceId;
   final double rate;
   final double pitch;
@@ -117,14 +117,14 @@ class TTSSettings {
   final bool queueMessages;
   final String? apiKey;
   final String? apiEndpoint;
-  // sherpa 专用：模型清单中的名称
+  // Sherpa-specific: model name from the model list
   final String? sherpaModelName;
-  // qwen 专用：模型名（qwen3-tts-flash / cosyvoice-v3-flash 等）
+  // Qwen-specific: model name (qwen3-tts-flash / cosyvoice-v3-flash etc.)
   final String? qwenModel;
-  // 三音色：正文/对话/旁白，各自独立开关+音色+语速+音调
-  final VoiceStyle narrationVoice; // 正文（叙述）
-  final VoiceStyle dialogueVoice;  // 对话（引号内）
-  final VoiceStyle asideVoice;     // 旁白（括号内）
+  // Three voice styles: narration/dialogue/aside, each with its own toggle, voice, rate and pitch
+  final VoiceStyle narrationVoice; // Narration
+  final VoiceStyle dialogueVoice;  // Dialogue (inside quotes)
+  final VoiceStyle asideVoice;     // Aside (inside parentheses)
 
   const TTSSettings({
     this.enabled = false,
@@ -257,7 +257,7 @@ class CharacterVoiceSettings {
 }
 
 /// TTS Service for text-to-speech functionality
-/// 三音色片段类型
+/// Segment types for the three voice styles
 enum _TtsType { narration, dialogue, aside }
 
 class _TtsSegment {
@@ -270,7 +270,7 @@ class TTSService {
   bool _isInitialized = false;
   bool _isSpeaking = false;
   final List<String> _queue = [];
-  bool _cancelled = false;  // 停止时置真，打断三音色循环
+  bool _cancelled = false;  // Set to true on stop to break the three-voice loop
   TTSSettings _settings = const TTSSettings();
   final Map<String, CharacterVoiceSettings> _characterVoices = {};
 
@@ -289,7 +289,7 @@ class TTSService {
   TTSSettings get settings => _settings;
   TtsBackend? get currentBackend => _backend;
 
-  /// 按 provider 路由到具体 backend
+  /// Route to the concrete backend based on provider
   TtsBackend _createBackend(TTSSettings s) {
     switch (s.provider) {
       case TTSProvider.system:
@@ -312,7 +312,7 @@ class TTSService {
         return BaiduTtsBackend(apiKey: s.apiKey, secretKey: s.apiEndpoint);
       case TTSProvider.elevenlabs:
       case TTSProvider.azure:
-        // 占位 provider 回退到系统 TTS
+        // Placeholder providers fall back to system TTS
         return FlutterTtsBackend(
           onStart: () {},
           onComplete: () {},
@@ -351,7 +351,7 @@ class TTSService {
         (settings.qwenModel != _settings.qwenModel);
     _settings = settings;
     if (providerChanged || modelChanged) {
-      // provider/model 变化：重置 backend，下次 initialize 按新配置创建
+      // Provider/model changed: dispose the backend so the next initialize recreates it with the new config
       _backend?.dispose();
       _backend = null;
       _isInitialized = false;
@@ -388,16 +388,15 @@ class TTSService {
     }
   }
 
-  /// 三音色朗读：按 对话(引号)/旁白(括号)/正文 切分，逐段串行"换装"播放。
-  /// 同一引擎，每段读前重设 voice/rate/pitch —— 串行+换装，三声音互不干扰。
-  /// 三音色朗读：按 对话(引号)/旁白(括号)/正文 切分，逐段串行"换装"播放。
-  /// 同一后端，每段读前重设 voice/rate/pitch —— 串行+换装，三声音互不干扰。
+  /// Three-voice narration: splits text into dialogue (quoted) / aside (parenthesized) /
+  /// narration segments and plays them serially on the same backend, re-applying
+  /// voice/rate/pitch before each segment so the three voices do not interfere with each other.
   Future<void> speakByStyle(String text) async {
     if (!_isInitialized || !_settings.enabled) return;
     final cleaned = _cleanTextForTTS(text);
     if (cleaned.isEmpty) return;
 
-    await stop();          // 打断上一次
+    await stop();          // Interrupt the previous run
     _cancelled = false;
     if (_backend == null) return;
 
@@ -408,10 +407,10 @@ class TTSService {
       for (final seg in segments) {
         final style = _styleFor(seg.type);
         if (_cancelled) break;
-        if (!style.enabled) continue; // 该类关闭 → 跳过不读
-        if (!_hasReadable(seg.text)) continue; // 纯标点会卡住引擎，跳过
+        if (!style.enabled) continue; // Skip when this type is disabled
+        if (!_hasReadable(seg.text)) continue; // Skip punctuation-only text as it can stall the engine
 
-        // 换装：每段读前按类型重设（三声音的关键）
+        // Re-apply per-type voice settings before each segment (the key to the three voices)
         try {
           await _backend!.speak(
             seg.text,
@@ -427,7 +426,7 @@ class TTSService {
           );
         } catch (e) {
           debugPrint('[TTS] 单段合成失败(${seg.type})，跳过: $e');
-          // 继续下一段
+          // Continue with the next segment
         }
       }
     } catch (e, s) {
@@ -450,12 +449,12 @@ class TTSService {
     }
   }
 
-  /// 把文本按 对话(引号)/旁白(括号)/正文 切成有序片段。
-  /// 复用渲染层的引号/括号正则思路，按出现顺序扫描，不处理嵌套。
+  /// Split text into ordered dialogue (quoted) / aside (parenthesized) / narration segments.
+  /// Reuses the renderer's quote/bracket regex approach; scans in order of appearance, no nesting.
   List<_TtsSegment> _splitByType(String text) {
     final pattern = RegExp(
-      r'(“[^”\r\n]*”|「[^」\r\n]*」|『[^』\r\n]*』|《[^》\r\n]*》|"[^"\r\n]*")' // 组1：对话
-      r'|([（(][^（）()]*[）)])', // 组2：旁白
+      r'(“[^”\r\n]*”|「[^」\r\n]*」|『[^』\r\n]*』|《[^》\r\n]*》|"[^"\r\n]*")' // Group 1: dialogue
+      r'|([（(][^（）()]*[）)])', // Group 2: aside
       dotAll: true,
     );
     final segments = <_TtsSegment>[];
@@ -487,9 +486,9 @@ class TTSService {
     return segments;
   }
 
-  /// 去掉首尾包裹符号（引号/括号），不朗读符号本身
-  /// 是否含可朗读内容（至少一个字母/数字/文字）。
-  /// 纯标点会让 TTS 引擎不触发完成回调，导致 await 永久挂起。
+  /// Whether the text contains readable content (at least one letter/digit).
+  /// Punctuation-only text prevents the TTS engine from firing the completion callback,
+  /// leaving the await permanently suspended.
   bool _hasReadable(String s) =>
       RegExp(r'[\p{L}\p{N}]', unicode: true).hasMatch(s);
   String _stripWrappers(String s) =>
@@ -532,7 +531,7 @@ class TTSService {
 
   /// Stop speaking
   Future<void> stop() async {
-    _cancelled = true; // 打断三音色循环
+    _cancelled = true; // Break the three-voice loop
     _queue.clear();
     await _backend?.stop();
     if (_isSpeaking) {
@@ -555,32 +554,32 @@ class TTSService {
   String _cleanTextForTTS(String text) {
     var cleaned = text;
 
-    // 先删整段不该读的（顺序重要：先删块，再处理行内）
-    // 代码块 ```...```（跨行）
+    // Remove whole blocks that must not be read first (order matters: blocks before inline)
+    // Code blocks ```...``` (multi-line)
     cleaned = cleaned.replaceAll(RegExp(r'```[\s\S]*?```'), '');
-    // 生图标签 <image>...</image>（自动生图的视觉提示词，绝不能读）
+    // Image generation tags <image>...</image> (visual prompts for auto image generation; must never be read)
     cleaned = cleaned.replaceAll(
         RegExp(r'<image>[\s\S]*?</image>', caseSensitive: false), '');
-    // HTML 标签
+    // HTML tags
     cleaned = cleaned.replaceAll(RegExp(r'<[^>]+>'), '');
 
-    // 行内标记：去符号留内容 —— 必须用 replaceAllMapped，
-    // replaceAll 不支持 $1 捕获组（原代码 bug：把内容替换成了字面 "$1"）
+    // Inline markers: strip symbols, keep content. Must use replaceAllMapped;
+    // replaceAll does not support $1 capture groups (original bug: replaced content with the literal "$1")
     cleaned = cleaned.replaceAllMapped(
-        RegExp(r'\*\*([^*]+)\*\*'), (m) => m.group(1)!); // 粗体
+        RegExp(r'\*\*([^*]+)\*\*'), (m) => m.group(1)!); // Bold
     cleaned = cleaned.replaceAllMapped(
-        RegExp(r'__([^_]+)__'), (m) => m.group(1)!); // 下划线
+        RegExp(r'__([^_]+)__'), (m) => m.group(1)!); // Underline
     cleaned = cleaned.replaceAllMapped(
-        RegExp(r'~~([^~]+)~~'), (m) => m.group(1)!); // 删除线
+        RegExp(r'~~([^~]+)~~'), (m) => m.group(1)!); // Strikethrough
     cleaned = cleaned.replaceAllMapped(
-        RegExp(r'\*([^*]+)\*'), (m) => m.group(1)!); // 斜体
+        RegExp(r'\*([^*]+)\*'), (m) => m.group(1)!); // Italic
     cleaned = cleaned.replaceAllMapped(
-        RegExp(r'`([^`]+)`'), (m) => m.group(1)!); // 行内代码
-    // 链接 [文字](url) → 文字
+        RegExp(r'`([^`]+)`'), (m) => m.group(1)!); // Inline code
+    // Links [text](url) keep the link text
     cleaned = cleaned.replaceAllMapped(
         RegExp(r'\[([^\]]+)\]\([^)]+\)'), (m) => m.group(1)!);
 
-    // 折叠空白 + 去首尾
+    // Collapse whitespace and trim
     cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
     return cleaned;
   }

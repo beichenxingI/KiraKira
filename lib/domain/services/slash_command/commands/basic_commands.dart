@@ -1,23 +1,23 @@
-/// [P6-3] 基础命令:输出/管道控制。语义对齐 ST variables.js / slash-commands.js。
+/// Basic commands: output/pipe control. Semantics match ST variables.js / slash-commands.js.
 ///
-/// - /echo   : 输出到管道(ST 语义:显示 toast,平台简化为纯管道透传)
-/// - /pass   : 原样透传
-/// - /return : 返回值并断当前闭包执行
-/// - /abort  : 中止整条脚本
-/// - /break  : 断当前循环/闭包
+/// - /echo   : output to the pipe (ST semantics: show a toast; the platform simplifies this to plain pipe passthrough)
+/// - /pass   : pass through as-is
+/// - /return : return a value and stop the current closure
+/// - /abort  : abort the whole script
+/// - /break  : stop the current loop/closure
 library;
 
 import '../slash_command.dart';
 
 export '../slash_runner.dart' show SlashResult, SlashRunner, SlashMacroResolver;
 
-/// 注册基础命令(幂等,可重复调用)。
+/// Registers basic commands (idempotent, safe to call repeatedly).
 void registerBasicSlashCommands() {
   SlashCommandRegistry.register(SlashCommand(
     name: 'echo',
     aliases: ['e'],
     callback: (args) async {
-      // ST 的 /echo 弹 toast;平台无 toast 通道时保持管道语义
+      // ST's /echo shows a toast; the platform keeps pipe semantics when there is no toast channel
       return args.unnamedAsString();
     },
   ));
@@ -25,7 +25,7 @@ void registerBasicSlashCommands() {
   SlashCommandRegistry.register(SlashCommand(
     name: 'pass',
     callback: (args) async {
-      // 有参透传参数,无参透传 pipe(解析层 injectPipe 已注入)
+      // Passes arguments when given, otherwise passes the pipe through (parser-level injectPipe already injected)
       return args.unnamedAsString();
     },
   ));

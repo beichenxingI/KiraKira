@@ -1,18 +1,19 @@
 // lib/presentation/dialogs/core_dialog.dart
-/// 极客Core迁移 · 统一浮窗基建
+/// Shared dialog foundation.
 ///
-/// 规范单一真相源:逐条提取自 ai_config_screen.dart 的 Dialog 实现
-/// (对话模型配置浮窗 / 模型选择浮窗 / 方案切换浮窗),所有迁移浮窗
-/// 严格复用本文件,不得自行发挥。
+/// Single source of truth for the dialog spec, extracted from the
+/// ai_config_screen.dart dialog implementations (chat model config dialog /
+/// model selection dialog / profile switch dialog); all migrated dialogs
+/// reuse this file instead of defining their own styling.
 ///
-/// 规范要点:
+/// Spec highlights:
 /// - showDialog + barrierColor black 0.6 + Center + Material(transparent) + Container
-/// - 容器: radius 20 / shadow black0.3·blur40·offset(0,20) / clip antiAlias
-/// - 深色面 #1C1C1C,浅色面 #FFFFFF(跟随系统明暗,由 Theme 判定)
-/// - 标题栏: padding16 + 底边框0.5 + 图标20 + 标题17/w600 + xmark_circle_fill 24
-/// - 输入框: CupertinoTextField,填充 #2C2C2C/#F5F5F5,radius 8,字14
-/// - 按钮: CupertinoButton radius 10;主按钮 DesignTokens.primary + 白字
-/// - 结构: Column[标题栏 / Flexible(SingleChildScrollView) / 底部栏]
+/// - Container: radius 20 / shadow black0.3, blur 40, offset(0,20) / clip antiAlias
+/// - Dark surface #1C1C1C, light surface #FFFFFF (follows system brightness, resolved from Theme)
+/// - Title bar: padding 16 + bottom border 0.5 + icon 20 + title 17/w600 + xmark_circle_fill 24
+/// - Text field: CupertinoTextField, fill #2C2C2C/#F5F5F5, radius 8, font 14
+/// - Buttons: CupertinoButton radius 10; primary button uses DesignTokens.primary with white text
+/// - Structure: Column[title bar / Flexible(SingleChildScrollView) / bottom bar]
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -20,49 +21,51 @@ import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/utils/kira_dialog.dart';
 
-/// 从明暗模式解析出的浮窗配色(与 ai_config 浮窗逐值一致)。
+/// Dialog colors resolved from light/dark mode (value-for-value identical to the ai_config dialog).
 class CoreDialogPalette {
   const CoreDialogPalette({required this.isDark});
 
   final bool isDark;
 
-  /// 浮窗表面色
+  /// Dialog surface color
   Color get surface => isDark ? const Color(0xFF1C1C1C) : Colors.white;
 
-  /// 控件填充色(输入框/次要按钮/分段)
+  /// Control fill color (text fields / secondary buttons / segments)
   Color get fill => isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5);
 
-  /// 主文字
+  /// Primary text
   Color get textPrimary =>
       isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C);
 
-  /// 次级文字
+  /// Secondary text
   Color get textSecondary =>
       isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93);
 
-  /// 三级文字
+  /// Tertiary text
   Color get textTertiary =>
       isDark ? const Color(0xFF6C6C6C) : const Color(0xFFBDBDBD);
 
-  /// 分割线
+  /// Divider
   Color get divider =>
       isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0);
 
-  /// 输入框描边(chips 未选中态)
+  /// Input border (chips unselected state)
   Color get outline =>
       isDark ? const Color(0xFF3C3C3C) : const Color(0xFFE0E0E0);
 
-  /// 关闭按钮
+  /// Close button
   Color get closeIcon =>
       isDark ? const Color(0xFF6C6C6C) : const Color(0xFFBDBDBD);
 }
 
-/// 按极客Core规范弹浮窗(统一遮罩 0.6)。
-/// useRootNavigator 默认 true,与 showDialog 及 ai_config 基准一致:
-/// 从 Shell 内页面(设置/API服务)打开也全屏覆盖,不被底栏遮挡。
+/// Shows a dialog per the Core spec (uniform 0.6 barrier).
+/// [useRootNavigator] defaults to true, matching showDialog and the ai_config baseline:
+/// dialogs opened from Shell pages (settings/API services) still cover the full
+/// screen and are not hidden behind the bottom bar.
 ///
-/// 内部委派 [showKiraDialog](弱回弹缩放动画);所有调用本函数的
-/// 迁移浮窗自动获得 scale+fade 动效。遮罩沿用 0.6(原 ai_config 基准)。
+/// Delegates internally to [showKiraDialog] (soft-bounce scale animation), so every
+/// dialog built on this function automatically gets the scale+fade animation.
+/// Barrier stays at 0.6 (original ai_config baseline).
 Future<void> showCoreDialog(
   BuildContext context, {
   required WidgetBuilder builder,
@@ -78,10 +81,10 @@ Future<void> showCoreDialog(
   );
 }
 
-/// 标准浮窗壳:标题栏 + 滚动内容 + 可选底部栏。
+/// Standard dialog shell: title bar + scrollable content + optional bottom bar.
 ///
-/// [maxWidth] 通用 550 / 编辑器类 800 / Logit偏置 600 / 世界书 720。
-/// [maxHeightFactor] 默认 0.9(任务规范)。
+/// [maxWidth] 550 general / 800 editors / 600 logit bias / 720 worldbook.
+/// [maxHeightFactor] defaults to 0.9.
 class CoreDialogShell extends StatelessWidget {
   const CoreDialogShell({
     super.key,
@@ -162,7 +165,7 @@ class CoreDialogShell extends StatelessWidget {
   }
 }
 
-/// 标题栏:图标 + 标题 + 右侧内容 + 关闭按钮(与 ai_config 规范一致)。
+/// Title bar: icon + title + trailing content + close button (matches the ai_config spec).
 class CoreDialogHeader extends StatelessWidget {
   const CoreDialogHeader({
     super.key,
@@ -224,7 +227,7 @@ class CoreDialogHeader extends StatelessWidget {
   }
 }
 
-/// 底部操作栏:上边框 0.5 + 按钮行。
+/// Bottom action bar: 0.5 top border + button row.
 class CoreDialogFooter extends StatelessWidget {
   const CoreDialogFooter({super.key, required this.child});
 
@@ -246,7 +249,7 @@ class CoreDialogFooter extends StatelessWidget {
   }
 }
 
-/// 分区标题(13/w600 主文字色,与 `_buildSectionLabel` 一致)。
+/// Section label (13/w600 primary text color, matches `_buildSectionLabel`).
 class CoreSectionLabel extends StatelessWidget {
   const CoreSectionLabel(this.label, {super.key, this.palette});
 
@@ -269,7 +272,7 @@ class CoreSectionLabel extends StatelessWidget {
   }
 }
 
-/// 标准输入框(与 `_buildDialogTextField` 一致)。
+/// Standard text field (matches `_buildDialogTextField`).
 class CoreTextField extends StatelessWidget {
   const CoreTextField({
     super.key,
@@ -327,7 +330,7 @@ class CoreTextField extends StatelessWidget {
   }
 }
 
-/// 开关行:标题 + 副标题 + CupertinoSwitch。
+/// Switch row: title + subtitle + CupertinoSwitch.
 class CoreSwitchRow extends StatelessWidget {
   const CoreSwitchRow({
     super.key,
@@ -380,7 +383,7 @@ class CoreSwitchRow extends StatelessWidget {
   }
 }
 
-/// 滑块行:标题 + 当前值 + Slider(track 4,与极客Core `_MiniSlider` 一致)。
+/// Slider row: title + current value + Slider (track 4, matches Core's `_MiniSlider`).
 class CoreSliderRow extends StatelessWidget {
   const CoreSliderRow({
     super.key,
@@ -450,7 +453,7 @@ class CoreSliderRow extends StatelessWidget {
   }
 }
 
-/// 通用点击行:标题 + 副标题/右侧值 + chevron。
+/// Generic tap row: title + subtitle/trailing value + chevron.
 class CoreTile extends StatelessWidget {
   const CoreTile({
     super.key,
@@ -514,7 +517,7 @@ class CoreTile extends StatelessWidget {
   }
 }
 
-/// 主操作按钮(DesignTokens.primary + 白字)。
+/// Primary action button (DesignTokens.primary + white text).
 class CorePrimaryButton extends StatelessWidget {
   const CorePrimaryButton({
     super.key,
@@ -556,7 +559,7 @@ class CorePrimaryButton extends StatelessWidget {
   }
 }
 
-/// 次要操作按钮(填充灰底,与 `_buildDialogActionButton` 一致)。
+/// Secondary action button (grey fill, matches `_buildDialogActionButton`).
 class CoreSecondaryButton extends StatelessWidget {
   const CoreSecondaryButton({
     super.key,
@@ -614,7 +617,7 @@ class CoreSecondaryButton extends StatelessWidget {
   }
 }
 
-/// 危险按钮(红色,删除/清空确认用)。
+/// Danger button (red, used for delete/clear confirmations).
 class CoreDangerButton extends StatelessWidget {
   const CoreDangerButton({
     super.key,
@@ -642,7 +645,7 @@ class CoreDangerButton extends StatelessWidget {
   }
 }
 
-/// 分组信息行:图标 + 标题 + 多行说明(原各设置页 `_InfoRow` 的浮窗形态)。
+/// Grouped info row: icon + title + multiline description (dialog form of the settings screens' `_InfoRow`).
 class CoreInfoRow extends StatelessWidget {
   const CoreInfoRow({
     super.key,
@@ -691,7 +694,7 @@ class CoreInfoRow extends StatelessWidget {
   }
 }
 
-/// 统计信息行:左标签 + 右值(原 `_StatRow` 浮窗形态)。
+/// Stat info row: left label + right value (dialog form of `_StatRow`).
 class CoreStatRow extends StatelessWidget {
   const CoreStatRow({super.key, required this.label, required this.value});
 
@@ -726,7 +729,7 @@ class CoreStatRow extends StatelessWidget {
   }
 }
 
-/// 浮窗内分组卡:标题 + 子内容(浅灰填充圆角容器)。
+/// In-dialog group card: title + child content (light-grey rounded fill container).
 class CoreGroupBox extends StatelessWidget {
   const CoreGroupBox({
     super.key,
@@ -776,7 +779,7 @@ class CoreGroupBox extends StatelessWidget {
   }
 }
 
-/// 浮窗内 SnackBar 提示(浮窗上下文里 ScaffoldMessenger 仍指向根页,可用)。
+/// In-dialog SnackBar (ScaffoldMessenger still resolves to the root page in dialog context, so it works).
 void coreToast(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text(message), duration: const Duration(seconds: 2)),

@@ -1,11 +1,11 @@
-/// [P6-5.1] UI 交互命令:/buttons 按钮选择,选中项进管道。
+/// UI interaction command: /buttons selection, the chosen item goes into the pipe.
 library;
 
 import 'dart:convert';
 
 import '../slash_command.dart';
 
-/// 注册 UI 交互命令(幂等)。
+/// Registers UI interaction commands (idempotent).
 void registerUiSlashCommands() {
   SlashCommandRegistry.register(SlashCommand(
     name: 'buttons',

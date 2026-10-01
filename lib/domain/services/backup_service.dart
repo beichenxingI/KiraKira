@@ -41,7 +41,7 @@ class BackupService {
     return fullBackupsDir;
   }
 
-  // ==================== Chat Backups ====================
+  // Chat backups
 
   /// Create a backup of a single chat
   Future<BackupInfo> backupChat({
@@ -170,7 +170,7 @@ class BackupService {
     }
   }
 
-  // ==================== Full Backups ====================
+  // Full backups
 
   /// Create a full backup of all data
   Future<BackupInfo> createFullBackup({
@@ -253,7 +253,7 @@ class BackupService {
     }
   }
 
-  // ==================== Auto-Backup ====================
+  // Auto-backup
 
   /// Check if auto-backup is needed based on settings
   bool shouldAutoBackup({
@@ -311,7 +311,7 @@ class BackupService {
     return deleted;
   }
 
-  // ==================== Export/Import ====================
+  // Export/import
 
   /// Export a backup to a shareable format
   Future<String> exportBackup(String filePath) async {

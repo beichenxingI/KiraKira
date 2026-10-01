@@ -1,9 +1,10 @@
 // lib/presentation/dialogs/tts_settings_dialog.dart
-/// TTS 合成设置浮窗（Phase C 多引擎重设计）
+/// TTS synthesis settings dialog.
 ///
-/// 四 Tab 分组布局（通用 / 引擎配置 / 三音色 / 高级），
-/// 按后端能力动态显隐 rate/pitch 滑块，sherpa 模型导入管理，
-/// 云端 API Key 走 flutter_secure_storage（见 tts_providers）。
+/// Four-tab grouped layout (general / engine config / three voices / advanced),
+/// rate/pitch sliders shown or hidden based on backend capabilities, sherpa
+/// model import management, cloud API keys stored via flutter_secure_storage
+/// (see tts_providers).
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -49,7 +50,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Tab 切换 ──
+          // Tab switcher
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: CupertinoSlidingSegmentedControl<int>(
@@ -75,7 +76,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
               },
             ),
           ),
-          // ── Tab 内容 ──
+          // Tab content
           switch (_tab) {
             0 => _buildGeneralTab(context, ref, palette, settings, isSpeaking, l10n),
             1 => _buildEngineTab(context, ref, palette, settings, l10n),
@@ -87,7 +88,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
     );
   }
 
-  // ── Tab 0：通用 ──
+  // Tab 0: General
   Widget _buildGeneralTab(
     BuildContext context,
     WidgetRef ref,
@@ -181,7 +182,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
     );
   }
 
-  /// 当前引擎卡片
+  /// Current engine card.
   Widget _buildCurrentEngineCard(
     WidgetRef ref,
     CoreDialogPalette palette,
@@ -243,7 +244,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
     );
   }
 
-  // ── Tab 1：引擎配置 ──
+  // Tab 1: Engine config
   Widget _buildEngineTab(
     BuildContext context,
     WidgetRef ref,
@@ -288,7 +289,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
           ),
         ),
         const SizedBox(height: 20),
-        // 按 provider 分支
+        // Branch by provider
         switch (s.provider) {
           TTSProvider.sherpaOnnx =>
             _buildSherpaConfig(context, ref, palette, s),
@@ -407,7 +408,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
                 : null,
           ),
         ),
-        // 百度额外需要 SK
+        // Baidu additionally requires a secret key
         if (s.provider == TTSProvider.baiduTts) ...[
           const SizedBox(height: 8),
           _Group(
@@ -423,7 +424,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
             ),
           ),
         ],
-        // Qwen 模型选择
+        // Qwen model selection
         if (s.provider == TTSProvider.qwenTts) ...[
           const SizedBox(height: 8),
           _Group(
@@ -509,7 +510,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
     }
   }
 
-  // ── Tab 2：三音色 ──
+  // Tab 2: Three voices
   Widget _buildVoicesTab(
     BuildContext context,
     WidgetRef ref,
@@ -705,7 +706,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
     );
   }
 
-  // ── Tab 3：高级 ──
+  // Tab 3: Advanced
   Widget _buildAdvancedTab(
     BuildContext context,
     WidgetRef ref,
@@ -770,12 +771,12 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
     );
   }
 
-  // ── 操作 ──
+  // Actions
 
   Future<void> _importModel(BuildContext context, WidgetRef ref) async {
     try {
       final name = await TtsModelService.instance.importModel();
-      if (name == null) return; // 用户取消
+      if (name == null) return; // User cancelled
       ref.read(ttsSettingsProvider.notifier).setSherpaModelName(name);
       ref.invalidate(availableVoicesProvider);
       if (context.mounted) coreToast(context, '模型已导入：$name');
@@ -949,7 +950,7 @@ class _TtsSettingsDialogState extends ConsumerState<_TtsSettingsDialog> {
   }
 }
 
-/// 浮窗内分组容器
+/// Group container used inside the dialog.
 class _Group extends StatelessWidget {
   const _Group({required this.palette, this.children = const [], this.child});
 
@@ -971,7 +972,7 @@ class _Group extends StatelessWidget {
   }
 }
 
-/// 带右侧下拉的行
+/// Row with a trailing dropdown.
 class _DropdownTile extends StatelessWidget {
   const _DropdownTile({
     required this.palette,
@@ -1012,7 +1013,7 @@ class _DropdownTile extends StatelessWidget {
   }
 }
 
-/// 组内滑块行
+/// Slider row within a group.
 class _SliderRow extends StatelessWidget {
   const _SliderRow({
     required this.palette,

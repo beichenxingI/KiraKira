@@ -1,12 +1,15 @@
-/// [P6-3] 斜杠命令语法分析器:递归下降,语义对齐 ST SlashCommandParser。
+/// Slash command syntax parser: recursive descent, semantics match ST SlashCommandParser.
 ///
-/// 语法(与 ST 一致):
-/// - `|` 是唯一命令分隔符(换行只是无名参数内的空白);`||` 抑制下一命令的 pipe 注入
-/// - 命名参数 `key=value`,值可为 闭包`{:...:}` / 引号串 `"..."` / 列表`[...]` / 裸值
-/// - 无名参数:非 split 命令吞到命令尾(管道/闭包尾/文本尾),split 命令按空白分值
-/// - 注释 `//...` `/#...`(到 `|` 止)、块注释 `/*...*|`
-/// - `/:name` 是 /run 的简写
-/// - 宽松转义:`\|` `\"` 为字面符号
+/// Grammar (same as ST):
+/// - `|` is the only command separator (newlines are just whitespace inside
+///   unnamed arguments); `||` suppresses pipe injection for the next command
+/// - Named arguments `key=value`, where the value can be a closure `{:...:}`,
+///   a quoted string `"..."`, a list `[...]`, or a bare value
+/// - Unnamed arguments: non-split commands swallow up to the command end
+///   (pipe / closure end / end of text); split commands split by whitespace
+/// - Comments `//...` `/#...` (up to `|`), block comments `/*...*|`
+/// - `/:name` is shorthand for /run
+/// - Lenient escaping: `\|` and `\"` are literal symbols
 library;
 
 import 'slash_ast.dart';
@@ -27,14 +30,15 @@ class SlashParser {
   final String text;
   late final SlashScanner _s = SlashScanner(text);
 
-  /// 解析整段脚本为根闭包。宽容模式:未知结构跳过,未闭合闭包容忍到文本尾。
+  /// Parses the whole script into a root closure. Lenient mode: unrecognized
+  /// constructs are skipped, unclosed closures run to end of text.
   SlashClosureNode parse() {
     return _parseClosure(isRoot: true);
   }
 
   bool _testClosureEnd({required bool isRoot}) {
     if (isRoot) return _s.endOfText;
-    if (_s.endOfText) return true; // 容忍未闭合
+    if (_s.endOfText) return true; // tolerate unclosed closure
     return _s.testSymbol(':}');
   }
 
@@ -47,12 +51,12 @@ class SlashParser {
     final closure = SlashClosureNode();
     if (!isRoot) {
       _s.take();
-      _s.take(); // 丢弃 "{:"
+      _s.take(); // discard "{:"
     }
     final textStart = _s.index;
     _s.discardWhitespace();
 
-    // 闭包形参 `{: a, b :}`
+    // Closure formal parameters `{: a, b :}`
     while (_testNamedArgument()) {
       closure.argumentList.add(_parseNamedArgument(isRoot: isRoot));
       _s.discardWhitespace();
@@ -75,13 +79,13 @@ class SlashParser {
         closure.executorList.add(cmd);
         injectPipe = true;
       } else {
-        // 普通文本/无法识别的内容:丢弃到命令尾
+        // Plain text / unrecognized content: discard to command end
         while (!_testCommandEnd(isRoot: isRoot) && !_s.endOfText) {
           _s.take();
         }
       }
       _s.discardWhitespace();
-      // 首个 | 结束命令;第二个 | 抑制下一命令的 pipe 注入
+      // First | ends the command; second | suppresses pipe injection for the next command
       if (_s.testSymbol('|')) {
         _s.take();
         if (_s.testSymbol('|')) {
@@ -95,7 +99,7 @@ class SlashParser {
         textStart.clamp(0, text.length), _s.index.clamp(0, text.length));
     if (!isRoot && !_s.endOfText) {
       _s.take();
-      _s.take(); // 丢弃 ":}"
+      _s.take(); // discard ":}"
     }
     if (_s.testSymbol('()')) {
       _s.take();
@@ -105,10 +109,10 @@ class SlashParser {
     return closure;
   }
 
-  // ── 注释 ──
+  // Comments
 
   void _skipComment() {
-    // `//` 或 `/#` 到 `|` 或文本尾
+    // `//` or `/#` runs to `|` or end of text
     while (!_s.endOfText && !_s.testSymbol('|')) {
       _s.take();
     }
@@ -116,21 +120,21 @@ class SlashParser {
 
   void _skipBlockComment() {
     _s.take();
-    _s.take(); // 丢弃 "/*"
+    _s.take(); // discard "/*"
     while (!_s.endOfText && !_s.testSymbol('*|')) {
       if (_s.testSymbol('/*')) {
-        _skipBlockComment(); // 嵌套
+        _skipBlockComment(); // nested
         continue;
       }
       _s.take();
     }
     if (!_s.endOfText) {
       _s.take();
-      _s.take(); // 丢弃 "*|"
+      _s.take(); // discard "*|"
     }
   }
 
-  // ── 命令 ──
+  // Commands
 
   bool _testRunShorthand() {
     return _s.testSymbol('/:') && !_s.testSymbol(':}', 1);
@@ -139,8 +143,8 @@ class SlashParser {
   SlashExecutorNode _parseRunShorthand({required bool isRoot}) {
     final cmd = SlashExecutorNode(name: 'run', start: _s.index + 1);
     _s.take();
-    _s.take(); // 丢弃 "/:"
-    // /: 后到空白或命令尾是目标名(可带引号)
+    _s.take(); // discard "/:"
+    // After /:, characters up to whitespace or command end form the target name (may be quoted)
     if (_s.testSymbol('"')) {
       cmd.unnamedArgumentList
           .add(SlashArgAssignment(value: _parseQuotedValue(isRoot: isRoot), wasQuoted: true));
@@ -167,7 +171,7 @@ class SlashParser {
 
   SlashExecutorNode _parseCommand({required bool isRoot}) {
     final cmd = SlashExecutorNode(name: '', start: _s.index + 1);
-    _s.take(); // 丢弃 "/"
+    _s.take(); // discard "/"
     var name = '';
     while (!_s.endOfText &&
         !_isWhitespace(_s.char) &&
@@ -182,7 +186,7 @@ class SlashParser {
     }
     _s.discardWhitespace();
     if (!_testCommandEnd(isRoot: isRoot)) {
-      // 查注册表拿命令的无名参数形态(split),对齐 ST parseCommand
+      // Look up the registry for the command's unnamed argument form (split), matching ST parseCommand
       final def = SlashCommandRegistry.get(name);
       cmd.unnamedArgumentList.addAll(_parseUnnamedArguments(
         isRoot: isRoot,
@@ -194,11 +198,11 @@ class SlashParser {
     return cmd;
   }
 
-  // ── 参数 ──
+  // Arguments
 
   bool _testNamedArgument() {
     if (_s.endOfText) return false;
-    // 等价 ST 的 /^(\w+)=/ 前缀测试,但直接在原文上扫描,避免整段 ahead 子串
+    // Equivalent to ST's /^(\w+)=/ prefix test, but scans the source directly to avoid a whole ahead substring
     if (!_isWordChar(text[_s.index])) return false;
     var j = _s.index + 1;
     while (j < text.length && _isWordChar(text[j])) {
@@ -218,7 +222,7 @@ class SlashParser {
     while (!_s.endOfText && _isWordChar(_s.char)) {
       key += _s.take();
     }
-    _s.take(); // 丢弃 "="
+    _s.take(); // discard "="
     Object value = '';
     if (_s.testSymbol('{:')) {
       value = _parseClosure(isRoot: false);
@@ -232,24 +236,25 @@ class SlashParser {
     return SlashArgAssignment(name: key, value: value);
   }
 
-  /// 引号串。容忍转义引号;未闭合则吞到命令尾(ST 宽松模式行为)。
+  /// Quoted string. Tolerates escaped quotes; if unclosed, consumes to end of
+  /// command (ST lenient mode behavior).
   String _parseQuotedValue({required bool isRoot}) {
-    _s.take(); // 丢弃开引号
+    _s.take(); // discard opening quote
     final buf = StringBuffer();
     while (true) {
       if (_s.endOfText) break;
       if (_s.testSymbol('"')) break;
-      if (!isRoot && _s.testSymbol(':}')) break; // 闭包内容忍未闭合引号
+      if (!isRoot && _s.testSymbol(':}')) break; // tolerate unclosed quote inside closure
       buf.write(_s.take());
     }
-    if (!_s.endOfText) _s.take(); // 丢弃闭引号
+    if (!_s.endOfText) _s.take(); // discard closing quote
     return buf.toString();
   }
 
-  /// 列表值 `[...]`:取原文(含括号),不做项级解析。
+  /// List value `[...]`: takes raw text (including brackets), no per-item parsing.
   String _parseListValue({required bool isRoot}) {
     final buf = StringBuffer();
-    buf.write(_s.take()); // 已测过的 "["
+    buf.write(_s.take()); // already-tested "["
     while (!_s.endOfText && !_s.testSymbol(']')) {
       buf.write(_s.take());
     }
@@ -257,7 +262,7 @@ class SlashParser {
     return buf.toString();
   }
 
-  /// 裸值:到空白或命令尾。
+  /// Bare value: up to whitespace or command end.
   String _parseValue({required bool isRoot}) {
     final buf = StringBuffer();
     if (_s.jumpedEscapeSequence) {
@@ -270,9 +275,10 @@ class SlashParser {
     return buf.toString();
   }
 
-  /// 无名参数(对齐 ST parseUnnamedArgument):
-  /// - 非 split:整段吞(引号开头则取整段引号串),内嵌闭包拆为多段
-  /// - split:按空白逐值取(引号串/列表/裸值)
+  /// Unnamed arguments (matching ST parseUnnamedArgument):
+  /// - non-split: swallow the whole segment (take a full quoted string if it
+  ///   starts with a quote); embedded closures split it into multiple parts
+  /// - split: take values one by one by whitespace (quoted string / list / bare value)
   List<SlashArgAssignment> _parseUnnamedArguments({
     required bool isRoot,
     bool split = false,
@@ -288,7 +294,7 @@ class SlashParser {
 
     var buf = '';
     void flushFirstLastTrim() {
-      // 首/尾字符串段去边缘空白,丢空段(对齐 ST 的 trimStart/trimEnd 行为)
+      // Trim edge whitespace of the first/last string parts and drop empty parts (matches ST trimStart/trimEnd behavior)
       if (parts.isNotEmpty && parts.first.value is String && !parts.first.wasQuoted) {
         final t = (parts.first.value as String).trimLeft();
         if (t.isEmpty) {
@@ -311,7 +317,7 @@ class SlashParser {
 
     while (!_testCommandEnd(isRoot: isRoot)) {
       if (split && splitCount != null && parts.length >= splitCount) {
-        // 值数已达 splitCount:剩余整段为单一值
+        // Reached splitCount values: the rest is consumed as a single value
         split = false;
       }
       if (_s.testSymbol('{:')) {
@@ -344,7 +350,7 @@ class SlashParser {
     }
     flushFirstLastTrim();
 
-    // 超出 splitCount 的部分并回一个值(引号还原)
+    // Parts beyond splitCount are joined back into one value (quotes restored)
     if (wasSplit && splitCount != null && parts.length > splitCount + 1) {
       final joined = StringBuffer();
       for (var i = splitCount; i < parts.length; i++) {

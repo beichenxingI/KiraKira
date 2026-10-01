@@ -12,17 +12,19 @@ import 'package:kirakira/domain/services/chronicle_summary_service.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 
-/// [CHRONICLE UI整合] Chronicle全局配置。
-/// 修复二：设置是全局运行参数（SharedPreferences持久化），
-/// 不依赖当前是否有聊天打开；每聊天只保留窗口归档状态（Drift表）。
+/// Global Chronicle configuration.
+/// Settings are global runtime parameters persisted to SharedPreferences and
+/// do not depend on whether a chat is open; per-chat state only tracks window
+/// archive status (Drift table).
 final chronicleSettingsProvider =
     StateNotifierProvider<ChronicleSettingsNotifier, models.ChronicleSettings>(
         (ref) {
   return ChronicleSettingsNotifier();
 });
 
-/// 首次迁移选择：null=未决定，'migrated'=开启并清旧数据，'kept'=保留旧数据暂不开启。
-/// 选择后持久化，迁移弹窗不再重复弹出。
+/// First-run migration choice: null = undecided, 'migrated' = enable and clear
+/// legacy data, 'kept' = keep legacy data but stay disabled.
+/// Persisted after the choice so the migration dialog never reappears.
 final chronicleMigrationChoiceProvider =
     StateNotifierProvider<ChronicleMigrationChoiceNotifier, String?>((ref) {
   return ChronicleMigrationChoiceNotifier();
@@ -47,7 +49,7 @@ class ChronicleSettingsNotifier
         state = decoded;
       }
     } catch (_) {
-      // 读失败保持默认
+      // Keep defaults when reading fails
     }
   }
 
@@ -56,7 +58,7 @@ class ChronicleSettingsNotifier
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_storageKey, jsonEncode(state.toJson()));
     } catch (_) {
-      // 写失败忽略
+      // Ignore write failures
     }
   }
 
@@ -120,16 +122,17 @@ class ChronicleMigrationChoiceNotifier extends StateNotifier<String?> {
     } catch (_) {}
   }
 
-  /// 用户已做出迁移决定（含"无旧数据无需决定"场景），不再弹窗
+  /// Migration decision recorded (including "no legacy data" case); the dialog
+  /// is not shown again.
   Future<void> setChoice(String v) => _persist(v);
 }
 
-/// [CHRONICLE Phase 2] Wiki结构化总结服务
+/// Wiki structured summarization service
 final chronicleSummaryServiceProvider = Provider<ChronicleSummaryService>((ref) {
   return ChronicleSummaryService(ref.watch(llmServiceProvider));
 });
 
-/// [CHRONICLE Phase 3] 混合召回服务
+/// Hybrid recall service
 final chronicleRecallServiceProvider = Provider<ChronicleRecallService>((ref) {
   return ChronicleRecallService(
     repo: ref.watch(chronicleRepositoryProvider),
@@ -139,8 +142,9 @@ final chronicleRecallServiceProvider = Provider<ChronicleRecallService>((ref) {
   );
 });
 
-/// [CHRONICLE Phase 1] 超级记忆调度器接线。
-/// 首次读取时启动队列Timer（一般由第一条消息发送触发）。
+/// Chronicle orchestrator wiring.
+/// The queue timer starts on first read (normally triggered by sending the
+/// first message).
 final chronicleOrchestratorProvider = Provider<ChronicleOrchestrator>((ref) {
   final orchestrator = ChronicleOrchestrator(
     repo: ref.watch(chronicleRepositoryProvider),
@@ -156,14 +160,14 @@ final chronicleOrchestratorProvider = Provider<ChronicleOrchestrator>((ref) {
   return orchestrator;
 });
 
-/// [改进4] 可视化分区（热/温/冷/超冷）。
+/// Visualized archive zone (hot/warm/cold/frozen).
 class ChronicleZone {
-  final String key; // 'hot'/'warm'/'cold'/'frozen'（图标选择用）
-  final String name; // 热区/温区/冷区/超冷区
-  final int startIndex; // 起始楼层（1-based，对齐聊天页楼层号）
+  final String key; // 'hot'/'warm'/'cold'/'frozen' (for icon selection)
+  final String name; // hot/warm/cold/frozen zone label
+  final int startIndex; // starting floor (1-based, matches chat page floors)
   final int endIndex;
   final int messageCount;
-  final bool hasOriginalText; // false = 原文已彻底淡出，只注入总结词条
+  final bool hasOriginalText; // false = original text fully aged out; only summary entries are injected
   const ChronicleZone({
     required this.key,
     required this.name,
@@ -174,16 +178,16 @@ class ChronicleZone {
   });
 }
 
-/// [改进4] 超级记忆工作状态可视化数据。
+/// Visual state data for the Chronicle workspace.
 class ChronicleVisualizationData {
-  final int unarchivedCount; // 未归档消息总数
-  final int unarchivedUserTurns; // 未归档轮数（user消息计，1轮=user+AI）
-  final int summaryInterval; // 总结阈值（轮）
-  final double progress; // 归档进度 = 已归档 / 总楼层（archived / totalMessageCount）
-  final int totalMessageCount; // 总楼层数（含隐藏楼层，与聊天页楼层总数一致）
-  final int unarchivedStartFloor; // 首条未归档楼层（无未归档时 0）
-  final int unarchivedEndFloor; // 末条未归档楼层
-  final List<ChronicleZone> zones; // 已归档分区（新→旧）
+  final int unarchivedCount; // total unarchived messages
+  final int unarchivedUserTurns; // unarchived turns (counted by user messages; 1 turn = user + AI)
+  final int summaryInterval; // summarize threshold (turns)
+  final double progress; // archive progress = archived / total message count
+  final int totalMessageCount; // total floors (incl. hidden, matches chat page)
+  final int unarchivedStartFloor; // first unarchived floor (0 when none)
+  final int unarchivedEndFloor; // last unarchived floor
+  final List<ChronicleZone> zones; // archived zones (newest to oldest)
   const ChronicleVisualizationData({
     required this.unarchivedCount,
     required this.unarchivedUserTurns,
@@ -196,8 +200,10 @@ class ChronicleVisualizationData {
   });
 }
 
-/// [改进4] 可视化数据：按聊天拉取消息+归档状态，切五区。
-/// autoDispose：状态 tab 关闭即销毁缓存，重进必重查，保证展示的是当前状态。
+/// Visualization data: pulls messages plus archive state per chat and splits
+/// them into five zones.
+/// autoDispose drops the cache when the tab closes, so reopening re-queries and
+/// always shows the current state.
 final chronicleVisualizationProvider = FutureProvider.autoDispose
     .family<ChronicleVisualizationData, String>((ref, chatId) async {
   final chatRepo = ref.watch(chatRepositoryProvider);
@@ -216,20 +222,24 @@ final chronicleVisualizationProvider = FutureProvider.autoDispose
   final unarchivedUserTurns =
       unarchived.where((m) => m.role == MessageRole.user).length;
 
-  // 楼层号对齐全消息序号（含隐藏楼层，与聊天页楼层一致）
+  // Floor numbers align with the full message index (incl. hidden floors),
+  // matching the chat page floor numbering.
   final floorOf = <String, int>{
     for (var i = 0; i < allMessages.length; i++) allMessages[i].id: i + 1,
   };
 
-  // [修复] 分区规则：区大小 = hotWindowSize 轮（用户可调，1轮=user+AI≈2条消息）。
-  // 从新到旧：热区、温区、冷区（保留原文+词条）；冷区之前的所有归档合并为
-  // 一个"只词条"区（无"超冷区"概念，原文已彻底淡出，只注入词条）。
+  // Zone rules: zone size = hotWindowSize turns (user adjustable; 1 turn =
+  // user + AI ≈ 2 messages).
+  // Newest to oldest: hot, warm, cold zones (original text + entries kept);
+  // all archives older than the cold zone merge into a single entries-only
+  // zone (no separate frozen tier — original text has fully aged out and only
+  // entries are injected).
   final zoneSize = (settings.hotWindowSize * 2).clamp(2, 1 << 30);
   const zoneNames = ['热区', '温区', '冷区'];
   const zoneKeys = ['hot', 'warm', 'cold'];
   final zones = <ChronicleZone>[];
 
-  // 热/温/冷：从新到旧最多 3 个区，每个 zoneSize 条
+  // Hot/warm/cold: at most 3 zones from newest to oldest, zoneSize each
   for (var batchIndex = 0; batchIndex < 3; batchIndex++) {
     final end = archived.length - batchIndex * zoneSize;
     if (end <= 0) break;
@@ -246,7 +256,7 @@ final chronicleVisualizationProvider = FutureProvider.autoDispose
     ));
   }
 
-  // 只词条区：冷区之前的所有归档（合并为一个区）
+  // Entries-only zone: all archives older than the cold zone (merged into one)
   final onlyEntriesEnd =
       (archived.length - 3 * zoneSize).clamp(0, archived.length);
   if (onlyEntriesEnd > 0) {

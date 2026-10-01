@@ -1,8 +1,7 @@
 // lib/presentation/dialogs/tokenizer_dialog.dart
-/// 分词器设置浮窗(极客Core迁移 P5.3,提前于Phase1落地供设置页接线)
-/// 内容完整迁自 tokenizer_settings_screen.dart,字段一个不少:
-/// 设置(分词器/显示Token计数/显示Token可视化/缓存结果)
-/// Token可视化(输入/快速估算/统计/明细Chips) · 帮助说明
+/// Tokenizer settings dialog.
+/// Settings (tokenizer/show token count/show token visualization/cache results),
+/// token visualization (input/quick estimate/statistics/token detail chips), help.
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -14,7 +13,7 @@ import 'package:kirakira/presentation/providers/tokenizer_providers.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'core_dialog.dart';
 
-// 豁免:样本条配色(Token 可视化样本色谱,属于可视化取色,非主题色,不随明暗主题变化)
+// Sample strip colors (token visualization palette; fixed colors not tied to the light/dark theme).
 const _kSampleColors = <Color>[
   Colors.blue,
   Colors.green,
@@ -69,7 +68,7 @@ class _TokenizerDialogState extends ConsumerState<_TokenizerDialog> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 设置 ──
+          // Settings
           const CoreSectionLabel('设置'),
           const SizedBox(height: 4),
           _Group(
@@ -140,7 +139,7 @@ class _TokenizerDialogState extends ConsumerState<_TokenizerDialog> {
           ),
           const SizedBox(height: 20),
 
-          // ── Token 可视化 ──
+          // Token visualization
           const CoreSectionLabel('Token 可视化'),
           const SizedBox(height: 8),
           CoreTextField(
@@ -165,7 +164,7 @@ class _TokenizerDialogState extends ConsumerState<_TokenizerDialog> {
     );
   }
 
-  /// 帮助 → 底部 Sheet(与原页一致)
+  /// Help in a bottom sheet.
   void _showHelpSheet(
     BuildContext context,
     TokenizerService service,
@@ -220,7 +219,7 @@ class _TokenizerDialogState extends ConsumerState<_TokenizerDialog> {
   }
 }
 
-/// 快速估算(原 `_QuickEstimate`)
+/// Quick estimate.
 class _QuickEstimate extends ConsumerWidget {
   const _QuickEstimate({required this.text, required this.palette});
 
@@ -263,7 +262,7 @@ class _QuickEstimate extends ConsumerWidget {
   }
 }
 
-/// 分词结果(统计 + 明细,原 `_TokenizationResultView`)
+/// Tokenization result (statistics + details).
 class _TokenizationResultView extends ConsumerWidget {
   const _TokenizationResultView({
     required this.text,
@@ -314,7 +313,7 @@ class _TokenizationResultView extends ConsumerWidget {
   }
 }
 
-/// 统计卡(原 `_StatisticsCard`)
+/// Statistics card.
 class _StatisticsCard extends ConsumerWidget {
   const _StatisticsCard({required this.result, required this.palette});
 
@@ -418,7 +417,7 @@ class _StatisticsCard extends ConsumerWidget {
   }
 }
 
-/// 单项统计(原 `_StatItem`)
+/// Single statistic item.
 class _StatItem extends StatelessWidget {
   const _StatItem({
     required this.label,
@@ -457,7 +456,7 @@ class _StatItem extends StatelessWidget {
   }
 }
 
-/// Token 明细(原 `_TokenVisualization`)
+/// Token detail list.
 class _TokenVisualization extends StatelessWidget {
   const _TokenVisualization({required this.result, required this.palette});
 
@@ -497,7 +496,7 @@ class _TokenVisualization extends StatelessWidget {
   }
 }
 
-/// 单个 Token Chip(原 `_TokenChip`)
+/// Single token chip.
 class _TokenChip extends StatelessWidget {
   const _TokenChip({required this.token, required this.index});
 
@@ -506,7 +505,7 @@ class _TokenChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 豁免:样本条配色(见文件顶部 _kSampleColors)
+    // Sample strip colors (see _kSampleColors at the top of the file).
     final color = _kSampleColors[index % _kSampleColors.length];
 
     return Tooltip(
@@ -546,7 +545,7 @@ extension on Color {
   }
 }
 
-/// 浮窗内分组容器
+/// Group container used inside the dialog.
 class _Group extends StatelessWidget {
   const _Group({required this.palette, required this.children});
 
@@ -568,7 +567,7 @@ class _Group extends StatelessWidget {
   }
 }
 
-/// 带右侧下拉的行
+/// Row with a trailing dropdown.
 class _DropdownTile extends StatelessWidget {
   const _DropdownTile({
     required this.palette,

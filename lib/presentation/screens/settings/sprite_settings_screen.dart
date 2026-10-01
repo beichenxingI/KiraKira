@@ -9,9 +9,9 @@ import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/widgets/chat/sprite_display.dart';
 
-// [外观三项迁移] 全局精灵图设置(SpriteSettingsScreen)已迁入
-// sprite_settings_dialog.dart;本文件仅保留 CharacterSpritesScreen
-// (角色精灵图管理,经 /characters/:id/sprites 路由,非设置入口)。
+// Global sprite settings (SpriteSettingsScreen) have been moved to
+// sprite_settings_dialog.dart; this file only keeps CharacterSpritesScreen
+// (per-character sprite management, reached via /characters/:id/sprites, not from settings).
 
 /// Screen for managing sprites for a specific character
 class CharacterSpritesScreen extends ConsumerStatefulWidget {
@@ -51,7 +51,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
                   tooltip: '从文件夹导入',
                   onPressed: _importFromFolder,
                 ),
-                // FAB 收为 action(iOS 风格)
+                // FAB folded into an app bar action (iOS style)
                 IconButton(
                   icon: const Icon(CupertinoIcons.add),
                   tooltip: '添加精灵图',
@@ -216,7 +216,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
   }
 
   Future<String?> _selectEmotion() async {
-    // D-T2 规则 5:预设选择列表 → 底部 Sheet
+    // Preset emotion list presented as a bottom sheet
     return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -277,7 +277,7 @@ class _CharacterSpritesScreenState extends ConsumerState<CharacterSpritesScreen>
 
   void _showSpriteOptions(Sprite sprite) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // D-T2:长按/多选菜单 → CupertinoActionSheet
+    // Sprite options menu uses a CupertinoActionSheet
     showCupertinoModalPopup<void>(
       context: context,
       builder: (sheetCtx) => CupertinoTheme(

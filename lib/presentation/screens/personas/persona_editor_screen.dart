@@ -16,7 +16,7 @@ import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:kirakira/presentation/dialogs/core_dialog.dart';
 
-/// Enhanced Persona Editor Screen with all new fields
+/// Persona editor screen
 class PersonaEditorScreen extends ConsumerStatefulWidget {
   final Persona? persona; // null for creating new persona
 
@@ -83,8 +83,8 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
 
   @override
   Widget build(BuildContext context) {
-    // [问题5浮窗化] 全屏 Scaffold → CoreDialogShell 浮窗(maxWidth 800,
-    // 编辑器类惯例),收藏/保存迁到标题栏 trailing,TabBar 迁入 body。
+    // Full-screen Scaffold replaced by a CoreDialogShell dialog (maxWidth 800,
+    // editor convention); favorite/save moved to the title bar trailing slot, TabBar moved into the body.
     return CoreDialogShell(
       title: widget.persona == null ? 'Create Persona' : 'Edit Persona',
       icon: CupertinoIcons.person_crop_circle,
@@ -138,7 +138,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
           Center(child: _buildAvatarPicker()),
           const SizedBox(height: 24),
           
-          // 名字
+          // Name
           TextField(
             controller: _nameController,
             decoration: const InputDecoration(
@@ -150,7 +150,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
           ),
           const SizedBox(height: 16),
 
-          // 角色设定
+          // Persona description
           TextField(
             controller: _descriptionController,
             decoration: const InputDecoration(
@@ -163,7 +163,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
           ),
           const SizedBox(height: 20),
 
-          // 生效规则说明
+          // Persona activation rules note
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(

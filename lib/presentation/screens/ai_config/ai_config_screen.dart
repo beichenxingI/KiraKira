@@ -40,7 +40,8 @@ class AIConfigScreen extends ConsumerStatefulWidget {
 }
 
 class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
-  /// [极客Core迁移 P2] LLM卡采样参数展开区(默认折叠,展开才渲染Slider省内存)
+  /// LLM card sampling-parameter expansion section (collapsed by default; sliders
+  /// render only when expanded to save memory)
   bool _samplingExpanded = false;
 
   @override
@@ -95,7 +96,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
     );
   }
 
-  // ─── 概览卡片方法 ───
+  // Overview card methods
 
   Widget _buildStatusCards(BuildContext context, WidgetRef ref, bool isDark) {
     final llmConfig = ref.watch(llmConfigProvider);
@@ -115,8 +116,9 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
         ? ApiStatus.connected
         : ApiStatus.notConfigured;
 
-    // [CHRONICLE UI整合] 顶部第三个状态卡：旧"全局书"入口删除（保留下方快捷区的世界书），
-    // 替换为Chronicle超级记忆入口，直接弹全局设置浮窗，不依赖是否进入聊天。
+    // Third top status card: the old "global book" entry was removed (the worldbook
+    // tile in the quick-actions row remains), replaced by the Chronicle super-memory
+    // entry that opens the global settings dialog directly, independent of chat state.
     final chronicleStatus =
         chronicleEnabled ? ApiStatus.connected : ApiStatus.notConfigured;
 
@@ -323,7 +325,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            // ══ [极客Core迁移 P2] 采样参数折叠区(默认收起,展开才渲染Slider) ══
+            // Sampling-parameter collapse section (collapsed by default; sliders render only when expanded)
             _buildSamplingExpansion(context, ref, isDark),
           ],
         ),
@@ -331,8 +333,9 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
     );
   }
 
-  /// 采样参数折叠区:标题行(温度/TopP/TopK/令牌数/上下文摘要)+ 展开Slider
-  /// + 底部 [更多参数 →] [Logit偏置 →] 两个浮窗入口
+  /// Sampling-parameter collapse section: title row (temperature/TopP/topK/token
+  /// count/context summary), expanded sliders, and two dialog entries at the
+  /// bottom (More params, Logit bias)
   Widget _buildSamplingExpansion(BuildContext context, WidgetRef ref, bool isDark) {
     final config = ref.watch(llmConfigProvider);
     final dividerColor = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0);
@@ -396,7 +399,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
             ),
           ),
         ),
-        // 展开时才渲染 Slider(节省内存)
+        // Sliders render only when expanded (saves memory)
         if (_samplingExpanded) ...[
           const SizedBox(height: 4),
           _MiniSlider(
@@ -499,12 +502,10 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
     );
   }
 
-  // ══════════════════════════════════════════════════════════
-  // 对话模型配置浮窗 —— 从零实现，不再复用 QuickSetupCard
-  // - Material 包裹整个浮窗，避免 "No Material widget found" 错误
-  // - 中性灰黑配色（#1C1C1C / #FFFFFF），无任何蓝调
-  // - StatefulBuilder 管理表单状态，TextEditingController 在方法作用域创建
-  // ══════════════════════════════════════════════════════════
+  // Chat model config dialog — built from scratch, no longer reuses QuickSetupCard
+  // - Wrap the whole dialog in Material to avoid "No Material widget found" errors
+  // - Neutral gray/black palette (#1C1C1C / #FFFFFF), no blue tint
+  // - StatefulBuilder manages form state; TextEditingControllers are method-scoped
   void _showLlmConfigDialog(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenHeight = MediaQuery.of(context).size.height;
@@ -513,13 +514,13 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
     final llmConfigs = ref.read(llmConfigsProvider);
     final rootContext = context;
 
-    // 表单控制器（方法作用域创建，弹窗关闭后统一释放）
+    // Form controllers (created in method scope, disposed when the dialog closes)
     final nameController = TextEditingController(text: llmConfigs.active?.name ?? '');
     final urlController = TextEditingController(text: currentConfig.apiUrl);
     final keyController = TextEditingController(text: currentConfig.apiKey);
     final modelController = TextEditingController(text: currentConfig.model);
 
-    // 局部可变状态
+    // Local mutable state
     LLMProvider selectedProvider = currentConfig.provider;
     List<String> availableModels = [];
     bool isFetchingModels = false;
@@ -578,7 +579,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // ===== 标题栏 =====
+                    // Title bar
                     _buildDialogHeader(
                       isDark: isDark,
                       currentConfigName: activeConfigName,
@@ -620,14 +621,14 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                       },
                       onClose: () => Navigator.pop(dialogContext),
                     ),
-                    // ===== 滚动内容区 =====
+                    // Scrollable content area
                     Flexible(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.all(20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 1. 方案名称
+                            // 1. Config name
                             _buildSectionLabel('方案名称', isDark),
                             const SizedBox(height: 8),
                             _buildDialogTextField(
@@ -636,7 +637,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                               isDark: isDark,
                             ),
                             const SizedBox(height: 20),
-                            // 2. 接口类型
+                            // 2. Provider type
                             _buildSectionLabel('接口类型', isDark),
                             const SizedBox(height: 8),
                             _buildProviderChips(
@@ -651,7 +652,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                               },
                             ),
                             const SizedBox(height: 20),
-                            // 3. API 地址
+                            // 3. API URL
                             _buildSectionLabel('API 地址', isDark),
                             const SizedBox(height: 8),
                             _buildDialogTextField(
@@ -660,7 +661,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                               isDark: isDark,
                             ),
                             const SizedBox(height: 20),
-                            // 4. API 密钥
+                            // 4. API key
                             _buildSectionLabel('API 密钥', isDark),
                             const SizedBox(height: 8),
                             _buildDialogTextField(
@@ -678,7 +679,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                               ),
                             ),
                             const SizedBox(height: 20),
-                            // 5. 拉取可用模型
+                            // 5. Fetch available models
                             _buildDialogActionButton(
                               label: isFetchingModels ? '拉取中...' : '拉取可用模型',
                               icon: CupertinoIcons.cloud_download,
@@ -725,7 +726,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                               },
                             ),
                             const SizedBox(height: 12),
-                            // 6. 模型名称（手动输入 + 可从列表选择）
+                            // 6. Model name (manual entry + list selection)
                             _buildSectionLabel(
                               availableModels.isNotEmpty ? '模型名称（可从列表选择）' : '模型名称（手动输入）',
                               isDark,
@@ -751,7 +752,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                               ),
                             ],
                             const SizedBox(height: 20),
-                            // 7. 测试连接
+                            // 7. Test connection
                             _buildDialogActionButton(
                               label: isTestingConnection ? '测试中...' : '测试连接',
                               icon: CupertinoIcons.arrow_2_circlepath,
@@ -801,7 +802,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                               _buildTestResult(testResult!, isDark),
                             ],
                             const SizedBox(height: 20),
-                            // 8. 极客Probe深度检测
+                            // 8. Probe deep detection
                             _buildSecondaryButton(
                               label: '极客Probe深度检测',
                               icon: CupertinoIcons.speedometer,
@@ -815,7 +816,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                         ),
                       ),
                     ),
-                    // ===== 底部操作栏 =====
+                    // Bottom action bar
                     _buildDialogFooter(
                       isDark: isDark,
                       onCancel: () => Navigator.pop(dialogContext),
@@ -828,17 +829,18 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                           _showDialogSnackBar(rootContext, '请填写完整配置信息');
                           return;
                         }
-                        // 1. 写入运行时配置
+                        // 1. Write runtime config
                         if (selectedProvider != currentConfig.provider) {
                           await ref.read(llmConfigProvider.notifier).updateProvider(selectedProvider);
                         }
                         ref.read(llmConfigProvider.notifier).updateApiUrl(url);
                         ref.read(llmConfigProvider.notifier).updateApiKey(key);
                         ref.read(llmConfigProvider.notifier).updateModel(model);
-                        // 2. 同步多方案表（更新或新建当前方案）
-                        // [Bug1] 感知"新建"状态：activeConfigName 为空 = 用户点过
-                        // "新建方案"（onNewConfig 只清表单，此前 onSave 无条件用
-                        // active?.id upsert → 旧方案被新内容整体覆盖替换）。
+                        // 2. Sync the multi-config table (update or create the current config)
+                        // Detect the "new" state: an empty activeConfigName means the user
+                        // pressed "New config" (onNewConfig only clears the form; previously
+                        // onSave unconditionally upserted with active?.id, overwriting the
+                        // old config entirely).
                         final active = ref.read(llmConfigsProvider).active;
                         final now = DateTime.now();
                         final isNew = activeConfigName.isEmpty || active == null;
@@ -859,10 +861,12 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                           modifiedAt: drift.Value(now),
                         ));
                         if (isNew) {
-                          // [Bug1] 新建方案自动激活：setActive 事务(全表 isDefault 置 false
-                          // → 目标置 true)清掉旧方案的 true 标记，避免双 true 行导致
-                          // getSingleOrNull 抛 StateError；同时把刚保存的配置应用到运行时，
-                          // 避免冷启动 applyActiveMultiConfig 被旧方案覆盖。
+                          // Auto-activate a newly created config: the setActive transaction
+                          // clears the old config's isDefault flag (all rows false, then the
+                          // target true), preventing two true rows from making
+                          // getSingleOrNull throw a StateError; it also applies the
+                          // just-saved config to runtime so cold-start
+                          // applyActiveMultiConfig isn't overwritten by the old config.
                           await ref.read(llmConfigsProvider.notifier).setActive(configId);
                         }
                         if (rootContext.mounted) {
@@ -923,7 +927,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
     });
   }
 
-  // ===== 浮窗组件（全部从零实现，不复用 QuickSetupCard） =====
+  // Dialog components (all built from scratch, no QuickSetupCard reuse)
 
   Widget _buildDialogHeader({
     required bool isDark,
@@ -954,7 +958,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
             ),
           ),
           const Spacer(),
-          // ===== 方案下拉菜单 =====
+          // Config dropdown menu
           CupertinoButton(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             minSize: 0,
@@ -1036,7 +1040,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          // 保存为新方案
+          // Save as new config
           CupertinoButton(
             padding: const EdgeInsets.symmetric(vertical: 10),
             color: Colors.transparent,
@@ -1345,9 +1349,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
     );
   }
 
-  // ══════════════════════════════════════════════════════════
-  // 方案管理浮窗（居中 Dialog · 无 BottomSheet）
-  // ══════════════════════════════════════════════════════════
+  // Config switcher dialog (centered Dialog, no BottomSheet)
   void _showConfigSwitcherDialog({
     required BuildContext ctx,
     required WidgetRef ref,
@@ -1386,7 +1388,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 标题栏
+                // Title bar
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -1423,7 +1425,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                     ],
                   ),
                 ),
-                // 方案列表
+                // Config list
                 Flexible(
                   child: ListView(
                     shrinkWrap: true,
@@ -1481,7 +1483,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                                       ],
                                     ),
                                   ),
-                                  // 重命名 / 删除
+                                  // Rename / delete
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -1523,7 +1525,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
                     ],
                   ),
                 ),
-                // 新建方案
+                // New config
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -1856,8 +1858,8 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
 
   Widget _buildQuickActionsCard(
       BuildContext context, WidgetRef ref, bool isDark) {
-    // [极客Core迁移 P2] Core块删除(极客Core功能已分流至各浮窗);
-    // [P4] 扩展为四块:预设/世界书/正则/提示词。
+    // Core block removed (its features moved into the individual dialogs);
+    // extended to four tiles: preset, worldbook, regex, prompt.
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -1901,8 +1903,9 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
               onTap: () => showPromptManagerDialog(context, ref),
             ),
           ),
-          // [CHRONICLE UI整合] 快捷区'记忆'瓷砖已移除：
-          // 入口统一收口到顶部状态卡（全局书也仅保留本区'世界书'一个入口）。
+          // The "Memory" tile was removed from the quick-actions row:
+          // its entry point now lives in the top status card (the global book also
+          // keeps only the "Worldbook" tile here).
         ],
       ),
     );
@@ -1945,9 +1948,7 @@ class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// [极客Core迁移 P2] 迷你滑块行(原极客Core仪表盘 _MiniSlider 原样复用)
-// ═══════════════════════════════════════════════════════════════════════════
+// Mini slider row (reused as-is from the former Geek Core dashboard _MiniSlider)
 class _MiniSlider extends StatelessWidget {
   final String label;
   final double value;

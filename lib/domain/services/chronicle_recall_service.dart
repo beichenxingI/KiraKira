@@ -8,13 +8,13 @@ import 'package:kirakira/domain/services/embedding_service.dart';
 import 'package:kirakira/domain/services/vector_storage_service.dart';
 import 'package:kirakira/data/models/vector_storage.dart' as vs;
 
-/// [CHRONICLE Phase 3] 混合召回结果
+/// Hybrid recall result
 class ChronicleRecallResult {
-  /// 召回块文本（空=无召回）
+  /// Recall block text (empty means no recall)
   final String blockText;
-  /// 话题切换信号（调用方据此提前触发总结）
+  /// Topic shift signal (callers trigger summarization early based on this)
   final bool topicShift;
-  /// 召回的词条id（去重/日志用）
+  /// IDs of recalled entries (for dedup/logging)
   final List<String> entryIds;
 
   const ChronicleRecallResult({
@@ -24,19 +24,19 @@ class ChronicleRecallResult {
   });
 }
 
-/// [CHRONICLE Phase 3] Wiki混合召回服务。
+/// Wiki hybrid recall service.
 ///
-/// 混合打分：α·向量相似度(0.5) + β·关键词重合(0.2) + γ·时间衰减(0.1)
-///         + δ·情感加成(0.1) + ε·重要度(0.1)。
-/// 只搜 metadata.type='chronicle_entry' 的文档（调整D：与RAG原文向量共存分流）。
-/// 话题切换检测搭便车：复用已入库的近期user消息向量，零额外embedding。
+/// Hybrid scoring: alpha * vector similarity (0.5) + beta * keyword overlap (0.2)
+/// + gamma * time decay (0.1) + delta * emotion boost (0.1) + epsilon * importance (0.1).
+/// Only searches documents with metadata.type='chronicle_entry' (kept separate from raw RAG text vectors).
+/// Topic shift detection piggybacks on already-stored recent user message vectors, with zero extra embeddings.
 class ChronicleRecallService {
   final ChronicleRepository _repo;
   final EmbeddingService _embedder;
   final VectorStorageService _vectorStorage;
   final vs.VectorStorageSettings Function() vectorSettingsGetter;
 
-  /// 话题切换判定阈值：与近期user消息平均相似度低于此值 → 切换
+  /// Topic shift threshold: topic shifts when average similarity with recent user messages falls below this value
   static const double topicShiftThreshold = 0.45;
 
   ChronicleRecallService({
@@ -48,20 +48,20 @@ class ChronicleRecallService {
         _embedder = embedder,
         _vectorStorage = vectorStorage;
 
-  /// 召回 + 组装注入块 + 话题切换检测（一次调用全完成）。
+  /// Recall, build the injection block, and detect topic shift in a single call.
   Future<ChronicleRecallResult> recallAndBuild({
     required String chatId,
     required String query,
     required List<ChatMessage> allMessages,
     int topK = 5,
     Set<String> excludeEntryIds = const {},
-    int tokenBudget = 400, // 调整E：安全裕度400而非500
+    int tokenBudget = 400, // Safety margin of 400 instead of 500
     bool emotionRecallEnabled = true,
   }) async {
     if (query.trim().isEmpty) return const ChronicleRecallResult();
 
     try {
-      // 快路径：集合无chronicle向量则跳过（省embedding调用）
+      // Fast path: skip if the collection has no chronicle vectors (saves embedding calls)
       if (!_vectorStorage.hasDocumentsWithType(chatId, 'chronicle_entry')) {
         return const ChronicleRecallResult();
       }
@@ -69,22 +69,22 @@ class ChronicleRecallService {
       final settings = vectorSettingsGetter();
       final queryVec = await _embedder.generateEmbedding(query, settings);
 
-      // ── 话题切换检测（搭便车：复用已入库消息向量） ──
+      // Topic shift detection (piggybacks on stored message vectors)
       final topicShift =
           _detectTopicShift(chatId, query, queryVec, allMessages, settings);
 
-      // ── 向量召回（只取chronicle_entry类型） ──
+      // Vector recall (chronicle_entry type only)
       final vectorResults = _vectorStorage.search(
         collectionId: chatId,
         queryEmbedding: queryVec,
-        topK: topK * 3, // 多取重排
+        topK: topK * 3, // Fetch extra for reranking
         metadataFilter: {'type': 'chronicle_entry'},
       );
       if (vectorResults.isEmpty) {
         return ChronicleRecallResult(topicShift: topicShift);
       }
 
-      // ── 从DB取对应词条 ──
+      // Fetch matching entries from the DB
       final entryIds = vectorResults
           .map((r) => r.document.metadata['entryId'] as String?)
           .whereType<String>()
@@ -95,7 +95,7 @@ class ChronicleRecallService {
       }
       final entryById = {for (final e in entries) e.id: e};
 
-      // ── 混合打分 ──
+      // Hybrid scoring
       final queryKeywords = extractKeywords(query);
       final currentTurn = allMessages.length;
       final activeEmotionIds = emotionRecallEnabled
@@ -108,17 +108,17 @@ class ChronicleRecallService {
         if (id == null) continue;
         final entry = entryById[id];
         if (entry == null || entry.deprecated) continue;
-        if (excludeEntryIds.contains(entry.id)) continue; // H6：F-6已注入的跳过
+        if (excludeEntryIds.contains(entry.id)) continue; // Skip entries already injected
 
-        final semanticScore = vr.similarity; // α
+        final semanticScore = vr.similarity;
         final keywordScore =
-            _keywordOverlap(entry.tags, queryKeywords); // β
-        final timeScore = _timeDecay(entry.turnIndex, currentTurn); // γ
+            _keywordOverlap(entry.tags, queryKeywords);
+        final timeScore = _timeDecay(entry.turnIndex, currentTurn);
         final emotionBoost = activeEmotionIds.any(
                 (eid) => entry.entityIds.contains(eid))
             ? 1.0
-            : 0.0; // δ
-        final importanceScore = entry.importance / 10.0; // ε
+            : 0.0;
+        final importanceScore = entry.importance / 10.0;
 
         final total = 0.5 * semanticScore +
             0.2 * keywordScore +
@@ -135,14 +135,14 @@ class ChronicleRecallService {
         return ChronicleRecallResult(topicShift: topicShift);
       }
 
-      // ── 组装注入块（词条摘要 + 关联原文夹带） ──
+      // Build the injection block (entry summaries plus related source excerpts)
       final budgetChars = (tokenBudget * 3.35).ceil();
       final buffer = StringBuffer();
       for (final entry in picked) {
         final block = _buildRecallBlock(entry, allMessages);
         if (buffer.isNotEmpty &&
             buffer.length + block.length + 2 > budgetChars) {
-          break; // 超预算即停（已按分数降序，尾部是低分）
+          break; // Stop once over budget (sorted by score descending, tail items are low-scoring)
         }
         if (buffer.isNotEmpty) buffer.write('\n\n');
         buffer.write(block);
@@ -159,10 +159,12 @@ class ChronicleRecallService {
     }
   }
 
-  // ═══════════════════ 话题切换检测 ═══════════════════
+  // Topic shift detection
 
-  /// 复用RAG已入库的近期user消息向量（documentId=messageId），算与当前query的平均相似度。
-  /// 近3条user消息向量有缺失（未开RAG）→ 无法搭便车，返回false（不误判）。
+  /// Reuses recent user message vectors already stored by RAG (documentId=messageId)
+  /// to compute average similarity with the current query.
+  /// If vectors for the last user messages are missing (RAG disabled), piggybacking
+  /// is impossible and it returns false to avoid false positives.
   bool _detectTopicShift(
     String chatId,
     String query,
@@ -177,7 +179,7 @@ class ChronicleRecallService {
           .toList();
       if (recentUserMsgs.length < 2) return false;
 
-      // 排除当前这条（列表第一个是当前消息）
+      // Exclude the current message (first in the list)
       final previous = recentUserMsgs.sublist(1).take(3).toList();
       if (previous.isEmpty) return false;
 
@@ -202,7 +204,7 @@ class ChronicleRecallService {
     }
   }
 
-  // ═══════════════════ 打分组件 ═══════════════════
+  // Scoring components
 
   static double _timeDecay(int entryTurn, int currentTurn) {
     final delta = (currentTurn - entryTurn).clamp(0, 1 << 30);
@@ -217,7 +219,7 @@ class ChronicleRecallService {
     return inter / math.max(tags.length, math.min(queryKeywords.length, 20));
   }
 
-  /// 中文bigram + 拉丁词 的轻量关键词抽取
+  /// Lightweight keyword extraction using Chinese bigrams and Latin words
   static List<String> extractKeywords(String text) {
     final tokens = <String>[];
     for (final m in RegExp(r'[a-zA-Z]{2,}').allMatches(text)) {
@@ -236,9 +238,9 @@ class ChronicleRecallService {
     return tokens;
   }
 
-  // ═══════════════════ 注入块组装 ═══════════════════
+  // Injection block assembly
 
-  /// 单词条召回块：词条摘要 + 关联原文夹带（1-2条，各截150字）
+  /// Single-entry recall block: entry summary plus 1-2 related source excerpts, each truncated to 150 chars
   String _buildRecallBlock(models.MemoryEntry entry, List<ChatMessage> allMessages) {
     final buffer = StringBuffer();
     buffer.writeln('[Memory · ${entry.title}]');

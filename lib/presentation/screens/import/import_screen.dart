@@ -122,9 +122,9 @@ class ImportNotifier extends StateNotifier<ImportState> {
   }
 
       /// Pick character card image from photo gallery (for mobile)
-  /// [问题8修复] 应用内相册(photo_manager)选图,读 originBytes 保留 PNG
-  /// tEXt chunk 内嵌的角色卡数据(Android 13+ Photo Picker 会剥离元数据,
-  /// 故不走 image_picker/系统相册)。
+  /// Uses the in-app photo gallery (photo_manager) and reads originBytes to preserve the
+  /// PNG tEXt chunk holding the embedded character card data (Android 13+ Photo Picker
+  /// strips metadata, so image_picker/system gallery is not used).
   Future<void> loadPickedImages(List<PickedImage> images) async {
     if (images.isEmpty) return;
     state = state.copyWith(isLoading: true, error: null);
@@ -354,8 +354,8 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               error: importState.error,
               onPickFile: () => ref.read(importStateProvider.notifier).pickFile(),
               onPickFromGallery: () async {
-                // [问题8修复] 应用内相册(photo_manager)选图,originBytes
-                // 保留 PNG tEXt chunk 内嵌角色卡数据
+                // In-app photo gallery (photo_manager); originBytes preserves the
+                // PNG tEXt chunk holding embedded character card data
                 final picked = await showImagePickerSheet(context);
                 if (picked == null || picked.isEmpty) return;
                 if (!context.mounted) return;
@@ -396,7 +396,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             result.character!.name,
           );
         } else {
-          // [IMP-5] 未触发原因:书为 null(没解析到)或 0 条(形态/字段问题)
+          // Not triggered because the book is null (not parsed) or has 0 entries (schema/field issue)
           print('[IMP-5] lorebook import SKIPPED bookNull=${result.character!.characterBook == null} '
               'entries=${result.character!.characterBook?.entries.length ?? 'n/a'}');
         }
@@ -426,8 +426,8 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       if (successCount > 0) {
       // Clear and go back if any successful
       if (successCount > 0) {
-        // 导入直接写库,但 characterWorldInfosProvider 有缓存,
-        // 不失效编辑页要重启才看得到新世界书,这里强制整个 family 失效。
+        // Import writes straight to the DB, but characterWorldInfosProvider is cached;
+        // without invalidation the edit screen needs a restart to see the new worldbook, so the whole family is invalidated here.
         ref.invalidate(characterWorldInfosProvider);
         ref.read(importStateProvider.notifier).clear();
         context.pop();

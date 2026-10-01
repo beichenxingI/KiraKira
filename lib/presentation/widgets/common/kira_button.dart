@@ -1,9 +1,9 @@
 // lib/presentation/widgets/common/kira_button.dart
-/// KiraButton · 全 App 统一按钮(宪法 §六.5)
+/// KiraButton, the app-wide unified button (Constitution §6.5)
 ///
-/// Filled / Outlined / Text 三变体。Filled=紫底唯一交互强调,
-/// Outlined=紫边,Text=无背景。替换 Material 原生 ElevatedButton/
-/// OutlinedButton/TextButton 的散件。
+/// Three variants: Filled / Outlined / Text. Filled = purple background, the only interactive emphasis;
+/// Outlined = purple border, Text = no background. Replaces the scattered Material ElevatedButton /
+/// OutlinedButton / TextButton usages.
 library;
 
 import 'package:flutter/material.dart';
@@ -21,7 +21,7 @@ class KiraButton extends StatefulWidget {
     this.icon,
   });
 
-  /// 便捷构造:含图标
+  /// Convenience constructor: with icon
   const KiraButton.icon({
     super.key,
     required this.onPressed,
@@ -56,7 +56,7 @@ class _KiraButtonState extends State<KiraButton> {
     final colorScheme = Theme.of(context).colorScheme;
     final primary = colorScheme.primary;
 
-    // 文字样式:14/w500
+    // Text style: 14/w500
     const textStyle = TextStyle(
       fontSize: DesignTokens.fontSizeBodyMedium,
       fontWeight: DesignTokens.weightMedium,
@@ -163,7 +163,7 @@ class _KiraButtonState extends State<KiraButton> {
         ),
     };
 
-    // 宪法 §五微反馈:按压缩放 0.97,durationXs 100ms
+    // Constitution §5 micro-feedback: press scales to 0.97, durationXs 100ms
     return GestureDetector(
       onTapDown: _enabled ? (_) => _setPressed(true) : null,
       onTapUp: _enabled ? (_) => _setPressed(false) : null,

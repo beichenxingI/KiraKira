@@ -1,8 +1,9 @@
 // lib/presentation/dialogs/sprite_settings_dialog.dart
-/// 精灵图设置浮窗(外观三项迁移)
-/// 内容完整迁自 sprite_settings_screen.dart 的 SpriteSettingsScreen:
-/// 通用(启用) · 显示(尺寸/位置/透明度) · 动画(过渡开关/时长/流式显示)
-/// 情感检测(工作原理/支持的情感) · 重置默认
+/// Sprite settings dialog (appearance settings migration).
+/// Mirrors SpriteSettingsScreen from sprite_settings_screen.dart with every
+/// field preserved: general (enable), display (size / position / opacity),
+/// animation (transition toggle / duration / show while streaming), emotion
+/// detection (how it works / supported emotions), reset to defaults.
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -47,7 +48,7 @@ class _SpriteSettingsDialog extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 通用 ──
+          // General
           KiraSection(
             title: '通用',
             children: [
@@ -63,7 +64,7 @@ class _SpriteSettingsDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // ── 显示 ──
+          // Display
           KiraSection(
             title: '显示',
             children: [
@@ -131,7 +132,7 @@ class _SpriteSettingsDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // ── 动画 ──
+          // Animation
           KiraSection(
             title: '动画',
             children: [
@@ -178,7 +179,7 @@ class _SpriteSettingsDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // ── 情感检测 ──
+          // Emotion detection
           KiraSection(
             title: '情感检测',
             children: [

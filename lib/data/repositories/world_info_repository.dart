@@ -170,7 +170,7 @@ class WorldInfoRepository {
     bool? selective,
     int? insertionOrder,
     int depth = 4,
-    // A2-T3:完整透传(此前被硬编码,true/false/100/'{}' 吞掉)
+    // Pass through all parameters fully (previously hardcoded, swallowing true/false/100/'{}')
     bool? enabled,
     bool? caseSensitive,
     int? probability,

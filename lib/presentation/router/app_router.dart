@@ -13,7 +13,7 @@ import 'package:kirakira/presentation/screens/ai_config/llm_test_screen.dart';
 import 'package:kirakira/presentation/screens/ai_config/llm_config_list_screen.dart';
 import 'package:kirakira/presentation/screens/settings/sprite_settings_screen.dart';
 import 'package:kirakira/presentation/screens/settings/image_gen_settings_screen.dart';
-// [Chronicle融合] VectorStorageSettingsScreen 路由已摘除，import 一并注释
+// VectorStorageSettingsScreen route removed; its import is kept commented out
 // import 'package:kirakira/presentation/screens/settings/vector_storage_settings_screen.dart';
 import 'package:kirakira/presentation/widgets/chat/logprobs_panel.dart';
 import 'package:kirakira/presentation/screens/ai_config/ai_config_screen.dart';
@@ -37,13 +37,13 @@ abstract class AppRoutes {
   static const chat = '/chat/:id';
   static const settings = '/settings';
   static const aiConfig = '/ai-config';
-  // [外观三项迁移 + 人设迁移] backgroundSettings/homeAppearance/
-  // spriteSettings/personas 常量与路由已删除(浮窗化)。
-  // [极客Core迁移 P1] ttsSettings/sttSettings/translationSettings/statistics/
-  // settingsLogs/chatStatistics 已浮窗化,常量与路由一并删除。
-  // [P7] /advanced(极客Core)及其常量删除,功能已全部分流至各浮窗。
+  // backgroundSettings/homeAppearance/spriteSettings/personas constants and
+  // routes removed (their UI moved into dialogs).
+  // ttsSettings/sttSettings/translationSettings/statistics/settingsLogs/
+  // chatStatistics likewise moved into dialogs; constants and routes removed.
+  // /advanced removed; its features are now split across the various dialogs.
   static const import_ = '/import';
-  // [P3-E/Z] '/world-info' 恢复, 但收窄为只支持全局模式(characterId 分支已砍)
+  // '/world-info' restored but narrowed to global mode only (characterId branch removed)
   static const worldInfo = '/world-info';
   static const groups = '/groups';
   static const groupDetail = '/groups/:id';
@@ -51,11 +51,11 @@ abstract class AppRoutes {
   static const characterSprites = '/characters/:id/sprites';
   static const characterRegex = '/characters/:id/regex';
   static const imageGenSettings = '/settings/tools/image-gen';
-  static const logprobsSettings = '/logprobs-settings'; // 调试工具,保留原路径
+  static const logprobsSettings = '/logprobs-settings'; // Debug tool; original path kept
   static const vectorStorageSettings = '/settings/tools/vector-storage';
-  static const llmTest = '/llm-test'; // 调试页,保留原路径
-  static const llmConfigList = '/llm-config-list'; // 工程页,保留原路径
-  static const modelDetection = '/model-detection'; // 独立沉浸页,保留原路径
+  static const llmTest = '/llm-test'; // Debug screen; original path kept
+  static const llmConfigList = '/llm-config-list'; // Engineering screen; original path kept
+  static const modelDetection = '/model-detection'; // Standalone immersive screen; original path kept
   static const webviewStage = '/webview-stage/:id';
   static const about = '/about';
 }
@@ -84,7 +84,7 @@ class _NavObserver extends NavigatorObserver {
     KiraLogger().route('REPLACE:  -> ');
   }
 }
-/// tab 页转场：交叉淡入 + 轻微上浮,durationMd(300ms) + curveSlide(宪法统一档)。
+/// Tab page transition: cross-fade, durationMd (300ms) + curveSlide.
 CustomTransitionPage<void> _buildTabPage(LocalKey key, Widget child) {
   return CustomTransitionPage<void>(
     key: key,
@@ -105,8 +105,9 @@ CustomTransitionPage<void> _buildTabPage(LocalKey key, Widget child) {
   );
 }
 
-/// root 级 push 转场:iOS 侧滑(B-T2)
-/// 新页右侧滑入(350ms easeOutCubic),前页微向左挪 30%(iOS 视差)。
+/// Root-level push transition: iOS-style slide.
+/// New page slides in from the right (350ms easeOutCubic); the previous page
+/// shifts 30% left for the iOS parallax effect.
 CustomTransitionPage<void> _buildIosPushPage(LocalKey key, Widget child) {
   return CustomTransitionPage<void>(
     key: key,
@@ -122,7 +123,7 @@ CustomTransitionPage<void> _buildIosPushPage(LocalKey key, Widget child) {
         position: Tween(begin: const Offset(1, 0), end: Offset.zero)
             .animate(curved),
         child: SlideTransition(
-          // 前页微向左挪 30%,iOS 视差
+          // Previous page shifts 30% left (iOS parallax)
           position: Tween(begin: Offset.zero, end: const Offset(-0.3, 0))
               .animate(secondaryAnimation),
           child: child,
@@ -195,8 +196,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               state.pageKey, CharacterRegexScreen(characterId: id));
         },
       ),
-      // 角色卡浮窗化：/characters/:id（详情）、/characters/new、/characters/:id/edit
-      // 已由预览/编辑浮窗替代，路由删除；regex 路由保留（webview 引用）
+      // Character card routes (/characters/:id, /characters/new, /characters/:id/edit)
+      // are replaced by preview/edit dialogs and removed; the regex route stays (referenced by the webview)
       GoRoute(
         path: AppRoutes.webviewStage,
         name: 'webviewStage',
@@ -222,11 +223,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             _buildIosPushPage(state.pageKey, const ImportScreen()),
       ),
-      // [外观三项迁移 + 人设迁移] /personas、/settings/appearance/background|home|
-      // sprites 已浮窗化,路由删除(人设经 showPersonaSettingsDialog,
-      // 外观三项经各自设置浮窗)。
-      // [P3-E/Z] 全局世界书列表页(仅全局模式; 不接受 characterId 分支,
-      // 双模歧义是 A3-T4 删它的根因)。恒以 isGlobal=true 构造。
+      // /personas and /settings/appearance/background|home|sprites routes removed;
+      // personas open via showPersonaSettingsDialog, the appearance options via their own dialogs.
+      // Global worldbook list page (global mode only; no characterId branch).
+      // Always constructed with isGlobal=true.
       GoRoute(
         path: AppRoutes.worldInfo,
         name: 'worldInfo',
@@ -271,10 +271,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               CharacterSpritesScreen(characterId: id, characterName: name));
         },
       ),
-      // [极客Core迁移 P1-P5] /settings/tools/tts|stt|translation|regex|
-      // variables、/settings/data/statistics|logs、/settings/ai/advanced|
-      // logit-bias|presets|prompt-manager|cfg-scale|mvu|tokenizer
-      // 已浮窗化,路由删除。
+      // Routes /settings/tools/tts|stt|translation|regex|variables,
+      // /settings/data/statistics|logs and /settings/ai/advanced|logit-bias|
+      // presets|prompt-manager|cfg-scale|mvu|tokenizer moved into dialogs; routes removed.
       GoRoute(
         path: AppRoutes.imageGenSettings,
         name: 'imageGenSettings',
@@ -289,8 +288,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             _buildIosPushPage(state.pageKey, const LogprobsSettingsScreen()),
       ),
-      // [Chronicle融合] VectorStorageSettingsScreen 路由已摘除，
-      // 设置入口由 Chronicle 面板接管。文件保留以便回滚。
+      // VectorStorageSettingsScreen route removed; its settings entry is now
+      // owned by the Chronicle panel. The file is kept for rollback.
       // GoRoute(
       //   path: AppRoutes.vectorStorageSettings,
       //   name: 'vectorStorageSettings',
@@ -312,8 +311,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             _buildIosPushPage(state.pageKey, const LlmConfigListScreen()),
       ),
-      // 遗留路径兜底(聊天域 push '/image-gen-settings' 指向这里;
-      // 禁区文件禁改,redirect 保活旧跳转)
+      // Legacy path fallback: the chat domain still pushes '/image-gen-settings' here.
+      // The source file is off-limits, so this redirect keeps old jumps working.
       GoRoute(
         path: '/image-gen-settings',
         redirect: (context, state) => AppRoutes.imageGenSettings,

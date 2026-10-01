@@ -14,7 +14,7 @@ import 'package:file_picker/file_picker.dart';
 class ChatExportService {
   static const List<String> _supportedImportExtensions = ['jsonl', 'json'];
 
-  /// [CHRONICLE Phase 2] 可选注入：开启聊天文件内嵌 kira_chronicle
+  /// Optional injection: embed kira_chronicle inside the chat file when set
   final ChronicleRepository? chronicleRepo;
   final VectorStorageService? vectorStorage;
 
@@ -45,7 +45,7 @@ class ChatExportService {
         'note_position': 1,
       },
     };
-    // [CHRONICLE Phase 2] 内嵌超级记忆（仅KiraKira自有导出；ST导入时忽略未知字段）
+    // Embed super memory data (only in KiraKira's own export; SillyTavern import ignores unknown fields)
     final chronicleData = await _buildChronicleBundle(chat.id);
     if (chronicleData != null) {
       metadata['kira_chronicle'] = chronicleData;
@@ -159,8 +159,9 @@ class ChatExportService {
     final fileName = '${character.name}_${chat.id}.$extension';
 
     // Let user choose save location
-    // [问题1修复] file_picker 8.3.7:移动端 saveFile 必传 bytes(否则抛
-    // "Bytes are required");桌面端只返回路径不写文件,需自行写入。
+    // file_picker 8.3.7: on mobile, saveFile requires bytes (otherwise it
+    // throws "Bytes are required"); on desktop it only returns the path
+    // without writing the file, so the file must be written manually.
     final isMobile = Platform.isAndroid || Platform.isIOS;
     final result = await FilePicker.platform.saveFile(
       dialogTitle: 'Save Chat Export',
@@ -244,7 +245,7 @@ class ChatExportService {
         authorNote: chatMetadata?['note_prompt'] as String?,
         authorNoteDepth: chatMetadata?['note_depth'] as int?,
         messages: messages,
-        // [CHRONICLE Phase 2] 携带记忆bundle（无则null，ST标准文件不影响）
+        // Carry the memory bundle (null when absent; SillyTavern standard files are unaffected)
         chronicleData: metadata['kira_chronicle'] is Map
             ? Map<String, dynamic>.from(metadata['kira_chronicle'] as Map)
             : null,
@@ -301,11 +302,12 @@ class ChatExportService {
     }
   }
 
-  // ═══════════════════ [CHRONICLE Phase 2] 聊天文件内嵌 ═══════════════════
+  // Chat file embedding (kira_chronicle)
 
-  /// 构建kira_chronicle bundle（词条/实体/关系/情感 + gzip向量 + 窗口状态）。
-  /// 向量只存wiki词条向量，不存消息原文向量（解决聊天导出体积过大问题）。
-  /// 返回null = 无Chronicle数据或未注入repo。
+  /// Build the kira_chronicle bundle (entries/entities/relationships/emotions
+  /// + gzip-compressed vectors + window state). Only wiki entry vectors are
+  /// stored, not message original-text vectors (keeps chat export size down).
+  /// Returns null when there is no Chronicle data or no repo was injected.
   Future<Map<String, dynamic>?> _buildChronicleBundle(String chatId) async {
     final repo = chronicleRepo;
     if (repo == null) return null;
@@ -321,7 +323,7 @@ class ChatExportService {
         return null;
       }
 
-      // 向量：只取 chronicle_* 文档（调整D：与RAG原文向量共存，导出只带走wiki向量）
+      // Vectors: only chronicle_* documents (coexist with RAG original-text vectors; export only carries wiki vectors)
       final vectors = <Map<String, dynamic>>[];
       if (vectorStorage != null) {
         final collection = vectorStorage!.getCollection(chatId);
@@ -347,21 +349,23 @@ class ChatExportService {
         'entities': entities.map((e) => e.toJson()).toList(),
         'relationships': relationships.map((r) => r.toJson()).toList(),
         'emotions': emotions.map((e) => e.toJson()).toList(),
-        // gzip压缩后base64（调整C：384维，~150条≈80KB）
+        // gzip-compressed then base64 (384 dims, ~150 entries is about 80KB)
         'vectors': _gzipBase64(jsonEncode(vectors)),
         'window_state': {
           'archived_message_ids': archivedIds.toList(),
         },
       };
     } catch (e) {
-      // Chronicle打包失败不影响聊天导出
+      // Chronicle bundling failure does not affect chat export
       return null;
     }
   }
 
-  /// 导入后恢复Chronicle到目标聊天。
-  /// 注意：导入的消息用新生成的messageId，window_state的归档id已失效，
-  /// 因此只恢复词条/实体/关系/情感/向量，窗口状态由新对话自然重建（H4同理）。
+  /// Restore Chronicle data to the target chat after import. Imported
+  /// messages get newly generated messageIds, so the archived ids in
+  /// window_state are stale: only entries/entities/relationships/emotions/
+  /// vectors are restored, and window state is naturally rebuilt by the new
+  /// conversation.
   Future<void> restoreChronicleToChat(
       String chatId, Map<String, dynamic> bundle) async {
     final repo = chronicleRepo;
@@ -371,7 +375,7 @@ class ChatExportService {
         if (e is! Map) continue;
         final entry = models.MemoryEntry.fromJson(
             Map<String, dynamic>.from(e));
-        // 换绑到目标聊天
+        // Rebind to the target chat
         await repo.upsertMemoryEntry(entry.copyWith(
           chatId: chatId,
           updatedAt: DateTime.now(),
@@ -421,7 +425,8 @@ class ChatExportService {
         );
       }
 
-      // 向量恢复（目标聊天集合不存在时跳过；loadChat/发消息时会自动建集合）
+      // Vector restore (skipped when the target chat's collection does not
+      // exist; the collection is auto-created by loadChat/message sending)
       final vectorsRaw = bundle['vectors'] as String?;
       if (vectorsRaw != null && vectorsRaw.isNotEmpty && vectorStorage != null) {
         try {
@@ -448,11 +453,11 @@ class ChatExportService {
             }
           }
         } catch (_) {
-          // 向量恢复失败不阻断词条恢复
+          // Vector restore failure does not block entry restore
         }
       }
     } catch (_) {
-      // Chronicle恢复失败不影响消息导入
+      // Chronicle restore failure does not affect message import
     }
   }
 
@@ -487,7 +492,7 @@ class ChatExportService {
     }
 
     final trimmed = content.trimLeft();
-    // JSON 数组开头 → 第三方平台格式
+    // A JSON array means a third-party platform format
     if (trimmed.startsWith('[')) {
       return importFromThirdPartyArray(content);
     }
@@ -508,14 +513,14 @@ class ChatExportService {
     // Try JSON
     return importFromJson(content);
   }
-  /// 导入第三方平台的聊天记录（JSON 数组格式）
-  /// 格式：[{id, role, content, timestamp, image(base64可选), embedding(丢弃)}]
+  /// Import chat history from a third-party platform (JSON array format).
+  /// Format: [{id, role, content, timestamp, image (optional base64), embedding (discarded)}]
   Future<ChatImportResult?> importFromThirdPartyArray(String content) async {
     try {
       final data = jsonDecode(content) as List<dynamic>;
       final messages = <ImportedMessage>[];
 
-      // 图片落地目录
+      // Directory for saving imported images
       final dir = await getApplicationDocumentsDirectory();
       final imgDir = Directory('${dir.path}/imported_images');
       if (!await imgDir.exists()) await imgDir.create(recursive: true);
@@ -523,24 +528,23 @@ class ChatExportService {
       for (final item in data) {
         if (item is! Map<String, dynamic>) continue;
 
-        // role 映射
+        // Role mapping
         final roleStr = item['role'] as String? ?? 'assistant';
         final role = roleStr == 'user'
             ? MessageRole.user
             : (roleStr == 'system' ? MessageRole.system : MessageRole.assistant);
 
-        // timestamp
         final ts = item['timestamp'];
         final timestamp = ts is int
             ? DateTime.fromMillisecondsSinceEpoch(ts)
             : DateTime.now();
 
-        // Base64 图片落地（embedding 直接忽略，不解析）
+        // Save base64 image to disk (embedding is ignored, not parsed)
         final attachments = <ChatAttachment>[];
         final imageData = item['image'] as String?;
         if (imageData != null && imageData.isNotEmpty) {
           try {
-            // 去掉可能的 data:image/xxx;base64, 前缀
+            // Strip a possible data:image/xxx;base64, prefix
             var b64 = imageData;
             var mime = 'image/png';
             if (b64.startsWith('data:')) {
@@ -565,7 +569,7 @@ class ChatExportService {
               sizeBytes: bytes.length,
             ));
           } catch (_) {
-            // 图片解码失败就跳过图片，保留文字
+            // Skip the image on decode failure, keep the text
           }
         }
 
@@ -602,7 +606,7 @@ class ChatImportResult {
   final int? authorNoteDepth;
   final bool? authorNoteEnabled;
   final List<ImportedMessage> messages;
-  /// [CHRONICLE Phase 2] kira_chronicle 原始bundle（导入后由调用方恢复）
+  /// Raw kira_chronicle bundle (restored by the caller after import)
   final Map<String, dynamic>? chronicleData;
 
   ChatImportResult({

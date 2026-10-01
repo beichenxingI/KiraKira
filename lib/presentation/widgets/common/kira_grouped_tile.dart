@@ -1,11 +1,11 @@
 // lib/presentation/widgets/common/kira_grouped_tile.dart
-/// KiraGroupedTile · inset-grouped 组内行(A-T4b)
+/// KiraGroupedTile, a row inside an inset-grouped section (A-T4b)
 ///
-/// iOS 设置行规格:高 44 起,标题 17(fontSizeBodyLarge)主文字色,
-/// 副标题 13(fontSizeSm)次级色;trailing 默认 chevron_forward。
-/// 整行 KiraPressable(scale 0.97 + opacity 0.6,120ms)。
+/// iOS settings row spec: height from 44, title 17 (fontSizeBodyLarge) in primary text color,
+/// subtitle 13 (fontSizeSm) in secondary color; trailing defaults to chevron_forward.
+/// The whole row uses KiraPressable (scale 0.97 + opacity 0.6, 120ms).
 ///
-/// **只能在 KiraSection 内使用**,单独浮在页面上是违规(契约束)。
+/// Only valid inside a KiraSection; floating it standalone on a page violates the contract.
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -27,16 +27,16 @@ class KiraGroupedTile extends StatelessWidget {
 
   final IconData? icon;
 
-  /// 给则画 10 圆角彩块(iOS 设置彩块图标),其内放 [icon]
+  /// When set, draws a radius-10 colored block (iOS settings icon tile) holding [icon]
   final Color? iconBg;
 
-  /// icon 颜色;默认:有 iconBg 时 = primary,无 iconBg 时 = 次级文字色
+  /// Icon color; default: primary when iconBg is set, secondary text color when it is not
   final Color? iconColor;
 
   final String title;
   final String? subtitle;
 
-  /// 默认:onTap 非空时画 Cupertino chevron;onTap 为空则无尾标(纯信息行)
+  /// Default: draws a Cupertino chevron when onTap is non-null; no trailing marker when onTap is null (information-only row)
   final Widget? trailing;
   final VoidCallback? onTap;
 

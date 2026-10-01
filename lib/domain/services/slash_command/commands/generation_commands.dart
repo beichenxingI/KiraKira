@@ -1,9 +1,9 @@
-/// [P6-4] 生成命令(P0):/genraw 静默生成,结果进管道。
+/// Generation command: /genraw silent generation, the result goes into the pipe.
 library;
 
 import '../slash_command.dart';
 
-/// 注册生成命令(幂等)。
+/// Registers generation commands (idempotent).
 void registerGenerationSlashCommands() {
   SlashCommandRegistry.register(SlashCommand(
     name: 'genraw',

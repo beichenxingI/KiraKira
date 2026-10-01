@@ -16,11 +16,11 @@ enum PromptSectionType {
   custom, // For custom user-defined prompts
 }
 
-/// [CHRONICLE Phase 0] F/B/W 显式分桶语义：
-/// - front（F桶）：聊天历史之前，按 order 排序注入
-/// - before（B桶）：按 injectionDepth 插入聊天历史中间
-/// - absolute（W桶）：聊天历史之后（最末尾）
-/// bucket 为 null 时按现有规则自动推导，保持既有行为不变。
+/// Explicit F/B/W bucket semantics for prompt ordering:
+/// - front: injected before chat history, sorted by order
+/// - before: inserted into chat history at injectionDepth
+/// - absolute: after chat history (at the very end)
+/// A null bucket keeps the existing automatic inference behavior unchanged.
 enum PromptBucket { front, before, absolute }
 
 /// A single prompt section configuration
@@ -39,7 +39,7 @@ class PromptSection {
   final int? injectionPosition;
   /// Injection depth (for depth-based injection)
   final int? injectionDepth;
-  /// [CHRONICLE Phase 0] 显式 F/B/W 桶标记；null = 按现有规则自动推导
+  /// Explicit F/B/W bucket marker; null = inferred by existing rules
   final PromptBucket? bucket;
 
   const PromptSection({
@@ -441,7 +441,7 @@ class PromptManagerConfig {
           final injectionPosition = prompt['injection_position'] as int?;
           final injectionDepth = prompt['injection_depth'] as int?;
           
-          // 经上方去重/生成后 identifier 必为非空,无需再判空
+          // identifier is guaranteed non-empty after deduplication/generation above
           final type = identifierMap[identifier] ?? PromptSectionType.custom;
           customPrompts[identifier] = PromptSection(
             type: type,

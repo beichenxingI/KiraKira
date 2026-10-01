@@ -9,7 +9,7 @@ import '../components/kira_toast.dart';
 import '../providers/regex_providers.dart';
 import '../theme/design_tokens.dart';
 
-/// 正则规则完整编辑浮窗（匹配规则 + 应用范围 + 测试区）
+/// Full regex rule editor dialog (match rules + application scope + test area).
 Future<void> showRegexRuleEditDialog(
   BuildContext context,
   WidgetRef ref, {
@@ -235,7 +235,7 @@ class _RegexRuleEditDialogState extends ConsumerState<_RegexRuleEditDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── 基础信息 ──
+                      // Basic info
                       Text('规则名',
                           style: TextStyle(
                               fontSize: DesignTokens.fontSizeSm,
@@ -270,7 +270,7 @@ class _RegexRuleEditDialogState extends ConsumerState<_RegexRuleEditDialog> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // ── 匹配规则 ──
+                      // Match rules
                       KiraAccordionCard(
                         title: '匹配规则',
                         preview: _findCtrl.text.isEmpty
@@ -389,7 +389,7 @@ class _RegexRuleEditDialogState extends ConsumerState<_RegexRuleEditDialog> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // ── 应用范围 ──
+                      // Application scope
                       KiraAccordionCard(
                         title: '应用范围',
                         preview: '${_placements.length} 个位置',
@@ -440,7 +440,7 @@ class _RegexRuleEditDialogState extends ConsumerState<_RegexRuleEditDialog> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // ── 测试区 ──
+                      // Test area
                       KiraAccordionCard(
                         title: '测试',
                         preview: '实时预览替换结果',

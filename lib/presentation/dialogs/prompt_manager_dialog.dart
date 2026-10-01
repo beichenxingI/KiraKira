@@ -1,10 +1,10 @@
 // lib/presentation/dialogs/prompt_manager_dialog.dart
-/// 提示词管理浮窗(极客Core迁移 P4)
-/// 内容完整迁自 prompt_manager_screen.dart(911行)+
-/// prompt_section_edit_screen.dart(编辑并入为嵌套浮窗):
-/// 信息横幅 · 段落排序开关列表(拖拽/开关/编辑)
-/// 菜单:载入预设/存为预设/导入/导出/重置/帮助 · 新建提示词
-/// 段落编辑浮窗:名称(自定义)/内容/元信息/重置默认(内置)/删除(自定义)
+/// Prompt manager dialog.
+/// Fully migrated from prompt_manager_screen.dart (911 lines) +
+/// prompt_section_edit_screen.dart (editor merged in as a nested dialog):
+/// info banner, section ordering toggle list (drag/toggle/edit),
+/// menu: load preset/save as preset/import/export/reset/help, new prompt,
+/// section edit dialog: name (custom)/content/metadata/reset to default (built-in)/delete (custom)
 library;
 
 import 'dart:convert';
@@ -47,7 +47,7 @@ class _PromptManagerDialog extends ConsumerWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 新建提示词
+          // New prompt
           CupertinoButton(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             minSize: 0,
@@ -55,7 +55,7 @@ class _PromptManagerDialog extends ConsumerWidget {
             child: const Icon(CupertinoIcons.add_circled,
                 size: 22, color: DesignTokens.primary),
           ),
-          // 菜单
+          // Menu
           PopupMenuButton<String>(
             icon: Icon(CupertinoIcons.ellipsis_circle,
                 size: 22, color: palette.textSecondary),
@@ -137,7 +137,7 @@ class _PromptManagerDialog extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 信息横幅 ──
+          // Info banner
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -163,7 +163,7 @@ class _PromptManagerDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // ── 段落排序开关列表(拖拽排序) ──
+          // Section ordering toggle list (drag to reorder)
           ReorderableListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -206,9 +206,9 @@ class _PromptManagerDialog extends ConsumerWidget {
     );
   }
 
-  // ════════════════════ 菜单操作(与原页逻辑一致) ════════════════════
+  // Menu operations (same logic as the original screen)
 
-  /// [新建] 自定义提示词表单(与原页一致:名称/内容/角色/启用)
+  /// New custom prompt form (matches original screen: name/content/character/enabled)
   void _showCreatePromptSheet(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
@@ -566,7 +566,7 @@ class _PromptManagerDialog extends ConsumerWidget {
       final json = ref.read(promptManagerProvider.notifier).exportToJson(name);
       final jsonString = const JsonEncoder.withIndent('  ').convert(json);
 
-      // [问题1] 统一导出交付:分享 / 保存到文件
+      // Unified export delivery: share / save to file
       final fileName =
           '${name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.json';
       await deliverExportFile(
@@ -811,7 +811,7 @@ class _PromptManagerDialog extends ConsumerWidget {
   }
 }
 
-/// 段落行(原 _PromptSectionTile 浮窗形态,拖拽/开关/编辑全保留)
+/// Section row (dialog form of the original _PromptSectionTile; drag, toggle, and edit all preserved)
 class _PromptSectionTile extends StatelessWidget {
   const _PromptSectionTile({
     super.key,
@@ -996,7 +996,7 @@ class _PromptSectionTile extends StatelessWidget {
   }
 }
 
-/// 段落编辑浮窗(原 PromptSectionEditScreen 浮窗化,字段与逻辑一致)
+/// Section edit dialog (dialog version of PromptSectionEditScreen, same fields and logic)
 Future<void> _showSectionEditDialog(
   BuildContext context,
   WidgetRef ref,
@@ -1084,7 +1084,7 @@ class _PromptSectionEditDialogState
     Navigator.pop(context);
   }
 
-  /// 仅重置输入框内容(不落库),与原页"重置为默认"按钮行为一致
+  /// Resets only the field contents (no persistence), matching the original "reset to default" button behavior
   void _resetToDefault() {
     setState(() {
       _contentController.text =
@@ -1092,7 +1092,7 @@ class _PromptSectionEditDialogState
     });
   }
 
-  /// [删除] 仅自定义提示词可删。破坏性操作 → CupertinoAlertDialog 确认。
+  /// Delete: only custom prompts can be deleted. Destructive action requires CupertinoAlertDialog confirmation.
   void _deleteCustomSection() {
     showCupertinoDialog<void>(
       context: context,
@@ -1110,8 +1110,8 @@ class _PromptSectionEditDialogState
               ref
                   .read(promptManagerProvider.notifier)
                   .deleteCustomSectionByIndex(widget.index);
-              Navigator.pop(dialogCtx); // 关确认框
-              Navigator.pop(context); // 关编辑浮窗
+              Navigator.pop(dialogCtx); // close the confirmation dialog
+              Navigator.pop(context); // close the edit dialog
             },
             child: const Text('删除'),
           ),
@@ -1160,7 +1160,7 @@ class _PromptSectionEditDialogState
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 自定义段落:名称 ──
+          // Custom section: name
           if (_section.isCustom) ...[
             const CoreSectionLabel('提示词名称'),
             const SizedBox(height: 8),
@@ -1172,7 +1172,7 @@ class _PromptSectionEditDialogState
             const SizedBox(height: 16),
           ],
 
-          // ── 内容(大文本域) ──
+          // Content (large text area)
           const CoreSectionLabel('内容'),
           const SizedBox(height: 8),
           CupertinoTextField(
@@ -1188,7 +1188,7 @@ class _PromptSectionEditDialogState
             style: TextStyle(fontSize: 14, color: palette.textPrimary),
           ),
 
-          // ── 元信息 + 宏提示(原页说明文字,逐字保留) ──
+          // Metadata + macro hints (original screen's explanatory text, preserved verbatim)
           const SizedBox(height: 12),
           Text(
             _description,
@@ -1223,7 +1223,7 @@ class _PromptSectionEditDialogState
           ),
           const SizedBox(height: 16),
 
-          // ── 内置段落:重置为默认 ──
+          // Built-in section: reset to default
           if (!_section.isCustom)
             CoreSecondaryButton(
               label: '重置为默认',
@@ -1232,7 +1232,7 @@ class _PromptSectionEditDialogState
 
             ),
 
-          // ── 自定义段落:删除 ──
+          // Custom section: delete
           if (_section.isCustom)
             CoreDangerButton(
               label: '删除此提示词',

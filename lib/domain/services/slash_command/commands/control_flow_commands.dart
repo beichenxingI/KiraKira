@@ -1,5 +1,6 @@
-/// [P6-4] 控制流命令族(P1):if/else/while/times/let/var/run。
-/// 比较与循环语义对齐 ST variables.js 的 parseBooleanOperands/evalBoolean/MAX_LOOPS。
+/// Control flow command family: if/else/while/times/let/var/run.
+/// Comparison and loop semantics match ST variables.js
+/// parseBooleanOperands/evalBoolean/MAX_LOOPS.
 library;
 
 import 'dart:convert';
@@ -14,8 +15,8 @@ import 'variable_commands.dart' show slashPipeString;
 
 const int _maxLoops = 100;
 
-/// 操作数解析(ST parseBooleanOperands.getOperand):
-/// 数字字面量 → 作用域变量 → chat变量 → global变量 → 字符串字面量。
+/// Operand resolution (ST parseBooleanOperands.getOperand):
+/// number literal to scope variable to chat variable to global variable to string literal.
 Object? _resolveOperand(String? raw, SlashArgs args) {
   if (raw == null) return null;
   if (raw.isEmpty) return '';
@@ -36,7 +37,7 @@ Object? _resolveOperand(String? raw, SlashArgs args) {
   return raw;
 }
 
-/// ST evalBoolean 移植。
+/// Port of ST evalBoolean.
 bool evalBooleanRule(String? rule, Object? a, Object? b) {
   if (a == null) return false;
   final aNum = a is num;
@@ -44,7 +45,7 @@ bool evalBooleanRule(String? rule, Object? a, Object? b) {
   final r = rule ?? 'eq';
 
   if (b == null) {
-    // 无右值:真值检查(rule 只能缺省或 not)
+    // No right value: truthiness check (rule can only be default or not)
     final resultOnTruthy = r != 'not';
     final s = a.toString().toLowerCase();
     if (s == 'true' || s == 'on') return resultOnTruthy;
@@ -71,13 +72,13 @@ bool evalBooleanRule(String? rule, Object? a, Object? b) {
         return x != y;
       case 'in':
       case 'nin':
-        break; // 数字回退字符串比较(如 12345 含 45)
+        break; // numbers fall back to string comparison (e.g. 12345 contains 45)
       default:
         return false;
     }
   }
 
-  // 大小写不敏感字符串比较
+  // Case-insensitive string comparison
   final as = a is String ? a.toLowerCase() : slashOperandToString(a);
   final bs = b is String ? b.toLowerCase() : slashOperandToString(b);
   switch (r) {
@@ -115,7 +116,7 @@ String slashOperandToString(Object? v) {
   }
 }
 
-/// 执行 then/else/循环体:闭包 → executeClosure;字符串 → 当子脚本执行。
+/// Runs then/else/loop bodies: closures via executeClosure; strings executed as sub-scripts.
 Future<SlashResult> _runBody(
   Object? body,
   SlashArgs args, {
@@ -134,9 +135,9 @@ Future<SlashResult> _runBody(
       scope: args.scope, env: args.env, pipeIn: slashPipeString(args.scope.pipe));
 }
 
-/// 注册控制流命令(幂等)。
+/// Registers control flow commands (idempotent).
 void registerControlFlowSlashCommands() {
-  // ── /if left= right= rule= {:then:}(else={:...:} 或第二闭包) ──
+  // /if left= right= rule= {:then:} (else={:...:} or a second closure)
   SlashCommandRegistry.register(SlashCommand(
     name: 'if',
     splitUnnamedArgument: true,
@@ -146,7 +147,7 @@ void registerControlFlowSlashCommands() {
       final result = evalBooleanRule(args.namedString('rule'), a, b);
 
       final Object? thenBody = args.unnamed.isNotEmpty ? args.unnamed.first : null;
-      // 兼容 ST 官方命名参数 else= 与社区双闭包写法 {:then:} {:else:}
+      // Compatible with ST's official named argument else= and the community double-closure form {:then:} {:else:}
       Object? elseBody = args.named['else'];
       if (args.unnamed.length > 1) {
         elseBody = args.unnamed.elementAt(1);
@@ -164,7 +165,7 @@ void registerControlFlowSlashCommands() {
     },
   ));
 
-  // ── /else {:body:}(配合 /if 的糖;独立执行时执行体或透传) ──
+  // /else {:body:} (sugar for /if; when run standalone, executes the body or passes the pipe through)
   SlashCommandRegistry.register(SlashCommand(
     name: 'else',
     splitUnnamedArgument: true,
@@ -178,7 +179,7 @@ void registerControlFlowSlashCommands() {
     },
   ));
 
-  // ── /while left= right= rule= guard=off {:body:} ──
+  // /while left= right= rule= guard=off {:body:}
   SlashCommandRegistry.register(SlashCommand(
     name: 'while',
     splitUnnamedArgument: true,
@@ -189,7 +190,7 @@ void registerControlFlowSlashCommands() {
       final body = args.unnamed.isNotEmpty ? args.unnamed.first : null;
       var last = '';
       for (var i = 0; i < iterations; i++) {
-        // 条件每轮重读(操作数按变量名解析,非宏快照)
+        // Condition re-read each iteration (operands resolved by variable name, not macro snapshots)
         final a = _resolveOperand(args.namedString('left'), args);
         final b = _resolveOperand(args.namedString('right'), args);
         if (!evalBooleanRule(args.namedString('rule'), a, b)) break;
@@ -202,7 +203,7 @@ void registerControlFlowSlashCommands() {
     },
   ));
 
-  // ── /times n {:body:}({{timesIndex}} 供体内使用) ──
+  // /times n {:body:} ({{timesIndex}} available to the body)
   SlashCommandRegistry.register(SlashCommand(
     name: 'times',
     splitUnnamedArgument: true,
@@ -228,7 +229,7 @@ void registerControlFlowSlashCommands() {
     },
   ));
 
-  // ── /let key=v(当前域) ──
+  // /let key=v (current scope)
   SlashCommandRegistry.register(SlashCommand(
     name: 'let',
     splitUnnamedArgument: true,
@@ -247,7 +248,7 @@ void registerControlFlowSlashCommands() {
     },
   ));
 
-  // ── /var key=v(沿父链 set;无值则 get) ──
+  // /var key=v (set along the parent chain; get when no value given)
   SlashCommandRegistry.register(SlashCommand(
     name: 'var',
     splitUnnamedArgument: true,
@@ -265,7 +266,7 @@ void registerControlFlowSlashCommands() {
     },
   ));
 
-  // ── /run closure|子脚本(aliases: call, exec) ──
+  // /run closure|sub-script (aliases: call, exec)
   SlashCommandRegistry.register(SlashCommand(
     name: 'run',
     aliases: ['call', 'exec'],
@@ -273,7 +274,7 @@ void registerControlFlowSlashCommands() {
       if (args.unnamed.isEmpty) return '';
       final target = args.unnamed.first;
       if (target is SlashClosureNode) {
-        final provided = args.unnamed.skip(1).toList(); // 位置参数按序绑形参
+        final provided = args.unnamed.skip(1).toList(); // positional arguments bind formal parameters in order
         final r = await SlashRunner.executeClosure(target,
             parentScope: args.scope,
             env: args.env,
@@ -281,7 +282,7 @@ void registerControlFlowSlashCommands() {
             providedArgs: provided);
         return r.pipe;
       }
-      // 字符串:子脚本执行
+      // String: execute as a sub-script
       final text = target.toString();
       if (text.trim().isEmpty) return '';
       final r = await SlashRunner.execute(text,
@@ -292,7 +293,7 @@ void registerControlFlowSlashCommands() {
     },
   ));
 
-  // ── closure-serialize / closure-deserialize ──
+  // closure-serialize / closure-deserialize
   SlashCommandRegistry.register(SlashCommand(
     name: 'closure-serialize',
     callback: (args) async {
@@ -306,7 +307,7 @@ void registerControlFlowSlashCommands() {
     name: 'closure-deserialize',
     callback: (args) async {
       if (args.unnamed.isEmpty) return '';
-      // 解析回闭包;平台无闭包管道类型,序列化回原文供后续传递
+      // Parse back into a closure; the platform has no closure pipe type, so serialize back to raw text for further passing
       final cl = SlashParser(args.unnamed.first.toString()).parse();
       return cl.rawText;
     },

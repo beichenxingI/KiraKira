@@ -4,12 +4,12 @@ import '../theme/design_tokens.dart';
 import 'kira_dialog_theme.dart';
 import 'kira_dialog_widgets.dart';
 
-/// 集中式文本编辑浮窗：全局复用的单/多行文本编辑器
+/// Centralized text-editing dialog: globally reused single/multi-line editor
 ///
-/// - 弹出后自动聚焦
-/// - 单行 Enter 确认 / 多行 Ctrl+Enter 确认 / Esc 取消
-/// - maxLength 实时截断 + 右下角字数统计
-/// - 空值校验（allowEmpty=false 时）
+/// - Auto-focuses when shown
+/// - Single-line: Enter confirms / multi-line: Ctrl+Enter confirms / Esc cancels
+/// - maxLength truncates live with a character counter at the bottom right
+/// - Empty-value validation (when allowEmpty=false)
 Future<String?> showKiraInputDialog(
   BuildContext context, {
   required String title,

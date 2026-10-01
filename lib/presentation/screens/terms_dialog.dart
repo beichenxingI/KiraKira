@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const String _kTermsAgreedKey = 'agreed_terms_v1';
 bool _termsDialogShowing = false;
 
-/// 首次启动强制显示免责声明。已同意过则不显示。
+/// Force-shows the disclaimer on first launch; skipped once already agreed.
 Future<void> maybeShowTermsDialog(
     BuildContext context, SharedPreferences prefs) async {
   if (prefs.getBool(_kTermsAgreedKey) == true) return;
@@ -23,7 +23,7 @@ Future<void> maybeShowTermsDialog(
     ),
     );
   } finally {
-    _termsDialogShowing = false; // 无论如何都复位，杜绝卡死
+    _termsDialogShowing = false; // Always reset so the dialog can never get stuck
   }
 }
 
@@ -76,7 +76,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                       color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 14)),
               const SizedBox(height: 20),
-              // 语言切换
+              // Language switcher
               Row(
                 children: [
                   Text('${t.language} ',
@@ -88,7 +88,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                 ],
               ),
               const SizedBox(height: 20),
-              // 三张卡片
+              // Three cards
               Flexible(
                 child: SingleChildScrollView(
                   child: Column(
@@ -110,7 +110,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                 ),
               ),
               const SizedBox(height: 16),
-              // 复选框
+              // Checkbox
               InkWell(
                 onTap: () => setState(() => _agreed = !_agreed),
                 child: Row(
@@ -131,7 +131,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                 ),
               ),
               const SizedBox(height: 16),
-              // 同意按钮
+              // Agree button
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(

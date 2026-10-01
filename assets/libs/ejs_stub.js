@@ -1,13 +1,13 @@
 /* ============================================================
- * EJS 外部依赖桩 (Mimic) — dist 的 15 个 import 全指向这里
- * 接真: chat/chat_metadata/extension_settings/eventSource/
+ * EJS external dependency stubs (Mimic) -- all 15 dist imports resolve here.
+ * Wired to real implementations: chat/chat_metadata/extension_settings/eventSource/
  *       event_types/getCurrentChatId/substituteParams
- * 空桩: 见 [STUB] 标记，一键捞坑 grep "[STUB"
- *   [STUB]        纯占位  [STUB→第X章] 归属未来BOSS  [STUB!] 有风险优先填
+ * Empty stubs: see the [STUB] markers; find them all with grep "[STUB"
+ *   [STUB]        pure placeholder  [STUB->ch.X]  reserved for a future milestone  [STUB!]  risky, fill first
  * ============================================================ */
 
-// ── 变量类（接 facade，Trinity 已同步）──
-// Proxy 活引用：Trinity 整体替换 window.chat 后，dist 读到的仍是最新数组
+// Variables (wired to the facade, synced with Trinity).
+// Live Proxy reference: after Trinity replaces window.chat wholesale, the dist still reads the latest array.
 if (!window.chat) window.chat = [];
 if (!window.chat_metadata) window.chat_metadata = {};
 export const chat = new Proxy([], {
@@ -19,9 +19,9 @@ export const chat_metadata = new Proxy({}, {
   set(_, k, v) { if (!window.chat_metadata) window.chat_metadata = {}; window.chat_metadata[k] = v; return true; },
 });
 export const extension_settings = window.extension_settings;
-export const renderExtensionTemplateAsync = async () => '';  // [STUB] UI设置面板模板；引擎房无 #extensions_settings 节点，append 到空集合，聊天页不受影响
+export const renderExtensionTemplateAsync = async () => '';  // [STUB] settings panel template; the engine room has no #extensions_settings node, so append targets an empty collection and the chat page is unaffected
 
-// ── 事件类（接 window._TH）──
+// Events (wired to window._TH).
 export const eventSource = {
   on:(t,l)=>window._TH.eventOn(t,l),
   once:(t,l)=>window._TH.eventOnce(t,l),
@@ -33,7 +33,7 @@ export const eventSource = {
 };
 export const event_types = window.tavern_events;
 
-// ── 宏 & 身份 ──
+// Macros & identity.
 export function substituteParams(s){
   if(typeof s!=='string') return s;
   var m = window.__KIRA_MACRO_VALUES||{user:'User',char:'Assistant'};
@@ -43,44 +43,45 @@ export const name1 = (window.__KIRA_MACRO_VALUES||{}).user || 'User';
 export const name2 = (window.__KIRA_MACRO_VALUES||{}).char || 'Assistant';
 export function getCurrentChatId(){ return window.__KIRA_CHAT_ID || ''; }
 
-// ── script.js 其余 ──
-export const this_chid = 0;                      // [STUB] 单角色恒0
+// Remaining script.js exports.
+export const this_chid = 0;                      // [STUB] single character, always 0
 export const characters = [];                    // [STUB]
 export const user_avatar = '';                   // [STUB]
 export const getThumbnailUrl = ()=>'';           // [STUB]
 export const getUserAvatar = ()=>'';             // [STUB]
-export const saveChatConditional = async()=>{};  // [STUB] 存盘走桥
+export const saveChatConditional = async()=>{};  // [STUB] saving goes through the bridge
 export const saveSettingsDebounced = ()=>{};     // [STUB]
-export const messageFormatting = (s)=>s;         // [STUB!] 渲染美化，高星卡可能要
-export const updateMessageBlock = ()=>{};        // [STUB→第三章:楼层渲染]
+export const messageFormatting = (s)=>s;         // [STUB!] message formatting; highly-rated cards may need it
+export const updateMessageBlock = ()=>{};        // [STUB->ch.3: floor rendering]
 export const appendMediaToMessage = ()=>{};      // [STUB]
 export const addCopyToCodeBlocks = ()=>{};       // [STUB]
 export const main_api = 'openai';                // [STUB
-export const nai_settings = {};                  // [STUB] E1:NovelAI 设置占位,防 undefined 解引用
-export const online_status = 'unknown';          // [STUB] E1:连接状态字符串,恒非空]
+export const nai_settings = {};                  // [STUB] E1: NovelAI settings placeholder, guards against undefined dereference
+export const online_status = 'unknown';          // [STUB] E1: connection status string, always non-empty]
 export const GenerateOptions = {};               // [STUB]
 
-// ── openai.js（dist 确实 import，给空占位）──
-export const oai_settings = {};                  // [STUB] openai 设置，EJS 极少读
+// openai.js (the dist does import these; empty placeholders).
+export const oai_settings = {};                  // [STUB] openai settings; EJS rarely reads them
 export const chat_completion_sources = {};       // [STUB]
-export function getChatCompletionModel() {       // [STUB→真] E1:求值路径必调,恒返非空字符串
+export function getChatCompletionModel() {       // [STUB->real] E1: always called on the evaluation path, always returns a non-empty string
   return ((typeof window !== 'undefined' && window.__KIRA_MODEL_NAME) || 'unknown');
 }
 
-// ── utils.js ──
+// utils.js.
 export const copyText = ()=>{};                  // [STUB]
-export const getCharaFilename = ()=>'';          // [STUB→第五章:WI]
+export const getCharaFilename = ()=>'';          // [STUB->ch.5: WI]
 
-// ── power-user.js ──
+// power-user.js.
 export const power_user = {};                    // [STUB]
 
-// ── group-chats.js（不做群聊）──
+// group-chats.js (group chat is not implemented).
 export const groups = [];                        // [STUB]
 export const selected_group = null;              // [STUB]
 export const getGroupMembers = ()=>[];           // [STUB]
 
-// ── regex/engine.js ──
-// [P6-5.2] 接真:委托门面的同步正则引擎(平台 regex 资产快照 __KIRA_REGEX_RULES)
+// regex/engine.js.
+// Wired to the real implementation: delegates to the facade's synchronous regex engine
+// (platform regex asset snapshot __KIRA_REGEX_RULES).
 export const getRegexedString = (s, placement, opts) => {
   try {
     if (typeof window.__kiraRunRegex === 'function') return window.__kiraRunRegex(s, placement, opts);
@@ -89,32 +90,35 @@ export const getRegexedString = (s, placement, opts) => {
 };
 export const regex_placement = {MD_DISPLAY:0,USER_INPUT:1,AI_OUTPUT:2,SLASH_COMMAND:3,WORLD_INFO:5,REASONING:6};
 
-// ── tokenizers.js ──
+// tokenizers.js.
 export const getTokenCountAsync = async()=>0;    // [STUB]
 
-// ── reasoning.js ──
+// reasoning.js.
 export const updateReasoningUI = ()=>{};         // [STUB]
 
-// ── lib.js ──
-export const yaml = { load:()=>({}), dump:()=>'' }; // [STUB!] 初始变量YAML，卡带initvar时用
+// lib.js.
+export const yaml = { load:()=>({}), dump:()=>'' }; // [STUB!] YAML for initial variables; used when a card ships initvar
 
-// ── faker.mjs(E1)──
-// dist 惰性加载把【整个 stub 命名空间】赋给模板作用域的 faker(Gm.faker=e),
-// 命名空间无法动态加属性,这里导出同名递归代理兜底 ns.faker 访问面;
-// 任意深度可调用、字符串强转返回空串,真实 faker 数据不提供(走 fail-open 兜底)。
+// faker.mjs (E1).
+// The dist's lazy loading assigns the whole stub namespace to the template scope's faker
+// (Gm.faker=e); a namespace cannot take dynamic properties, so a same-named recursive proxy is
+// exported as a fallback for the ns.faker access surface;
+// callable at any depth and coerced to an empty string, with no real faker data provided
+// (falls back to fail-open behavior).
 function __fkNode() {
   const f = function(){ return ''; };
   return new Proxy(f, { get(t, k){
     if (typeof k === 'symbol') return () => '';
-    if (k === 'then') return undefined;          // 防 thenable 陷阱
+    if (k === 'then') return undefined;          // guard against the thenable trap
     if (!(k in t)) t[k] = __fkNode();
     return t[k];
   }});
 }
 export const faker = __fkNode();
 
-// ── slash-commands 全家桶 ──
-// [P6-3] execute() 接真:走桥 th_executeSlash → Dart SlashRunner,pipe 回传
+// slash-commands family.
+// execute() wired to the real implementation: goes over the bridge th_executeSlash -> Dart
+// SlashRunner, with the pipe passed back.
 export const executeSlashCommandsWithOptions = async (text) => {
   try {
     if (typeof __thCall !== 'function') return { pipe: String(text ?? ''), isAborted: false, isBreak: false, isError: true, errorMessage: 'bridge missing' };
@@ -130,29 +134,29 @@ export const executeSlashCommandsWithOptions = async (text) => {
     return { pipe: '', isAborted: false, isBreak: false, isError: true, errorMessage: String(e) };
   }
 };
-export class SlashCommand { static fromProps(){return new SlashCommand();} } // [STUB→第五章:Slash]
-export class SlashCommandArgument {              // [STUB→第五章:Slash] init期需 fromProps
+export class SlashCommand { static fromProps(){return new SlashCommand();} } // [STUB->ch.5: Slash]
+export class SlashCommandArgument {              // [STUB->ch.5: Slash] fromProps needed during init
   constructor(props){ Object.assign(this, props||{}); }
   static fromProps(props){ return new SlashCommandArgument(props); }
 }
-export class SlashCommandNamedArgument extends SlashCommandArgument { // [STUB→第五章:Slash]
+export class SlashCommandNamedArgument extends SlashCommandArgument { // [STUB->ch.5: Slash]
   static fromProps(props){ return new SlashCommandNamedArgument(props); }
 }
-export const ARGUMENT_TYPE = {STRING:'string',NUMBER:'number',BOOLEAN:'boolean',LIST:'list',DICTIONARY:'dictionary'}; // [STUB→第五章:Slash]
-export const SlashCommandParser = { addCommandObject(){}, addCommand(){} }; // [STUB→第五章:Slash]
+export const ARGUMENT_TYPE = {STRING:'string',NUMBER:'number',BOOLEAN:'boolean',LIST:'list',DICTIONARY:'dictionary'}; // [STUB->ch.5: Slash]
+export const SlashCommandParser = { addCommandObject(){}, addCommand(){} }; // [STUB->ch.5: Slash]
 
-// ── world-info.js ──
-export const METADATA_KEY = 'world_info';                     // [STUB→第五章:WI]
-export const DEFAULT_WEIGHT = 100;                            // [STUB→第五章:WI]
-export const DEFAULT_DEPTH = 4;                               // [STUB→第五章:WI]
-export const world_info_max_recursion_steps = 0;             // [STUB→第五章:WI]
-export const world_info_position = {before:0,after:1,ANTop:2,ANBottom:3,atDepth:4}; // [STUB→第五章:WI]
-export const world_info_case_sensitive = false;              // [STUB→第五章:WI]
-export const world_info_match_whole_words = false;           // [STUB→第五章:WI]
-export const world_info_use_group_scoring = false;           // [STUB→第五章:WI]
-export const world_info_logic = {AND_ANY:0,NOT_ALL:1,NOT_ANY:2,AND_ALL:3}; // [STUB→第五章:WI]
-export const selected_world_info = [];                        // [STUB→第五章:WI]
-export const world_info = {};                                 // [STUB→第五章:WI]
-export const world_names = [];                                // [STUB→第五章:WI]
-export const loadWorldInfo = async()=>null;                   // [STUB!→第五章:WI] 高星卡重度依赖
-export const parseRegexFromString = ()=>null;                 // [STUB→第五章:WI]
+// world-info.js.
+export const METADATA_KEY = 'world_info';                     // [STUB->ch.5: WI]
+export const DEFAULT_WEIGHT = 100;                            // [STUB->ch.5: WI]
+export const DEFAULT_DEPTH = 4;                               // [STUB->ch.5: WI]
+export const world_info_max_recursion_steps = 0;             // [STUB->ch.5: WI]
+export const world_info_position = {before:0,after:1,ANTop:2,ANBottom:3,atDepth:4}; // [STUB->ch.5: WI]
+export const world_info_case_sensitive = false;              // [STUB->ch.5: WI]
+export const world_info_match_whole_words = false;           // [STUB->ch.5: WI]
+export const world_info_use_group_scoring = false;           // [STUB->ch.5: WI]
+export const world_info_logic = {AND_ANY:0,NOT_ALL:1,NOT_ANY:2,AND_ALL:3}; // [STUB->ch.5: WI]
+export const selected_world_info = [];                        // [STUB->ch.5: WI]
+export const world_info = {};                                 // [STUB->ch.5: WI]
+export const world_names = [];                                // [STUB->ch.5: WI]
+export const loadWorldInfo = async()=>null;                   // [STUB!->ch.5: WI] heavily depended on by highly-rated cards
+export const parseRegexFromString = ()=>null;                 // [STUB->ch.5: WI]

@@ -42,7 +42,7 @@ class ImportService {
 
   /// Import character from PNG bytes (extracts embedded JSON from tEXt chunk)
   Future<Character> importFromPngBytes(Uint8List bytes) async {
-    // Step 3: Try dedicated parser
+    // Try the dedicated parser
     final data = await PngCharacterCardParser.parse(bytes, sourcePath: null);
     if (data == null) { throw Exception('No character data found in PNG - Diagnostic report saved to Downloads folder'); }
 
@@ -107,8 +107,8 @@ class ImportService {
 
   /// Export character to PNG with embedded data
   ///
-  /// [Bug1.2] worldInfoRepo 非空时从 world_infos 表（活跃轨）组装 characterBook
-  /// 替换导入快照（治导出世界书陈旧）；null 时保留快照（旧行为兜底）。
+  /// When worldInfoRepo is non-null, assembles characterBook from the world_infos table (live data)
+  /// replacing the import snapshot (fixes stale worldbook export); when null, keeps the snapshot (legacy fallback).
   Future<Uint8List> exportToPng(
     Character character,
     Uint8List? avatarData, {
@@ -131,7 +131,7 @@ class ImportService {
       imageBytes = _createPlaceholderPng();
     }
 
-    // [Bug1.2] 活跃轨组装：world_infos 表有绑定书条目时替换导入快照
+    // Live assembly: replace the import snapshot when the world_infos table has bound book entries
     Character exportChar = character;
     if (worldInfoRepo != null) {
       final liveBook =
@@ -139,7 +139,7 @@ class ImportService {
       if (liveBook != null) exportChar = character.copyWith(characterBook: liveBook);
     }
 
-    // [Bug修复] 导出前同步最新正则脚本
+    // Sync the latest regex scripts before export
     if (regexRepo != null) {
       final latestRegexScripts = await regexRepo.getForCharacter(character.id);
       if (latestRegexScripts.isNotEmpty) {
@@ -163,8 +163,8 @@ class ImportService {
 
   /// Export character to CharX archive
   ///
-  /// [Bug1.2] worldInfoRepo 非空时从 world_infos 表（活跃轨）组装 characterBook
-  /// 替换导入快照（治导出世界书陈旧）；null 时保留快照（旧行为兜底）。
+  /// When worldInfoRepo is non-null, assembles characterBook from the world_infos table (live data)
+  /// replacing the import snapshot (fixes stale worldbook export); when null, keeps the snapshot (legacy fallback).
   Future<Uint8List> exportToCharX(
     Character character,
     Uint8List? avatarData, {
@@ -174,7 +174,7 @@ class ImportService {
     final encoder = ZipEncoder();
     final archive = Archive();
 
-    // [Bug1.2] 活跃轨组装：world_infos 表有绑定书条目时替换导入快照
+    // Live assembly: replace the import snapshot when the world_infos table has bound book entries
     Character exportChar = character;
     if (worldInfoRepo != null) {
       final liveBook =
@@ -182,7 +182,7 @@ class ImportService {
       if (liveBook != null) exportChar = character.copyWith(characterBook: liveBook);
     }
 
-    // [Bug修复] 导出前同步最新正则脚本
+    // Sync the latest regex scripts before export
     if (regexRepo != null) {
       final latestRegexScripts = await regexRepo.getForCharacter(character.id);
       if (latestRegexScripts.isNotEmpty) {
@@ -216,15 +216,15 @@ class ImportService {
 
   /// Export character to JSON
   ///
-  /// [Bug1.2] worldInfoRepo 非空时从 world_infos 表（活跃轨）组装 characterBook
-  /// 替换导入快照（治导出世界书陈旧）；null 时保留快照（旧行为兜底）。
-  /// 由 sync 改 async（组装需查库），两个调用方均已在 async 上下文。
+  /// When worldInfoRepo is non-null, assembles characterBook from the world_infos table (live data)
+  /// replacing the import snapshot (fixes stale worldbook export); when null, keeps the snapshot (legacy fallback).
+  /// Changed from sync to async (assembly requires a database query); both callers already run in async contexts.
   Future<String> exportToJson(
     Character character, {
     WorldInfoRepository? worldInfoRepo,
     RegexScriptRepository? regexRepo,
   }) async {
-    // [Bug1.2] 活跃轨组装：world_infos 表有绑定书条目时替换导入快照
+    // Live assembly: replace the import snapshot when the world_infos table has bound book entries
     Character exportChar = character;
     if (worldInfoRepo != null) {
       final liveBook =
@@ -232,7 +232,7 @@ class ImportService {
       if (liveBook != null) exportChar = character.copyWith(characterBook: liveBook);
     }
 
-    // [Bug修复] 导出前同步最新正则脚本
+    // Sync the latest regex scripts before export
     if (regexRepo != null) {
       final latestRegexScripts = await regexRepo.getForCharacter(character.id);
       if (latestRegexScripts.isNotEmpty) {
@@ -252,7 +252,7 @@ class ImportService {
   // Private methods
   
   Character _parseCharacterJson(Map<String, dynamic> json) {
-    // [IMP-1] 解析入口:spec 与分支判定
+    // Parse entry point: spec and branch determination
     print('[IMP-1] entry keys=${json.keys.toList()} spec=${json['spec']} hasData=${json.containsKey('data')}');
     String name = '';
     String description = '';
@@ -270,15 +270,15 @@ class ImportService {
     Map<String, dynamic> extensions = {};
     CharacterBook? characterBook;
 
-    // AICC-Chat format (spec='aicc_card'，aicharactercards.com 专用，如 Rin Card Forge 导出)。
-    // 结构化字段：personality/dialogue/prompts/world/metadata 均为 Map，平铺 cast 会炸裂。
+    // AICC-Chat format (spec='aicc_card', specific to aicharactercards.com, e.g. Rin Card Forge exports).
+    // Structured fields: personality/dialogue/prompts/world/metadata are all Maps; a flat cast would break.
     if (json['spec'] == 'aicc_card' && json.containsKey('data')) {
       final data = json['data'] is Map ? Map<String, dynamic>.from(json['data'] as Map) : <String, dynamic>{};
       name = _castStringSafe(data['name']);
-      // AICC: general_description 为主描述; appearance/background_history 为 AICC 扩展(透传 extensions)
+      // AICC: general_description is the main description; appearance/background_history are AICC extensions (passed through to extensions)
       description = _castStringSafe(data['general_description']);
       scenario = _castStringSafe(data['world_setting_context']);
-      // AICC: personality(core/behavior_rules/speech_style 结构化) → 可读文本
+      // AICC: personality (structured core/behavior_rules/speech_style) converted to readable text
       final personalityRaw = data['personality'];
       if (personalityRaw is Map) {
         personality = _aiccPersonalityToString(personalityRaw);
@@ -295,7 +295,7 @@ class ImportService {
           if (gList.length > 1) alternateGreetings = gList.sublist(1);
         }
       }
-      // AICC: dialogue.dialogue_examples → mes_example(ST 语义: <START> 分隔示例对话)
+      // AICC: dialogue.dialogue_examples maps to mes_example (ST semantics: <START> separates example dialogues)
       final examples = dialogue?['dialogue_examples'];
       if (examples is List) {
         final exList = examples.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
@@ -305,13 +305,13 @@ class ImportService {
       final prompts = data['prompts'] is Map ? Map<String, dynamic>.from(data['prompts'] as Map) : null;
       systemPrompt = _castStringSafe(prompts?['system_prompt']);
       postHistoryInstructions = _castStringSafe(prompts?['post_history_instructions']);
-      // AICC: metadata.creator/notes/version/tags(tags 兼容 String 逗号分隔)
+      // AICC: metadata.creator/notes/version/tags (tags also accepts a comma-separated String)
       final metadata = data['metadata'] is Map ? Map<String, dynamic>.from(data['metadata'] as Map) : null;
       creator = _castStringSafe(metadata?['creator']);
       creatorNotes = _castStringSafe(metadata?['notes']);
       version = _castStringSafe(metadata?['version']);
       tags = _parseTagsSafe(metadata?['tags']);
-      // AICC: world.worldbook_entries → character_book(空则不建)
+      // AICC: world.worldbook_entries maps to character_book (not created when empty)
       final world = data['world'] is Map ? Map<String, dynamic>.from(data['world'] as Map) : null;
       final wbEntries = world?['worldbook_entries'];
       final hasWbEntries = (wbEntries is List && wbEntries.isNotEmpty) ||
@@ -323,7 +323,7 @@ class ImportService {
           'extensions': <String, dynamic>{},
         });
       }
-      // AICC 专有字段透传 extensions(规范: 应用自有数据存 extensions 并命名空间化)
+      // Pass AICC-specific fields through to extensions (convention: app-specific data goes in namespaced extensions)
       final aiccExt = <String, dynamic>{};
       void keep(String key, dynamic v) {
         if (v != null && (v is! String || v.isNotEmpty)) aiccExt[key] = v;
@@ -349,7 +349,7 @@ class ImportService {
       final data = json['data'] as Map<String, dynamic>? ?? {};
       name = _castStringSafe(data['name']);
       description = _castStringSafe(data['description']);
-      // [AICC兼容] V2核心字段容错：Map/List(如结构化 personality) stringify 透传
+      // AICC compat: V2 core field tolerance — Map/List values (e.g. structured personality) are passed through as JSON strings
       personality = _castStringSafe(data['personality']);
       scenario = _castStringSafe(data['scenario']);
       firstMessage = _castStringSafe(data['first_mes']);
@@ -358,7 +358,7 @@ class ImportService {
       systemPrompt = _castStringSafe(data['system_prompt']);
       postHistoryInstructions = _castStringSafe(data['post_history_instructions']);
       creatorNotes = _castStringSafe(data['creator_notes']);
-      // [AICC兼容] tags 容错：数组元素逐个 toString；String 逗号分隔转数组
+      // AICC compat: tags tolerance — list elements converted per-item; comma-separated String split into a list
       tags = _parseTagsSafe(data['tags']);
       creator = _castStringSafe(data['creator']);
       version = _castStringSafe(data['character_version']);
@@ -375,7 +375,7 @@ class ImportService {
         print('[ImportService] No character_book found in data. Data keys: ${data.keys.toList()}');
       }
 
-      // [IMP-2] data 字段普查(非空即报)
+      // [IMP-2] data field survey (report when non-empty)
       void f(String k, dynamic v) {
         final ok = v != null && ('$v'.isNotEmpty);
         print('[IMP-2] $k=${ok ? (v is List ? 'list(${v.length})' : (v is String ? 'len=${v.length}' : v)) : 'EMPTY'}');
@@ -394,7 +394,7 @@ class ImportService {
       f('creator', creator.isEmpty ? null : creator);
       f('character_version', version.isEmpty ? null : version);
 
-      // [IMP-4] extensions 顶层 key + regex_scripts 有无
+      // [IMP-4] Extensions top-level keys and regex_scripts presence
       print('[IMP-4] extKeys=${extensions.keys.toList()} regexScriptsCount=${(extensions['regex_scripts'] as List<dynamic>?)?.length ?? 'null'}');
     }
     // Check for V2 format
@@ -404,7 +404,7 @@ class ImportService {
           ? _castStringSafe(data['name'])
           : _castStringSafe(json['name']);
       description = _castStringSafe(data['description']);
-      // [AICC兼容] V2核心字段容错：Map/List stringify 透传
+      // AICC compat: V2 core field tolerance — Map/List values passed through as JSON strings
       personality = _castStringSafe(data['personality']);
       scenario = _castStringSafe(data['scenario']);
       firstMessage = _castStringSafe(data['first_mes']);
@@ -413,7 +413,7 @@ class ImportService {
       systemPrompt = _castStringSafe(data['system_prompt']);
       postHistoryInstructions = _castStringSafe(data['post_history_instructions']);
       creatorNotes = _castStringSafe(data['creator_notes']);
-      // [AICC兼容] tags 容错
+      // AICC compat: tags tolerance
       tags = _parseTagsSafe(data['tags']);
       creator = _castStringSafe(data['creator']);
       version = _castStringSafe(data['character_version']);
@@ -434,7 +434,7 @@ class ImportService {
       description = _castStringSafe(json['description']) != ''
           ? _castStringSafe(json['description'])
           : _castStringSafe(json['char_persona']);
-      // [AICC兼容] V1核心字段容错
+      // AICC compat: V1 core field tolerance
       personality = _castStringSafe(json['personality']);
       scenario = _castStringSafe(json['scenario']) != ''
           ? _castStringSafe(json['scenario'])
@@ -472,7 +472,7 @@ class ImportService {
 
   CharacterBook _parseCharacterBook(Map<String, dynamic> json) {
     final rawEntries = json['entries'];
-    // [IMP-3] 条目形态判定：数组直接用；字典形态(ST 部分导出/旧卡)取 values 转数组
+    // [IMP-3] Entry shape detection: use arrays directly; for map shape (ST partial exports/old cards), take values as a list
     print('[IMP-3] book=${json['name']} entriesRawType=${rawEntries?.runtimeType} '
         'count=${rawEntries is List ? rawEntries.length : (rawEntries is Map ? rawEntries.length : 'null')}');
     List<dynamic> entriesJson;
@@ -550,8 +550,8 @@ class ImportService {
     return _parseIntSafe(value);
   }
 
-  /// [AICC兼容] Safely cast a dynamic value to String:
-  /// V2核心字段容错——Map/List(结构化字段) stringify 透传，其余 toString
+  /// AICC compat: safely cast a dynamic value to String:
+  /// V2 core field tolerance — Map/List (structured fields) are JSON-stringified, others use toString
   String _castStringSafe(dynamic value) {
     if (value == null) return '';
     if (value is String) return value;
@@ -565,7 +565,7 @@ class ImportService {
     return value.toString();
   }
 
-  /// [AICC兼容] Safely parse tags: List(元素逐个 toString) 或 String(逗号分隔转数组)
+  /// AICC compat: safely parse tags — List (per-item toString) or comma-separated String split into a list
   List<String> _parseTagsSafe(dynamic value) {
     if (value is List) {
       return value.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
@@ -576,7 +576,7 @@ class ImportService {
     return [];
   }
 
-  /// [AICC兼容] AICC 结构化 personality(core/behavior_rules/speech_style) → 可读文本
+  /// AICC compat: structured personality (core/behavior_rules/speech_style) converted to readable text
   String _aiccPersonalityToString(Map<dynamic, dynamic> personality) {
     final buf = StringBuffer();
     final core = personality['core'];
@@ -899,8 +899,8 @@ class ImportService {
   }
 }
 
-/// 把角色卡内嵌的 characterBook 提取为独立 WorldInfo（关联该角色）。
-/// 单个导入与 zip 批量导入共用，避免逻辑重复。
+/// Extracts the characterBook embedded in a character card into a standalone WorldInfo (linked to that character).
+/// Shared by single import and zip batch import to avoid duplicated logic.
 Future<void> importEmbeddedLorebook(
   WorldInfoRepository worldInfoRepo,
   String characterId,
@@ -908,7 +908,7 @@ Future<void> importEmbeddedLorebook(
   String characterName,
 ) async {
   final worldInfoName = characterBook.name ?? '$characterName Lorebook';
-  // [IMP-5] 落库前:待写条目数
+  // [IMP-5] Entry count to write before persisting
   print('[IMP-5] creating WI "$worldInfoName" for char=$characterId entriesToWrite=${characterBook.entries.length}');
   final worldInfo = await worldInfoRepo.createWorldInfo(
     name: worldInfoName,
@@ -919,7 +919,7 @@ Future<void> importEmbeddedLorebook(
   );
 
   for (final entry in characterBook.entries) {
-    // A2-T3:position 全映射(上游 0↑Char/1↓Char/2↑AN/3↓AN/4@depth)
+    // A2-T3: full position mapping (upstream 0: above char, 1: below char, 2: above AN, 3: below AN, 4: at depth)
     WorldInfoPosition position;
     int depth = 4;
     switch (entry.position) {
@@ -944,13 +944,13 @@ Future<void> importEmbeddedLorebook(
       default:
         position = WorldInfoPosition.after;
     }
-    // A2-T3:extensions 内的 depth 兜底(position=4 之外也可能带)
+    // A2-T3: depth fallback from extensions (may also be present outside position=4)
     if (position != WorldInfoPosition.atDepth) {
       final extDepth = entry.extensions['depth'];
       if (extDepth is int && extDepth > 0 && extDepth != 4) depth = extDepth;
     }
 
-    // [IMP-5] 每条写入明细(已透传 constant/order/enabled/caseSensitive/extensions)
+    // [IMP-5] Per-entry write details (constant/order/enabled/caseSensitive/extensions passed through)
     print('[IMP-5] addEntry keys=${entry.keys.take(3).toList()} constant=${entry.constant} '
         'enabled=${entry.enabled} order=${entry.insertionOrder} '
         'contentLen=${entry.content.length} comment=${entry.name.isNotEmpty ? entry.name : entry.comment}');
@@ -963,7 +963,7 @@ Future<void> importEmbeddedLorebook(
       comment: entry.name.isNotEmpty ? entry.name : entry.comment,
       position: position,
       depth: depth,
-      // A2-T3 完整透传:蓝灯常驻等语义不再被默认值吞掉
+      // A2-T3 full passthrough: semantics like blue-light constant entries are no longer swallowed by defaults
       constant: entry.constant,
       selective: entry.selective,
       insertionOrder: entry.insertionOrder,
@@ -972,25 +972,25 @@ Future<void> importEmbeddedLorebook(
       extensions: entry.extensions,
     );
   }
-  // [IMP-6] 落库后回读:实际条数(与 IMP-5 对比,差值即丢点)
+  // [IMP-6] Read back after persisting: actual entry count (compare with IMP-5; the difference is dropped entries)
   final written = await worldInfoRepo.getEntriesForWorldInfo(worldInfo.id);
   print('[IMP-6] readback WI="${worldInfo.name}" id=${worldInfo.id} entriesInDb=${written.length} (expected ${characterBook.entries.length})');
 }
 
-/// [Bug1.2] 从 world_infos 表（活跃轨）组装回 CharacterBook，治导出世界书陈旧。
+/// Reassembles a CharacterBook from the world_infos table (live data), fixing stale worldbook export.
 ///
-/// 世界书"双轨存储"：活跃数据在 world_infos/world_info_entries 表（编辑器全部写这里），
-/// characters.characterBookJson 是导入时的快照，两轨之间零同步 → 直接用快照导出
-/// 会丢用户此后的全部增删改（导出永远是导入时的原始数据）。
-/// 导出前调用本函数把活跃轨组装回 CharacterBook，替换快照。
+/// Worldbook dual-track storage: live data lives in the world_infos/world_info_entries tables (the editor writes only there),
+/// while characters.characterBookJson is the import-time snapshot, with zero sync between tracks. Exporting directly
+/// from the snapshot loses all user changes made after import (the export is always the original import-time data).
+/// Call this before export to reassemble the live track into a CharacterBook, replacing the snapshot.
 ///
-/// 返回 null 表示该角色无绑定书/零条目（调用方保留原快照兜底）。
-/// 字段对应（与 _characterBookToJson / _wiEntryToJson 对齐）：
-/// - WorldInfoEntry 无 name 字段，名字存 comment（导入时 entry.name?:comment → comment）
-/// - id 用合并列表下标（确定性、无碰撞；ST uid 语义为数字，重导入 as int 解析无损）
-/// - position 用枚举 index（与 _wiEntryToJson 的 'position': e.position.index 一致）
-/// - WorldInfo 无 tokenBudget/extensions 字段 → CharacterBook 用默认值
-///   （书级 extensions 在 world_infos 表无落点，导出为空，条目级 extensions 完整保留）
+/// Returns null when the character has no bound book or zero entries (callers keep the original snapshot as fallback).
+/// Field mapping (aligned with _characterBookToJson / _wiEntryToJson):
+/// - WorldInfoEntry has no name field; the name is stored in comment (at import, entry.name ?: comment becomes comment)
+/// - id uses the merged list index (deterministic, collision-free; ST uid is numeric, losslessly parsed back as int on re-import)
+/// - position uses the enum index (consistent with _wiEntryToJson's 'position': e.position.index)
+/// - WorldInfo has no tokenBudget/extensions fields, so CharacterBook uses defaults
+///   (book-level extensions have no storage in the world_infos table and export empty; entry-level extensions are fully preserved)
 Future<CharacterBook?> assembleCharacterBookFromRepo(
   WorldInfoRepository worldInfoRepo,
   String characterId,
@@ -999,8 +999,8 @@ Future<CharacterBook?> assembleCharacterBookFromRepo(
     final books = await worldInfoRepo.getWorldInfosForCharacter(characterId);
     if (books.isEmpty) return null;
 
-    // 合并角色绑定的全部书的条目（ST character_book 本就是平铺列表，
-    // 与 _handleWiGetEntries 的合并兜底语义一致）
+    // Merge entries from all books bound to the character (ST character_book is already a flat list,
+    // consistent with the merge fallback semantics of _handleWiGetEntries)
     final merged = <CharacterBookEntry>[];
     String? bookName;
     for (final book in books) {

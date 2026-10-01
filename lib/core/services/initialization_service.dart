@@ -55,8 +55,9 @@ class InitializationService {
     // Load built-in world infos
     await _loadBuiltInWorldInfos(database);
 
-    // [空会话] 启动清扫:删除从未有过用户消息的会话
-    //(旧版本遗留 + 进程被杀没走退出丢弃的临时会话),失败不阻断启动
+    // Startup sweep: delete chats that never had a user message
+    // (leftovers from old versions plus temp chats whose process was killed
+    // before the exit discard ran); failures must not block startup
     try {
       final purged = await ChatRepository(database).purgeEmptyChats();
       if (purged > 0) {

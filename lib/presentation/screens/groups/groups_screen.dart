@@ -123,7 +123,7 @@ class GroupsScreen extends ConsumerWidget {
   }
 }
 
-/// 列表项进场:错峰 50ms 淡入上移(宪法 §五,与角色列表同款)
+/// List item entrance: staggered fade-in and slide-up with 50ms steps (same as the character list)
 class _StaggeredEntrance extends StatelessWidget {
   final int index;
   final Widget child;
@@ -152,7 +152,7 @@ class _StaggeredEntrance extends StatelessWidget {
   }
 }
 
-/// 加载骨架:实底 + 400ms 呼吸(0.5↔1.0)
+/// Loading skeleton: solid fill with a 400ms breathing pulse (0.5 to 1.0)
 class _SkeletonList extends StatelessWidget {
   const _SkeletonList();
 
@@ -389,7 +389,7 @@ class _GroupCard extends ConsumerWidget {
 
   void _startGroupChat(BuildContext context, WidgetRef ref) {
     // TODO: Create group chat and navigate to it
-    // TRACKED: recorded in DiaoYan/18 (phase-6 tech-debt)
+    // Tracked as phase-6 tech debt
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(AppLocalizations.of(context).groupChatWillBeImplemented)),
     );

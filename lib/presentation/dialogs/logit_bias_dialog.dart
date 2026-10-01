@@ -1,9 +1,8 @@
 // lib/presentation/dialogs/logit_bias_dialog.dart
-/// Logit 偏置浮窗(极客Core迁移 P2)
-/// 内容完整迁自 logit_bias_settings_screen.dart +
-/// logit_bias_preset_edit_screen.dart(新建/重命名/导入JSON 三模式并入本浮窗):
-/// 启用开关 · 预设选择/新建/重命名/复制/导出/导入/删除
-/// 偏置条目(拖拽排序/开关/文本或token/偏置值/格式指示/校验警告) · 帮助说明
+/// Logit bias dialog.
+/// Enable toggle · preset select/new/rename/duplicate/export/import/delete ·
+/// bias entries (reorder/enable toggle/text or token/bias value/format
+/// indicator/validation warnings) · help.
 library;
 
 import 'dart:convert';
@@ -71,7 +70,7 @@ class _LogitBiasDialogState extends ConsumerState<_LogitBiasDialog> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 启用 ──
+          // Enable
           _Group(
             palette: palette,
             children: [
@@ -87,7 +86,7 @@ class _LogitBiasDialogState extends ConsumerState<_LogitBiasDialog> {
           ),
           const SizedBox(height: 20),
 
-          // ── 预设 ──
+          // Presets
           CoreSectionLabel(l10n.presets),
           const SizedBox(height: 8),
           Row(
@@ -203,7 +202,7 @@ class _LogitBiasDialogState extends ConsumerState<_LogitBiasDialog> {
           ),
           const SizedBox(height: 4),
 
-          // ── 偏置条目 ──
+          // Bias entries
           if (settings.activePreset != null) ...[
             const SizedBox(height: 16),
             CoreSectionLabel(l10n.biasEntries),
@@ -275,7 +274,7 @@ class _LogitBiasDialogState extends ConsumerState<_LogitBiasDialog> {
     );
   }
 
-  /// 帮助 → 底部 Sheet(与原页一致)
+  /// Help in a bottom sheet.
   void _showHelpSheet(
     BuildContext context,
     LogitBiasService service,
@@ -338,7 +337,7 @@ class _LogitBiasDialogState extends ConsumerState<_LogitBiasDialog> {
     );
   }
 
-  /// 预设名/JSON 输入浮窗(原 logit_bias_preset_edit_screen 三模式合并)
+  /// Preset name/JSON input dialog (create/rename/import JSON modes combined).
   void _showPresetNameDialog(
     BuildContext context, {
     required _PresetEditMode mode,
@@ -448,7 +447,7 @@ class _LogitBiasDialogState extends ConsumerState<_LogitBiasDialog> {
 
 enum _PresetEditMode { create, rename, importJson }
 
-/// 图标操作按钮
+/// Icon action button.
 class _IconAction extends StatelessWidget {
   const _IconAction({
     required this.icon,
@@ -481,7 +480,7 @@ class _IconAction extends StatelessWidget {
   }
 }
 
-/// 偏置条目列表(拖拽排序 + 增删改,与原页一致)
+/// Bias entry list (drag reorder + add/edit/delete).
 class _BiasEntriesList extends StatelessWidget {
   const _BiasEntriesList({
     required this.entries,
@@ -567,7 +566,7 @@ class _BiasEntriesList extends StatelessWidget {
   }
 }
 
-/// 单条偏置条目卡(开关 + 文本 + 偏置值 + 删除 + 格式指示 + 警告)
+/// Single bias entry card (toggle + text + bias value + delete + format indicator + warnings).
 class _BiasEntryCard extends ConsumerStatefulWidget {
   const _BiasEntryCard({
     super.key,
@@ -715,7 +714,7 @@ class _BiasEntryCardState extends ConsumerState<_BiasEntryCard> {
               ),
             ],
           ),
-          // 占位提示(词、{原文} 或 [1234])
+          // Placeholder hint (word, {raw text}, or [1234])
           const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.only(left: 48),
@@ -724,7 +723,7 @@ class _BiasEntryCardState extends ConsumerState<_BiasEntryCard> {
               style: TextStyle(fontSize: 11, color: palette.textTertiary),
             ),
           ),
-          // 格式指示
+          // Format indicator
           if (widget.entry.text.isNotEmpty) ...[
             const SizedBox(height: 4),
             Row(
@@ -744,7 +743,7 @@ class _BiasEntryCardState extends ConsumerState<_BiasEntryCard> {
               ],
             ),
           ],
-          // 校验错误 / 警告
+          // Validation errors / warnings
           if (validation.errors.isNotEmpty) ...[
             const SizedBox(height: 4),
             Padding(
@@ -794,7 +793,7 @@ class _BiasEntryCardState extends ConsumerState<_BiasEntryCard> {
   }
 }
 
-/// 浮窗内分组容器
+/// Group container used inside the dialog.
 class _Group extends StatelessWidget {
   const _Group({required this.palette, required this.children});
 

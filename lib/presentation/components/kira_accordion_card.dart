@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import '../theme/design_tokens.dart';
 import 'kira_dialog_theme.dart';
 
-/// 折叠卡片：受控/非受控双模式
+/// Collapsible card: controlled/uncontrolled dual modes
 ///
-/// - 受控模式：[isExpanded] 非 null，展开状态由外部管理（手风琴互斥），
-///   点击时回调 [onExpansionChanged] 由父组件决定新状态。
-/// - 非受控模式：[isExpanded] 为 null，组件内部自管状态。
+/// - Controlled mode: [isExpanded] is non-null and expansion state is managed
+///   externally (mutually exclusive accordion); tapping reports through
+///   [onExpansionChanged] and the parent decides the new state.
+/// - Uncontrolled mode: [isExpanded] is null and the widget manages its own
+///   state.
 class KiraAccordionCard extends StatefulWidget {
   final String title;
   final String? preview;
@@ -66,7 +68,7 @@ class _KiraAccordionCardState extends State<KiraAccordionCard>
   @override
   void didUpdateWidget(covariant KiraAccordionCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 受控模式：外部状态变化时同步箭头动画
+    // Controlled mode: sync the arrow animation when external state changes
     if (widget.isExpanded != null &&
         widget.isExpanded != oldWidget.isExpanded) {
       final target = widget.isExpanded! ? 1.0 : 0.0;
@@ -135,7 +137,7 @@ class _KiraAccordionCardState extends State<KiraAccordionCard>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 头部 ──
+          // Header
           InkWell(
             onTap: _toggle,
             borderRadius:
@@ -161,7 +163,7 @@ class _KiraAccordionCardState extends State<KiraAccordionCard>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 标题行：标题 + 摘要（fade 过渡）
+                        // Title row: title + preview (fade transition)
                         Row(
                           children: [
                             Flexible(
@@ -217,7 +219,7 @@ class _KiraAccordionCardState extends State<KiraAccordionCard>
                     ),
                   ),
                   if (widget.headerActions != null) widget.headerActions!,
-                  // 箭头（弹簧旋转 90 度）
+                  // Arrow (spring rotation of 90 degrees)
                   RotationTransition(
                     turns: _arrowAnim.drive(
                       Tween(begin: 0.0, end: 0.25),
@@ -235,7 +237,7 @@ class _KiraAccordionCardState extends State<KiraAccordionCard>
               ),
             ),
           ),
-          // ── 内容区（AnimatedSize 折叠展开）──
+          // Content area (AnimatedSize collapse/expand)
           AnimatedSize(
             duration: KiraDialogTheme.durationExpand,
             curve: KiraDialogTheme.standard,
@@ -256,7 +258,7 @@ class _KiraAccordionCardState extends State<KiraAccordionCard>
         ],
       ),
       ),
-      // 展开时左侧彩色竖线
+      // Colored vertical bar on the left while expanded
       if (isOpen && !widget.nested)
         Positioned(
           left: 0,

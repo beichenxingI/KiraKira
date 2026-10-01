@@ -1,10 +1,10 @@
 // lib/presentation/dialogs/global_worldbook_dialog.dart
-/// 全局世界书浮窗(极客Core迁移 P5.4)
-/// 与角色世界书编辑浮窗系统基本一致,区别在于管理多本世界书:
-/// 顶部书签标签页横向切换 + 新建/导入/导出/重命名/删除书;
-/// 当前书条目列表:搜索/筛选(全部/启用/常量/禁用)/排序 + 条目卡片
-/// (enabled开关/关键词预览/内容预览/编辑/删除) + 添加条目;
-/// 条目编辑复用角色世界书的 worldbook_entry_edit_dialog.dart(字段完全一样)。
+/// Global worldbook dialog. Unlike the character worldbook editor, this one
+/// manages multiple worldbooks: top tab bar for switching books +
+/// create/import/export/rename/delete; current book entry list: search/filter
+/// (all/enabled/constant/disabled)/sort + entry cards (enabled toggle/keyword
+/// preview/content preview/edit/delete) + add entry. Entry editing reuses
+/// worldbook_entry_edit_dialog.dart (same fields).
 library;
 
 import 'dart:async';
@@ -111,7 +111,7 @@ class _GlobalWorldbookDialogState
     }
   }
 
-  // ── 世界书管理 ──
+  // Worldbook management
 
   Future<void> _createBook() async {
     final name = await _showBookMetaSheet(initial: null);
@@ -178,7 +178,7 @@ class _GlobalWorldbookDialogState
     }
   }
 
-  /// 新建/重命名（名称+描述）→ 底部 Sheet(与角色世界书一致)
+  /// Create/rename (name + description) in a bottom sheet.
   Future<Map<String, String>?> _showBookMetaSheet({WorldInfo? initial}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = CoreDialogPalette(isDark: isDark);
@@ -262,7 +262,7 @@ class _GlobalWorldbookDialogState
     );
   }
 
-  /// 导入条目到当前书(与角色世界书一致:支持数组或 {entries:[...]} 格式)
+  /// Import entries into the current book. Accepts a JSON array or {entries: [...]} format.
   Future<void> _importEntries(WorldInfo book) async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -301,7 +301,7 @@ class _GlobalWorldbookDialogState
     }
   }
 
-  /// 导出当前书全部条目(与角色世界书一致)
+  /// Export all entries of the current book.
   Future<void> _exportEntries(WorldInfo book) async {
     if (book.entries.isEmpty) {
       coreToast(context, '暂无条目可导出');
@@ -312,7 +312,7 @@ class _GlobalWorldbookDialogState
     final date = DateTime.now().toIso8601String().split('T')[0];
     final fileName =
         'worldbook_${book.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}_$date.json';
-    // [问题1] 统一导出交付:分享 / 保存到文件
+    // Unified export delivery: share / save to file.
     await deliverExportFile(
       context: context,
       fileName: fileName,
@@ -362,7 +362,7 @@ class _GlobalWorldbookDialogState
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ══ 顶部:书签标签页 + 新建/导入/导出 ══
+              // Top: book tabs + create/import/export
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -456,7 +456,7 @@ class _GlobalWorldbookDialogState
               Divider(
                   height: 0.5, thickness: 0.5, color: palette.divider),
 
-              // ══ 当前书条目列表 ══
+              // Current book entry list
               Expanded(
                 child: selectedBook == null
                     ? Center(
@@ -491,7 +491,7 @@ class _GlobalWorldbookDialogState
     );
   }
 
-  /// 当前书的工具栏 + 条目列表
+  /// Toolbar + entry list for the current book.
   Widget _buildBookBody(
       BuildContext context, CoreDialogPalette palette, WorldInfo book) {
     final filtered = _filterEntries(book.entries);
@@ -500,7 +500,7 @@ class _GlobalWorldbookDialogState
 
     return Column(
       children: [
-        // 工具栏:搜索 + 筛选 + 排序
+        // Toolbar: search + filter + sort
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
           child: SizedBox(
@@ -576,7 +576,7 @@ class _GlobalWorldbookDialogState
           ),
         ),
         const SizedBox(height: 4),
-        // 条目列表
+        // Entry list
         Expanded(
           child: filtered.isEmpty
               ? Center(
@@ -603,7 +603,7 @@ class _GlobalWorldbookDialogState
                   ),
                 ),
         ),
-        // 添加条目
+        // Add entry
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
           child: CorePrimaryButton(
@@ -620,7 +620,7 @@ class _GlobalWorldbookDialogState
   }
 }
 
-/// 书签标签页(名称 + 条目数 + 启用开关 + 删除按钮; 长按重命名)
+/// Book tab (name + entry count + enable switch + delete button; long-press to rename).
 class _BookTab extends StatelessWidget {
   const _BookTab({
     required this.palette,
@@ -711,7 +711,7 @@ class _BookTab extends StatelessWidget {
   }
 }
 
-/// 筛选 Chip
+/// Filter chip.
 class _FilterChipWidget extends StatelessWidget {
   const _FilterChipWidget({
     required this.palette,
@@ -754,7 +754,7 @@ class _FilterChipWidget extends StatelessWidget {
   }
 }
 
-/// 条目卡片(enabled开关/关键词预览/内容预览/编辑/删除)
+/// Entry card (enabled toggle/keyword preview/content preview/edit/delete).
 class _EntryCard extends StatelessWidget {
   const _EntryCard({
     required this.palette,

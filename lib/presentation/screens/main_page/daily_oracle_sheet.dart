@@ -1,6 +1,6 @@
 // lib/presentation/screens/main_page/daily_oracle_sheet.dart
-/// 每日祈愿/今日运势(返工条目9):纯本地,种子随机,同日恒定。
-/// 入口按钮在 main_page 公告按钮正上方。
+/// Daily wish / today's fortune: fully local, seed-randomized, constant within the same day.
+/// The entry button sits directly above the announcement button on the main page.
 library;
 
 import 'dart:convert';
@@ -15,12 +15,12 @@ import 'daily_oracle_data.dart';
 
 String _todayKey() => DateFormat('yyyyMMdd').format(DateTime.now());
 
-/// 当日运势(种子随机,同一天完全一致)
+/// Today's fortune (seed-randomized; identical all day)
 class DailyOracle {
   final String keyword;
   final String level;
   final String message;
-  final List<int> dots; // 五维各亮几个(2-5)
+  final List<int> dots; // How many dots are lit per dimension (2-5)
   final String luckyHours;
   final int luckyNumber;
   final String luckyDirection;
@@ -47,7 +47,7 @@ class DailyOracle {
     this.holiday,
   });
 
-  /// 生成当日运势:优先读持久化(防文案池变动),否则种子随机后落盘
+  /// Generates today's fortune: prefers the persisted value (protects against copy-pool changes), otherwise seed-randomizes and stores it
   static Future<DailyOracle> loadToday() async {
     final dateKey = _todayKey();
     final prefs = await SharedPreferences.getInstance();
@@ -55,7 +55,7 @@ class DailyOracle {
     if (saved != null) {
       try {
         return _fromJson(jsonDecode(saved) as Map<String, dynamic>, dateKey);
-      } catch (_) {/* 落回重新抽取 */}
+      } catch (_) {/* Fall through and re-draw */}
     }
     final o = _generate(dateKey);
     await prefs.setString('daily_oracle_$dateKey', jsonEncode(o._toJson()));
@@ -68,7 +68,7 @@ class DailyOracle {
     final rng = math.Random(seed);
     final now = DateTime.parse(
         '${dateKey.substring(0, 4)}-${dateKey.substring(4, 6)}-${dateKey.substring(6)}');
-    // 节假日彩蛋命中
+    // Holiday easter egg match
     final lunar =
         kLunarHolidayOverrides[now.year * 10000 + now.month * 100 + now.day];
     final solar = kSolarHolidays[now.month * 100 + now.day];
@@ -146,7 +146,7 @@ class DailyOracle {
     );
   }
 
-  /// 只留最近 3 天的 oracle/wish/star 键
+  /// Keeps only the last 3 days of oracle/wish/star keys
   static Future<void> _cleanupOld(SharedPreferences prefs) async {
     final today = DateTime.now();
     final keep = <String>{};
@@ -164,7 +164,7 @@ class DailyOracle {
   }
 }
 
-/// 入口圆钮(main_page 公告按钮正上方)
+/// Circular entry button (directly above the announcement button on the main page)
 class DailyOracleEntry extends StatelessWidget {
   const DailyOracleEntry({super.key});
 
@@ -192,7 +192,7 @@ class DailyOracleEntry extends StatelessWidget {
   }
 }
 
-/// 运势浮窗(居中卡片;竖版内容不变)
+/// Fortune dialog (centered card; the portrait layout keeps the same content)
 Future<void> showDailyOracleSheet(BuildContext context) {
   return showKiraDialog(
     context: context,
@@ -248,7 +248,7 @@ class _OracleSheetState extends State<_OracleSheet> {
 
   Future<void> _drawStar() async {
     if (_starDrawn) return;
-    // 签文由当日种子决定(同日一致;三张牌只是仪式感)
+    // The sign text is decided by today's seed (identical all day; the three cards are just ceremony)
     final seed = int.parse(_todayKey());
     final sign = kStarSigns[math.Random(seed).nextInt(kStarSigns.length)];
     final prefs = await SharedPreferences.getInstance();
@@ -271,7 +271,7 @@ class _OracleSheetState extends State<_OracleSheet> {
     final accent = o?.holiday?.accent ?? DesignTokens.primary;
     final tertiary = theme.textTheme.bodySmall?.color;
 
-    // [问题9浮窗化] 居中卡片容器(四角圆角/限宽限高/阴影),内容区块不变;
+    // Centered card container (rounded corners, width/height limits, shadow); content blocks unchanged
 
     Widget card(Widget child) => Center(
           child: Material(
@@ -314,7 +314,7 @@ class _OracleSheetState extends State<_OracleSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-              // ── 1 标题区 ──
+              // 1. Title
               Row(
                 children: [
                   Icon(o.holiday?.emoji != null
@@ -340,7 +340,7 @@ class _OracleSheetState extends State<_OracleSheet> {
                 style: TextStyle(fontSize: DesignTokens.fontSizeSm, color: tertiary),
               ),
 
-              // ── 2 关键词 + 等级 ──
+              // 2. Keyword + level
               const SizedBox(height: DesignTokens.spaceLg),
               Text(
                 '今日关键词 · ${o.keyword}',
@@ -357,7 +357,7 @@ class _OracleSheetState extends State<_OracleSheet> {
                 ),
               ),
 
-              // ── 3 寄语 ──
+              // 3. Message
               const SizedBox(height: DesignTokens.spaceMd),
               Container(
                 width: double.infinity,
@@ -378,7 +378,7 @@ class _OracleSheetState extends State<_OracleSheet> {
                 ),
               ),
 
-              // ── 4 五维运势条 ──
+              // 4. Five-dimension fortune bars
               const SizedBox(height: DesignTokens.spaceMd),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -416,7 +416,7 @@ class _OracleSheetState extends State<_OracleSheet> {
                 ],
               ),
 
-              // ── 5 幸运信息区 ──
+              // 5. Lucky info
               const SizedBox(height: DesignTokens.spaceMd),
               Container(
                 width: double.infinity,
@@ -485,13 +485,13 @@ class _OracleSheetState extends State<_OracleSheet> {
                 ),
               ),
 
-              // ── 6 宜 / 忌 ──
+              // 6. Do / don't
               const SizedBox(height: DesignTokens.spaceMd),
               _yiJiRow(true, o.dos.join(' · '), cardBg),
               const SizedBox(height: 6),
               _yiJiRow(false, o.donts.join(' · '), cardBg),
 
-              // ── 7 双按钮 ──
+              // 7. Two action buttons
               const SizedBox(height: DesignTokens.spaceLg),
               Row(
                 children: [
@@ -522,7 +522,7 @@ class _OracleSheetState extends State<_OracleSheet> {
                 ],
               ),
 
-              // ── 8 尾注 ──
+              // 8. Footer note
               const SizedBox(height: DesignTokens.spaceLg),
               Text(
                 '每日 0 点自动更新 · 记得来看看哦',
@@ -649,10 +649,10 @@ class _OracleSheetState extends State<_OracleSheet> {
     );
   }
 
-  /// 星签三选一覆盖层
+  /// Three-card star sign picker overlay
   void _showStarPick(DailyOracle o) {
     if (_starDrawn) {
-      setState(() {}); // 已抽过:面板上显示结果即可
+      setState(() {}); // Already drawn; just show the result on the panel
       return;
     }
     showCupertinoModalPopup<void>(

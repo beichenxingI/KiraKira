@@ -7,11 +7,12 @@ import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/utils/kira_dialog.dart';
 import 'package:kirakira/presentation/dialogs/core_dialog.dart';
 
-/// 弹出公告对话框
+/// Shows the announcement dialog.
 ///
-/// 走 showKiraDialog 获得 PiuPiu 弱回弹动画，与项目统一浮窗手感一致。
-/// 半透明毛玻璃 + 星星点缀，与 app 整体清新美学统一。
-/// 图片、下载按钮按内容有无自动显隐，全部可降级。
+/// Uses showKiraDialog for the PiuPiu soft-bounce animation, matching the
+/// project-wide dialog feel. Frosted translucent glass with star accents,
+/// consistent with the app's overall clean aesthetic. The image and download
+/// button show or hide based on the available content; everything degrades gracefully.
 Future<void> showAnnouncementDialog(
   BuildContext context,
   Announcement announcement,
@@ -28,7 +29,7 @@ class _AnnouncementCard extends StatelessWidget {
 
   const _AnnouncementCard({required this.announcement});
 
-  /// 类型主题：update=橙色🚀 / daily=珊瑚粉✨
+  /// Type theme: update = orange, daily = coral pink
   (IconData, Color) get _typeTheme => switch (announcement.type) {
         AnnouncementType.update =>
           (Icons.rocket_launch, DesignTokens.statusWarning),
@@ -151,7 +152,7 @@ class _AnnouncementCard extends StatelessWidget {
                       _buildActions(context),
                     ],
                   ),
-                  // 右上角关闭按钮
+                  // Close button in the top-right corner
                   Positioned(
                     top: 8,
                     right: 8,

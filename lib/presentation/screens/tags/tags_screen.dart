@@ -194,7 +194,7 @@ class _TagListItem extends StatelessWidget {
             child: tag.icon != null && tag.icon!.isNotEmpty
                 ? Text(
                     tag.icon!,
-                    style: const TextStyle(fontSize: 20) // emoji 渲染尺寸,工程值不进 token,
+                    style: const TextStyle(fontSize: 20) // Emoji render size; engineering value, not a design token
                   )
                 : Icon(
                     Icons.label,
@@ -499,7 +499,7 @@ class TagChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (tag.icon != null && tag.icon!.isNotEmpty) ...[
-              // emoji 渲染尺寸,工程值不进 token
+              // Emoji render size; engineering value, not a design token
               Text(tag.icon!, style: const TextStyle(fontSize: 14)),
               const SizedBox(width: 4),
             ],

@@ -87,7 +87,7 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
     final isUser = widget.message.role == MessageRole.user;
     final hasSwipes = widget.message.swipes.length > 1;
 
-    // 正则处理：拿到所有生效脚本，应用到显示内容
+    // Regex processing: fetch all active scripts and apply them to the displayed content
     final isSimplified = widget.simplified && !_forceFullRender;
     final displayContent = isSimplified ? widget.message.content : _getCachedProcessedContent();
     return Padding(
@@ -563,26 +563,26 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
     _cachedProcessed = _getProcessedContent();
     return _cachedProcessed!;
   }
-  /// 应用正则脚本到消息内容（只影响显示，不修改原始数据）
+  /// Applies regex scripts to message content (display only; original data is not modified)
   String _getProcessedContent() {
     final originalContent = widget.message.content;
     if (originalContent.isEmpty) return originalContent;
 
-    // 拿到合并后的正则脚本（全局+角色）
+    // Merged regex scripts (global + character)
     final scripts = ref.watch(combinedRegexScriptsProvider(widget.character?.id));
     if (scripts.isEmpty) return originalContent;
 
-    // 确定应用范围
+    // Determine the application scope
     final isUser = widget.message.role == MessageRole.user;
     final placement = isUser ? RegexPlacement.userInput : RegexPlacement.aiOutput;
 
-    // 应用正则（纯渲染层处理，不写回数据库）
+    // Apply regex (render layer only; never written back to the database)
     final processed = RegexService.instance.getRegexedString(
       originalContent,
       placement,
       scripts,
       characterName: widget.character?.name,
-      userName: null, // 如果有用户名配置可以传进来
+      userName: null, // pass a configured user name here if available
       isMarkdown: false,
       isPrompt: false,
       isEdit: false,

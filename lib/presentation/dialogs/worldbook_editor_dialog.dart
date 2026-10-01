@@ -13,9 +13,10 @@ import '../theme/design_tokens.dart';
 import '../utils/export_delivery.dart';
 import 'worldbook_entry_edit_dialog.dart';
 
-/// 世界书完整编辑浮窗（一个角色对应一本世界书，直接编辑）
+/// Full worldbook editor dialog (one worldbook per character, edited directly).
 ///
-/// 三段布局：header固定（名称+统计+关闭）+ body可滚动（工具栏+条目列表）+ footer固定（导入导出+新增）
+/// Three-section layout: fixed header (name + stats + close), scrollable body
+/// (toolbar + entry list), fixed footer (import / export / add).
 Future<void> showWorldBookEditorDialog(
   BuildContext context,
   WidgetRef ref, {
@@ -71,7 +72,8 @@ class _WorldBookEditorDialogState
       case 'constant':
         result = result.where((e) => e.constant).toList();
     }
-    // 统一按 insertionOrder 排序（创建时间排序功能暂未实现，保持现有行为）
+    // Always sorted by insertionOrder (creation-time sorting is not yet
+    // implemented; keeps existing behavior).
     result = [...result]..sort((a, b) => a.insertionOrder.compareTo(b.insertionOrder));
     return result;
   }
@@ -112,7 +114,7 @@ class _WorldBookEditorDialogState
     }
   }
 
-  // ── 导入/导出 ──
+  // Import / export
 
   Future<void> _importWorldBook() async {
     final result = await FilePicker.platform.pickFiles(
@@ -174,7 +176,7 @@ class _WorldBookEditorDialogState
         .convert(entries.map((e) => e.toJson()).toList());
     final date = DateTime.now().toIso8601String().split('T')[0];
     final fileName = 'worldbook_$date.json';
-    // [问题1] 统一导出交付:分享 / 保存到文件
+    // Unified export delivery: share or save to file.
     await deliverExportFile(
       context: context,
       fileName: fileName,
@@ -211,7 +213,7 @@ class _WorldBookEditorDialogState
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              // ── Header ──
+              // Header
               Container(
                 padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
                 decoration: BoxDecoration(
@@ -283,11 +285,11 @@ class _WorldBookEditorDialogState
                   ],
                 ),
               ),
-              // ── Body ──
+              // Body
               Expanded(
                 child: Column(
                   children: [
-                    // 工具栏
+                    // Toolbar
                     Container(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                       child: Column(
@@ -359,7 +361,7 @@ class _WorldBookEditorDialogState
                         ],
                       ),
                     ),
-                    // 条目列表
+                    // Entry list
                     Expanded(
                       child: worldInfos.when(
                         data: (list) {
@@ -401,7 +403,7 @@ class _WorldBookEditorDialogState
                   ],
                 ),
               ),
-              // ── Footer ──
+              // Footer
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                 decoration: BoxDecoration(
@@ -485,7 +487,7 @@ class _WorldBookEditorDialogState
   }
 }
 
-/// 筛选 Chip
+/// Filter chip.
 class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -532,7 +534,7 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-/// 条目卡片（enabled 竖线 + 常量标签 + 编辑/删除）
+/// Entry card (enabled indicator line + constant tag + edit / delete).
 class _WorldBookEntryCard extends StatelessWidget {
   final WorldInfoEntry entry;
   final bool isDark;
@@ -576,7 +578,7 @@ class _WorldBookEntryCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  // enabled 开关
+                  // Enabled toggle
                   GestureDetector(
                     onTap: onToggle,
                     child: Icon(
@@ -655,7 +657,7 @@ class _WorldBookEntryCard extends StatelessWidget {
                 ],
               ),
             ),
-            // 左侧状态竖线
+            // Left status indicator line
             Positioned(
               left: 0,
               top: 8,
@@ -675,7 +677,7 @@ class _WorldBookEntryCard extends StatelessWidget {
   }
 }
 
-/// 状态标签
+/// Status tag.
 class _StatusTag extends StatelessWidget {
   final String label;
   final Color color;
@@ -697,7 +699,7 @@ class _StatusTag extends StatelessWidget {
   }
 }
 
-/// 编辑器内确认浮窗
+/// Confirmation dialog used inside the editor.
 class _EditorConfirm extends StatelessWidget {
   final String title;
   final String message;

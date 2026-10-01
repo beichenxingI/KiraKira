@@ -1,12 +1,12 @@
 // lib/presentation/widgets/common/kira_glass_bar.dart
-/// KiraGlassBar · 底栏/浮动工具条毛玻璃壳(A-T6)
+/// KiraGlassBar, the frosted-glass shell for bottom bars / floating toolbars (A-T6)
 ///
-/// iOS Material Thin 语感:ClipRRect + BackdropFilter(σ22/20)+
-/// 半透明底色(dark darkSurface 0.72 / light white 0.72)。
+/// iOS "Material Thin" feel: ClipRRect + BackdropFilter (sigma 22/20) +
+/// translucent base color (dark darkSurface 0.72 / light white 0.72).
 ///
-/// ⚠️ WebView 平台视图与 BackdropFilter 冲突(聊天 tab 会渲染失败),
-/// 因此聊天 tab 必须传 [enabledBlur] = false —— 退化为 0.92 半透明
-/// 纯色壳,无 blur,视觉仍通透。
+/// WebView platform views conflict with BackdropFilter (rendering fails on the chat tab),
+/// so the chat tab must pass [enabledBlur] = false, degrading to a 0.92 opaque
+/// solid shell with no blur that still looks translucent.
 library;
 
 import 'dart:ui';
@@ -24,10 +24,10 @@ class KiraGlassBar extends StatelessWidget {
 
   final Widget child;
 
-  /// 聊天 tab(WebView 平台视图)传 false;其余 tab 默认 true
+  /// Pass false for the chat tab (WebView platform view); other tabs default to true
   final bool enabledBlur;
 
-  /// 裁切圆角;底栏胶囊传 radiusFull(30)
+  /// Clip radius; pass radiusFull (30) for the bottom-bar capsule
   final BorderRadius? radius;
 
   @override

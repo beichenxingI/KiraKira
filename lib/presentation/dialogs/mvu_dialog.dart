@@ -1,9 +1,9 @@
 // lib/presentation/dialogs/mvu_dialog.dart
-/// MVU 变量框架浮窗(极客Core迁移 P5.1)
-/// 内容完整迁自 mvu_settings_screen.dart(519行),字段一个不少:
-/// 引擎行为(更新方式/自动请求/上下文历史条数) · 从主配置复制
-/// API配置(模型来源/API地址/密钥/模型名称) ·
-/// 提示词配置(自定义开关/警告/提示词文本/恢复内置) · 关于 · 恢复默认
+/// MVU variable framework dialog.
+/// Sections: engine behavior (update mode / auto request / context history
+/// count) with copy-from-main-config, API config (model source / API URL /
+/// key / model name), prompt config (custom toggle / warning / prompt text /
+/// restore built-in), about, reset to defaults.
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -41,7 +41,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
   void initState() {
     super.initState();
     _obscureKey = true;
-    // controller 先用空值初始化,首次依赖就绪后同步真实值
+    // Controllers start empty; real values are synced once dependencies are ready.
     _apiUrlController = TextEditingController();
     _apiKeyController = TextEditingController();
     _modelNameController = TextEditingController();
@@ -51,7 +51,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 只在首次进入时从 state 同步到 controller 一次
+    // Sync state to controllers only once, on first entry.
     if (!_isInitialized) {
       _isInitialized = true;
       final mvu = ref.read(mvuSettingsProvider);
@@ -78,7 +78,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
     final mvu = ref.watch(mvuSettingsProvider);
     final notifier = ref.read(mvuSettingsProvider.notifier);
 
-    // 监听 state 变化,首次加载或重置时同步到 controller(与原页一致)
+    // Listen for state changes and sync to controllers on initial load or reset.
     ref.listen<MvuSettings>(
       mvuSettingsProvider,
       (previous, next) {
@@ -100,7 +100,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 引擎行为 ──
+          // Engine behavior
           const CoreSectionLabel('引擎行为'),
           const SizedBox(height: 4),
           _Group(
@@ -155,7 +155,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
             ],
           ),
           const SizedBox(height: 8),
-          // 从主 LLM 配置一键复制
+          // One-tap copy from the main LLM config
           Align(
             alignment: Alignment.centerRight,
             child: CupertinoButton(
@@ -190,7 +190,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
           ),
           const SizedBox(height: 16),
 
-          // ── API 配置 ──
+          // API config
           const CoreSectionLabel('API 配置'),
           const SizedBox(height: 4),
           _Group(
@@ -267,7 +267,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
           ),
           const SizedBox(height: 20),
 
-          // ── 提示词配置 ──
+          // Prompt config
           const CoreSectionLabel('提示词配置'),
           const SizedBox(height: 4),
           _Group(
@@ -281,7 +281,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
                 onChanged: notifier.updateCustomPromptEnabled,
               ),
               if (mvu.customPromptEnabled) ...[
-                // 免责警告
+                // Disclaimer warning
                 Padding(
                   padding: const EdgeInsets.only(
                       left: 12, right: 12, top: 8, bottom: 4),
@@ -308,7 +308,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
                     ),
                   ),
                 ),
-                // 提示词文本框
+                // Prompt text field
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
                   child: CupertinoTextField(
@@ -326,7 +326,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
                     onChanged: notifier.updateCustomPrompt,
                   ),
                 ),
-                // 恢复默认
+                // Restore built-in prompt
                 Align(
                   alignment: Alignment.centerRight,
                   child: CupertinoButton(
@@ -357,7 +357,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
           ),
           const SizedBox(height: 20),
 
-          // ── 关于 ──
+          // About
           const CoreSectionLabel('关于'),
           const SizedBox(height: 4),
           CoreInfoRow(
@@ -393,7 +393,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
             onPressed: () {
               Navigator.pop(dialogCtx);
               notifier.resetToDefaults();
-              // 同步 TextField
+              // Sync text fields
               const defaults = MvuSettings();
               _apiUrlController.text = defaults.apiUrl;
               _apiKeyController.text = defaults.apiKey;
@@ -407,7 +407,7 @@ class _MvuDialogState extends ConsumerState<_MvuDialog> {
   }
 }
 
-/// 浮窗内分组容器
+/// Group container used inside the dialog.
 class _Group extends StatelessWidget {
   const _Group({required this.palette, required this.children});
 
@@ -429,7 +429,7 @@ class _Group extends StatelessWidget {
   }
 }
 
-/// 带右侧下拉的行
+/// Row with a trailing dropdown.
 class _DropdownTile extends StatelessWidget {
   const _DropdownTile({
     required this.palette,
@@ -470,7 +470,7 @@ class _DropdownTile extends StatelessWidget {
   }
 }
 
-/// 文本输入行(与原页 _TextTile 一致)
+/// Text input row.
 class _TextTile extends StatelessWidget {
   const _TextTile({
     required this.palette,
@@ -535,7 +535,7 @@ class _TextTile extends StatelessWidget {
   }
 }
 
-/// 滑块行(与原页 _SliderTile 一致)
+/// Slider row.
 class _SliderTile extends StatelessWidget {
   const _SliderTile({
     required this.palette,

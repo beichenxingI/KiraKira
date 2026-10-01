@@ -1,6 +1,6 @@
 // lib/presentation/providers/chat_history_provider.dart
-/// 聊天回忆页"每页条数"(返工条目6):键 chat_history_page_size,
-/// 模板照抄 character_grid_provider.dart。
+/// Chat history page items-per-page setting (key chat_history_page_size),
+/// following the same pattern as character_grid_provider.dart.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,7 +18,7 @@ class ChatHistoryPageSizeNotifier extends StateNotifier<int> {
 
   static const String _key = 'chat_history_page_size';
 
-  /// 可选档位(列表条数)
+  /// Allowed choices (list row counts)
   static const List<int> kChoices = [10, 20, 30, 50];
 
   Future<void> _load() async {

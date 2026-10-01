@@ -47,9 +47,11 @@ class Chats extends Table {
   TextColumn get authorNote => text().withDefault(const Constant(''))(); // Author's Note content
   IntColumn get authorNoteDepth => integer().withDefault(const Constant(4))(); // Depth for injection
   BoolColumn get authorNoteEnabled => boolean().withDefault(const Constant(false))(); // Whether enabled
-  /// [空会话] 用户是否发过消息:一旦置位永不回退。
-  /// 退出聊天页时无标记 → 级联丢弃;启动清扫无标记遗留。
-  /// 用持久标记而非实时数 messages(user) 是为了覆盖"发了又删"的边界(发过就算)。
+  /// Whether the user has ever sent a message: once set, never unset.
+  /// No flag when leaving the chat page → cascade discard; leftover no-flag
+  /// chats are handled by startup cleanup. A persisted flag is used instead
+  /// of counting messages(user) in real time to cover the "sent then deleted"
+  /// boundary (having ever sent counts).
   BoolColumn get hasUserMessage => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -222,42 +224,43 @@ class GlobalStates extends Table {
   @override
   Set<Column> get primaryKey => {key};
 }
-/// 向量文档表 · RAG 持久化
+/// Vector documents table - RAG persistence
 class VectorDocuments extends Table {
   TextColumn get id => text()();
-  TextColumn get collectionId => text()(); // 归属集合，用 chatId 绑定
-  TextColumn get content => text()(); // 原文楼层内容
-  TextColumn get embedding => text().withDefault(const Constant('[]'))(); // JSON 数组，float 向量
-  TextColumn get metadataJson => text().withDefault(const Constant('{}'))(); // JSON，存 role/messageId 等
+  TextColumn get collectionId => text()(); // Owning collection, bound by chatId
+  TextColumn get content => text()(); // Original message (floor) text content
+  TextColumn get embedding => text().withDefault(const Constant('[]'))(); // JSON array of floats (vector)
+  TextColumn get metadataJson => text().withDefault(const Constant('{}'))(); // JSON, stores role/messageId etc.
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column> get primaryKey => {id};
 }
 
-/// 向量集合表 · 每个 chat 一个
+/// Vector collections table - one per chat
 class VectorCollections extends Table {
-  TextColumn get id => text()(); // 用 chatId
+  TextColumn get id => text()(); // Uses chatId
   TextColumn get name => text()();
   TextColumn get description => text().nullable()();
-  IntColumn get dimensions => integer().withDefault(const Constant(384))(); // bge-small-zh 384维（[CHRONICLE Phase 0] 修正512笔误）
+  IntColumn get dimensions => integer().withDefault(const Constant(384))(); // bge-small-zh, 384 dimensions
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column> get primaryKey => {id};
 }
 
-/// [CHRONICLE Phase 1] 总结任务队列 · 异步消费，前台Timer轮询
+/// Chronicle summary task queue for asynchronous processing, polled by a foreground timer
 class SummaryTasks extends Table {
   TextColumn get id => text()();
   TextColumn get chatId => text()();
-  /// 待总结消息的 messageId 集合（调整A：不用index序号，删除/重排不漂移）
-  TextColumn get messageIds => text().withDefault(const Constant('[]'))(); // JSON数组
+  /// Set of messageIds to summarize (uses messageIds instead of index
+  /// numbers, so deletion/reordering does not shift them)
+  TextColumn get messageIds => text().withDefault(const Constant('[]'))(); // JSON array
   IntColumn get fromTurn => integer().withDefault(const Constant(0))();
   IntColumn get toTurn => integer().withDefault(const Constant(0))();
   /// pending / running / done / failed
   TextColumn get status => text().withDefault(const Constant('pending'))();
-  TextColumn get resultJson => text().nullable()(); // LLM输出原文（解析前）
+  TextColumn get resultJson => text().nullable()(); // Raw LLM output (before parsing)
   TextColumn get error => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get finishedAt => dateTime().nullable()();
@@ -266,7 +269,8 @@ class SummaryTasks extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// [CHRONICLE Phase 1] Wiki词条表 · 温层核心（Phase 2管线填充，Phase 1承接旧摘要迁移）
+/// Wiki entries table - core of the warm zone (filled by the Phase 2 pipeline;
+/// handled legacy summary migration)
 class MemoryEntries extends Table {
   TextColumn get id => text()();
   TextColumn get chatId => text()();
@@ -276,15 +280,15 @@ class MemoryEntries extends Table {
   TextColumn get content => text()();
   IntColumn get importance => integer().withDefault(const Constant(5))(); // 1-10
   BoolColumn get alwaysInject => boolean().withDefault(const Constant(false))();
-  BoolColumn get anchor => boolean().withDefault(const Constant(false))(); // 锚点：永久保留
+  BoolColumn get anchor => boolean().withDefault(const Constant(false))(); // Anchor: kept permanently
   BoolColumn get neverEvict => boolean().withDefault(const Constant(false))();
-  TextColumn get tags => text().withDefault(const Constant('[]'))(); // JSON数组
-  TextColumn get entityIds => text().withDefault(const Constant('[]'))(); // JSON数组
-  /// 词条来源消息（调整A：messageId集合）
-  TextColumn get sourceMessageIds => text().withDefault(const Constant('[]'))(); // JSON数组
+  TextColumn get tags => text().withDefault(const Constant('[]'))(); // JSON array
+  TextColumn get entityIds => text().withDefault(const Constant('[]'))(); // JSON array
+  /// Source messages of the entry (set of messageIds)
+  TextColumn get sourceMessageIds => text().withDefault(const Constant('[]'))(); // JSON array
   IntColumn get turnIndex => integer().withDefault(const Constant(0))();
-  BoolColumn get deprecated => boolean().withDefault(const Constant(false))(); // 过时不删（保留历史）
-  /// 对应 VectorDocument.id（'chronicle_<entryId>'）
+  BoolColumn get deprecated => boolean().withDefault(const Constant(false))(); // Deprecated but not deleted (keeps history)
+  /// Corresponds to VectorDocument.id ('chronicle_<entryId>')
   TextColumn get vectorId => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
@@ -293,13 +297,14 @@ class MemoryEntries extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// [CHRONICLE Phase 1] 每聊天窗口状态 ·
-/// H1修正：Chat模型字段不经repo持久化，窗口状态走独立Drift表（不嵌入Chat.settingsJson）
+/// Per-chat window archive state.
+/// Window state lives in this dedicated Drift table (not embedded in
+/// Chat.settingsJson); the Chat model field is not persisted through the repo.
 class ChronicleStates extends Table {
   TextColumn get chatId => text()();
-  /// 已归档消息的 messageId 集合（JSON数组）
+  /// Set of archived messageIds (JSON array)
   TextColumn get archivedMessageIds => text().withDefault(const Constant('[]'))();
-  /// ChronicleSettings 序列化JSON
+  /// Serialized ChronicleSettings JSON
   TextColumn get settingsJson => text().withDefault(const Constant('{}'))();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
@@ -307,7 +312,7 @@ class ChronicleStates extends Table {
   Set<Column> get primaryKey => {chatId};
 }
 
-/// [CHRONICLE Phase 2] Wiki实体表（人物/地点/物品/概念）
+/// Wiki entities table (persons/places/items/concepts)
 class MemoryEntities extends Table {
   TextColumn get id => text()();
   TextColumn get chatId => text()();
@@ -316,7 +321,7 @@ class MemoryEntities extends Table {
   TextColumn get type => text().withDefault(const Constant('person'))();
   TextColumn get description => text().withDefault(const Constant(''))();
   TextColumn get currentState => text().withDefault(const Constant(''))();
-  TextColumn get aliases => text().withDefault(const Constant('[]'))(); // JSON数组
+  TextColumn get aliases => text().withDefault(const Constant('[]'))(); // JSON array
   TextColumn get attributes => text().withDefault(const Constant('{}'))(); // JSON
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
@@ -325,7 +330,7 @@ class MemoryEntities extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// [CHRONICLE Phase 2] Wiki关系表（实体间）
+/// Wiki relationships table (between entities)
 class MemoryRelationships extends Table {
   TextColumn get id => text()();
   TextColumn get chatId => text()();
@@ -341,7 +346,7 @@ class MemoryRelationships extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// [CHRONICLE Phase 2] 情感节点表（roleplay专用）
+/// Emotion nodes table (roleplay-specific)
 class EmotionNodes extends Table {
   TextColumn get id => text()();
   TextColumn get chatId => text()();
@@ -358,21 +363,23 @@ class EmotionNodes extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// [Phase 2.1] 正则脚本独立表（正则不再存 extensions JSON，消除 lost-update 竞态）
-/// DataClassName 重命名：Drift 按表名单数化默认生成 `RegexScript`，
-/// 会与 data/models/regex_script.dart 的模型类冲突，故改名 RegexScriptRow。
+/// Dedicated regex scripts table (regex no longer stored in extensions JSON,
+/// eliminating lost-update races).
+/// DataClassName rename: Drift's default singularization of the table name
+/// would generate `RegexScript`, which conflicts with the model class in
+/// data/models/regex_script.dart, hence RegexScriptRow.
 @DataClassName('RegexScriptRow')
 class RegexScripts extends Table {
   TextColumn get id => text()();
-  /// 'global' 或 'character'
+  /// 'global' or 'character'
   TextColumn get scope => text().withDefault(const Constant('global'))();
-  /// 角色 ID（scope='character' 时）
+  /// Character ID (when scope='character')
   TextColumn get characterId => text().nullable()();
-  /// RegexScript 序列化 JSON
+  /// Serialized RegexScript JSON
   TextColumn get scriptJson => text().withDefault(const Constant('{}'))();
-  /// 排序（lower = earlier）
+  /// Sort order (lower = earlier)
   IntColumn get order => integer().withDefault(const Constant(0))();
-  /// 是否禁用
+  /// Whether disabled
   BoolColumn get disabled => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -492,40 +499,43 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(messages, messages.swipesDataJson);
         }
        if (from < 16) {
-         // [空会话] 用户发过消息的持久标记,用于退出丢弃与启动清扫
-         // 容错：addColumn 若列已存在会抛 SqliteException(1)，捕获后继续（防重复迁移）
+         // Persisted flag for whether a chat ever had a user message; used for
+         // discard-on-exit and startup cleanup.
+         // Fault tolerance: addColumn throws SqliteException(1) if the column
+         // already exists; caught and continued (prevents duplicate migration)
          try {
            await m.addColumn(chats, chats.hasUserMessage);
          } catch (e) {
-           // 列已存在时静默忽略（duplicate column name）
+           // Silently ignore if the column already exists (duplicate column name)
            if (!e.toString().toLowerCase().contains('duplicate')) rethrow;
          }
-         // 回填:存量会话若已有用户消息,立即置位——否则旧有效会话会被误判为空而清除
-         // （即使列已存在，回填仍安全执行——幂等操作）
+         // Backfill: existing chats that already have user messages are flagged
+         // immediately, otherwise valid legacy chats would be misjudged as empty
+         // and purged (backfill is safe even if the column already exists - idempotent)
          await customStatement(
            'UPDATE chats SET has_user_message = 1 WHERE id IN '
            '(SELECT DISTINCT chat_id FROM messages WHERE role = \'user\')',
          );
        }
         if (from < 17) {
-          // [CHRONICLE Phase 1] 超级记忆：总结任务队列 + Wiki词条 + 每聊天窗口状态
+          // Super memory: summary task queue + wiki entries + per-chat window state
           await m.createTable(summaryTasks);
           await m.createTable(memoryEntries);
           await m.createTable(chronicleStates);
         }
         if (from < 18) {
-          // [CHRONICLE Phase 2] Wiki系统：实体 + 关系 + 情感节点
+          // Wiki system: entities + relationships + emotion nodes
           await m.createTable(memoryEntities);
           await m.createTable(memoryRelationships);
           await m.createTable(emotionNodes);
         }
         if (from < 19) {
-          // [Phase 2.1] 创建 regex_scripts 表（正则独立表，schema v18→v19）
+          // Create regex_scripts table (dedicated regex table, schema v18→v19)
           await m.createTable(regexScripts);
           debugPrint('[Migration] v18→v19: 创建 regex_scripts 表');
 
-          // [Phase 2.2] 迁移存量角色级正则（extensions['regex_scripts'] → 表）
-          // 旧数据保留不删（双读降级兜底）；失败不阻断启动。
+          // Migrate existing character-scoped regex scripts (extensions['regex_scripts'] → table)
+          // Legacy data is kept (dual-read fallback); failures do not block startup.
           debugPrint('[Migration] ═══ 开始迁移角色级正则 ═══');
           try {
             final chars = await select(characters).get();
@@ -543,8 +553,9 @@ class AppDatabase extends _$AppDatabase {
                   continue;
                 }
                 debugPrint('[Migration]   找到 ${rawList.length} 条正则');
-                // [紧急修复] 逐条独立 try-catch + id 去重：
-                // 单条 PK 冲突/解析失败不再中断该角色剩余迁移（旧代码会部分迁移）
+                // Per-entry independent try-catch + ID deduplication:
+                // a single PK conflict/parse failure no longer aborts the rest
+                // of this character's migration (old code would migrate partially)
                 final seenRowIds = <String>{};
                 for (var i = 0; i < rawList.length; i++) {
                   final raw = rawList[i];
@@ -589,7 +600,7 @@ class AppDatabase extends _$AppDatabase {
                 migratedCharCount++;
               } catch (charError) {
                 debugPrint('[Migration]   ❌ 角色 ${char.name} 处理失败: $charError');
-                // 继续迁移其他角色
+                // Continue migrating other characters
               }
             }
             debugPrint(
@@ -599,7 +610,8 @@ class AppDatabase extends _$AppDatabase {
           } catch (migrationError, migrationStack) {
             debugPrint('[Migration] ❌ 正则迁移失败: $migrationError');
             debugPrint('[Migration] StackTrace: $migrationStack');
-            // 迁移失败不阻断 app 启动（extensions 旧数据仍在，双读兜底）
+            // Migration failure does not block app startup (legacy extensions
+            // data remains, dual-read fallback)
           }
         }
       },
@@ -607,8 +619,10 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-/// [Phase 2.2] 单条正则迁移：自家格式优先，SillyTavern 格式兜底（[IMP-7] 硬 cast 防炸）。
-/// 返回 null 表示无法解析（跳过该条，不阻断其余迁移）。
+/// Single regex script migration: native format first, SillyTavern format as
+/// fallback (hard cast to prevent crashes).
+/// Returns null when parsing fails (that entry is skipped without blocking
+/// the rest of the migration).
 models.RegexScript? _migrateRegexScript(
   Map<String, dynamic> raw,
   String characterId,
@@ -616,8 +630,9 @@ models.RegexScript? _migrateRegexScript(
 ) {
   try {
     final s = models.RegexScript.fromJson(raw);
-    // [紧急修复-B] 行 id 加角色前缀（跨角色同 id 防 PK 冲突，幂等防叠加）；
-    // 空 id 用序号兜底
+    // Row ID gets a character prefix (prevents PK conflicts for the same ID
+    // across characters, idempotent to avoid prefix stacking);
+    // empty IDs fall back to the index
     final resolvedId = s.id.isEmpty
         ? '${characterId}_migrated_$index'
         : (s.id.startsWith('${characterId}_') ? s.id : '${characterId}_${s.id}');

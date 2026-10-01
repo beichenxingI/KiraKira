@@ -1,7 +1,7 @@
 // lib/presentation/dialogs/log_viewer_dialog.dart
-/// 日志查看器浮窗(极客Core迁移 P1)
-/// 内容完整迁自 log_view_screen.dart:导出/清空/刷新 + 日志列表
-/// (级别徽标/标签/时间/内容,500条上限)。
+/// Log viewer dialog.
+/// Mirrors log_view_screen.dart: export / clear / refresh plus the log list
+/// (level badge / tag / time / message, 500-entry cap).
 library;
 
 import 'dart:io';

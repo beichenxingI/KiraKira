@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// [P6-5.1] 通用弹窗组件:桥接 callGenericPopup(text, type, inputValue)。
-/// type 枚举对齐 ST popup.js:TEXT=1 CONFIRM=2 INPUT=3 DISPLAY=4 CROP=5。
-/// 返回值对齐 POPUP_RESULT:CONFIRM → 1/0(null=取消);INPUT → 字符串(null=取消);
-/// TEXT/DISPLAY → 1。
+/// Generic popup component bridging callGenericPopup(text, type, inputValue).
+/// Type enum matches ST popup.js: TEXT=1 CONFIRM=2 INPUT=3 DISPLAY=4 CROP=5.
+/// Return values match POPUP_RESULT: CONFIRM yields 1/0 (null = cancelled); INPUT yields a
+/// string (null = cancelled); TEXT/DISPLAY yields 1.
 class ThPopupDialog extends StatefulWidget {
   const ThPopupDialog({
     super.key,

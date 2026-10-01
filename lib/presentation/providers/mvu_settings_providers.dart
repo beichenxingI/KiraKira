@@ -10,10 +10,11 @@ import 'package:kirakira/core/services/initialization_service.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart'
     show sharedPreferencesProvider;
 
-/// MVU 设置 Notifier。
+/// MVU settings notifier.
 ///
-/// 存取策略与 AppSettingsNotifier 完全一致:DB(globalStates)优先 +
-/// SharedPreferences 兜底/迁移,双写保证密钥等关键数据可备份。
+/// Storage strategy matches AppSettingsNotifier exactly: DB (globalStates)
+/// first with SharedPreferences as fallback/migration, dual-written so key
+/// data such as API keys stays backed up.
 class MvuSettingsNotifier extends StateNotifier<MvuSettings> {
   final SharedPreferences _prefs;
   final AppDatabase _db;
@@ -27,7 +28,7 @@ class MvuSettingsNotifier extends StateNotifier<MvuSettings> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
-    // 页面销毁时强制保存一次(兜底,防止防抖还没触发就退出)
+    // Force a save on disposal (safety net in case the debounce never fires)
     _saveSettings();
     super.dispose();
   }
@@ -52,11 +53,11 @@ if (jsonStr != null) {
   try {
     final loaded = MvuSettings.fromJson(jsonDecode(jsonStr) as Map<String, dynamic>);
     state = loaded;
-    // 强制触发一次 notifyListeners,确保 UI 能收到
+    // Force a notification so the UI receives the loaded state
     state = state.copyWith();
     if (needsMigration) _saveSettings();
   } catch (e) {
-    // 解析失败沿用默认值
+    // Fall back to defaults when parsing fails
     if (kDebugMode) debugPrint('[MvuSettings] load failed: $e');
       }
     }
@@ -76,7 +77,7 @@ if (jsonStr != null) {
     await _prefs.setString(_settingsKey, jsonStr);
   }
 
-  /// 防抖存储(用于高频输入,如 TextField)
+  /// Debounced save (for high-frequency input such as TextField)
   void _debouncedSave() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
@@ -84,7 +85,7 @@ if (jsonStr != null) {
     });
   }
 
-  // ── 低频操作:立即存 ──
+  // -- Low-frequency operations: save immediately --
 
   Future<void> updateUpdateMode(String mode) async {
     state = state.copyWith(updateMode: mode);
@@ -116,7 +117,7 @@ if (jsonStr != null) {
     await _saveSettings();
   }
 
-  // ── 高频输入:防抖存储 ──
+  // -- High-frequency input: debounced save --
 
   void updateApiUrl(String url) {
     state = state.copyWith(apiUrl: url.trim());
@@ -139,10 +140,12 @@ debugPrint('[MVU] updateApiUrl调用: $url');
     _debouncedSave();
   }
 
-  // ── 其他 ──
+  // -- Other --
 
-  /// [P5-8/P1] WebView 侧(道渊/MVU 面板 saveSettingsDebounced)写回的整对象应用。
-  /// 立即落盘(DB+SP 双写),让面板配置/通知四键刷新不丢。
+  /// Applies a whole settings object written back from the WebView side
+  /// (Daoyuan/MVU panel saveSettingsDebounced).
+  /// Persists immediately (dual-write DB + SharedPreferences) so panel config
+  /// and the four notification toggles refresh without data loss.
   Future<void> applyFromWeb(MvuSettings next) async {
     state = next;
     await _saveSettings();
@@ -154,7 +157,7 @@ debugPrint('[MVU] updateApiUrl调用: $url');
   }
 }
 
-/// MVU 设置 provider。
+/// MVU settings provider.
 final mvuSettingsProvider =
     StateNotifierProvider<MvuSettingsNotifier, MvuSettings>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);

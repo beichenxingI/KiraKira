@@ -366,7 +366,7 @@ class _ImageGenerationDialogState extends ConsumerState<ImageGenerationDialog> {
           });
         } else {
           setState(() {
-            // onError 已写入具体错误(如 latent.moe 429/401)时不覆盖成笼统提示
+            // Do not overwrite with a generic message when onError already wrote a specific error (e.g. latent.moe 429/401)
             _error ??= 'No image generated';
             _isGenerating = false;
           });

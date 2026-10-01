@@ -19,7 +19,7 @@ final ttsSettingsProvider = StateNotifierProvider<TTSSettingsNotifier, TTSSettin
 /// Notifier for TTS settings
 class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
   static const _prefsKey = 'tts_settings';
-  static const _secureKeyApiKey = 'tts_api_key'; // apiKey 单独存 secure storage
+  static const _secureKeyApiKey = 'tts_api_key'; // apiKey stored separately in secure storage
   final TTSService _service;
   final Ref _ref;
   final FlutterSecureStorage _secure = const FlutterSecureStorage();
@@ -34,7 +34,7 @@ class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
       final jsonStr = prefs.getString(_prefsKey);
       if (jsonStr != null) {
         final json = jsonDecode(jsonStr) as Map<String, dynamic>;
-        // [密钥安全] apiKey 优先从 secure storage 读取；legacy 明文一次性迁移
+        // apiKey is read from secure storage first; legacy plaintext is migrated once
         final legacyKey = json['apiKey'] as String?;
         String? secureKey;
         try {
@@ -45,7 +45,7 @@ class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
             await prefs.setString(_prefsKey, jsonEncode(json));
           }
         } catch (_) {
-          // secure storage 不可用（测试环境/无安全模块）→ 回退明文
+          // Secure storage unavailable (test env / no security module); fall back to plaintext
         }
         json['apiKey'] = secureKey ?? legacyKey;
         state = TTSSettings.fromJson(json);
@@ -60,14 +60,14 @@ class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final json = state.toJson();
-      // [密钥安全] apiKey 优先存 secure storage；失败则保留明文（测试环境兼容）
+      // apiKey prefers secure storage; on failure it stays plaintext (test env compatibility)
       final apiKey = json['apiKey'] as String?;
       if (apiKey != null && apiKey.isNotEmpty) {
         try {
           await _secure.write(key: _secureKeyApiKey, value: apiKey);
-          json.remove('apiKey'); // secure 可用 → prefs 不存 key
+          json.remove('apiKey'); // secure available, so prefs do not keep the key
         } catch (_) {
-          // secure 不可用 → 保留明文在 prefs（兼容测试环境）
+          // Secure unavailable; keep plaintext in prefs (test env compatibility)
         }
       }
       await prefs.setString(_prefsKey, jsonEncode(json));
@@ -84,9 +84,9 @@ class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
 
   void setProvider(TTSProvider provider) {
     state = state.copyWith(provider: provider);
-    _service.updateSettings(state);  // 立刻同步更新 service
-    _saveSettings();  // 异步保存到本地
-    _ref.invalidate(availableVoicesProvider);  // 刷新音色列表
+    _service.updateSettings(state);  // sync the service immediately
+    _saveSettings();  // persist asynchronously
+    _ref.invalidate(availableVoicesProvider);  // refresh the voice list
   }
   void setVoiceId(String? voiceId) {
     state = state.copyWith(voiceId: voiceId);
@@ -138,7 +138,7 @@ class TTSSettingsNotifier extends StateNotifier<TTSSettings> {
     _saveSettings();
   }
 
-  // ── 三音色 setter：正文/对话/旁白 ──
+  // -- Three voice setters: narration / dialogue / aside --
   void setNarrationVoice(VoiceStyle style) {
     state = state.copyWith(narrationVoice: style);
     _saveSettings();
@@ -262,7 +262,7 @@ final ttsSpeakingProvider = StateProvider<bool>((ref) => false);
 /// Provider for available voices
 final availableVoicesProvider = FutureProvider<List<TTSVoice>>((ref) async {
   final service = ref.watch(ttsServiceProvider);
-  ref.watch(ttsSettingsProvider); // 强制依赖 settings，切换供应商时重新查询
+  ref.watch(ttsSettingsProvider); // forces a dependency on settings so voices are re-queried when the provider changes
   await service.initialize();
   return service.availableVoices;
 });

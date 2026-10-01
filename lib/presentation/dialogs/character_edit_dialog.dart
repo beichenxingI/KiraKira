@@ -104,7 +104,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     _tags = List.from(c?.tags ?? []);
     _alternateGreetings = List.from(c?.alternateGreetings ?? []);
     _avatarPath = c?.assets?.avatarPath ?? c?.assets?.avatarUrl;
-    // 预解码头像：base64 data URI 只在 initState 解码一次，避免每次 build 同步解码数 MB 原图
+    // Pre-decode avatar: base64 data URIs are decoded once in initState to avoid decoding multi-MB images on every build
     if (_avatarPath?.startsWith('data:image') == true) {
       try {
         _decodedAvatarBytes = base64Decode(_avatarPath!.split(',').last);
@@ -238,12 +238,12 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
           : widget.character?.assets;
       
       if (_isEdit) {
-        // 保存前读取 DB 最新角色，避免覆盖会话期间的 extensions 变化（正则/置顶等）
+        // Re-read the latest character from the DB before saving to avoid overwriting extensions changes made during the session (regex, pinning, etc.)
         final repo = ref.read(characterRepositoryProvider);
         final latest = await repo.getCharacter(_characterId!);
         final base = latest ?? widget.character!;
 
-        // [Phase 1.2] 从 world_infos 表重建 characterBook（临时同步，Phase 2 完成后可删）
+        // Rebuild characterBook from the world_infos table (temporary sync; drop once the migration is complete)
         final wbRepo = ref.read(worldInfoRepositoryProvider);
         final liveBook = await assembleCharacterBookFromRepo(wbRepo, _characterId!);
         debugPrint('[Phase1.2] 重建 characterBook: ${liveBook?.entries.length ?? 0} 条');
@@ -261,17 +261,17 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
           alternateGreetings: _alternateGreetings,
           assets: assets,
           modifiedAt: now,
-          // [Bug1 根本修复] 明确保留所有未在编辑器中编辑的字段
+          // Explicitly preserve all fields not edited in the editor
           postHistoryInstructions: base.postHistoryInstructions,
           creator: base.creator,
           version: base.version,
-          characterBook: liveBook ?? base.characterBook, // [Phase 1.2] 用表组装的
-          extensions: base.extensions, // [Phase 2.5] 正则已独立表，不再触碰 extensions
+          characterBook: liveBook ?? base.characterBook, // assembled from the tables
+          extensions: base.extensions, // regex lives in its own table now; extensions untouched
           isFavorite: base.isFavorite,
           createdAt: base.createdAt,
         ));
         
-        // [临时调试] 验证数据库更新
+        // Temporary debug: verify the database update
         if (mounted) {
           debugPrint('═══ [数据库验证] 开始 ═══');
           final verifyChar = await repo.getCharacter(_characterId!);
@@ -284,7 +284,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
           }
           debugPrint('═══ [数据库验证] 结束 ═══\n');
           
-          // [Bug1 根本修复] 强制刷新角色列表缓存
+          // Force-refresh the character list cache
           debugPrint('[角色编辑] 强制刷新 characterListProvider');
           ref.invalidate(characterListProvider);
           await Future.delayed(const Duration(milliseconds: 100));
@@ -313,7 +313,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
         KiraToast.show(context, _isEdit ? '已保存' : '已创建',
             type: KiraToastType.success);
         
-        // [Bug1.1] 保存成功后，若当前聊天页持有的是本角色的快照，同步刷新
+        // After a successful save, refresh the snapshot if the current chat page holds this character's snapshot
         if (_isEdit) {
           debugPrint('═══ [角色编辑] 开始刷新快照 ═══');
           debugPrint('[角色编辑] _characterId = $_characterId');
@@ -347,7 +347,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
                   .updateCharacterSnapshot(updatedChar);
               debugPrint('[角色编辑] ✅ 快照刷新完成');
               
-              // 验证：读回快照确认
+              // Verify by reading the snapshot back
               final verifyChat = ref.read(activeChatProvider);
               debugPrint('[角色编辑] 验证 - 刷新后 description 长度: ${verifyChat.character?.description.length}');
             }
@@ -506,7 +506,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
               DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceMd, DesignTokens.spaceSm),
           child: Column(
             children: [
-              // 头像
+              // Avatar
               GestureDetector(
                 onTap: _pickAvatar,
                 child: Container(
@@ -564,8 +564,8 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
                 ),
               ),
               const SizedBox(height: DesignTokens.spaceSm),
-              // 编辑按钮（绝对定位在头像右下角）
-              // 角色名 + 渐变下划线
+              // Edit button (absolutely positioned at the avatar's bottom-right corner)
+              // Character name + gradient underline
               Column(
                 children: [
                   SizedBox(
@@ -601,7 +601,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
             ],
           ),
         ),
-        // 关闭按钮
+        // Close button
         Positioned(
           top: DesignTokens.spaceSm,
           right: DesignTokens.spaceSm,
@@ -639,7 +639,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     );
   }
 
-  // ── 标签卡片 ──
+  // Tags card
   Widget _buildTagsCard(bool isDark) {
     return KiraAccordionCard(
       title: '标签',
@@ -707,7 +707,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     );
   }
 
-  // ── 文本编辑卡片（描述/开场白/对话示例） ──
+  // Text editing card (description / greeting / dialogue examples)
   Widget _buildTextCard({
     required String key,
     required String title,
@@ -746,7 +746,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     );
   }
 
-  // ── 备选开场白卡片（嵌套折叠） ──
+  // Alternate greetings card (nested, collapsible)
   Widget _buildAlternateCard(bool isDark) {
     return KiraAccordionCard(
       title: '备选开场白',
@@ -824,7 +824,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     );
   }
 
-  // ── 更多设定卡片（性格/场景/系统提示/创作者注释） ──
+  // More settings card (personality / scenario / system prompt / creator notes)
   Widget _buildMoreCard(bool isDark) {
     final List<({String key, String title, IconData icon, String value,
       String placeholder, int? maxLength, String storeKey})> fields = [
@@ -890,7 +890,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     );
   }
 
-  // ── 世界书卡片 ──
+  // Worldbook card
   Widget _buildWorldBookCard(bool isDark) {
     final worldInfos = ref.watch(characterWorldInfosProvider(_characterId!));
     return KiraAccordionCard(
@@ -1038,7 +1038,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     );
   }
 
-  // ── 正则卡片 ──
+  // Regex card
   Widget _buildRegexCard(bool isDark) {
     final scripts = ref.watch(characterRegexScriptsProvider(_characterId!));
     return KiraAccordionCard(
@@ -1189,7 +1189,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     );
   }
 
-  // ── 删除操作（确认后移除） ──
+  // Delete action (removes after confirmation)
 
   Future<void> _deleteWorldBookEntry(WorldInfoEntry entry) async {
     final confirm = await showDialog<bool>(
@@ -1232,7 +1232,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     }
   }
 
-  // ── 导入/导出（含覆盖/合并选择） ──
+  // Import/export (with overwrite/merge choice)
 
   Future<void> _importWorldBook() async {
     final result = await FilePicker.platform.pickFiles(
@@ -1262,13 +1262,13 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
       for (final w in existing) ...w.entries
     ];
 
-    // 空目标直接导入
+    // Empty target: import directly
     if (existingEntries.isEmpty) {
       await _doWorldBookImport(parsedEntries, overwrite: false);
       return;
     }
 
-    // 已有数据 → 弹选择
+    // Existing data: show the choice dialog
     final overwrite = await showDialog<bool>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.5),
@@ -1297,7 +1297,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
       }
     }
 
-    // 找到或创建目标世界书
+    // Find or create the target worldbook
     final books = ref
             .read(characterWorldInfosProvider(_characterId!))
             .valueOrNull ??
@@ -1361,7 +1361,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     final date = DateTime.now().toIso8601String().split('T')[0];
     final fileName =
         'worldbook_${widget.character?.name ?? 'character'}_$date.json';
-    // [问题1] 统一导出交付:分享 / 保存到文件
+    // Unified export delivery: share / save to file
     await deliverExportFile(
       context: context,
       fileName: fileName,
@@ -1394,7 +1394,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
     final existing =
         ref.read(characterRegexScriptsProvider(_characterId!));
 
-    // 空目标直接导入
+    // Empty target: import directly
     if (existing.isEmpty) {
       final notifier = ref.read(
           characterRegexScriptsProvider(_characterId!).notifier);
@@ -1408,7 +1408,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
       return;
     }
 
-    // 已有数据 → 弹选择
+    // Existing data: show the choice dialog
     final overwrite = await showDialog<bool>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.5),
@@ -1465,7 +1465,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
         scripts.map((s) => s.toJson()).toList());
     final date = DateTime.now().toIso8601String().split('T')[0];
     final fileName = 'regex_${widget.character?.name ?? 'character'}_$date.json';
-    // [问题1] 统一导出交付:分享 / 保存到文件
+    // Unified export delivery: share / save to file
     await deliverExportFile(
       context: context,
       fileName: fileName,
@@ -1476,7 +1476,7 @@ class _CharacterEditDialogState extends ConsumerState<_CharacterEditDialog> {
   }
 }
 
-// ── 辅助组件 ──
+// Helper widgets
 
 class _MoreField extends StatelessWidget {
   final String title;
@@ -1624,7 +1624,7 @@ class _StyledConfirm extends StatelessWidget {
   }
 }
 
-/// 世界书条目行（点击编辑 + 删除按钮）
+/// Worldbook entry row (tap to edit + delete button)
 class _WorldBookEntryRow extends StatelessWidget {
   final WorldInfoEntry entry;
   final bool isDark;
@@ -1701,7 +1701,7 @@ class _WorldBookEntryRow extends StatelessWidget {
   }
 }
 
-/// 正则规则行（点击编辑 + 删除按钮）
+/// Regex rule row (tap to edit + delete button)
 class _RegexRuleRow extends StatelessWidget {
   final RegexScript script;
   final bool isDark;
@@ -1778,8 +1778,8 @@ class _RegexRuleRow extends StatelessWidget {
 }
 
 
-/// 导入模式选择浮窗（覆盖 / 合并 / 取消）
-/// 返回 true=覆盖, false=合并, null=取消
+/// Import mode selection dialog (overwrite / merge / cancel)
+/// Returns true = overwrite, false = merge, null = cancel
 class _ImportModeDialog extends StatelessWidget {
   final int existingCount;
   final int newCount;

@@ -8,13 +8,14 @@ import 'package:path_provider/path_provider.dart';
 
 import 'tts_backend.dart';
 
-/// 百度 TTS 后端。
+/// Baidu TTS backend.
 ///
-/// access_token 两步认证：AK/SK → oauth/2.0/token（约 30 天，缓存+续期）
-/// 短文本合成：POST tsn.baidu.com/text2audio（表单参数，返回 mp3 二进制）
+/// Two-step access_token auth: AK/SK exchanged at oauth/2.0/token
+/// (valid ~30 days, cached with renewal). Short-text synthesis POSTs to
+/// tsn.baidu.com/text2audio (form parameters, returns mp3 binary).
 class BaiduTtsBackend implements TtsBackend {
-  final String? apiKey;    // 百度 AK（client_id）
-  final String? secretKey; // 百度 SK（client_secret）
+  final String? apiKey;    // Baidu AK (client_id)
+  final String? secretKey; // Baidu SK (client_secret)
 
   static const _tokenUrl = 'https://aip.baidubce.com/oauth/2.0/token';
   static const _ttsUrl = 'https://tsn.baidu.com/text2audio';
@@ -25,7 +26,7 @@ class BaiduTtsBackend implements TtsBackend {
   String? _accessToken;
   DateTime? _tokenExpiresAt;
 
-  // 百度发音人 per 值（节选常用）
+  // Baidu speaker per values (common subset)
   static const _voices = <Map<String, String>>[
     {'value': '0', 'label': '度小美·标准女'},
     {'value': '1', 'label': '度小宇·活泼男'},
@@ -51,7 +52,7 @@ class BaiduTtsBackend implements TtsBackend {
     await ensureAccessToken();
   }
 
-  /// access_token 两步认证：AK/SK 换 token，缓存至过期前 1 天
+  /// Two-step access_token auth: AK/SK exchanged for a token, cached until 1 day before expiry
   Future<void> ensureAccessToken() async {
     if (_accessToken != null &&
         _tokenExpiresAt != null &&
@@ -78,7 +79,7 @@ class BaiduTtsBackend implements TtsBackend {
     debugPrint('[BaiduTTS] access_token 已获取（${expiresIn}s 有效）');
   }
 
-  /// 清除 token 缓存（401/503 时强制重新获取）
+  /// Clear the token cache (force re-fetch on 401/503)
   void invalidateToken() {
     _accessToken = null;
     _tokenExpiresAt = null;
@@ -108,8 +109,8 @@ class BaiduTtsBackend implements TtsBackend {
         'tok': token,
         'tex': text,
         'per': (voiceId != null && voiceId.isNotEmpty) ? voiceId : '0',
-        'spd': ((rate - 1.0) * 5 + 5).round().clamp(0, 15), // 语速 0-15，5=正常
-        'pit': ((pitch - 1.0) * 5 + 5).round().clamp(0, 15), // 音调 0-15，5=正常
+        'spd': ((rate - 1.0) * 5 + 5).round().clamp(0, 15), // speed 0-15, 5=normal
+        'pit': ((pitch - 1.0) * 5 + 5).round().clamp(0, 15), // pitch 0-15, 5=normal
         'vol': (volume * 15).round().clamp(0, 15),
         'aue': 3, // 3=mp3-16k
         'ctp': 1,
@@ -119,7 +120,7 @@ class BaiduTtsBackend implements TtsBackend {
 
     final bytes = response.data ?? <int>[];
     final contentType = response.headers.value('content-type') ?? '';
-    // 百度错误时返回 JSON（content-type application/json），成功返回音频
+    // Baidu errors return JSON (content-type application/json); success returns audio
     if (contentType.contains('json') || contentType.contains('text')) {
       final body = String.fromCharCodes(bytes);
       throw Exception('百度 TTS 错误: $body');
@@ -128,7 +129,7 @@ class BaiduTtsBackend implements TtsBackend {
       throw Exception('百度 TTS 返回空音频');
     }
 
-    // mp3 → 临时文件 → just_audio 播放
+    // mp3 to a temp file, then played back with just_audio
     final tmpDir = await getTemporaryDirectory();
     final mp3Path = p.join(
         tmpDir.path, 'tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
@@ -142,7 +143,7 @@ class BaiduTtsBackend implements TtsBackend {
     File(mp3Path).delete().catchError((_) => File(mp3Path));
   }
 
-  /// 解析百度错误为用户友好提示
+  /// Map Baidu errors to user-friendly messages
   static String friendlyError(Object error) {
     final msg = error.toString();
     if (msg.contains('"err_no":503') || msg.contains('503')) {

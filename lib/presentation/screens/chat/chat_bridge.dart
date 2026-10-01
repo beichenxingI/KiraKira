@@ -1,200 +1,199 @@
-// ─────────────────────────────────────────────────────────────────────────
-//  KiraKira · Chat Bridge  (WebView ↔ Flutter 统一通信总线)
-// ─────────────────────────────────────────────────────────────────────────
+// KiraKira · Chat Bridge — unified WebView <-> Flutter communication bus.
 //
-//  你好，路过的开发者 👋
+// What this bridge does:
 //
-//  我是北辰星（NorthStar），KiraKira 的作者。这是一个基于 NativeTavern
-//  衍生、向 SillyTavern 看齐的开源 AI 角色扮演客户端。我做它，是想让手机上
-//  跑重前端角色卡这件事，能够真正地流畅、优雅，而不是卡成幻灯片。
+//   The chat message area is one full-screen WebView (single rendering engine
+//   architecture). Flutter is the shell and brain; the WebView is the rendering
+//   stage. All cooperation between the two — link taps, scroll syncing,
+//   streaming token appends, message add/remove — goes through this single
+//   bridge. Ad-hoc wiring elsewhere is forbidden.
 //
-//  我的设计理念很简单：把复杂留给架构，把顺手留给用户和后来的开发者。
-//  如果你正在读这段注释，说明你也在乎这份代码的长期健康 —— 谢谢你，
-//  欢迎一起把它做得更好。开源的魅力，就在于此。
+//   Iron rule: every cross-boundary message must go through ChatBridge. Do not
+//   call evaluateJavascript or open private callHandlers elsewhere. Adding an
+//   interaction means adding a case to the routing table, not a new one-off line.
 //
-// ─────────────────────────────────────────────────────────────────────────
-//  这座桥是干什么的
-// ─────────────────────────────────────────────────────────────────────────
+// Four long-standing rules (the stable foundation; do not dismantle them):
 //
-//  聊天消息区是一整个全屏 WebView（单渲染引擎架构）。Flutter 是外壳与大脑，
-//  WebView 是渲染舞台。两者之间的一切协作 —— 点链接、滚动联动、流式追加
-//  token、消息增删 —— 全部只走这一座桥，绝不允许零散地各接各的。
+//   1. Unified protocol format
+//      Every message is { type, payload, id }.
+//      - type   : string; selects the handler (see _BridgeType).
+//      - payload: Map; the data, whose format each type defines itself.
+//      - id     : optional; pairs request with response (only calls that need
+//                 a return value carry it).
 //
-//  ⚠️ 铁律：任何跨端通信都必须走 ChatBridge，禁止在别处直接
-//     evaluateJavascript / 私开 callHandler。散装接法是屎山的起点。
-//     新增交互 = 往路由表里加一个 case，而不是新拉一条线。
+//   2. Ready handshake + send queue (prevents dropped messages)
+//      The WebView sends a 'ready' handshake when loading completes. Any
+//      outbound command issued before the handshake is cached in the _outbox
+//      queue and flushed in one pass afterwards. This eliminates the most
+//      common intermittent bug of this architecture: commands sent before the
+//      page is ready being dropped on the floor.
 //
-// ─────────────────────────────────────────────────────────────────────────
-//  四条立在前面的规矩（长期稳定的地基，别拆）
-// ─────────────────────────────────────────────────────────────────────────
+//   3. Unified exception fallback (fault isolation)
+//      All inbound messages are wrapped in one try-catch at the entry point. A
+//      handler that throws disables only that one interaction; it cannot take
+//      down the bridge or blank the screen.
 //
-//  1. 统一协议格式
-//     每条消息都是 { type, payload, id }。
-//     - type   : 字符串，决定路由到哪个处理器（见 _BridgeType）。
-//     - payload: Map，具体数据，格式由各 type 自行约定。
-//     - id     : 可选，用于请求-响应配对（需要回值的调用才带）。
-//
-//  2. 就绪握手 + 发送队列（防丢消息）
-//     WebView 加载完会发 'ready' 握手。握手前 Flutter 要发的指令一律先
-//     进 _outbox 队列缓存，握手后一次性冲刷。这样解决"页面还没好就发指令
-//     导致消息掉地上"这个此类架构最常见的偶发 bug。
-//
-//  3. 统一异常兜底（故障隔离）
-//     所有入站消息在总入口统一 try-catch。单个 handler 抛异常只会让那一个
-//     交互失效，不会拖垮整座桥、更不会白屏。
-//
-//  4. 高频事件节流
-//     滚动等高频回传必须在 WebView 侧先节流再发，别让总线当洪峰搬运工。
-//     Flutter 侧这里也对可选的高频 type 做二次防抖兜底。
-//
-// ─────────────────────────────────────────────────────────────────────────
+//   4. High-frequency event throttling
+//      High-frequency reports such as scroll must be throttled on the WebView
+//      side before sending; the bus must not carry flood-peak traffic. The
+//      Flutter side also applies a debounce fallback for opt-in high-frequency
+//      types.
 
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-/// 总线上所有消息的类型。新增交互先在这里登记一个常量，
-/// 让路由表有据可查，避免裸字符串散落各处。
+/// All message types on the bus. Register a constant here first for any new
+/// interaction so the routing table has a single source of truth and raw
+/// strings do not scatter across the codebase.
 class BridgeType {
   BridgeType._();
 
-  // WebView → Flutter（入站）
-  static const String ready = 'ready'; // 握手：WebView 准备就绪
-  static const String linkTap = 'linkTap'; // 点击外部链接
-  static const String scroll = 'scroll'; // 滚动位置回传（高频）
-  static const String cardHeight = 'cardHeight'; // iframe 卡片高度上报
-  static const String log = 'log'; // WebView 侧调试日志
-  static const String action = 'action'; // 气泡操作按钮点击
-  static const String dialogResult = 'dialogResult'; // WebView回传: HTML弹窗结果(callbackId配对)
-  static const String modelSelected = 'modelSelected'; // WebView回传:用户选中的模型
-  static const String switchConfig = 'switchConfig'; // WebView回传:切换API方案
-  static const String panelAction = 'panelAction'; // WebView回传:功能面板按钮点击
+  // WebView -> Flutter (inbound)
+  static const String ready = 'ready'; // handshake: WebView is ready
+  static const String linkTap = 'linkTap'; // external link tapped
+  static const String scroll = 'scroll'; // scroll position report (high frequency)
+  static const String cardHeight = 'cardHeight'; // iframe card height report
+  static const String log = 'log'; // WebView-side debug log
+  static const String action = 'action'; // message bubble action button tapped
+  static const String dialogResult = 'dialogResult'; // WebView -> Flutter: HTML dialog result (paired by callbackId)
+  static const String modelSelected = 'modelSelected'; // WebView -> Flutter: model selected by the user
+  static const String switchConfig = 'switchConfig'; // WebView -> Flutter: API scheme switched
+  static const String panelAction = 'panelAction'; // WebView -> Flutter: function panel button tapped
 
-  // Flutter → WebView（出站，对应 JS 侧 dispatch 的 handler 名）
+  // Flutter -> WebView (outbound; corresponds to the handler names dispatched on the JS side)
   static const String setMessages = 'setMessages';
   static const String appendMessage = 'appendMessage';
   static const String appendToken = 'appendToken';
   static const String updateMessage = 'updateMessage';
   static const String removeMessage = 'removeMessage';
-  static const String scrollToFloor = 'scrollToFloor'; // 跳转到指定楼层
-  static const String scrollToBottom = 'scrollToBottom'; // 滚到最新消息(JS 侧 handler,亦供回底按钮备用)
-  static const String keyboardInsets = 'keyboardInsets'; // 键盘显隐推送:JS 给 body 加/撤底部padding,让被键盘遮住的最新消息可滚出
-  static const String topBarInsets = 'topBarInsets'; // 顶栏显隐推送:JS 改 body padding-top,把顶栏那条空间让给消息区(不resize平台视图)
-  // [弹窗] HTML弹窗体系:弹窗与消息同在 WebView 内渲染,无 Flutter 图层叠加 HC 合成开销
-  static const String showConfirm = 'showConfirm'; // Dart→JS: HTML确认框
-  static const String showPrompt = 'showPrompt'; // Dart→JS: HTML输入弹窗
-  static const String showBottomSheet = 'showBottomSheet'; // Dart→JS: HTML底部选择框
-  static const String setImage = 'setImage'; // 单独推送图片base64，避免撑爆setMessages
-  static const String setMessageTranslation = 'setMessageTranslation'; // 推送消息翻译结果(显示在气泡下方浅色小字)
-  static const String setGenerating = 'setGenerating'; // 插入"生成中"占位(请求比例)
-  static const String clearGenerating = 'clearGenerating'; // 移除"生成中"占位
-  static const String setGenerateProgress = 'setGenerateProgress'; // 更新占位符进度
-  static const String showModelSheet = 'showModelSheet'; // 弹出模型选择HTML层(带模型数据)
-  static const String hideModelSheet = 'hideModelSheet'; // 关闭模型选择HTML层
-  static const String openFunctionPanel = 'openFunctionPanel'; // 打开功能面板(带上下文数据)
-  static const String closeFunctionPanel = 'closeFunctionPanel'; // 关闭功能面板
-  static const String panelClosed = 'panelClosed'; // WebView回传:面板已关闭(同步状态)
-  // 世界书 API（入站请求-响应）
+  static const String scrollToFloor = 'scrollToFloor'; // jump to a given floor
+  static const String scrollToBottom = 'scrollToBottom'; // scroll to latest message (JS-side handler, also used as fallback for the scroll-to-bottom button)
+  static const String keyboardInsets = 'keyboardInsets'; // keyboard visibility push: JS adds/removes bottom padding on body so the latest message hidden by the keyboard can scroll into view
+  static const String topBarInsets = 'topBarInsets'; // top bar visibility push: JS adjusts body padding-top to give the top bar's strip of space to the message area (without resizing the platform view)
+  // HTML dialog system: dialogs render inside the WebView together with messages,
+  // avoiding the hardware composer overhead of stacking Flutter layers
+  static const String showConfirm = 'showConfirm'; // Dart->JS: HTML confirm dialog
+  static const String showPrompt = 'showPrompt'; // Dart->JS: HTML input dialog
+  static const String showBottomSheet = 'showBottomSheet'; // Dart->JS: HTML bottom selection sheet
+  static const String setImage = 'setImage'; // push image base64 separately to keep setMessages payloads small
+  static const String setMessageTranslation = 'setMessageTranslation'; // push a message translation (rendered as light small text below the bubble)
+  static const String setGenerating = 'setGenerating'; // insert a "generating" placeholder (per request)
+  static const String clearGenerating = 'clearGenerating'; // remove the "generating" placeholder
+  static const String setGenerateProgress = 'setGenerateProgress'; // update placeholder progress
+  static const String showModelSheet = 'showModelSheet'; // open the model selection HTML layer (with model data)
+  static const String hideModelSheet = 'hideModelSheet'; // close the model selection HTML layer
+  static const String openFunctionPanel = 'openFunctionPanel'; // open the function panel (with context data)
+  static const String closeFunctionPanel = 'closeFunctionPanel'; // close the function panel
+  static const String panelClosed = 'panelClosed'; // WebView -> Flutter: panel closed (state sync)
+  // Worldbook API (inbound request-response)
   static const String wiGetLorebooks = 'th_wiGetLorebooks';
   static const String wiGetEntries = 'th_wiGetEntries';
   static const String wiSetEntries = 'th_wiSetEntries';
   static const String wiCreateEntries = 'th_wiCreateEntries';
   static const String wiDeleteEntries = 'th_wiDeleteEntries';
   static const String wiGetCharLorebooks = 'th_wiGetCharLorebooks';
-  static const String response = 'th_response'; // 请求-响应回传（带 id 配对）
+  static const String response = 'th_response'; // request-response reply (paired by id)
 
-  // [P3-K2] 提示词管理（入站请求-响应）
-  static const String pmGetSections = 'th_pmGetSections';       // 读取当前 sections 列表
-  static const String pmToggleSection = 'th_pmToggleSection';   // 切换某 section 开关
-  // [P3-K2] 提示词管理（出站推送：Dart → JS）
-  static const String pmSectionsChanged = 'pmSectionsChanged';  // sections 列表变化时推给球
-  // [P5-8/P1] MVU extensionSettings 持久化(道渊/MVU 面板写回落盘)
+  // Prompt management (inbound request-response)
+  static const String pmGetSections = 'th_pmGetSections';       // read the current section list
+  static const String pmToggleSection = 'th_pmToggleSection';   // toggle a section on/off
+  // Prompt management (outbound push: Dart -> JS)
+  static const String pmSectionsChanged = 'pmSectionsChanged';  // pushed to the frontend when the section list changes
+  // MVU extensionSettings persistence (Daoyuan/MVU panel write-back to disk)
   static const String saveExtensionSettings = 'th_saveExtensionSettings';
-  // [P5-9/P1] 预设管理 API(狐神读写预设:getPreset/updatePresetWith 等)
+  // Preset management API (Hushen preset read/write: getPreset/updatePresetWith etc.)
   static const String getPresetNames = 'th_getPresetNames';
   static const String getPreset = 'th_getPreset';
   static const String setPreset = 'th_setPreset';
   static const String getLoadedPresetName = 'th_getLoadedPresetName';
-  // [P5-9/P1] 生成控制(狐神自动推进/停止)
+  // Generation control (Hushen auto-advance/stop)
   static const String generate = 'th_generate';
   static const String stopGeneration = 'th_stopGeneration';
 
-  // [浮窗化] 设置面板（Dart→JS 出站 + JS→Dart 入站）
-  static const String openSettingsPanel = 'openSettingsPanel';    // Dart→JS: 打开设置面板(带panel名+标题+初始数据)
-  static const String closeSettingsPanel = 'closeSettingsPanel';   // Dart→JS: 关闭设置面板
-  static const String settingsPanelAction = 'settingsPanelAction'; // JS→Dart: 面板内操作(保存/切换/选择/删除等)
-  static const String settingsPanelClosed = 'settingsPanelClosed'; // JS→Dart: 面板已关闭(同步状态)
-  static const String settingsPanelData = 'settingsPanelData';     // Dart→JS: 推送更新后的数据(如异步操作完成)
+  // Settings panel, rendered as a dialog (Dart->JS outbound + JS->Dart inbound)
+  static const String openSettingsPanel = 'openSettingsPanel';    // Dart->JS: open the settings panel (with panel name + title + initial data)
+  static const String closeSettingsPanel = 'closeSettingsPanel';   // Dart->JS: close the settings panel
+  static const String settingsPanelAction = 'settingsPanelAction'; // JS->Dart: in-panel action (save/toggle/select/delete etc.)
+  static const String settingsPanelClosed = 'settingsPanelClosed'; // JS->Dart: panel closed (state sync)
+  static const String settingsPanelData = 'settingsPanelData';     // Dart->JS: push updated data (e.g. after an async operation completes)
 
-  // [聊天页大改] 布局变量注入 + 动态岛通知 + 输入栏 + STT 桥接(全走 ChatBridge)
-  static const String layoutVars = 'layoutVars';       // Dart→JS: 注入 --keyboard-height / --status-bar-height / --nav-bar-height / --app-viewport-height / --safe-area-* 等 CSS 变量
-  static const String showToast = 'showToast';         // Dart→JS: 触发底部动态岛通知(icon+text)
-  static const String inputBarState = 'inputBarState'; // Dart→JS: 推送输入栏状态(generating/hasInput/attachments/sttEnabled 等),供 WebView 渲染按钮态
-  static const String sttResult = 'sttResult';         // Dart→JS: 推送 STT 识别结果(text),WebView 填入 textarea
-  static const String sendResult = 'sendResult';       // Dart→JS: 推送发送结果(成功/失败+原因),WebView 显示 toast
-  // JS→Dart 入站
-  static const String inputSend = 'inputSend';         // JS→Dart: WebView 输入栏点了发送(payload.text)
-  static const String inputStop = 'inputStop';         // JS→Dart: WebView 输入栏点了停止
-  static const String inputUpload = 'inputUpload';     // JS→Dart: WebView 点了图片上传按钮
-  static const String inputFunc = 'inputFunc';         // JS→Dart: WebView 点了功能菜单按钮
-  static const String openSessionImages = 'openSessionImages'; // JS→Dart: WebView 请求打开会话图片页
-  static const String sttStart = 'sttStart';           // JS→Dart: WebView 长按触发 STT 开始
-  static const String sttStop = 'sttStop';             // JS→Dart: WebView 松开触发 STT 停止
-  static const String inputRemoveAttachment = 'inputRemoveAttachment'; // JS→Dart: WebView 输入栏移除待发图片(index)
+  // Layout variable injection + dynamic island notifications + input bar + STT bridging (all over ChatBridge)
+  static const String layoutVars = 'layoutVars';       // Dart->JS: injects --keyboard-height / --status-bar-height / --nav-bar-height / --app-viewport-height / --safe-area-* CSS variables
+  static const String showToast = 'showToast';         // Dart->JS: triggers bottom dynamic island notification (icon+text)
+  static const String inputBarState = 'inputBarState'; // Dart->JS: pushes input bar state (generating/hasInput/attachments/sttEnabled etc.) for the WebView to render button states
+  static const String sttResult = 'sttResult';         // Dart->JS: pushes STT recognition result (text) for the WebView to fill into the textarea
+  static const String sendResult = 'sendResult';       // Dart->JS: pushes send result (success/failure + reason); WebView shows a toast
+  // JS->Dart inbound
+  static const String inputSend = 'inputSend';         // JS->Dart: send button tapped in the WebView input bar (payload.text)
+  static const String inputStop = 'inputStop';         // JS->Dart: stop button tapped in the WebView input bar
+  static const String inputUpload = 'inputUpload';     // JS->Dart: image upload button tapped in the WebView
+  static const String inputFunc = 'inputFunc';         // JS->Dart: function menu button tapped in the WebView
+  static const String openSessionImages = 'openSessionImages'; // JS->Dart: WebView requests opening the session images page
+  static const String sttStart = 'sttStart';           // JS->Dart: long press in the WebView starts STT
+  static const String sttStop = 'sttStop';             // JS->Dart: release in the WebView stops STT
+  static const String inputRemoveAttachment = 'inputRemoveAttachment'; // JS->Dart: WebView input bar removes a pending image attachment (index)
 }
 
 
-/// 单条入站消息的处理器签名。
+/// Handler signature for a single inbound message.
 typedef BridgeHandler = void Function(Map<String, dynamic> payload);
-/// 带返回值的请求处理器签名。返回 Future，桥用同一 id 把结果回传 WebView。
+/// Request handler signature with a return value. Returns a Future; the bridge
+/// sends the result back to the WebView under the same id.
 typedef BridgeRequestHandler = Future<dynamic> Function(
     Map<String, dynamic> payload);
 
-/// WebView ↔ Flutter 的统一通信总线。
+/// Unified WebView <-> Flutter communication bus.
 ///
-/// 用法：
+/// Usage:
 ///   final bridge = ChatBridge(onLog: (m) => debugPrint('[bridge] $m'));
 ///   bridge.on(BridgeType.linkTap, (p) => launchUrl(p['url']));
-///   // 在 InAppWebView 的 onWebViewCreated 里：
+///   // inside InAppWebView's onWebViewCreated:
 ///   bridge.attach(controller);
-///   // 发送（握手前会自动排队）：
+///   // send (automatically queued before the handshake):
 ///   bridge.send(BridgeType.setMessages, {'data': b64});
 class ChatBridge {
   ChatBridge({this.onLog});
 
-  /// 可选日志回调。总入口的全局可观测性就靠它 —— 排查线上问题时，
-  /// 所有跨端通信在这里一览无余。
+  /// Optional log callback. It is the entry point's global observability:
+  /// all cross-boundary traffic is visible here when diagnosing production
+  /// issues.
   final void Function(String message)? onLog;
 
   InAppWebViewController? _controller;
   bool _ready = false;
 
-  /// 发送队列：握手完成前的出站指令都先存这里，防丢消息（规矩 2）。
+  /// Send queue: outbound commands issued before the handshake completes are
+  /// stored here to prevent message loss (rule 2).
   final List<_OutboundMessage> _outbox = [];
 
-  /// 入站路由表：type -> handler（规矩 1、3 的落点）。
+  /// Inbound routing table: type -> handler (where rules 1 and 3 land).
   final Map<String, BridgeHandler> _handlers = {};
-  /// 请求-响应路由表：type -> 带返回值的 handler（激活协议里预留的 id 位）。
+  /// Request-response routing table: type -> handler with a return value
+  /// (activates the id slot reserved by the protocol).
   final Map<String, BridgeRequestHandler> _requestHandlers = {};
 
-  /// 高频 type 的防抖兜底计时器（规矩 4）。
+  /// Debounce fallback timers for high-frequency types (rule 4).
   final Map<String, Timer> _throttleTimers = {};
 
-  /// 注册一个入站消息处理器。同一 type 重复注册会覆盖，便于热替换逻辑。
+  /// Registers an inbound message handler. Re-registering the same type
+  /// overwrites the previous one, allowing hot replacement of logic.
   void on(String type, BridgeHandler handler) {
     _handlers[type] = handler;
   }
-  /// 注册一个"请求-响应"式处理器。与 on 并存，用于需要回值的调用
-  /// （如 getChatMessages / getVariables）。handler 返回的结果会用
-  /// 同一 id 回传给 WebView 侧等待的 Promise。
+  /// Registers a request-response handler. Coexists with [on] for calls that
+  /// need a return value (e.g. getChatMessages / getVariables). The handler's
+  /// result is sent back to the waiting WebView Promise under the same id.
   void onRequest(String type, BridgeRequestHandler handler) {
     _requestHandlers[type] = handler;
   }
 
-  /// 把总线挂到 WebView 控制器上。在 onWebViewCreated 里调用一次。
+  /// Attaches the bus to the WebView controller. Call once in
+  /// onWebViewCreated.
   ///
-  /// WebView 侧只需通过 window.flutter_inappwebview.callHandler('bridge', msg)
-  /// 发送，msg 为 { type, payload, id } 的 JSON。
+  /// The WebView side only sends via
+  /// window.flutter_inappwebview.callHandler('bridge', msg), where msg is the
+  /// JSON of { type, payload, id }.
   void attach(InAppWebViewController controller) {
     _controller = controller;
     controller.addJavaScriptHandler(
@@ -203,7 +202,7 @@ class ChatBridge {
     );
   }
 
-  /// 入站总入口：统一解析 + 异常兜底（规矩 3）。
+  /// Single inbound entry point: unified parsing + exception fallback (rule 3).
   void _onInbound(List<dynamic> args) {
     try {
       if (args.isEmpty) return;
@@ -214,12 +213,13 @@ class ChatBridge {
       final String type = msg['type'] as String? ?? '';
       final Map<String, dynamic> payload =
           (msg['payload'] as Map?)?.cast<String, dynamic>() ?? {};
-      // id 兼容两种位置：顶层 msg['id']，或 payload 里的 __requestId
-      // （JS __sendRequest 把 id 塞进了 payload，这里一并认）
+      // id is accepted in either location: top-level msg['id'], or
+      // __requestId inside the payload (JS __sendRequest puts the id into the
+      // payload, so both are recognized here).
       final String? id =
           (msg['id'] as String?) ?? (payload['__requestId'] as String?);
 
-      // 握手：WebView 就绪，冲刷发送队列（规矩 2）。
+      // Handshake: the WebView is ready, flush the send queue (rule 2).
       if (type == BridgeType.ready) {
         _onReady();
         return;
@@ -227,7 +227,8 @@ class ChatBridge {
 
       onLog?.call('◀ inbound  $type  $payload  ${id ?? ""}');
 
-      // 带 id 且注册了请求处理器 → 走请求-响应路径，处理完回传结果。
+      // Has an id and a registered request handler -> take the
+      // request-response path and send the result back once handled.
       if (id != null) {
         final reqHandler = _requestHandlers[type];
         if (reqHandler != null) {
@@ -243,12 +244,13 @@ class ChatBridge {
       }
       handler(payload);
     } catch (e, st) {
-      // 单个消息出错不拖垮整座桥。
+      // A single failing message must not take down the whole bridge.
       onLog?.call('✖ inbound error: $e\n$st');
     }
   }
-  /// 执行请求处理器并把结果用同一 id 回传。异常也回传，避免 WebView 侧
-  /// 的 Promise 永久挂起（规矩 3 的延伸：请求也要有兜底）。
+  /// Runs the request handler and sends the result back under the same id.
+  /// Errors are sent back too, so the WebView-side Promise never hangs
+  /// permanently (rule 3 extended: requests need a fallback as well).
   Future<void> _handleRequest(
     String type,
     String id,
@@ -273,16 +275,18 @@ class ChatBridge {
       _dispatch(m.type, m.payload);
     }
   }
-  /// 保险丝：JS ready 信号丢失时（老 WebView 常见），外部超时强制放行。
-  /// 已 ready 则直接跳过，对正常机器零影响。
+  /// Fuse: when the JS ready signal is lost (common on old WebViews), an
+  /// external timeout force-flushes the queue. If already ready it is a
+  /// no-op, with zero impact on healthy pages.
   void markReadyIfMissing() {
-    if (_ready) return;              // 新机器早已 ready，直接跳过
-    if (_controller == null) return; // 控制器没就绪就不动
+    if (_ready) return;              // already ready, skip
+    if (_controller == null) return; // controller not ready, do nothing
     onLog?.call('⏰ ready 信号缺失，超时保险触发，强制放行队列');
-    _onReady();                      // 复用同一套握手完成逻辑
+    _onReady();                      // reuse the same handshake-complete logic
   }
 
-  /// 发送出站指令给 WebView。握手未完成则自动入队（规矩 2）。
+  /// Sends an outbound command to the WebView. Queued automatically until the
+  /// handshake completes (rule 2).
   void send(String type, Map<String, dynamic> payload) {
     if (!_ready || _controller == null) {
       _outbox.add(_OutboundMessage(type, payload));
@@ -296,13 +300,16 @@ class ChatBridge {
     try {
       onLog?.call('▶ outbound $type');
       var json = jsonEncode({'type': type, 'payload': payload});
-      // [P1-A3] U+2028/U+2029 在 ES2019 之前的 JS 字符串字面量里非法，
-      // 而 dart:convert 的 jsonEncode 默认不转义它们 → 旧 Android WebView 上整条注入 SyntaxError。
-      // 在最终注入字符串里把它们显式转义为 \u2028 / \u2029（纯防御，不改变协议与语义）。
+      // U+2028/U+2029 are illegal in JS string literals before ES2019, and
+      // dart:convert's jsonEncode does not escape them by default, so on old
+      // Android WebViews the whole injected line becomes a SyntaxError.
+      // Escape them explicitly as \u2028 / \u2029 in the final injected string
+      // (purely defensive; protocol and semantics unchanged).
       json = json
           .replaceAll('\u2028', r'\u2028')
           .replaceAll('\u2029', r'\u2029');
-      // WebView 侧实现一个全局 dispatch(jsonString) 做出站路由。
+      // The WebView side implements a global dispatch(jsonString) as the
+      // outbound router.
       _controller?.evaluateJavascript(
         source: 'window.__bridgeDispatch(${jsonEncode(json)});',
       );
@@ -311,14 +318,15 @@ class ChatBridge {
     }
   }
 
-  /// 高频事件的 Flutter 侧防抖兜底（规矩 4）。
-  /// 真正的削峰应在 WebView 侧先做，这里只是双保险。
+  /// Flutter-side debounce fallback for high-frequency events (rule 4).
+  /// Real peak-shaving belongs on the WebView side; this is only a
+  /// second line of defense.
   void throttle(String key, Duration window, void Function() action) {
     _throttleTimers[key]?.cancel();
     _throttleTimers[key] = Timer(window, action);
   }
 
-  /// 页面销毁时清理，防止 Timer 泄漏。
+  /// Cleans up on page teardown to prevent Timer leaks.
   void dispose() {
     for (final t in _throttleTimers.values) {
       t.cancel();

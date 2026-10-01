@@ -14,20 +14,22 @@ final chronicleRepositoryProvider = Provider<ChronicleRepository>((ref) {
   return ChronicleRepository(database);
 });
 
-/// Repository for Chronicle（超级记忆）数据访问。
+/// Repository for Chronicle (super memory) data access.
 ///
-/// 所有方法都在调用方 isolate（主isolate）执行 DB 读写——调整B：
-/// 后台isolate写DB会被OS杀，Chronicle全链路前台异步。
+/// All DB reads/writes run on the caller's isolate (the main isolate):
+/// background isolates writing to the DB get killed by the OS, so the
+/// entire Chronicle pipeline runs as a foreground async flow.
 class ChronicleRepository {
   final db.AppDatabase _db;
   static const _uuid = Uuid();
 
   ChronicleRepository(this._db);
 
-  // ═══════════════════ SummaryTasks ═══════════════════
+  // SummaryTasks
 
-  /// 入队一个总结任务（幂等：同聊天已有 pending/running 任务则跳过；
-  /// forceEnqueue=true时绕过幂等守卫，全量重总结场景用）
+  /// Enqueue a summary task (idempotent: skips if the chat already has a
+  /// pending/running task; forceEnqueue=true bypasses this guard, used for
+  /// full re-summarization)
   Future<bool> enqueueSummaryTask({
     required String chatId,
     required List<String> messageIds,
@@ -48,7 +50,7 @@ class ChronicleRepository {
     return true;
   }
 
-  /// 是否存在未完成任务（pending/running）
+  /// Whether an unfinished task (pending/running) exists for the chat
   Future<bool> hasActiveTaskForChat(String chatId) async {
     final rows = await (_db.select(_db.summaryTasks)
           ..where((t) =>
@@ -58,7 +60,7 @@ class ChronicleRepository {
     return rows.isNotEmpty;
   }
 
-  /// 获取指定聊天的失败任务数量（用于退避：超过maxRetries不再入队）
+  /// Number of failed tasks for a chat (for backoff: stop enqueueing after maxRetries)
   Future<int> getFailedTaskCountForChat(String chatId) async {
     final rows = await (_db.select(_db.summaryTasks)
           ..where((t) => t.chatId.equals(chatId) & t.status.equals('failed')))
@@ -66,7 +68,8 @@ class ChronicleRepository {
     return rows.length;
   }
 
-  /// 重置僵尸任务：app被杀后running状态永远卡住，启动时将超时任务重置为pending
+  /// Reset zombie tasks: running tasks stay stuck forever after the app is
+  /// killed, so timed-out tasks are reset to pending on startup
   Future<void> resetStuckRunningTasks() async {
     final cutoff = DateTime.now().subtract(const Duration(minutes: 10));
     await (_db.update(_db.summaryTasks)
@@ -74,7 +77,7 @@ class ChronicleRepository {
         .write(const db.SummaryTasksCompanion(status: Value('pending')));
   }
 
-  /// 取待处理任务（先进先出）
+  /// Get pending tasks (FIFO)
   Future<List<db.SummaryTask>> getPendingTasks({int limit = 1}) async {
     final query = (_db.select(_db.summaryTasks)
           ..where((t) => t.status.equals('pending'))
@@ -85,7 +88,7 @@ class ChronicleRepository {
     return query.get();
   }
 
-  /// 更新任务状态（含结果/错误信息）
+  /// Update task status (including result/error info)
   Future<void> updateTaskStatus(
     String id,
     String status, {
@@ -103,7 +106,7 @@ class ChronicleRepository {
     ));
   }
 
-  /// 某聊天的全部任务（Wiki管理面板用，时间倒序）
+  /// All tasks for a chat (for the Wiki management panel, newest first)
   Future<List<db.SummaryTask>> getTasksForChat(String chatId) async {
     final query = (_db.select(_db.summaryTasks)
           ..where((t) => t.chatId.equals(chatId))
@@ -113,40 +116,40 @@ class ChronicleRepository {
     return query.get();
   }
 
-  /// 删除任务记录（用户手动）
+  /// Delete a task record (manual, triggered by the user)
   Future<void> deleteTask(String id) async {
     await (_db.delete(_db.summaryTasks)..where((t) => t.id.equals(id))).go();
   }
 
-  /// 清除某聊天的所有failed任务（Wiki管理面板用）
+  /// Clear all failed tasks for a chat (for the Wiki management panel)
   Future<void> clearFailedTasksForChat(String chatId) async {
     await (_db.delete(_db.summaryTasks)
           ..where((t) => t.chatId.equals(chatId) & t.status.equals('failed')))
         .go();
   }
 
-  /// 删除某聊天所有任务记录（全量重总结用）
+  /// Delete all task records for a chat (used for full re-summarization)
   Future<void> clearTasksForChat(String chatId) async {
     await (_db.delete(_db.summaryTasks)
           ..where((t) => t.chatId.equals(chatId)))
         .go();
   }
 
-  /// 删除某聊天所有词条（全量重总结用）
+  /// Delete all entries for a chat (used for full re-summarization)
   Future<void> deleteAllEntriesForChat(String chatId) async {
     await (_db.delete(_db.memoryEntries)
           ..where((t) => t.chatId.equals(chatId)))
         .go();
   }
 
-  /// 清空归档状态（archivedMessageIds重置为空数组）
+  /// Clear archive state (resets archivedMessageIds to an empty array)
   Future<void> clearArchivedMessageIds(String chatId) async {
     await _saveState(chatId, archivedMessageIds: const <String>[]);
   }
 
-  // ═══════════════════ MemoryEntries ═══════════════════
+  // MemoryEntries
 
-  /// 插入或更新词条（按主键覆盖）
+  /// Insert or update an entry (overwrites by primary key)
   Future<void> upsertMemoryEntry(models.MemoryEntry entry) async {
     await _db.into(_db.memoryEntries).insertOnConflictUpdate(
           db.MemoryEntriesCompanion.insert(
@@ -171,7 +174,7 @@ class ChronicleRepository {
         );
   }
 
-  /// 是否已有词条（旧摘要迁移的一次性守卫）
+  /// Whether entries already exist (one-time guard for legacy summary migration)
   Future<bool> hasChronicleEntries(String chatId) async {
     final rows = await (_db.select(_db.memoryEntries)
           ..where((t) => t.chatId.equals(chatId))
@@ -180,7 +183,7 @@ class ChronicleRepository {
     return rows.isNotEmpty;
   }
 
-  /// 全部词条（Wiki管理界面/导出用）
+  /// All entries (for the Wiki management UI / export)
   Future<List<models.MemoryEntry>> getAllEntries(String chatId) async {
     final rows = await (_db.select(_db.memoryEntries)
           ..where((t) => t.chatId.equals(chatId))
@@ -192,7 +195,7 @@ class ChronicleRepository {
     return rows.map(_entryFromRow).toList();
   }
 
-  /// 固定层候选：alwaysInject 或 anchor 的未过时词条
+  /// Fixed-layer candidates: non-deprecated entries with alwaysInject or anchor
   Future<List<models.MemoryEntry>> getFixedLayerEntries(String chatId) async {
     final rows = await (_db.select(_db.memoryEntries)
           ..where((t) =>
@@ -207,7 +210,7 @@ class ChronicleRepository {
     return rows.map(_entryFromRow).toList();
   }
 
-  /// 高重要度事件（固定层补位/召回层候选）
+  /// High-importance entries (fixed-layer fill / recall-layer candidates)
   Future<List<models.MemoryEntry>> getImportantEntries(
     String chatId, {
     int minImportance = 8,
@@ -227,7 +230,7 @@ class ChronicleRepository {
     return rows.map(_entryFromRow).toList();
   }
 
-  /// 按id批量取
+  /// Fetch entries by IDs
   Future<List<models.MemoryEntry>> getEntriesByIds(
       String chatId, List<String> ids) async {
     if (ids.isEmpty) return [];
@@ -238,7 +241,7 @@ class ChronicleRepository {
     return rows.map(_entryFromRow).toList();
   }
 
-  /// 标记过时（保留历史，不删除）
+  /// Mark as deprecated (keeps history instead of deleting)
   Future<void> deprecateEntry(String id) async {
     await (_db.update(_db.memoryEntries)..where((t) => t.id.equals(id)))
         .write(db.MemoryEntriesCompanion(
@@ -247,12 +250,12 @@ class ChronicleRepository {
     ));
   }
 
-  /// 删除词条（用户手动）
+  /// Delete an entry (manual, triggered by the user)
   Future<void> deleteEntry(String id) async {
     await (_db.delete(_db.memoryEntries)..where((t) => t.id.equals(id))).go();
   }
 
-  /// 词条数（管理界面统计）
+  /// Entry count (management UI statistics)
   Future<int> countEntries(String chatId) async {
     final rows = await (_db.select(_db.memoryEntries)
           ..where((t) => t.chatId.equals(chatId)))
@@ -260,7 +263,7 @@ class ChronicleRepository {
     return rows.length;
   }
 
-  /// 全部聊天词条总数（工作原理页统计用）
+  /// Total entry count across all chats (for how-it-works page statistics)
   Future<int> countAllEntries() async {
     final rows = await (_db.select(_db.memoryEntries)).get();
     return rows.length;
@@ -288,11 +291,12 @@ class ChronicleRepository {
     );
   }
 
-  // ═══════════════════ ChronicleStates（窗口归档状态） ═══════════════════
-  // 注：ChronicleSettings 已改为全局配置（SharedPreferences，chronicle_providers.dart）。
-  // 本表只维护 archivedMessageIds 窗口状态；settingsJson 列保留但不再读写。
+  // ChronicleStates (window archive state)
+  // ChronicleSettings has moved to global config (SharedPreferences, chronicle_providers.dart).
+  // This table only maintains the archivedMessageIds window state; the settingsJson
+  // column is kept but no longer read or written.
 
-  /// 已归档消息id集合
+  /// Set of archived message IDs
   Future<Set<String>> getArchivedMessageIds(String chatId) async {
     final row = await (_db.select(_db.chronicleStates)
           ..where((t) => t.chatId.equals(chatId)))
@@ -301,7 +305,8 @@ class ChronicleRepository {
     return _parseStringList(row.archivedMessageIds).toSet();
   }
 
-  /// 批量标记归档（读-合并-写，主isolate单写者安全）
+  /// Mark messages as archived in batch (read-merge-write; safe because the
+  /// main isolate is the single writer)
   Future<void> markMessagesArchived(
       String chatId, Iterable<String> messageIds) async {
     if (messageIds.isEmpty) return;
@@ -313,7 +318,7 @@ class ChronicleRepository {
     );
   }
 
-  /// 取消归档（编辑/重生成场景可回滚）
+  /// Unarchive messages (rollback for edit/regenerate scenarios)
   Future<void> unarchiveMessages(String chatId, Iterable<String> messageIds) async {
     if (messageIds.isEmpty) return;
     final existing = await getArchivedMessageIds(chatId);
@@ -350,9 +355,9 @@ class ChronicleRepository {
     ));
   }
 
-  // ═══════════════════ MemoryEntities / Relationships / Emotions（Phase 2 Wiki） ═══════════════════
+  // MemoryEntities / Relationships / Emotions (Phase 2 Wiki)
 
-  /// 按名字找实体（name或alias命中）
+  /// Find an entity by name (matches name or alias)
   Future<models.MemoryEntity?> getEntityByName(
       String chatId, String name) async {
     if (name.isEmpty) return null;
@@ -360,7 +365,7 @@ class ChronicleRepository {
           ..where((t) => t.chatId.equals(chatId) & t.name.equals(name)))
         .get();
     if (rows.isNotEmpty) return _entityFromRow(rows.first);
-    // alias兜底
+    // Fall back to alias matching
     final all = await getAllEntities(chatId);
     for (final e in all) {
       if (e.aliases.contains(name)) return e;
@@ -368,7 +373,7 @@ class ChronicleRepository {
     return null;
   }
 
-  /// upsert实体
+  /// Upsert an entity
   Future<models.MemoryEntity> upsertEntity(models.MemoryEntity entity) async {
     await _db.into(_db.memoryEntities).insertOnConflictUpdate(
           db.MemoryEntitiesCompanion.insert(
@@ -387,7 +392,7 @@ class ChronicleRepository {
     return entity;
   }
 
-  /// 新建或按名更新实体，返回实体（含id）
+  /// Create an entity or update an existing one by name, returning the entity (with ID)
   Future<models.MemoryEntity> upsertEntityByName(
       String chatId, models.UpsertEntityInstruction inst) async {
     final existing = await getEntityByName(chatId, inst.name);
@@ -417,7 +422,7 @@ class ChronicleRepository {
     ));
   }
 
-  /// 全部实体
+  /// All entities
   Future<List<models.MemoryEntity>> getAllEntities(String chatId) async {
     final rows = await (_db.select(_db.memoryEntities)
           ..where((t) => t.chatId.equals(chatId))
@@ -429,7 +434,7 @@ class ChronicleRepository {
     return rows.map(_entityFromRow).toList();
   }
 
-  /// 主要实体（F-6固定层：人物优先，最近更新优先）
+  /// Main entities (F-6 fixed layer: persons first, then most recently updated)
   Future<List<models.MemoryEntity>> getMainEntities(String chatId,
       {int limit = 8}) async {
     final all = await getAllEntities(chatId);
@@ -438,7 +443,7 @@ class ChronicleRepository {
     return [...persons, ...others].take(limit).toList();
   }
 
-  /// 找关系（from+to+type）
+  /// Find a relationship (from + to + type)
   Future<models.MemoryRelationship?> findRelationship(
       String chatId, String fromId, String toId, String type) async {
     final rows = await (_db.select(_db.memoryRelationships)
@@ -451,7 +456,7 @@ class ChronicleRepository {
     return rows.isEmpty ? null : _relFromRow(rows.first);
   }
 
-  /// upsert关系（存在则更新strength/description）
+  /// Upsert a relationship (updates strength/description if it exists)
   Future<models.MemoryRelationship> upsertRelationship(
       String chatId, models.UpsertRelationshipInstruction inst,
       {required String fromEntityId, required String toEntityId}) async {
@@ -513,7 +518,7 @@ class ChronicleRepository {
     return rel;
   }
 
-  /// 全部关系（导出/管理用）
+  /// All relationships (for export / management)
   Future<List<models.MemoryRelationship>> getAllRelationships(
       String chatId) async {
     final rows = await (_db.select(_db.memoryRelationships)
@@ -522,7 +527,7 @@ class ChronicleRepository {
     return rows.map(_relFromRow).toList();
   }
 
-  /// 关键关系（F-6固定层：|strength|高的在前）
+  /// Key relationships (F-6 fixed layer: highest |strength| first)
   Future<List<models.MemoryRelationship>> getKeyRelationships(String chatId,
       {int limit = 6}) async {
     final all = await getAllRelationships(chatId);
@@ -530,7 +535,7 @@ class ChronicleRepository {
     return all.take(limit).toList();
   }
 
-  /// 找情感节点（entityId+emotion）
+  /// Find an emotion node (entityId + emotion)
   Future<models.EmotionNode?> findEmotion(
       String chatId, String entityId, String emotion) async {
     final rows = await (_db.select(_db.emotionNodes)
@@ -542,7 +547,7 @@ class ChronicleRepository {
     return rows.isEmpty ? null : _emotionFromRow(rows.first);
   }
 
-  /// upsert情感节点
+  /// Upsert an emotion node
   Future<models.EmotionNode> upsertEmotion(
       String chatId, models.UpsertEmotionInstruction inst,
       {required String entityId, int turnIndex = 0}) async {
@@ -577,7 +582,7 @@ class ChronicleRepository {
     return node;
   }
 
-  /// 活跃情感（F-6固定层）
+  /// Active emotions (F-6 fixed layer)
   Future<List<models.EmotionNode>> getActiveEmotions(String chatId,
       {int limit = 8}) async {
     final rows = await ((_db.select(_db.emotionNodes)
@@ -591,13 +596,13 @@ class ChronicleRepository {
     return rows.map(_emotionFromRow).toList();
   }
 
-  /// 活跃情感的实体id集合（召回加成用）
+  /// Entity IDs of active emotions (for recall boosting)
   Future<Set<String>> getActiveEmotionEntityIds(String chatId) async {
     final emotions = await getActiveEmotions(chatId, limit: 50);
     return emotions.map((e) => e.entityId).toSet();
   }
 
-  /// 全部情感（导出/管理用）
+  /// All emotions (for export / management)
   Future<List<models.EmotionNode>> getAllEmotions(String chatId) async {
     final rows = await (_db.select(_db.emotionNodes)
           ..where((t) => t.chatId.equals(chatId)))
@@ -605,18 +610,18 @@ class ChronicleRepository {
     return rows.map(_emotionFromRow).toList();
   }
 
-  /// 删除实体（管理界面）
+  /// Delete an entity (management UI)
   Future<void> deleteEntity(String id) async {
     await (_db.delete(_db.memoryEntities)..where((t) => t.id.equals(id))).go();
   }
 
-  /// 删除关系（管理界面）
+  /// Delete a relationship (management UI)
   Future<void> deleteRelationship(String id) async {
     await (_db.delete(_db.memoryRelationships)..where((t) => t.id.equals(id)))
         .go();
   }
 
-  /// 删除情感（管理界面）
+  /// Delete an emotion (management UI)
   Future<void> deleteEmotion(String id) async {
     await (_db.delete(_db.emotionNodes)..where((t) => t.id.equals(id))).go();
   }
@@ -676,9 +681,9 @@ class ChronicleRepository {
     );
   }
 
-  // ═══════════════════ 级联清理 ═══════════════════
+  // Cascade cleanup
 
-  /// 聊天删除时级联清理所有 Chronicle 数据
+  /// Cascade cleanup of all Chronicle data when a chat is deleted
   Future<void> deleteAllForChat(String chatId) async {
     await (_db.delete(_db.summaryTasks)..where((t) => t.chatId.equals(chatId)))
         .go();
@@ -696,7 +701,7 @@ class ChronicleRepository {
         .go();
   }
 
-  /// 按messageId集合取消息（任务消费时用；时间正序）
+  /// Fetch messages by a set of message IDs (used when consuming tasks; oldest first)
   Future<List<chat_models.ChatMessage>> getMessagesByIds(
       String chatId, List<String> ids) async {
     if (ids.isEmpty) return [];

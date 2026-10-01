@@ -2,18 +2,16 @@ import 'dart:convert';
 
 import 'package:kirakira/data/models/chat.dart' show ChatMessage;
 
-/// ═══════════════════════════════════════════════════════════
-/// [CHRONICLE] 超级记忆系统数据模型
-/// 蓝图：DiaoYan/UI_UX/SuperMemory_Architecture.md
-/// 调整A：归档锚点用 messageId 集合，不用 index 序号
-/// 调整E：token预算留安全裕度（估算±30%）
-/// ═══════════════════════════════════════════════════════════
+/// Chronicle super-memory system data models.
+///
+/// Archive anchors use messageId sets instead of index numbers.
+/// Token budget keeps a safety margin (estimates ±30%).
 
-/// 记忆词条类型
+/// Memory entry type
 enum MemoryEntryType {
-  event, // 事件：发生了什么
-  state, // 状态：当前情境/处境
-  knowledge; // 知识：世界观/设定事实
+  event, // Event: something that happened
+  state, // State: current situation
+  knowledge; // Knowledge: worldbook/setting facts
 
   static MemoryEntryType fromName(String? name) {
     return MemoryEntryType.values.firstWhere(
@@ -23,22 +21,22 @@ enum MemoryEntryType {
   }
 }
 
-/// Wiki词条（温层核心，对应 MemoryEntries 表）
+/// Wiki entry (warm zone core, maps to the MemoryEntries table)
 class MemoryEntry {
   final String id;
   final String chatId;
   final MemoryEntryType type;
   final String title;
-  final String content; // 50~120字精炼描述
+  final String content; // 50-120 character concise description
   final int importance; // 1-10
-  final bool alwaysInject; // 始终注入固定层
-  final bool anchor; // 锚点：永不丢弃
-  final bool neverEvict; // 驱逐保护
-  final List<String> tags; // 关键词（混合检索用）
-  final List<String> entityIds; // 关联实体
-  final List<String> sourceMessageIds; // 来源消息（调整A）
-  final int turnIndex; // 来源轮次（时间衰减用）
-  final bool deprecated; // 过时标记（不删除，保留历史）
+  final bool alwaysInject; // Always inject into the fixed layer
+  final bool anchor; // Anchor: never discarded
+  final bool neverEvict; // Eviction protection
+  final List<String> tags; // Keywords for hybrid retrieval
+  final List<String> entityIds; // Linked entities
+  final List<String> sourceMessageIds; // Source messages
+  final int turnIndex; // Source turn (for time decay)
+  final bool deprecated; // Deprecated flag (kept for history, not deleted)
   final String? vectorId; // VectorDocument.id
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -107,7 +105,7 @@ class MemoryEntry {
             : DateTime.now(),
       );
 
-  /// 供向量化的文本
+  /// Text used for vectorization
   String get vectorText => '$title\n$content\n${tags.join(' ')}';
 
   MemoryEntry copyWith({
@@ -151,7 +149,7 @@ class MemoryEntry {
   }
 }
 
-/// 实体（人物/地点/物品/概念）
+/// Entity (person/place/item/concept)
 enum MemoryEntityType { person, place, item, concept }
 
 class MemoryEntity {
@@ -240,7 +238,7 @@ class MemoryEntity {
   }
 }
 
-/// 关系（实体间）
+/// Relationship between entities
 class MemoryRelationship {
   final String id;
   final String chatId;
@@ -294,7 +292,7 @@ class MemoryRelationship {
       );
 }
 
-/// 情感节点（roleplay专用）
+/// Emotion node (roleplay-specific)
 class EmotionNode {
   final String id;
   final String chatId;
@@ -351,7 +349,7 @@ class EmotionNode {
       );
 }
 
-/// 总结任务状态
+/// Summary task status
 enum SummaryTaskStatus {
   pending,
   running,
@@ -366,24 +364,24 @@ enum SummaryTaskStatus {
   }
 }
 
-/// Chronicle 用户配置（全局运行参数，SharedPreferences持久化）
+/// Chronicle user settings (global run parameters, persisted in SharedPreferences)
 class ChronicleSettings {
-  final bool enabled; // 总开关
-  final int summaryInterval; // 轮次触发阈值 10-40
-  final String summaryModel; // 空=沿用主模型（旧字段，保留向后兼容）
-  final String summaryBaseUrl; // Chronicle专属总结模型BaseURL，空=沿用主模型
-  final String summaryApiKey; // Chronicle专属总结模型APIKey，空=沿用主模型
-  final String summaryModelName; // Chronicle专属总结模型名，空=沿用主模型
-  final double summaryTemperature; // 默认0.2
-  final double tokenPressureThreshold; // token压力触发占比 0.4-0.8
-  final int hotWindowSize; // 热区窗口 10-40
-  final int ragTopK; // 召回数量 3-10
-  final String customPromptSuffix; // 用户自定义追加指令
-  final String matureContentSuffix; // 成人内容补充指令（独立字段，可单独开关）
-  final bool emotionRecallEnabled; // 情感召回加成
-  final bool mvuBridgeEnabled; // MVU阈值桥接
-  final int maxRetries; // 失败任务最大重试次数（超限停止入队，等待用户干预）
-  final int summaryPasses; // 总结分段数（1-5），提升长对话提炼质量
+  final bool enabled; // Master switch
+  final int summaryInterval; // Turn trigger threshold 10-40
+  final String summaryModel; // Empty = use main model (legacy field, kept for backward compatibility)
+  final String summaryBaseUrl; // Chronicle-specific summary model base URL, empty = use main model
+  final String summaryApiKey; // Chronicle-specific summary model API key, empty = use main model
+  final String summaryModelName; // Chronicle-specific summary model name, empty = use main model
+  final double summaryTemperature; // Default 0.2
+  final double tokenPressureThreshold; // Token pressure trigger ratio 0.4-0.8
+  final int hotWindowSize; // Hot zone window 10-40
+  final int ragTopK; // Recall count 3-10
+  final String customPromptSuffix; // User-defined suffix instruction
+  final String matureContentSuffix; // Mature content supplementary instruction (separate field, independently toggleable)
+  final bool emotionRecallEnabled; // Emotion recall bonus
+  final bool mvuBridgeEnabled; // MVU threshold bridging
+  final int maxRetries; // Max retries for failed tasks (stop enqueueing when exceeded, wait for user intervention)
+  final int summaryPasses; // Summary passes (1-5) to improve distillation quality for long conversations
 
   const ChronicleSettings({
     this.enabled = true,
@@ -404,7 +402,7 @@ class ChronicleSettings {
     this.summaryPasses = 3,
   });
 
-  /// 三项专属配置全空 → 沿用主对话模型
+  /// All three dedicated configs empty means the main chat model is used
   bool get summaryUsesMainModel =>
       summaryBaseUrl.isEmpty &&
       summaryApiKey.isEmpty &&
@@ -491,15 +489,15 @@ class ChronicleSettings {
   }
 }
 
-/// 四窗口切分结果（Lost in the Middle利用：冷→温→热→未总结注入）
+/// Four-window split result (Lost in the Middle: inject cold, warm, hot, then unarchived)
 class WindowedMessages {
-  /// 冷区：再前 windowSize 轮归档（低注意力，注入在中间靠前）
+  /// Cold zone: windowSize turns before that are archived (low attention, injected near the middle-front)
   final List<ChatMessage> cold;
-  /// 温区：前 windowSize 轮归档（中注意力）
+  /// Warm zone: previous windowSize turns archived (medium attention)
   final List<ChatMessage> warm;
-  /// 热区：最近 windowSize 轮归档（高注意力）
+  /// Hot zone: most recent windowSize turns archived (high attention)
   final List<ChatMessage> hot;
-  /// 未总结区：所有未归档（最高注意力，注入在末尾）
+  /// Unarchived zone: all unarchived turns (highest attention, injected at the end)
   final List<ChatMessage> unarchived;
 
   const WindowedMessages({
@@ -509,17 +507,15 @@ class WindowedMessages {
     this.unarchived = const [],
   });
 
-  /// 注入顺序：冷 → 温 → 热 → 未总结（越靠近末尾注意力越高）
+  /// Injection order: cold, warm, hot, then unarchived (attention increases toward the end)
   List<ChatMessage> get injectionOrder =>
       [...cold, ...warm, ...hot, ...unarchived];
 }
 
-/// ═══════════════════════════════════════════════════════════
-/// LLM 结构化输出（Phase 2 总结管线 JSON 协议）
-/// ═══════════════════════════════════════════════════════════
+/// LLM structured output (summary pipeline JSON protocol)
 
 class UpsertEntryInstruction {
-  final String? id; // 有id=更新，null=新建
+  final String? id; // Non-null id = update, null = create
   final MemoryEntryType type;
   final String title;
   final String content;
@@ -590,14 +586,14 @@ class UpsertEmotionInstruction {
   });
 }
 
-/// LLM 总结输出的完整解析结果
+/// Full parsed result of the LLM summary output
 class ChronicleSummaryOutput {
   final List<UpsertEntryInstruction> entries;
   final List<UpsertEntityInstruction> entities;
   final List<UpsertRelationshipInstruction> relationships;
   final List<UpsertEmotionInstruction> emotions;
   final List<String> deprecatedIds;
-  /// 解析失败时的降级纯文本（保持与旧总结同等质量，不阻断）
+  /// Fallback plain text when parsing fails (same quality as legacy summaries, non-blocking)
   final String? fallbackText;
 
   const ChronicleSummaryOutput({
@@ -618,9 +614,7 @@ class ChronicleSummaryOutput {
       fallbackText == null;
 }
 
-/// ═══════════════════════════════════════════════════════════
-/// 工具函数
-/// ═══════════════════════════════════════════════════════════
+/// Utility functions
 
 List<String> _parseStringList(dynamic json) {
   if (json is List) {

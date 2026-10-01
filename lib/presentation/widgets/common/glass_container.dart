@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// 毛玻璃配色方案
+/// Frosted-glass color palette
 @immutable
 class GlassPalette {
   const GlassPalette({
@@ -12,25 +12,25 @@ class GlassPalette {
     required this.secondaryText,
   });
 
-  /// 页面兜底背景色
+  /// Page fallback background color
   final Color pageBackground;
 
-  /// 主要玻璃底色，传入的颜色本身保持不透明，透明度由组件统一控制
+  /// Primary glass tint; the passed color itself stays opaque and opacity is controlled uniformly by the component
   final Color glassTint;
 
-  /// 内层控件或浮层底色
+  /// Background tint for inner controls or floating layers
   final Color elevatedTint;
 
-  /// 强调色：发送按钮、激活状态等
+  /// Accent color: send button, active states, and similar
   final Color accent;
 
   final Color primaryText;
   final Color secondaryText;
 }
 
-/// 两套无紫色配色
+/// Two purple-free palettes
 abstract final class GlassPalettes {
-  /// 偏蓝：科技感更强，适合 AI 聊天界面
+  /// Blue-leaning: more high-tech feel, suited to the AI chat interface
   static const GlassPalette blue = GlassPalette(
     pageBackground: Color(0xFF070B14),
     glassTint: Color(0xFF0A0E1A),
@@ -40,7 +40,7 @@ abstract final class GlassPalettes {
     secondaryText: Color(0xFFA7B0BE),
   );
 
-  /// 偏灰：更克制、更接近  高级感深色界面
+  /// Gray-leaning: more restrained, closer to a premium dark interface
   static const GlassPalette graphite = GlassPalette(
     pageBackground: Color(0xFF101216),
     glassTint: Color(0xFF14161C),
@@ -51,41 +51,41 @@ abstract final class GlassPalettes {
   );
 }
 
-/// 在这里切换整套配色
+/// Switch the whole palette here
 const GlassPalette activeGlassPalette = GlassPalettes.blue;
 // const GlassPalette activeGlassPalette = GlassPalettes.graphite;
 
-/// 全局毛玻璃设计参数
+/// Global frosted-glass design parameters
 abstract final class GlassDesign {
-  /// 主玻璃透明度：严格保持在 0.55–0.65
+  /// Main glass opacity: strictly kept within 0.55-0.65
   static const double appBarOpacity = 0.60;
   static const double panelOpacity = 0.62;
   static const double inputOpacity = 0.60;
 
-  /// 模糊强度
+  /// Blur strength
   static const double appBarBlur = 22;
   static const double panelBlur = 24;
   static const double inputBlur = 22;
 
-  /// 圆角
+  /// Corner radii
   static const double appBarRadius = 22;
   static const double panelRadius = 24;
   static const double cardRadius = 20;
   static const double capsuleRadius = 30;
 
-  /// 极淡玻璃高光边
+  /// Very faint glass highlight edge
   static Color get highlightBorder =>
       Colors.white.withValues(alpha: 0.08);
 
-  /// 内部控件浅色底
+  /// Light fill under inner controls
   static Color get controlFill =>
       Colors.white.withValues(alpha: 0.055);
 
-  /// 内部控件按下或激活状态
+  /// Inner control fill when pressed or active
   static Color get activeControlFill =>
       Colors.white.withValues(alpha: 0.10);
 
-  /// 柔和、大范围、低透明度阴影
+  /// Soft, wide, low-opacity shadow
   static List<BoxShadow> get softShadow => <BoxShadow>[
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.24),
@@ -102,13 +102,13 @@ abstract final class GlassDesign {
       ];
 }
 
-/// 深色磨砂玻璃容器：半透明底 + 高斯模糊 + 极淡白边 + 柔和阴影。
-/// 顶栏/输入栏/面板/卡片统一复用，保证"通透但看得清"。
+/// Dark frosted-glass container: translucent base + Gaussian blur + faint white edge + soft shadow.
+/// Reused uniformly across top bars, input bars, panels, and cards to stay "transparent yet legible".
 ///
-/// ⚠️ 仅存引用为聊天域(webview_chat_stage.dart,本轮禁区),
-/// 故本文件保留不删除。GlassPalettes/GlassDesign 的野色(0xFF070B14 等)
-/// 属聊天域视觉,待聊天域正式重构时再迁回 DesignTokens。新代码一律使用
-/// glass_widgets.dart 的 GlassCard/GlassPanel/GlassInputContainer。
+/// Only remaining references are in the chat domain (webview_chat_stage.dart),
+/// so this file is kept rather than deleted. The ad-hoc colors in GlassPalettes/GlassDesign (0xFF070B14 etc.)
+/// belong to chat domain visuals and will move back to DesignTokens when that domain is refactored. New code must use
+/// GlassCard/GlassPanel/GlassInputContainer from glass_widgets.dart.
 @Deprecated('Use GlassCard/GlassPanel from glass_widgets.dart instead. '
     '旧组件仅过渡期兼容，新代码请用 DesignTokens 版组件。')
 // ignore: deprecated_member_use
@@ -145,8 +145,8 @@ class GlassContainer extends StatelessWidget {
       borderRadius: radius,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          // 不依赖 BackdropFilter（WebView 平台视图上会渲染失败变全透明）
-          // 用高不透明度半透明纯色底：可靠可读，仍保留通透质感
+          // No BackdropFilter dependency (it fails to render over WebView platform views and turns fully transparent)
+          // High-opacity translucent solid color instead: reliably readable while keeping the see-through look
           color: tint.withValues(alpha: (opacity + 0.22).clamp(0.0, 0.92)),
           borderRadius: radius,
           border: showBorder

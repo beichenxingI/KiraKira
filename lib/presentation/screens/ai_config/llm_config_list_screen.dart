@@ -1,5 +1,5 @@
 // lib/presentation/screens/ai_config/llm_config_list_screen.dart
-/// LLM 配置管理(G-T4):Sliver 化 + KiraGroupedTile 行 + 编辑 push 子页
+/// LLM config management: Sliver layout with KiraGroupedTile rows, editing pushed to a sub-page
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -21,10 +21,10 @@ class LlmConfigListScreen extends ConsumerWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // G-T4:Sliver 化;英文页名改中文(工程页,保留直白)
+          // Sliver layout; page title intentionally kept in plain Chinese
           SliverAppBar.large(
             title: Text(
-              'LLM 配置管理', // TODO(i18n): 待补 l10n key
+              'LLM 配置管理', // TODO(i18n): l10n key pending
               style: Theme.of(context).textTheme.displayLarge,
             ),
             actions: [
@@ -50,7 +50,7 @@ class LlmConfigListScreen extends ConsumerWidget {
               ),
             )
           else
-            // 一份 inset-grouped 卡内列全部配置
+            // All configs listed inside a single inset-grouped card
             SliverToBoxAdapter(
               child: KiraSection(
                 title: '全部配置',
@@ -76,7 +76,7 @@ class LlmConfigListScreen extends ConsumerWidget {
   }
 }
 
-/// 单条配置行(inset-grouped 内,KiraGroupedTile 规格)
+/// Single config row (inset-grouped, KiraGroupedTile spec)
 class _ConfigTile extends ConsumerWidget {
   const _ConfigTile({required this.config});
 

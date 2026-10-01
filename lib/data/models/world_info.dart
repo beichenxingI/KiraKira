@@ -56,7 +56,7 @@ class WorldInfoTimedEffects with _$WorldInfoTimedEffects {
     /// 0 = no delay (default)
     @Default(0) int delay,
     
-    // === Runtime state (not persisted) ===
+    // Runtime state (not persisted)
     
     /// Current sticky counter (decrements each message)
     @JsonKey(includeFromJson: false, includeToJson: false)
@@ -94,7 +94,7 @@ class WorldInfo with _$WorldInfo {
     required DateTime createdAt,
     required DateTime modifiedAt,
     
-    // === New fields for SillyTavern compatibility ===
+    // New fields for SillyTavern compatibility
     
     /// Default scan depth for entries (can be overridden per entry)
     @Default(4) int defaultScanDepth,
@@ -146,7 +146,7 @@ class WorldInfoEntry with _$WorldInfoEntry {
     @Default(0) int scanDepth,
     @Default({}) Map<String, dynamic> extensions,
     
-    // === New fields for SillyTavern compatibility ===
+    // New fields for SillyTavern compatibility
     
     /// Role for this entry's content (system, user, assistant)
     @Default(WorldInfoRole.system) WorldInfoRole role,
@@ -228,19 +228,19 @@ extension WorldInfoEntryExtension on WorldInfoEntry {
 /// Matches SillyTavern's world_info_position exactly
 enum WorldInfoPosition {
   @JsonValue(0)
-  before,         // ↑Char - Before Character Definition (also: beforeCharDefs)
+  before,         // Before character definition (also: beforeCharDefs)
   @JsonValue(1)
-  after,          // ↓Char - After Character Definition (also: afterCharDefs)
+  after,          // After character definition (also: afterCharDefs)
   @JsonValue(2)
-  ANTop,          // ↑AT - Before Author's Note (also: beforeAuthorNote)
+  ANTop,          // Before Author's Note (also: beforeAuthorNote)
   @JsonValue(3)
-  ANBottom,       // ↓AT - After Author's Note (also: afterAuthorNote)
+  ANBottom,       // After Author's Note (also: afterAuthorNote)
   @JsonValue(4)
-  atDepth,        // @D - At specific depth in chat history
+  atDepth,        // At specific depth in chat history
   @JsonValue(5)
-  EMTop,          // ↑EM - Before Example Messages (also: beforeExample)
+  EMTop,          // Before Example Messages (also: beforeExample)
   @JsonValue(6)
-  EMBottom,       // ↓EM - After Example Messages (also: afterExample)
+  EMBottom,       // After Example Messages (also: afterExample)
   @JsonValue(7)
   outlet,         // Outlet - Named outlet for insertion
 }

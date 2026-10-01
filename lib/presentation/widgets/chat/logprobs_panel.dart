@@ -65,7 +65,6 @@ class LogprobsPanel extends ConsumerWidget {
                 tokenLogprob: selectedToken,
                 onAlternativeSelected: (alternative) {
                   // TODO: Implement reroll with alternative token
-                  // TRACKED: recorded in DiaoYan/18 (phase-6 tech-debt)
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Reroll with "$alternative" not yet implemented')),
                   );

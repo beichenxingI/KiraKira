@@ -1,10 +1,9 @@
 // lib/presentation/dialogs/cfg_scale_dialog.dart
-/// CFG Scale 设置浮窗(极客Core迁移 P4.3)
-/// 内容完整迁自 cfg_scale_settings_screen.dart,三层结构全保留:
-/// LLM全局(启用/Scale滑块/负向提示/正向提示)
-/// 角色级(characterId传入:独立开关/Scale/负向提示覆盖)
-/// 聊天级(chatId传入:Scale/负向/正向/合并模式/清除)
-/// 帮助说明 · 恢复默认确认
+/// CFG scale settings dialog.
+/// Three-tier structure: LLM global (enable/scale slider/negative prompt/
+/// positive prompt), character level (characterId passed: independent toggle/
+/// scale/negative prompt override), chat level (chatId passed: scale/negative/
+/// positive/combine mode/clear), help, reset confirmation.
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -70,7 +69,7 @@ class _CfgScaleDialog extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 全局设置 ──
+          // Global settings
           CoreSectionLabel(l10n.globalSettings),
           const SizedBox(height: 4),
           _Group(
@@ -120,7 +119,7 @@ class _CfgScaleDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // ── 角色级(若传入 characterId) ──
+          // Character level (when characterId is provided)
           if (characterId != null) ...[
             _CharacterCFGSection(
               characterId: characterId!,
@@ -130,7 +129,7 @@ class _CfgScaleDialog extends ConsumerWidget {
             const SizedBox(height: 20),
           ],
 
-          // ── 聊天级(若传入 chatId) ──
+          // Chat level (when chatId is provided)
           if (chatId != null)
             _ChatCFGSection(
               chatId: chatId!,
@@ -138,7 +137,7 @@ class _CfgScaleDialog extends ConsumerWidget {
               palette: palette,
             ),
 
-          // ── 关于 ──
+          // About
           const SizedBox(height: 8),
           CoreInfoRow(
             icon: CupertinoIcons.info,
@@ -151,7 +150,7 @@ class _CfgScaleDialog extends ConsumerWidget {
     );
   }
 
-  /// 重置 = 破坏操作 → CupertinoAlertDialog 确认(与原页一致)
+  /// Reset is destructive: confirm via CupertinoAlertDialog.
   Future<void> _confirmReset(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
     final confirm = await showCupertinoDialog<bool>(
@@ -176,7 +175,7 @@ class _CfgScaleDialog extends ConsumerWidget {
     ref.read(cfgScaleSettingsProvider.notifier).resetToDefaults();
   }
 
-  /// 信息帮助 → 底部 Sheet(与原页一致)
+  /// Help content in a bottom sheet.
   void _showHelpSheet(BuildContext context, CoreDialogPalette palette) {
     final l10n = AppLocalizations.of(context);
     showModalBottomSheet<void>(
@@ -228,7 +227,7 @@ class _CfgScaleDialog extends ConsumerWidget {
   }
 }
 
-/// 角色级 CFG 段(与原页一致)
+/// Character-level CFG section.
 class _CharacterCFGSection extends ConsumerWidget {
   const _CharacterCFGSection({
     required this.characterId,
@@ -303,7 +302,7 @@ class _CharacterCFGSection extends ConsumerWidget {
   }
 }
 
-/// 聊天级 CFG 段(与原页一致)
+/// Chat-level CFG section.
 class _ChatCFGSection extends ConsumerWidget {
   const _ChatCFGSection({
     required this.chatId,
@@ -390,7 +389,7 @@ class _ChatCFGSection extends ConsumerWidget {
     );
   }
 
-  /// 清除 = 破坏操作 → CupertinoAlertDialog 确认(与原页一致)
+  /// Clear is destructive: confirm via CupertinoAlertDialog.
   Future<void> _confirmClear(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
     final confirm = await showCupertinoDialog<bool>(
@@ -415,7 +414,7 @@ class _ChatCFGSection extends ConsumerWidget {
     ref.read(chatCFGSettingsProvider(chatId).notifier).clearSettings();
   }
 
-  /// 单选合并模式 → CupertinoActionSheet(与原页一致)
+  /// Combine mode picker via CupertinoActionSheet.
   Future<void> _pickCombineMode(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
     final selected = await showCupertinoModalPopup<PromptCombineMode>(
@@ -434,7 +433,7 @@ class _ChatCFGSection extends ConsumerWidget {
         ),
       ),
     );
-    if (selected == null) return; // 取消
+    if (selected == null) return; // Cancelled
     ref
         .read(chatCFGSettingsProvider(chatId).notifier)
         .setPromptCombineMode(selected);
@@ -452,7 +451,7 @@ class _ChatCFGSection extends ConsumerWidget {
   }
 }
 
-/// Scale 滑块(原 _GuidanceScaleSlider 浮窗形态,含快捷预设)
+/// Guidance scale slider with quick presets.
 class _GuidanceScaleSlider extends StatelessWidget {
   const _GuidanceScaleSlider({
     required this.palette,
@@ -520,7 +519,7 @@ class _GuidanceScaleSlider extends StatelessWidget {
                 style: TextStyle(fontSize: 11, color: palette.textSecondary)),
           ],
         ),
-        // 快捷预设
+        // Quick presets
         Padding(
           padding: const EdgeInsets.only(bottom: 6),
           child: Wrap(
@@ -563,7 +562,7 @@ class _GuidanceScaleSlider extends StatelessWidget {
   }
 }
 
-/// 提示词输入框(原 _PromptTextField 浮窗形态)
+/// Prompt input field.
 class _PromptTextField extends StatefulWidget {
   const _PromptTextField({
     required this.palette,
@@ -640,7 +639,7 @@ class _PromptTextFieldState extends State<_PromptTextField> {
   }
 }
 
-/// 浮窗内分组容器
+/// Group container used inside the dialog.
 class _Group extends StatelessWidget {
   const _Group({required this.palette, required this.children});
 

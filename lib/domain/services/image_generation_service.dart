@@ -7,9 +7,10 @@ import 'package:archive/archive.dart';
 import 'package:image/image.dart' as img;
 import 'package:uuid/uuid.dart';
 
-/// 裸 RGB(top-down, w×h×3, 无 padding) → PNG 字节。
-/// 放 isolate 跑(compute),避免大图编码阻塞主线程。
-/// Local Dream 后端返回的 raw 即此:RGB 顺序、每像素3字节、第0行为图顶。
+/// Converts raw RGB bytes (top-down, w×h×3, no padding) into PNG bytes.
+/// Runs in an isolate via compute to avoid blocking the main thread when
+/// encoding large images. Raw data returned by the Local Dream backend
+/// uses this layout: RGB channel order, 3 bytes per pixel, first row on top.
 Uint8List _rawRgbToPng((Uint8List, int, int) args) {
   final image = img.Image.fromBytes(
     width: args.$2,
@@ -21,27 +22,28 @@ Uint8List _rawRgbToPng((Uint8List, int, int) args) {
   return Uint8List.fromList(img.encodePng(image));
 }
 
-/// 解码 base64 图片数据,兼容各家 OpenAI 兼容接口的差异:
-/// - data URI 前缀(`data:image/png;base64,`)
-/// - 混入空白/换行
-/// - URL-safe base64(`-`/`_`)
-/// - 缺失 padding
-/// 任何无法解析的情况都抛出带原因的 FormatException
+/// Decodes base64 image data, tolerating differences across OpenAI-compatible
+/// APIs:
+/// - data URI prefix (`data:image/png;base64,`)
+/// - embedded whitespace/newlines
+/// - URL-safe base64 (`-`/`_`)
+/// - missing padding
+/// Throws a FormatException with the reason for any unparseable input.
 Uint8List decodeBase64Image(String raw) {
   var s = raw.trim();
   if (s.isEmpty) {
     throw const FormatException('Base64 image data is empty');
   }
-  // 去掉 data URI 前缀(data:image/png;base64,xxx)
+  // Strip the data URI prefix (data:image/png;base64,xxx)
   final commaIdx = s.indexOf(',');
   if (commaIdx > 0 && s.substring(0, commaIdx).toLowerCase().contains('base64')) {
     s = s.substring(commaIdx + 1).trim();
   }
-  // 去掉所有空白(部分接口会在 base64 中混入换行)
+  // Strip all whitespace (some APIs embed newlines in the base64 payload)
   s = s.replaceAll(RegExp(r'\s'), '');
-  // URL-safe base64 → 标准 base64
+  // Convert URL-safe base64 to standard base64
   s = s.replaceAll('-', '+').replaceAll('_', '/');
-  // 补齐 padding
+  // Restore missing padding
   final rem = s.length % 4;
   if (rem == 1) {
     throw FormatException('Invalid base64 image data (length ${s.length}, rem 1)');
@@ -56,12 +58,13 @@ Uint8List decodeBase64Image(String raw) {
   }
 }
 
-/// 判断响应内容是否明显不是图片(HTML 错误页 / JSON 错误体)。
-/// 用于在下载 URL 后提前识别垃圾数据,避免把 HTML/JSON 当图片传给 UI
-/// (UI 层会报 "Invalid image data")。
+/// Determines whether the response content is clearly not an image (HTML
+/// error page / JSON error body). Used to detect junk data early after
+/// downloading a URL, so HTML/JSON is not passed to the UI as an image
+/// (which would surface as "Invalid image data").
 bool _looksLikeNonImageData(Uint8List bytes) {
   if (bytes.isEmpty) return true;
-  // 跳过前导空白
+  // Skip leading whitespace
   var i = 0;
   while (i < bytes.length &&
       (bytes[i] == 0x20 || bytes[i] == 0x09 || bytes[i] == 0x0A || bytes[i] == 0x0D)) {
@@ -72,7 +75,7 @@ bool _looksLikeNonImageData(Uint8List bytes) {
     bytes.sublist(i, math.min(i + 32, bytes.length)),
     allowMalformed: true,
   ).trimLeft().toLowerCase();
-  // 二进制图片格式(PNG/JPEG/GIF/WebP 等)不会以 < { [ 开头
+  // Binary image formats (PNG/JPEG/GIF/WebP etc.) never start with < { [
   return head.startsWith('<') || head.startsWith('{') || head.startsWith('[');
 }
 /// Image Generation Provider types (channels, not models)
@@ -132,7 +135,7 @@ enum ImageGenProvider {
       case novelai:
         return 'nai-diffusion-4-5-curated';
       case latentMoe:
-        return ''; // 站点 GPU 池固定模型,无 model 字段
+        return ''; // Site GPU pool has a fixed model; no model field
       case automatic1111:
       case comfyui:
       case localDream:
@@ -178,7 +181,7 @@ enum ImageGenProvider {
           'nai-diffusion-furry-3',
         ];
       case latentMoe:
-        return []; // 站点 GPU 池固定模型,无模型列表 API
+        return []; // Site GPU pool has a fixed model; no model list API
       case automatic1111:
       case comfyui:
       case localDream:
@@ -223,7 +226,7 @@ enum ImageGenMode {
 }
 
 /// Image Generation Settings
-/// 自动生图模式：关闭 / 仅写提示词 / 全自动生成
+/// Automatic image generation mode: off / prompt only / fully automatic
 enum AutoImageMode {
   off('off', '关闭'),
   promptOnly('promptOnly', '仅写提示词'),
@@ -256,15 +259,15 @@ class ImageGenSettings {
   final String defaultScheduler;
   final String? defaultNegativePrompt;
 
-  // [生图提示词自定义] 自动生图时控制 AI 提取的提示词
-  final String? positivePromptPrefix; // 正面提示词前缀(拼到最终 prompt 前)
-  final String? extractionInstruction; // _extractVisualTags 用:从对话正文提炼视觉标签的 LLM system 指令
-  final String? imageTagInstruction; // 注入对话 system prompt,教 AI 怎么写 <image> 标签
-  // [全自动生图] 额外调 LLM 优化提示词的开关 + 用哪个 API 服务(llmConfigsProvider 的 config id)
+  // Prompt customization for automatic image generation
+  final String? positivePromptPrefix; // Prepended to the final prompt
+  final String? extractionInstruction; // LLM system instruction used by _extractVisualTags to distill visual tags from conversation text
+  final String? imageTagInstruction; // Injected into the conversation system prompt to teach the AI how to write <image> tags
+  // Extra LLM call to refine the prompt: toggle + which API config to use (config id from llmConfigsProvider)
   final bool enableAutoPromptGeneration;
   final String? autoPromptConfigId;
 
-  // [提示词优化] 独立生图 API 配置(与主生图配置完全独立)
+  // Dedicated image generation API config for prompt optimization (fully independent from the main generation config)
   final String? promptOptBaseUrl;
   final String? promptOptApiKey;
   final String? promptOptModel;
@@ -280,7 +283,7 @@ class ImageGenSettings {
   final String openaiStyle; // vivid or natural
   final String openaiQuality; // standard or hd
 
-  // 自动生图
+  // Automatic image generation
   final AutoImageMode autoImageMode;
 
   const ImageGenSettings({
@@ -313,7 +316,7 @@ class ImageGenSettings {
     // OpenAI
     this.openaiStyle = 'vivid',
     this.openaiQuality = 'standard',
-    // 自动生图
+    // Automatic image generation
     this.autoImageMode = AutoImageMode.off,
   });
   
@@ -719,7 +722,7 @@ class ImageGenerationService {
       return _settings.provider.defaultModels;
     }
     
-    // [云端修复] 兼容 Map 和 List 两种响应格式(反代可能返回不同结构)
+    // Tolerate both Map and List response shapes (reverse proxies may return different structures)
     final data = response.data;
     final List<dynamic> modelList;
     if (data is Map<String, dynamic>) {
@@ -770,7 +773,7 @@ class ImageGenerationService {
       return _settings.provider.defaultModels;
     }
     
-    // [云端修复] 兼容 Map 和 List 两种响应格式
+    // Tolerate both Map and List response shapes (reverse proxies may return different structures)
     final data = response.data;
     final List<dynamic> modelList;
     if (data is Map<String, dynamic>) {
@@ -918,7 +921,8 @@ class ImageGenerationService {
     
     return images;
   }
-  /// 从消息内容提取生图提示词:优先 <image>...</image> 标签,无标签返回 null
+  /// Extracts the image generation prompt from message content; returns null
+  /// when no <image>...</image> tag is present.
   static String? extractImagePrompt(String content) {
     final match = RegExp(r'<image>([\s\S]*?)</image>', caseSensitive: false)
         .firstMatch(content);
@@ -1059,9 +1063,9 @@ class ImageGenerationService {
     final data = response.data as Map<String, dynamic>;
     final images = <Uint8List>[];
 
-    // OpenAI 兼容接口的 data 字段格式不统一:
-    // - 标准格式: data: [{url: ...} 或 {b64_json: ...}]
-    // - 某些兼容接口直接返回 data: "<base64 字符串>"
+    // OpenAI-compatible APIs return the data field in inconsistent shapes:
+    // - Standard: data: [{url: ...} or {b64_json: ...}]
+    // - Some compatible APIs return data: "<base64 string>" directly
     final rawData = data['data'];
     final List<dynamic> dataList;
     if (rawData is List) {
@@ -1086,7 +1090,7 @@ class ImageGenerationService {
       final b64 = item['b64_json'];
       final url = item['url'];
 
-      // 优先 Base64 (格式B: Agens、部分自建服务)
+      // Prefer Base64 (format B: Agens and self-hosted services)
       if (b64 is String && b64.isNotEmpty) {
         try {
           images.add(decodeBase64Image(b64));
@@ -1097,7 +1101,7 @@ class ImageGenerationService {
         }
       }
 
-      // Base64 缺失或解码失败时尝试 URL (格式A: GPT官方、OpenRouter)
+      // Try URL when Base64 is missing or fails to decode (format A: official GPT, OpenRouter)
       if (url is String && url.isNotEmpty) {
         debugPrint('OpenAI: item[$i] downloading image from URL: $url');
         final imgData = await downloadImage(url);
@@ -1108,7 +1112,7 @@ class ImageGenerationService {
         continue;
       }
 
-      // 未知格式
+      // Unknown format
       throw Exception(
         'Unsupported image format at data[$i]. Available keys: ${item.keys.join(", ")}',
       );
@@ -1121,7 +1125,7 @@ class ImageGenerationService {
       images.addAll(fallbackImages);
     }
 
-    // 兜底失败时给出清晰错误(而不是返回空结果让 UI 报 Invalid image data)
+    // Fail with a clear error instead of returning an empty result (the UI would report Invalid image data)
     if (images.isEmpty) {
       final firstItem = dataList.first;
       final itemKeys = firstItem is Map<String, dynamic> ? firstItem.keys.join(', ') : 'unknown';
@@ -1552,22 +1556,25 @@ class ImageGenerationService {
     }
   }
 
-  /// Generate image using Latent.moe (异步队列生图)
-  /// 协议(方案C,独立实现,与 NovelAI 同步 ZIP 完全不同):
+  /// Generate an image using Latent.moe (async queue-based generation).
+  /// Protocol (approach C, independent implementation, completely different
+  /// from NovelAI's synchronous ZIP flow):
   /// 1. POST /api/generate → 202 + GenerationJob(id)
-  /// 2. 每 2s 轮询 GET /api/generate/{id} 直到 succeeded/failed/cancelled
-  /// 3. succeeded → GET /api/media/{artworkId}?size=original 拉图片字节
-  /// 限制: resolution 三档枚举(square 1024²/portrait 920×1536/landscape 1536×920),
-  /// steps 8-12, 无 model/CFG 字段, 每周额度 + GENERATION_CONCURRENCY 并发。
-  /// 文档: https://latent.moe/docs/api + /openapi.json
+  /// 2. Poll GET /api/generate/{id} every 2s until succeeded/failed/cancelled
+  /// 3. On success → GET /api/media/{artworkId}?size=original for image bytes
+  /// Limits: three resolution tiers (square 1024²/portrait 920×1536/landscape
+  /// 1536×920), steps 8-12, no model/CFG fields, weekly quota plus
+  /// GENERATION_CONCURRENCY.
+  /// Docs: https://latent.moe/docs/api + /openapi.json
   Future<ImageGenResult?> _generateLatentMoe(ImageGenRequest request) async {
     final apiKey = _settings.apiKey;
     if (apiKey == null || apiKey.isEmpty) {
       throw Exception('Latent.moe API key is required (lat_sk_...)');
     }
 
-    // 规范化 base URL：去尾部斜杠 + 移除用户可能误填的路径后缀
-    // (如 /api/novelai、/api/generate、/api —— 拼接时变成 {base}/api/generate 导致 404)
+    // Normalize the base URL: strip trailing slashes and remove path suffixes
+    // users may have mistakenly included (e.g. /api/novelai, /api/generate,
+    // /api — appending would produce {base}/api/generate and 404)
     final rawEndpoint = _settings.effectiveEndpoint;
     var baseUrl = rawEndpoint.trim().isNotEmpty ? rawEndpoint.trim() : 'https://latent.moe';
     baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), '');
@@ -1582,21 +1589,21 @@ class ImageGenerationService {
     debugPrint('[LATENT] API Key长度=${apiKey.length}');
     debugPrint('[LATENT] Base URL=$endpoint');
 
-    // 参数映射(文档枚举):
-    // 宽高比 → resolution: ≈1 → square, <1 → portrait, >1 → landscape
+    // Parameter mapping (documented enums):
+    // aspect ratio → resolution: ≈1 → square, <1 → portrait, >1 → landscape
     final ratio = request.width / request.height;
     final resolution = ratio > 1.25
         ? 'landscape'
         : ratio < 0.8
             ? 'portrait'
             : 'square';
-    // steps clamp 8-12(文档限制)
+    // steps clamped to 8-12 (documented limit)
     final steps = request.steps < 8 ? 8 : (request.steps > 12 ? 12 : request.steps);
-    // sampler 映射: 枚举 euler/res_multistep/er_sde,不在枚举内用默认 euler
+    // sampler mapping: enum euler/res_multistep/er_sde; fall back to default euler
     const latentSamplers = {'euler', 'res_multistep', 'er_sde'};
     final sampler =
         latentSamplers.contains(request.sampler) ? request.sampler : 'euler';
-    // scheduler 映射: 枚举 sgm_uniform/beta/beta57/linear_quadratic,默认 sgm_uniform
+    // scheduler mapping: enum sgm_uniform/beta/beta57/linear_quadratic; default sgm_uniform
     const latentSchedulers = {'sgm_uniform', 'beta', 'beta57', 'linear_quadratic'};
     final scheduler = latentSchedulers.contains(_settings.defaultScheduler)
         ? _settings.defaultScheduler
@@ -1608,7 +1615,8 @@ class ImageGenerationService {
       'steps': steps,
       'sampler': sampler,
       'scheduler': scheduler,
-      // negativePrompt 省略时不发送负面且站点默认不应用 → 用户配了默认负面就带上
+      // Omit negativePrompt when empty (the site default would not apply anyway);
+      // include it when the user configured a default negative prompt
       if ((request.negativePrompt ?? _settings.defaultNegativePrompt)
               ?.trim()
               .isNotEmpty ==
@@ -1622,9 +1630,10 @@ class ImageGenerationService {
     debugPrint('[LATENT] 请求体(映射后)：resolution=$resolution steps=$steps sampler=$sampler scheduler=$scheduler');
     debugPrint('[LATENT] ${const JsonEncoder.withIndent('  ').convert(body)}');
 
-    // [LATENT] 主流程:提交 → 轮询 → 拉图,异常日志后 rethrow(由 generate() 统一 onError)
+    // Main flow: submit → poll → fetch image; exceptions are logged then
+    // rethrown (generate() handles onError uniformly)
     try {
-      // 1. 提交任务(202 + GenerationJob; 401/409/422/429/503 友好报错)
+      // 1. Submit job (202 + GenerationJob; 401/409/422/429/503 get friendly errors)
       debugPrint('[LATENT] 提交任务：prompt=${request.prompt.length > 50 ? request.prompt.substring(0, 50) : request.prompt}...');
       final submit = await _dio.post<dynamic>(
         '$endpoint/api/generate',
@@ -1633,8 +1642,8 @@ class ImageGenerationService {
             'Authorization': 'Bearer $apiKey',
             'Content-Type': 'application/json',
           },
-          responseType: ResponseType.json, // 明确期望JSON
-          validateStatus: (status) => true, // 允许非202，手动处理
+          responseType: ResponseType.json, // explicitly expect JSON
+          validateStatus: (status) => true, // allow non-202, handled manually
         ),
         data: body,
       );
@@ -1643,7 +1652,8 @@ class ImageGenerationService {
       if (submit.statusCode != 202 || submit.data == null) {
         throw Exception(_latentError('Latent.moe', submit.statusCode, submit.data));
       }
-      // [类型检查] 404/HTML 错误页时 data 是 String,直接取 ['id'] 会炸出难懂 TypeError
+      // Type check: on 404/HTML error pages data is a String; reading ['id']
+      // directly would surface a confusing TypeError
       final taskData = submit.data;
       if (taskData is! Map) {
         throw Exception(
@@ -1655,7 +1665,8 @@ class ImageGenerationService {
       }
       debugPrint('[LATENT] 任务已入队：任务ID=$jobId');
 
-      // 2. 轮询(官方建议 2s 一次; 超时 10 分钟保护,超时尝试取消避免占并发名额)
+      // 2. Poll (official recommendation: every 2s; 10-minute timeout guard,
+      // cancelled on timeout to avoid occupying a concurrency slot)
       const pollInterval = Duration(seconds: 2);
       const pollTimeout = Duration(minutes: 10);
       final deadline = DateTime.now().add(pollTimeout);
@@ -1675,14 +1686,14 @@ class ImageGenerationService {
         );
         debugPrint('[LATENT] 状态：status=${poll.statusCode}, body=${poll.data}');
         if (poll.statusCode != 200 || poll.data == null) {
-          // 404 = 任务不属于此 designer;其他非 200 视为暂时故障,重试
+          // 404 = job does not belong to this designer; other non-200 treated as transient, retry
           if (poll.statusCode == 404) {
             throw Exception('Latent.moe: 任务不存在或已被清理(404)');
           }
           debugPrint('[LATENT] 轮询 HTTP ${poll.statusCode}, 重试');
           continue;
         }
-        // [类型检查] 200 但非 JSON(代理/网关返回 HTML) → 视为暂时故障重试
+        // Type check: 200 but non-JSON (proxy/gateway returning HTML) → transient, retry
         if (poll.data is! Map) {
           debugPrint('[LATENT] 轮询响应非JSON对象(${poll.data.runtimeType}), 重试');
           continue;
@@ -1690,7 +1701,7 @@ class ImageGenerationService {
         job = Map<String, dynamic>.from(poll.data as Map);
         final status = job['status'] as String?;
         final progress = (job['progress'] as num?)?.toInt() ?? 0;
-        // progress 0-100 映射到 0.2-0.9 进度回调
+        // Map progress 0-100 to 0.2-0.9 progress callbacks
         if (status == 'running') {
           onProgress?.call(0.3 + (progress / 100.0) * 0.6);
         } else if (status == 'queued' || status == 'leased') {
@@ -1718,7 +1729,8 @@ class ImageGenerationService {
         throw Exception('Latent.moe: 任务成功但未返回 artworkId');
       }
 
-      // 3. 拉取图片字节(文档: /api/media/{artworkId}?size=original;size 枚举 thumb/preview/original)
+      // 3. Fetch image bytes (docs: /api/media/{artworkId}?size=original;
+      // size enum thumb/preview/original)
       debugPrint('[LATENT] 下载图片：artworkId=$artworkId');
       onProgress?.call(0.95);
       final media = await _dio.get<List<int>>(
@@ -1762,11 +1774,12 @@ class ImageGenerationService {
     }
   }
 
-  /// latent.moe 错误体解析(结构: {error:{code,message}} 或 {error:string,message};
-  /// 状态码语义: 401 key 无效/409 并发满/422 参数越界/429 周额度/503 队列满;
-  /// HTML 错误页 → 明确提示 Base URL 填写错误)
+  /// latent.moe error body parsing (structure: {error:{code,message}} or
+  /// {error:string,message}; status code semantics: 401 invalid key/409
+  /// concurrency full/422 params out of range/429 weekly quota/503 queue full;
+  /// HTML error page → explicit hint that the Base URL is wrong)
   String _latentError(String prefix, int? statusCode, dynamic data) {
-    // [Fix 3] HTML 错误页(很可能是 Base URL 误填路径,拼出 404) → 明确指引
+    // HTML error page (likely a Base URL with a mistaken path producing 404) → explicit guidance
     if (data is String && data.trim().toLowerCase().startsWith('<')) {
       final body = data.trim();
       final excerpt = body.length > 200 ? '${body.substring(0, 200)}...' : body;
@@ -1872,40 +1885,43 @@ class ImageGenerationService {
     );
   }
 
-  /// Generate image using Local Dream (local NPU/CPU SD engine)
-  /// 通信: HTTP 127.0.0.1:8081, POST /generate, 行流式 JSON(NDJSON,非SSE)
-  /// 响应逐行: {type:progress,progress:0~1} / {type:complete,image,width,height,seed,format} / {type:error,message}
-  /// 参考: localdream-flutter background_generation_service._generateViaLocalBackend
+  /// Generate an image using Local Dream (local NPU/CPU SD engine).
+  /// Communication: HTTP 127.0.0.1:8081, POST /generate, line-streamed JSON
+  /// (NDJSON, not SSE). Responses line by line: {type:progress,progress:0~1} /
+  /// {type:complete,image,width,height,seed,format} / {type:error,message}.
+  /// Reference: localdream-flutter background_generation_service._generateViaLocalBackend
   Future<ImageGenResult?> _generateLocalDream(ImageGenRequest request) async {
     final rawEndpoint = _settings.effectiveEndpoint;
-    // 去掉尾部斜杠,避免拼成 //generate 导致 404
+    // Strip the trailing slash to avoid //generate producing 404
     final endpoint = rawEndpoint.endsWith('/')
         ? rawEndpoint.substring(0, rawEndpoint.length - 1)
         : rawEndpoint;
 
-    // 健康检查：能连上即视为在线。后端根路径 / 不返回 200(只有 /generate、
-    // /tokenize),所以不校验状态码，只要不是连接层失败(拒绝/超时)就算在线。
+    // Health check: reachable means online. The backend root path / does not
+    // return 200 (only /generate, /tokenize), so the status code is not
+    // validated; anything that is not a connection-level failure (refused/
+    // timeout) counts as online.
     onProgress?.call(0.02);
     try {
       await _dio.get(
         '$endpoint/',
         options: Options(
-          validateStatus: (_) => true, // 任何状态码都算"连上了"
+          validateStatus: (_) => true, // any status code means "reachable"
           receiveTimeout: const Duration(seconds: 3),
           sendTimeout: const Duration(seconds: 3),
         ),
       );
-      // 走到这里 = 拿到了 HTTP 响应(哪怕 404/405)= 服务在监听
+      // Reaching here = an HTTP response was received (even 404/405) = the service is listening
     } on DioException catch (e) {
-      // 只有连接被拒/超时才是真离线
+      // Only refused connections/timeouts mean truly offline
       if (e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.connectionTimeout) {
         throw Exception('Local Dream 服务离线，请先在 Local Dream 中加载模型。');
       }
-      // 其他 DioException(收到了响应但异常)视为在线,继续
+      // Other DioExceptions (a response was received but errored) treated as online, continue
     }
 
-    // 构造请求体（照 Local Dream 作者 _generateViaLocalBackend 的 body 字段）
+    // Build the request body (mirrors Local Dream author's _generateViaLocalBackend body fields)
     final body = <String, dynamic>{
       'prompt': request.prompt,
       'negative_prompt':
@@ -1918,7 +1934,7 @@ class ImageGenerationService {
       if (request.seed != null) 'seed': request.seed,
     };
 
-    // 用 HttpClient 做行流式（作者亲注：Dio 不支持逐行流）
+    // Use HttpClient for line streaming (author's note: Dio does not support line-by-line streaming)
     final client = HttpClient();
     Uint8List? resultBytes;
     int resultWidth = request.width;
@@ -1940,8 +1956,8 @@ class ImageGenerationService {
       await for (final line in response
           .transform(utf8.decoder)
           .transform(const LineSplitter())) {
-        // SSE 格式:每个事件含 "event: xxx" 行 + "data: {json}" 行 + 空行。
-        // 只处理 data: 行,剥前缀后解析 JSON。
+        // SSE format: each event has an "event: xxx" line + a "data: {json}"
+        // line + a blank line. Only process data: lines, strip prefix then parse JSON.
         if (!line.startsWith('data:')) continue;
         final jsonStr = line.substring(5).trim();
         if (jsonStr.isEmpty) continue;
@@ -1949,7 +1965,7 @@ class ImageGenerationService {
         try {
           msg = jsonDecode(jsonStr) as Map<String, dynamic>;
         } on FormatException {
-          continue; // 跳过无法解析的行
+          continue; // skip unparseable lines
         }
         final type = msg['type'] as String?;
         switch (type) {
@@ -1965,8 +1981,8 @@ class ImageGenerationService {
             resultWidth = (msg['width'] as num?)?.toInt() ?? request.width;
             resultHeight = (msg['height'] as num?)?.toInt() ?? request.height;
             resultSeed = (msg['seed'] as num?)?.toInt();
-            // 官方 complete 事件:image 是裸 RGB,channels=3,无 format 字段。
-            // 保持 'raw',交给阶段IV转 PNG。
+            // Official complete event: image is raw RGB, channels=3, no format
+            // field. Keep 'raw' and convert to PNG in stage IV.
             resultFormat = 'raw';
             break;
           case 'error':
@@ -1982,7 +1998,8 @@ class ImageGenerationService {
       throw Exception('Local Dream 未返回完整结果');
     }
 
-    // 阶段IV: raw(RGB,top-down,w×h×3,无padding)→ PNG,isolate编码防卡顿
+    // Stage IV: raw (RGB, top-down, w×h×3, no padding) → PNG, encoded in an
+    // isolate to avoid jank
     if (resultFormat == 'raw') {
       resultBytes = await compute(
         _rawRgbToPng,
@@ -2001,33 +2018,36 @@ class ImageGenerationService {
     );
   }
 
-  /// ComfyUI 文生图（SD1.5/SDXL 通用）
-  /// 流程：构建 workflow → POST /prompt → 轮询 /history/{prompt_id} → GET /view 拉图
-  /// 提示词约定：与 A1111/Local Dream 后端一致，Service 内不重复拼接
-  /// （positivePromptPrefix 已由调用方拼进 request.prompt，negative 用 request 或默认值）
+  /// ComfyUI txt2img (works for SD1.5/SDXL).
+  /// Flow: build workflow → POST /prompt → poll /history/{prompt_id} → GET /view
+  /// Prompt convention: identical to the A1111/Local Dream backends; no
+  /// re-assembly inside the service (positivePromptPrefix is already merged
+  /// into request.prompt by the caller; negative uses request or the default).
   Future<ImageGenResult?> _generateComfyUI(ImageGenRequest request) async {
     final endpoint = _settings.apiEndpoints['comfyui']?.trim();
     if (endpoint == null || endpoint.isEmpty) {
       throw Exception('ComfyUI endpoint 未配置');
     }
 
-    // 1. 提示词（遵循现有约定：前缀已由调用方拼好，Service 内原样使用）
+    // 1. Prompts (existing convention: prefix already merged by the caller,
+    // used as-is inside the service)
     final finalPrompt = request.prompt;
     final finalNegative =
         request.negativePrompt ?? _settings.defaultNegativePrompt ?? '';
 
-    // 2. 模型名（优先 request.model，否则用设置的默认）
+    // 2. Model name (prefer request.model, otherwise the configured default)
     final model = request.model ??
         _settings.models['comfyui'] ??
         'v1-5-pruned-emaonly.safetensors';
 
-    // 3. 采样器名映射（A1111 → ComfyUI）
+    // 3. Sampler name mapping (A1111 → ComfyUI)
     final samplerName = _mapComfyUISampler(request.sampler);
 
-    // 4. 随机 seed（防止 ComfyUI 部分图缓存：相同 workflow+seed 第二次直接返回缓存）
+    // 4. Random seed (guards against ComfyUI image caching: the same
+    // workflow+seed would return the cached result on the second call)
     final seed = request.seed ?? DateTime.now().millisecondsSinceEpoch;
 
-    // 5. 构建 workflow JSON（SD1.5/SDXL 通用 6 节点模板）
+    // 5. Build the workflow JSON (SD1.5/SDXL shared 6-node template)
     final workflow = _buildComfyUITxt2ImgWorkflow(
       prompt: finalPrompt,
       negativePrompt: finalNegative,
@@ -2041,7 +2061,7 @@ class ImageGenerationService {
       model: model,
     );
 
-    // 6. 生成 client_id（WebSocket 订阅用，本阶段占位）
+    // 6. Generate client_id (for WebSocket subscription; placeholder for now)
     final clientId = 'kira-${const Uuid().v4()}';
 
     onProgress?.call(0.1);
@@ -2049,7 +2069,7 @@ class ImageGenerationService {
     debugPrint('[ComfyUI] model=$model sampler=$samplerName '
         'size=${request.width}x${request.height} steps=${request.steps}');
 
-    // 7. 提交任务（validateStatus 手动处理，400 时解析 node_errors）
+    // 7. Submit the job (validateStatus handles errors manually; 400 parses node_errors)
     try {
       final response = await _dio.post<dynamic>(
         '$endpoint/prompt',
@@ -2058,7 +2078,7 @@ class ImageGenerationService {
           'client_id': clientId,
         },
         options: Options(
-          validateStatus: (_) => true, // 手动处理错误
+          validateStatus: (_) => true, // errors handled manually
         ),
       );
       debugPrint('[ComfyUI] 提交响应：status=${response.statusCode}');
@@ -2066,7 +2086,8 @@ class ImageGenerationService {
       if (response.statusCode != 200) {
         final error = response.data;
         if (error is Map && error.containsKey('node_errors')) {
-          // [类型检查] node_errors 可能为空 Map（如 no_prompt），.first 会抛 StateError
+          // Type check: node_errors can be an empty Map (e.g. no_prompt);
+          // calling .first on it would throw StateError
           final nodeErrors = error['node_errors'] as Map? ?? {};
           if (nodeErrors.isNotEmpty) {
             final firstError = nodeErrors.values.first;
@@ -2081,7 +2102,7 @@ class ImageGenerationService {
         throw Exception('ComfyUI 提交失败: ${response.statusCode} ${response.data}');
       }
 
-      // [类型检查] 非 JSON 响应（代理/网关返回 HTML）时 data 是 String
+      // Type check: on a non-JSON response (proxy/gateway returning HTML) data is a String
       final submitData = response.data;
       if (submitData is! Map) {
         throw Exception(
@@ -2093,22 +2114,23 @@ class ImageGenerationService {
       }
       debugPrint('[ComfyUI] 任务已提交: prompt_id=$promptId');
 
-      // 8. 轮询任务完成（参考 _generateLatentMoe 的轮询循环）
-      // ⚠️ history 只在任务执行完成后才写入记录：排队/运行中查询返回 {}（空对象）
+      // 8. Poll until the job finishes (mirrors the poll loop in _generateLatentMoe).
+      // NOTE: history is written only after the job completes; queries while
+      // queued/running return an empty object.
       final startTime = DateTime.now();
       const maxWaitMinutes = 10;
       const pollInterval = Duration(seconds: 2);
 
       Map<String, dynamic>? result;
       while (true) {
-        // 超时检查
+        // Timeout check
         if (DateTime.now().difference(startTime).inMinutes >= maxWaitMinutes) {
           throw Exception('ComfyUI 生成超时（$maxWaitMinutes分钟）');
         }
 
         await Future<void>.delayed(pollInterval);
 
-        // 查询 history
+        // Query history
         final historyResp = await _dio.get<dynamic>(
           '$endpoint/history/$promptId',
           options: Options(validateStatus: (_) => true),
@@ -2118,7 +2140,7 @@ class ImageGenerationService {
           throw Exception('ComfyUI 查询状态失败: ${historyResp.statusCode}');
         }
 
-        // [类型检查] 非 JSON 响应视为暂时故障，重试
+        // Type check: non-JSON response treated as transient, retry
         if (historyResp.data is! Map) {
           debugPrint(
               '[ComfyUI] history 响应非JSON(${historyResp.data.runtimeType}), 重试');
@@ -2126,7 +2148,7 @@ class ImageGenerationService {
         }
         final history = historyResp.data as Map<String, dynamic>;
 
-        // history 为空 = 还在队列/执行中 → 更新进度回调后继续轮询
+        // Empty history = still queued/running → update progress and keep polling
         if (!history.containsKey(promptId)) {
           final progress = 0.2 +
               (DateTime.now().difference(startTime).inSeconds /
@@ -2136,7 +2158,7 @@ class ImageGenerationService {
           continue;
         }
 
-        // 任务完成
+        // Job finished
         result = history[promptId] as Map<String, dynamic>;
         final status = result['status'] as Map<String, dynamic>?;
 
@@ -2147,7 +2169,7 @@ class ImageGenerationService {
         break;
       }
 
-      // 9. 提取图片信息（遍历所有节点输出，找第一个有 images 的）
+      // 9. Extract image info (walk all node outputs, take the first with images)
       final outputs = result['outputs'] as Map<String, dynamic>? ?? {};
       String? filename;
       String subfolder = '';
@@ -2172,7 +2194,7 @@ class ImageGenerationService {
 
       debugPrint('[ComfyUI] 图片文件: $filename');
 
-      // 10. 下载图片（GET /view?filename=&subfolder=&type=）
+      // 10. Download the image (GET /view?filename=&subfolder=&type=)
       onProgress?.call(0.95);
       final imageUrl =
           '$endpoint/view?filename=$filename&subfolder=$subfolder&type=$type';
@@ -2215,9 +2237,9 @@ class ImageGenerationService {
     }
   }
 
-  /// 构建 ComfyUI txt2img workflow（SD1.5/SDXL 通用 6 节点模板）
-  /// CheckpointLoaderSimple 输出 [MODEL(0), CLIP(1), VAE(2)]；
-  /// 连接方式 ["node_id", output_index]
+  /// Build the ComfyUI txt2img workflow (SD1.5/SDXL shared 6-node template).
+  /// CheckpointLoaderSimple outputs [MODEL(0), CLIP(1), VAE(2)];
+  /// links use ["node_id", output_index].
   Map<String, dynamic> _buildComfyUITxt2ImgWorkflow({
     required String prompt,
     required String negativePrompt,
@@ -2289,8 +2311,8 @@ class ImageGenerationService {
     };
   }
 
-  /// A1111 采样器名 → ComfyUI 采样器名映射
-  /// （ComfyUI SAMPLER_NAMES 见 comfy/samplers.py:971-975+1356）
+  /// Map an A1111 sampler name to a ComfyUI sampler name
+  /// (ComfyUI SAMPLER_NAMES: see comfy/samplers.py:971-975+1356)
   String _mapComfyUISampler(String a1111Sampler) {
     const mapping = {
       'euler': 'euler',
@@ -2305,9 +2327,9 @@ class ImageGenerationService {
       'dpmpp_sde': 'dpmpp_sde',
       'dpmpp_2m': 'dpmpp_2m',
       'ddim': 'ddim',
-      'plms': 'dpmpp_2m', // PLMS 在 ComfyUI 不存在，映射到 dpmpp_2m
+      'plms': 'dpmpp_2m', // PLMS does not exist in ComfyUI; map to dpmpp_2m
       'uni_pc': 'uni_pc',
-      // NovelAI k_ 前缀系列
+      // NovelAI k_ prefixed variants
       'k_euler': 'euler',
       'k_euler_a': 'euler_ancestral',
       'k_euler_ancestral': 'euler_ancestral',
@@ -2346,11 +2368,12 @@ class ImageGenerationService {
     return urls;
   }
 
-  /// Download image from URL
-  /// 兼容:
+  /// Download an image from a URL.
+  /// Handles:
   /// - data URI (`data:image/...;base64,...`)
-  /// - 普通 URL (2xx, 带重定向)
-  /// 下载内容若为 HTML/JSON 错误页,记录日志并返回 null(避免把垃圾数据当图片)
+  /// - regular URLs (2xx, with redirects)
+  /// Downloads that turn out to be HTML/JSON error pages are logged and return
+  /// null (avoids passing junk data as an image)
   Future<Uint8List?> downloadImage(String url) async {
     try {
       if (url.startsWith('data:')) {

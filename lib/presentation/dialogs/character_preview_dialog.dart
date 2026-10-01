@@ -22,7 +22,7 @@ import '../widgets/common/character_avatar_image.dart';
 import '../utils/export_delivery.dart';
 import 'character_edit_dialog.dart';
 
-/// 轻量预览浮窗入口（点击角色卡触发）
+/// Lightweight preview dialog entry point (opened by tapping a character card).
 void showCharacterPreviewDialog(
     BuildContext context, WidgetRef ref, Character character) {
   showGeneralDialog<void>(
@@ -93,9 +93,9 @@ class _CharacterPreviewDialog extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ① 封面（16:9）
+              // Cover (16:9)
               _buildCoverImage(context),
-              // ② 置顶标记 + 角色名
+              // Pin indicator + character name
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Row(
@@ -121,7 +121,7 @@ class _CharacterPreviewDialog extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              // ③ 简介（前 50 字）
+              // Short description (truncated)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
@@ -136,7 +136,7 @@ class _CharacterPreviewDialog extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              // ④ 开始聊天（Kira 紫色渐变全宽）
+              // Start chat (full width, Kira purple gradient)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Material(
@@ -176,7 +176,7 @@ class _CharacterPreviewDialog extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              // ⑤ 5 个操作按钮（单行均分）
+              // Five action buttons (evenly spaced in one row)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                 child: Row(
@@ -295,7 +295,7 @@ class _CharacterPreviewDialog extends ConsumerWidget {
     );
   }
 
-  // ── 开始聊天 ──
+  // Start chat
   Future<void> _startChat(BuildContext context, WidgetRef ref) async {
     Navigator.pop(context);
     try {
@@ -312,14 +312,14 @@ class _CharacterPreviewDialog extends ConsumerWidget {
     }
   }
 
-  // ── 置顶 ──
+  // Pin toggle
   Future<void> _togglePin(BuildContext context, WidgetRef ref) async {
     Navigator.pop(context);
     await ref.read(characterRepositoryProvider).togglePin(character.id);
     ref.read(characterListProvider.notifier).refresh();
   }
 
-  // ── 复制 ──
+  // Duplicate
   Future<void> _duplicate(BuildContext context, WidgetRef ref) async {
     Navigator.pop(context);
     try {
@@ -331,7 +331,8 @@ class _CharacterPreviewDialog extends ConsumerWidget {
         modifiedAt: DateTime.now(),
       );
       final created = await repo.createCharacter(newCharacter);
-      // 深拷贝原角色的世界书（每本命名加"_副本"，条目完整复制）
+      // Deep-copy the original character's worldbooks: each copy gets a
+      // suffixed name and all entries are copied in full.
       final worldInfos =
           await ref.read(worldInfoRepositoryProvider).getWorldInfosForCharacter(character.id);
       final worldNotifier = ref.read(worldInfoNotifierProvider.notifier);
@@ -363,7 +364,7 @@ class _CharacterPreviewDialog extends ConsumerWidget {
     }
   }
 
-  // ── 导出（格式选择 + 分享/保存选择,随后关闭预览并执行）──
+  // Export (choose format, then delivery mode, then close the preview and run)
   Future<void> _export(BuildContext context, WidgetRef ref) async {
     final format = await showModalBottomSheet<String>(
       context: context,
@@ -390,7 +391,8 @@ class _CharacterPreviewDialog extends ConsumerWidget {
     );
     if (format == null || !context.mounted) return;
 
-    // [问题1] 分享 / 保存到文件 —— 趁 context 未失效先问,再关预览浮窗
+    // Share / save to file: ask while the context is still valid, then close
+    // the preview dialog.
     final mode = await askExportDelivery(context, '导出格式: $format');
     if (mode == null || !context.mounted) return;
 
@@ -455,9 +457,10 @@ final savedPath = await deliverExportFile(
     }
   }
 
-  // ── 删除 ──
+  // Delete
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
-    // 先确认，再关闭预览浮窗（避免弹出预览后 context 失效）
+    // Confirm first, then close the preview dialog (avoids an invalid context
+    // after the preview has been popped).
     final confirmed = await showDialog<bool>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.5),
@@ -530,7 +533,8 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-/// 风格化确认浮窗（删除角色等危险操作）
+/// Styled confirmation dialog for destructive actions such as deleting a
+/// character.
 class _StyledConfirmDialog extends StatelessWidget {
   final String title;
   final String message;

@@ -1,8 +1,8 @@
 // lib/presentation/widgets/common/glass_widgets.dart
-/// Glass 系统组件 · 基于 DesignTokens + GlassThemeExtension
+/// Glass system widgets, based on DesignTokens + GlassThemeExtension
 ///
-/// 替代旧 `GlassContainer`，统一使用 DesignTokens，自适应深/浅色。
-/// 旧组件保留并标记 `@Deprecated`，新代码请使用本文件的 GlassCard/GlassPanel 等。
+/// Replaces the legacy `GlassContainer`, uses DesignTokens throughout, and adapts to dark/light themes.
+/// The legacy widget is kept and marked `@Deprecated`; new code should use GlassCard/GlassPanel from this file.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/theme/glass_theme_extension.dart';
 
-/// Glass 卡片：最常用的玻璃容器，自适应深/浅色
+/// Glass card: the most commonly used glass container, adapts to dark/light themes
 class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
@@ -72,7 +72,7 @@ class GlassCard extends StatelessWidget {
   }
 }
 
-/// Glass 顶栏：AppBar、导航栏背景
+/// Glass top bar: AppBar and navigation bar background
 class GlassAppBarWidget extends StatelessWidget
     implements PreferredSizeWidget {
   const GlassAppBarWidget({
@@ -106,7 +106,7 @@ class GlassAppBarWidget extends StatelessWidget
   }
 }
 
-/// Glass 面板：大型浮层、底部Sheet、对话框容器
+/// Glass panel: large overlays, bottom sheets, and dialog containers
 class GlassPanel extends StatelessWidget {
   const GlassPanel({
     super.key,
@@ -164,7 +164,7 @@ class GlassPanel extends StatelessWidget {
   }
 }
 
-/// Glass 输入容器：搜索框、输入栏背景
+/// Glass input container: search field and input bar background
 class GlassInputContainer extends StatelessWidget {
   const GlassInputContainer({
     super.key,

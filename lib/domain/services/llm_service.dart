@@ -5,16 +5,16 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 
-/// EJS 渲染器接口(domain 层不依赖 presentation 层的具体实现)
+/// EJS renderer interface (the domain layer does not depend on concrete presentation-layer implementations)
 abstract class EJSRenderer {
-  /// 渲染 EJS 模板字符串,返回渲染后的结果
+  /// Renders an EJS template string and returns the result
   Future<String> render(String text);
 }
 
-/// EJS 渲染函数签名
+/// EJS render function signature
 typedef EJSRenderFn = Future<String> Function(String text);
 
-/// 当前活跃聊天页的 EJS 渲染函数登记处(main 创建,provider 暴露)
+/// Registry for the active chat page's EJS render function (created in main, exposed via provider)
 class EJSRenderRegistry {
   EJSRenderFn? _fn;
   void register(EJSRenderFn fn) => _fn = fn;
@@ -22,7 +22,7 @@ class EJSRenderRegistry {
   EJSRenderFn? get current => _fn;
 }
 
-/// 从登记处取当前渲染函数的 EJSRenderer 实现
+/// EJSRenderer implementation that fetches the current render function from the registry
 class RegistryEJSRenderer implements EJSRenderer {
   final EJSRenderRegistry _registry;
   RegistryEJSRenderer(this._registry);
@@ -31,7 +31,7 @@ class RegistryEJSRenderer implements EJSRenderer {
   Future<String> render(String text) async {
     final fn = _registry.current;
     debugPrint('[EJSD-1a] registry.current=${fn != null ? "set" : "null"}');
-    if (fn == null) return text; // 无活跃聊天页,原样返回
+    if (fn == null) return text; // No active chat page, return text as-is
     return await fn(text);
   }
 }
@@ -113,8 +113,8 @@ class LLMConfig {
   // Auto-summarization settings
   final bool autoSummarizeEnabled;
   final double autoSummarizeThreshold;
-  final String summaryModel;   // 空 = 沿用主模型
-  final String summaryPrompt;  // 空 = 用内置中文提示词
+  final String summaryModel;   // Empty = fall back to the main model
+  final String summaryPrompt;  // Empty = use the built-in Chinese prompt
 
   const LLMConfig({
     required this.provider,
@@ -143,7 +143,7 @@ class LLMConfig {
     this.seed = -1,
     // Auto-summarization defaults
     this.autoSummarizeEnabled = true,
-    this.autoSummarizeThreshold = 0.6, // [CHRONICLE Phase 1] 0.8→0.6 提前介入
+    this.autoSummarizeThreshold = 0.6, // Lowered from 0.8 to 0.6 to intervene earlier
     this.summaryModel = '',
     this.summaryPrompt = '',
   });
@@ -266,7 +266,7 @@ class LLMConfig {
         stopSequences: (json['stopSequences'] as List<dynamic>?)?.cast<String>() ?? const [],
         seed: json['seed'] as int? ?? -1,
         autoSummarizeEnabled: json['autoSummarizeEnabled'] as bool? ?? true,
-        autoSummarizeThreshold: (json['autoSummarizeThreshold'] as num?)?.toDouble() ?? 0.6, // [CHRONICLE Phase 1] 0.8→0.6
+        autoSummarizeThreshold: (json['autoSummarizeThreshold'] as num?)?.toDouble() ?? 0.6, // Lowered from 0.8 to 0.6
         summaryModel: json['summaryModel'] as String? ?? '',
         summaryPrompt: json['summaryPrompt'] as String? ?? '',
       );
@@ -276,10 +276,10 @@ class LLMConfig {
 class LLMService {
   final Dio _dio = Dio();
 
-  /// EJS 渲染器(可选,由 presentation 层注入)
+  /// Optional EJS renderer, injected by the presentation layer
   final EJSRenderer? _ejsRenderer;
 
-  /// EJS effectHash 去重缓存:同一 response 周期内相同 content+id 只渲染一次
+  /// EJS effectHash dedup cache: identical content+id within the same response cycle is rendered only once
   final Set<String> _ejsEffectCache = {};
 
   LLMService({EJSRenderer? ejsRenderer}) : _ejsRenderer = ejsRenderer;
@@ -436,14 +436,14 @@ class LLMService {
   }
 
   /// Generate a response with reasoning/thinking support (non-streaming)
-  /// EJS 渲染:遍历 messages,对每条 content 调引擎房 EJS 渲染,返回新数组。
-  /// effectHash 去重:同一 response 周期内相同 content+id 只渲染一次。
-  /// fail-open:渲染失败返回原文 + 标记 ejsError,不阻断发送。
+  /// EJS rendering: iterates messages, invokes the registered EJS renderer for each content, and returns a new list.
+  /// effectHash dedup: identical content+id within the same response cycle is rendered only once.
+  /// Fail-open: on render failure, returns the original text with an ejsError marker; never blocks sending.
   Future<List<Map<String, dynamic>>> _renderEJSInMessages(
     List<Map<String, dynamic>> messages,
   ) async {
     final rendered = <Map<String, dynamic>>[];
-    // 无 EJS 渲染器时,原样返回
+    // No EJS renderer, return messages as-is
     if (_ejsRenderer == null) return messages;
 
     _log('[EJSD-1] render pass msgs=${messages.length} '
@@ -455,14 +455,14 @@ class LLMService {
       final content = msg['content'];
 
       if (content is String && content.isNotEmpty) {
-        // [EJSD-2] 送渲染前的原文特征:role/长度/模板标签数/特征词/前80字
+        // Pre-render features of the original text: role/length/template tag count/signal words/first 80 chars
         final tagCount = '<%'.allMatches(content).length;
         final zis = content.contains('紫水晶');
         final head = content.length > 80 ? content.substring(0, 80) : content;
         _log('[EJSD-2] i=$i role=$role len=${content.length} '
             'tags=$tagCount zis=$zis head=$head');
 
-        // effectHash 去重:同一 response 周期内已渲染过的 content 跳过
+        // effectHash dedup: skip content already rendered within the same response cycle
         final id = msg['id']?.toString() ?? '';
         final hash = '${content.hashCode}_$id';
         if (_ejsEffectCache.contains(hash)) {
@@ -479,7 +479,7 @@ class LLMService {
               'outTags=${'<%'.allMatches(renderedContent).length}');
           rendered.add({'role': role, 'content': renderedContent});
         } catch (e) {
-          // fail-open:返回原文,标记错误供 UI 展示
+          // Fail-open: return the original text, mark the error for UI display
           _ejsEffectCache.add(hash);
           _log('[EJSD-2e] i=$i role=$role RENDER FAILED: $e');
           rendered.add({'role': role, 'content': content, 'ejsError': e.toString()});
@@ -497,8 +497,8 @@ class LLMService {
     List<Map<String, dynamic>> messages,
     LLMConfig config,
   ) async {
-    // EJS 渲染:发给 LLM 前先跑一遍 EJS
-    _ejsEffectCache.clear(); // 每个 response 周期清空去重缓存
+    // Run EJS rendering before sending to the LLM
+    _ejsEffectCache.clear(); // Clear the dedup cache per response cycle
     messages = await _renderEJSInMessages(messages);
 
     switch (config.provider) {
@@ -538,7 +538,7 @@ class LLMService {
     List<Map<String, dynamic>> messages,
     LLMConfig config,
   ) async* {
-    // EJS 渲染:流式生成前先跑一遍 EJS
+    // Run EJS rendering before streaming generation
     messages = await _renderEJSInMessages(messages);
 
     switch (config.provider) {

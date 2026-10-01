@@ -104,10 +104,10 @@ class ChatRepository {
   Future<void> deleteChat(String id) async {
     // Delete all messages first
     await (_db.delete(_db.messages)..where((t) => t.chatId.equals(id))).go();
-    // RAG：级联删除本聊天的向量集合与所有文档（集合 id == chatId）
+    // Cascade-delete the RAG vector collection and all documents for this chat (collection id == chatId)
     await (_db.delete(_db.vectorDocuments)..where((t) => t.collectionId.equals(id))).go();
     await (_db.delete(_db.vectorCollections)..where((t) => t.id.equals(id))).go();
-    // [CHRONICLE] 级联删除超级记忆数据（任务/词条/窗口状态/实体/关系/情感）
+    // Cascade-delete Chronicle super-memory data (tasks/entries/window state/entities/relationships/emotions)
     await (_db.delete(_db.summaryTasks)..where((t) => t.chatId.equals(id))).go();
     await (_db.delete(_db.memoryEntries)..where((t) => t.chatId.equals(id))).go();
     await (_db.delete(_db.chronicleStates)..where((t) => t.chatId.equals(id))).go();
@@ -147,8 +147,9 @@ class ChatRepository {
       swipesDataJson: Value(jsonEncode(newMessage.swipesData)),
     ));
     
-    // [空会话] 更新 updatedAt;用户消息同步置位 hasUserMessage(永不回退)。
-    // 该标记是"退出丢弃/启动清扫"的判定依据:发过消息的会话即使删光消息也保留。
+    // Update updatedAt; a user message also sets hasUserMessage (never unset).
+    // This flag drives "discard on exit / startup cleanup": chats that ever had
+    // a message are kept even if all messages are later deleted.
     await (_db.update(_db.chats)..where((t) => t.id.equals(message.chatId)))
         .write(ChatsCompanion(
       updatedAt: Value(DateTime.now()),
@@ -160,7 +161,8 @@ class ChatRepository {
     return newMessage;
   }
 
-  /// [空会话] 该会话是否有过用户消息(读持久标记,不数 messages 表)
+  /// Whether this chat has ever had a user message (reads the persisted flag,
+  /// does not count rows in the messages table)
   Future<bool> hasUserMessaged(String chatId) async {
     final row = await (_db.select(_db.chats)
           ..where((t) => t.id.equals(chatId)))
@@ -168,9 +170,10 @@ class ChatRepository {
     return row?.hasUserMessage ?? false;
   }
 
-  /// [空会话] 启动清扫:删除所有从未有过用户消息的会话(级联消息/向量数据)。
-  /// 覆盖:旧版本遗留的空会话、进程被杀时没走退出丢弃的临时会话。
-  /// 返回删除的会话数。
+  /// Startup cleanup: delete all chats that never had a user message
+  /// (cascades to messages/vector data). Covers empty chats left by older
+  /// versions and temporary chats killed before the discard-on-exit path ran.
+  /// Returns the number of deleted chats.
   Future<int> purgeEmptyChats() async {
     final emptyIds = await (_db.select(_db.chats)
           ..where((t) => t.hasUserMessage.equals(false)))
@@ -203,14 +206,14 @@ class ChatRepository {
     return message;
   }
 
-  /// 清空指定对话的所有消息（导入覆盖时使用）
+  /// Clear all messages of a chat (used when importing over an existing chat)
   Future<void> clearMessages(String chatId) async {
     await (_db.delete(_db.messages)..where((t) => t.chatId.equals(chatId))).go();
   }
   /// Delete a message
   Future<void> deleteMessage(String id) async {
     await (_db.delete(_db.messages)..where((t) => t.id.equals(id))).go();
-    // RAG：级联删除该消息对应的向量（document.id == messageId）
+    // Cascade-delete the vector document for this message (document.id == messageId)
     await (_db.delete(_db.vectorDocuments)..where((t) => t.id.equals(id))).go();
   }
 

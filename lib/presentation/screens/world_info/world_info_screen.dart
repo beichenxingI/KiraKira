@@ -572,7 +572,7 @@ class _WorldInfoCard extends StatelessWidget {
 
       final fileName = '${worldInfo.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.json';
 
-      // [问题1] 统一导出交付:分享 / 保存到文件
+      // Unified export delivery: share or save to file
       await deliverExportFile(
         context: context,
         fileName: fileName,
@@ -700,7 +700,7 @@ class _WorldInfoDialogState extends State<_WorldInfoDialog> {
             ),
             const SizedBox(height: 8),
 
-            // 全局入口：锁定为全局，只显示只读说明
+            // Global entry: locked to global scope, read-only description only
             if (widget.lockToGlobal)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -716,7 +716,7 @@ class _WorldInfoDialogState extends State<_WorldInfoDialog> {
                 ),
               ),
 
-            // 非锁定：显示完整三个作用域选项
+            // Not locked: show all three scope options
             if (!widget.lockToGlobal) ...[
               // Global scope option
               RadioListTile<_WorldInfoScope>(
@@ -917,7 +917,6 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
               itemCount: _worldInfo.entries.length,
               onReorder: (oldIndex, newIndex) {
                 // TODO: Implement reordering
-                // TRACKED: recorded in DiaoYan/18 (phase-6 tech-debt)
               },
               itemBuilder: (context, index) {
                 final entry = _worldInfo.entries[index];
@@ -1205,19 +1204,19 @@ class _WorldInfoEntryDialogState extends State<_WorldInfoEntryDialog> {
     final l10n = AppLocalizations.of(context);
     switch (position) {
       case WorldInfoPosition.before:
-        return l10n.beforeCharacterDefinition;  // ↑Char
+        return l10n.beforeCharacterDefinition;  // before Char
       case WorldInfoPosition.after:
-        return l10n.afterCharacterDefinition;   // ↓Char
+        return l10n.afterCharacterDefinition;   // after Char
       case WorldInfoPosition.ANTop:
-        return l10n.beforeAuthorNote;           // ↑AT
+        return l10n.beforeAuthorNote;           // before AN
       case WorldInfoPosition.ANBottom:
-        return l10n.afterAuthorNote;            // ↓AT
+        return l10n.afterAuthorNote;            // after AN
       case WorldInfoPosition.atDepth:
-        return l10n.atDepth;                    // @D
+        return l10n.atDepth;                    // at depth
       case WorldInfoPosition.EMTop:
-        return l10n.beforeExampleMessages;      // ↑EM
+        return l10n.beforeExampleMessages;      // before EM
       case WorldInfoPosition.EMBottom:
-        return l10n.afterExampleMessages;       // ↓EM
+        return l10n.afterExampleMessages;       // after EM
       case WorldInfoPosition.outlet:
         return 'Outlet';                        // Named outlet
     }
@@ -1409,8 +1408,7 @@ class _WorldInfoEntryDialogState extends State<_WorldInfoEntryDialog> {
     }
   }
 }
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?//  Entry edit dialog (showDialog version 鈥?Phase E)
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+// Entry edit dialog (showDialog version)
 class _EntryEditDialog extends ConsumerStatefulWidget {
   final String worldInfoId;
   final WorldInfoEntry? entry;

@@ -9,14 +9,14 @@ import 'package:path_provider/path_provider.dart';
 
 import 'tts_backend.dart';
 
-/// 小米 MiMo TTS 后端。
+/// Xiaomi MiMo TTS backend.
 ///
-/// OpenAI 兼容协议：POST {base}/v1/chat/completions，
-/// 待合成文本放 assistant 角色消息，audio.format=wav|pcm16，
-/// 返回 base64 音频 → 写临时文件 → just_audio 播放。
+/// OpenAI-compatible protocol: POST {base}/v1/chat/completions,
+/// the text to synthesize goes in an assistant role message, audio.format=wav|pcm16,
+/// returns base64 audio, written to a temp file and played with just_audio.
 class MimoTtsBackend implements TtsBackend {
   final String? apiKey;
-  final String? baseUrl; // 可选自定义（默认官方）
+  final String? baseUrl; // optional custom (defaults to official)
 
   static const _defaultBaseUrl = 'https://api.xiaomimimo.com/v1';
   static const _defaultModel = 'mimo-v2.5-tts';
@@ -24,7 +24,7 @@ class MimoTtsBackend implements TtsBackend {
   final Dio _dio;
   final AudioPlayer _player = AudioPlayer();
 
-  // 8 预置中英音色
+  // 8 preset Chinese/English voices
   static const _voices = <Map<String, String>>[
     {'value': 'mimo_default', 'label': '默认音色'},
     {'value': '冰糖', 'label': '冰糖（中文女）'},
@@ -68,7 +68,7 @@ class MimoTtsBackend implements TtsBackend {
       throw Exception('小米 MiMo API Key 未配置');
     }
 
-    // 语速/音调映射为自然语言风格指令（MiMo 无数值参数）
+    // Rate/pitch mapped to natural-language style instructions (MiMo has no numeric parameters)
     final instructions = _buildStyleInstruction(rate, pitch);
 
     final response = await _dio.post(
@@ -100,7 +100,7 @@ class MimoTtsBackend implements TtsBackend {
       throw Exception('MiMo TTS 错误: $err');
     }
 
-    // base64 → wav 临时文件 → just_audio 播放
+    // base64 to a wav temp file, played with just_audio
     final bytes = base64Decode(audioData);
     final tmpDir = await getTemporaryDirectory();
     final wavPath = p.join(
@@ -116,7 +116,7 @@ class MimoTtsBackend implements TtsBackend {
     File(wavPath).delete().catchError((_) => File(wavPath));
   }
 
-  /// 语速/音调 → 自然语言指令（MiMo 指令式控制）
+  /// Rate/pitch to natural-language instruction (MiMo instruction-style control)
   String? _buildStyleInstruction(double rate, double pitch) {
     final parts = <String>[];
     if ((rate - 1.0).abs() > 0.05) {
@@ -150,7 +150,7 @@ class MimoTtsBackend implements TtsBackend {
   String get displayName => '小米 MiMo';
 
   @override
-  bool get supportsPitch => true; // 经自然语言指令近似支持
+  bool get supportsPitch => true; // approximately supported via natural-language instructions
 
   @override
   bool get supportsRate => true;
@@ -159,7 +159,7 @@ class MimoTtsBackend implements TtsBackend {
   String get configHint =>
       '限时免费，8 中英音色，需在 platform.xiaomimimo.com 创建 API Key（sk-xxx）';
 
-  /// 诊断日志（保留：接入期排障）
+  /// Diagnostic log (kept for onboarding troubleshooting)
   @visibleForTesting
   void debugLog(String msg) => debugPrint('[MiMoTTS] $msg');
 }

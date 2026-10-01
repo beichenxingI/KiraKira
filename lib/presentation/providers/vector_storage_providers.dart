@@ -10,7 +10,7 @@ final vectorStorageServiceProvider = Provider<VectorStorageService>((ref) {
   final db = ref.watch(databaseProvider);
   return VectorStorageService(db);
 });
- /// Provider for EmbeddingService（文字→向量引擎）
+/// Provider for EmbeddingService (text-to-vector engine)
 final embeddingServiceProvider = Provider<EmbeddingService>((ref) {
   return EmbeddingService();
 });
@@ -111,7 +111,7 @@ class VectorStorageSettingsNotifier extends StateNotifier<VectorStorageSettings>
     _saveSettings();
   }
 
-  /// Set embedding API URL (endpoint base，如 https://api.openai.com/v1)
+  /// Set embedding API URL (endpoint base, e.g. https://api.openai.com/v1)
   void setEmbeddingApiUrl(String url) {
     state = state.copyWith(embeddingApiUrl: url);
     _saveSettings();
@@ -173,14 +173,14 @@ class VectorCollectionsNotifier extends StateNotifier<List<VectorCollection>> {
   }
 
   /// Add document to collection
-  /// 添加文档：若未传入向量，自动调用 embedding 引擎生成后入库。
+  /// When no vector is supplied, the embedding engine generates one before storage.
   Future<VectorDocument> addDocument({
     required String collectionId,
     required String content,
     List<double>? embedding,
     Map<String, dynamic>? metadata,
   }) async {
-    // 没有现成向量就现场生成（文字 → 向量）
+    // Generate the vector on demand when none is supplied (text to vector)
     var vec = embedding;
     if (vec == null) {
       final settings = _ref.read(vectorStorageSettingsProvider);

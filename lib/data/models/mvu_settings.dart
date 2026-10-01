@@ -1,6 +1,6 @@
 
-/// MVU 额外模型解析的内置默认 task 提示词。
-/// 用户可在设置里自定义;自定义内容风险由使用者自负。
+/// Built-in default task prompt for MVU extra-model parsing.
+/// Users can customize it in settings; customization risks are borne by the user.
 const String kDefaultMvuTask = r'''你是变量更新引擎。请停止角色扮演，以客观的旁白视角工作。
 
 根据 <past_observe> 中的最新剧情，以及下方"更新前变量状态"，
@@ -45,65 +45,72 @@ _.insert('络络.背包', '花'); // 花放进背包
 _.insert('小satori', { "好感度": 30, "背包": [] }); // 认识新角色，建立变量
 </UpdateVariable>''';
 
-/// MVU 变量框架配置。
+/// MVU variable framework settings.
 ///
-/// 对应注入 WebView 的 extensionSettings.mvu_settings.额外模型解析配置。
-/// 字段与 mvu_bundle.js 的 zod schema 对齐,新增 maxChatHistory(原本走默认2)。
+/// Corresponds to the extensionSettings.mvu_settings extra-model parsing
+/// config injected into the WebView.
+/// Fields align with the mvu_bundle.js zod schema; adds maxChatHistory
+/// (previously fell back to the default of 2).
 class MvuSettings {
-  /// 更新方式:"额外模型解析" / "随AI输出"
+  /// Update mode: extra-model parsing or follow AI output
   final String updateMode;
 
-  /// 聊天历史条数(额外模型能看到的最近消息数)。范围 2-100,默认 10。
+  /// Number of recent messages visible to the extra model. Range 2-100, default 10.
   final int maxChatHistory;
 
-  /// 模型来源:"自定义" 等
+  /// Model source, e.g. custom
   final String modelSource;
 
-  /// 破限方案
+  /// Jailbreak scheme
   final String jailbreakScheme;
 
-  /// 是否启用自动请求
+  /// Whether auto request is enabled
   final bool autoRequest;
 
-  /// 自定义 API 地址(非敏感)
+  /// Custom API URL (non-sensitive)
   final String apiUrl;
 
-  /// API 密钥(敏感,仅存本地 DB,不写入源码)
+  /// API key (sensitive, stored only in the local database, never written into source)
   final String apiKey;
 
-  /// 模型名称
+  /// Model name
   final String modelName;
 
-  /// 是否启用自定义 task 提示词(默认关,用内置安全版)
+  /// Whether the custom task prompt is enabled (off by default, uses the built-in safe version)
   final bool customPromptEnabled;
 
-  /// 自定义 task 提示词内容(默认 = 内置安全版)
+  /// Custom task prompt content (defaults to the built-in safe version)
   final String customPrompt;
 
-  // ── [P5-8/P1] 通知四键 ──────────────────────────────────────────
-  // 对应 extensionSettings.mvu_settings.通知 的四个中文键,
-  // 默认值与 mvu_bundle.js 出厂 zod schema 对齐(:2988-2993)。
-  // 道渊报警1要求四键全真;出厂默认"变量更新出错"=false,用户可在道渊面板打开。
+  // Notification flags
+  // Four Chinese keys under extensionSettings.mvu_settings notifications;
+  // defaults align with the factory zod schema in mvu_bundle.js (:2988-2993).
+  // Factory default for the variable-update-error flag is false; users can
+  // enable it in the panel.
 
-  /// MVU框架加载成功通知(出厂默认 true)
+  /// Framework loaded notification (factory default true)
   final bool notifyFrameworkLoaded;
 
-  /// 变量初始化成功通知(出厂默认 true)
+  /// Variable initialization success notification (factory default true)
   final bool notifyInitSuccess;
 
-  /// 变量更新出错通知(出厂默认 false)
+  /// Variable update error notification (factory default false)
   final bool notifyVarError;
 
-  /// 额外模型解析中通知(出厂默认 true)
+  /// Extra-model parsing notification (factory default true)
   final bool notifyExtraParsing;
 
-  /// [P6-BUG-1] web 侧写回的 mvu_settings 原始对象(中文键,MVU 自有 schema 形状)。
+  /// Raw mvu_settings object written back from the web side
+  /// (Chinese keys, MVU's own schema shape).
   ///
-  /// MVU 的 Pinia store 把整份设置(含 internal 已提醒标志/自动清理变量/兼容性等)
-  /// 写回 extensionSettings.mvu_settings;平台此前只提取已知三段落盘,
-  /// internal 标志丢失 → 每次进聊天页 MVU 的"一次性升级提醒"全部重弹。
-  /// 这里原样透传保存,烘焙时以 webRaw 为底、平台已知值覆盖,让 MVU 的
-  /// 只提醒一次机制自然生效。为空(首次)时行为同旧版。
+  /// MVU's Pinia store writes the full settings (including internal one-time
+  /// reminder flags, auto-cleanup variables, compatibility flags, etc.) back
+  /// to extensionSettings.mvu_settings. The platform previously only extracted
+  /// three known sections, so internal flags were lost and MVU's one-time
+  /// upgrade reminders re-appeared on every chat page visit. This field is
+  /// persisted as-is; when baking, webRaw is the base overridden by known
+  /// platform values, letting MVU's remind-once mechanism work naturally.
+  /// Empty (first run) behaves like the legacy version.
   final Map<String, dynamic> webRaw;
 
   const MvuSettings({
@@ -179,7 +186,7 @@ class MvuSettings {
       };
 
   factory MvuSettings.fromJson(Map<String, dynamic> json) {
-    // maxChatHistory 收敛到 mvu 的合法范围 2-100
+    // Clamp maxChatHistory to the MVU-valid range 2-100
     final rawHistory = (json['maxChatHistory'] as num?)?.toInt() ?? 10;
     final clampedHistory = rawHistory.clamp(2, 100);
     return MvuSettings(
@@ -193,7 +200,8 @@ class MvuSettings {
       modelName: json['modelName'] as String? ?? 'deepseek-chat',
       customPromptEnabled: json['customPromptEnabled'] as bool? ?? false,
       customPrompt: json['customPrompt'] as String? ?? kDefaultMvuTask,
-      // [P5-8/P1] 通知四键,旧数据缺省时按 MVU 出厂默认回填(true,true,false,true)
+      // Notification flags; backfill with MVU factory defaults for legacy
+      // data (true, true, false, true)
       notifyFrameworkLoaded: json['notifyFrameworkLoaded'] as bool? ?? true,
       notifyInitSuccess: json['notifyInitSuccess'] as bool? ?? true,
       notifyVarError: json['notifyVarError'] as bool? ?? false,

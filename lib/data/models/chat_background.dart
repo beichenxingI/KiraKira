@@ -89,7 +89,7 @@ class ChatBackground {
   }) {
     return ChatBackground(
       type: BackgroundType.video,
-      imagePath: path, // 复用 imagePath 字段存视频路径
+      imagePath: path, // Reuses the imagePath field to store the video path
       opacity: opacity,
       bubbleOpacity: bubbleOpacity,
     );

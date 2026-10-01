@@ -4,7 +4,7 @@ import 'package:kirakira/l10n/generated/app_localizations.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/widgets/snackbar_utils.dart';
 
-/// 统一的"复制到剪贴板并提示"实现(DRY):三组件共用。
+/// Shared "copy to clipboard and notify" implementation (DRY): used by all three components.
 void _copyAndNotify(BuildContext context, String text, {String? message}) {
   if (text.isEmpty) return;
   Clipboard.setData(ClipboardData(text: text));

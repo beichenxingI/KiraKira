@@ -5,38 +5,39 @@ import 'package:dio/dio.dart';
 import 'package:kirakira/core/logger/logger.dart';
 import 'package:kirakira/data/models/announcement.dart';
 
-/// 计算公告内容的 SHA256 哈希（用于判断内容是否变化）
+/// Computes the SHA256 hash of announcement content (to detect content changes)
 ///
-/// 必须对 JSON Map 进行稳定排序后再编码，避免字段顺序变化导致哈希不同。
-/// 移除不影响内容的死字段（forceUpdate/minAppVersion）。
+/// The JSON map must be stably sorted before encoding to avoid hash differences
+/// from field order changes. Dead fields that do not affect content
+/// (forceUpdate/minAppVersion) are removed.
 String computeAnnouncementHash(Map<String, dynamic> json) {
-  // 1. 深拷贝并移除不影响内容的字段
+  // 1. Deep copy and remove fields that do not affect content
   final normalized = Map<String, dynamic>.from(json);
   normalized.remove('forceUpdate');
   normalized.remove('minAppVersion');
 
-  // 2. 稳定排序：按 key 字母序重建 Map
+  // 2. Stable sort: rebuild the map with keys in alphabetical order
   final sortedKeys = normalized.keys.toList()..sort();
   final sortedMap = <String, dynamic>{};
   for (final key in sortedKeys) {
     sortedMap[key] = normalized[key];
   }
 
-  // 3. JSON 编码（无缩进，紧凑格式）
+  // 3. JSON encode (compact, no indentation)
   final jsonString = jsonEncode(sortedMap);
 
-  // 4. UTF-8 编码 → SHA256
+  // 4. UTF-8 encode, then SHA256
   final bytes = utf8.encode(jsonString);
   final digest = sha256.convert(bytes);
 
-  return digest.toString(); // 64 位十六进制字符串
+  return digest.toString(); // 64-char hex string
 }
 
-/// 公告拉取服务
+/// Announcement fetch service.
 ///
-/// 双轨：update（单对象，多源竞速）/ daily（数组，多源竞速）。
-/// 多源并发请求多个镜像，第一个成功的结果胜出，全部失败返回空，绝不阻塞进入 app。
-/// 源地址集中在 _updateSources / _dailySources，失效时改一行即可。
+/// Two tracks: update (single object, multi-source racing) and daily (array, multi-source racing).
+/// Concurrent requests hit multiple mirrors; the first success wins, all failures return empty,
+/// and entry into the app is never blocked. Source URLs are centralized in _updateSources / _dailySources.
 class AnnouncementService {
   final Dio _dio;
 
@@ -49,13 +50,13 @@ class AnnouncementService {
             ));
 
   static const List<String> _updateSources = [
-    // 国内主源：Gitee（访问快，实测可用）
+    // Main domestic source: Gitee (fast access, verified working)
     'https://gitee.com/kirakira-config/kirakira-announcements/raw/main/announcement.json',
-    // 国外主源：GitHub raw 直连
+    // Main international source: GitHub raw direct
     'https://raw.githubusercontent.com/beichenxingI/kirakira-announcements/main/announcement.json',
-    // 备用：gh-proxy 公益加速（可能失效，失效改此行）
+    // Fallback: gh-proxy acceleration proxy (may become unavailable; update this line if it fails)
     'https://gh-proxy.com/https://raw.githubusercontent.com/beichenxingI/kirakira-announcements/main/announcement.json',
-    // 待配置：Cloudflare Pages
+    // Not yet configured: Cloudflare Pages
     // 'https://kirakira-announcements.pages.dev/announcement.json',
   ];
 
@@ -65,9 +66,9 @@ class AnnouncementService {
     'https://gh-proxy.com/https://raw.githubusercontent.com/beichenxingI/kirakira-announcements/main/releases/announcements_daily.json',
   ];
 
-  /// 拉取更新公告（单对象）。
-  /// 返回 (Announcement?, String? hash)，hash 用于已读判断。
-  /// 多源竞速：第一个成功者胜出，全部失败返回 (null, null)。
+  /// Fetch update announcements (single object).
+  /// Returns (Announcement?, String? hash); the hash is used for read tracking.
+  /// Multi-source racing: the first success wins, all failures return (null, null).
   Future<(Announcement?, String?)> fetchUpdate() {
     final completer = Completer<(Announcement?, String?)>();
     var pending = _updateSources.length;
@@ -108,9 +109,9 @@ class AnnouncementService {
     return completer.future;
   }
 
-  /// 拉取日常公告（数组）。
-  /// 返回 List<Announcement>，已过期的自动过滤，按 priority 降序排序。
-  /// 多源竞速：第一个成功者胜出，全部失败返回 []。
+  /// Fetch daily announcements (array).
+  /// Returns List<Announcement> with expired ones filtered out, sorted by priority descending.
+  /// Multi-source racing: the first success wins, all failures return [].
   Future<List<Announcement>> fetchDaily() {
     final completer = Completer<List<Announcement>>();
     var pending = _dailySources.length;
@@ -129,7 +130,7 @@ class AnnouncementService {
               .map((json) => Announcement.fromJson(json))
               .where((a) => a.hasContent && !a.isExpired)
               .toList();
-          // 按 priority 降序排序
+          // Sort by priority descending
           announcements.sort((a, b) => b.priority.compareTo(a.priority));
           KiraLogger().info('公告', '日常公告成功: $url  共 ${announcements.length} 条');
           completer.complete(announcements);

@@ -61,7 +61,7 @@ class FingerprintResultWidget extends StatelessWidget {
         Text('行为特征最接近：${r.closestFamily!.familyName} 家族 (${r.closestFamily!.confidence.name}置信度)',
             style: const TextStyle(color: DesignTokens.primary, fontSize: DesignTokens.fontSizeBodyMedium)),
       ],
-      // 家族命中证据（为什么判成这个家族）
+      // Family match evidence (why this family was selected)
       if (r.closestFamily != null && r.closestFamily!.evidence.isNotEmpty) ...[
         const SizedBox(height: DesignTokens.spaceSm),
         const Text('判定依据：', style: TextStyle(color: DesignTokens.darkTextSecondary, fontSize: DesignTokens.fontSizeSm)),
@@ -71,7 +71,7 @@ class FingerprintResultWidget extends StatelessWidget {
               child: Text('· $e', style: const TextStyle(color: DesignTokens.darkTextSecondary, fontSize: 12)),
             )),
       ],
-      // 缩水判定
+      // Downgrade notice
       if (r.downgradeNote != null) ...[
         const SizedBox(height: 12),
         Container(
@@ -90,7 +90,7 @@ class FingerprintResultWidget extends StatelessWidget {
           ]),
         ),
       ],
-      // 掺假检测结果（仅在做过一致性检测时显示）
+      // Tampering detection result (shown only after a consistency check has run)
       if (r.consistencyScore != null) ...[
         const SizedBox(height: 12),
         Container(

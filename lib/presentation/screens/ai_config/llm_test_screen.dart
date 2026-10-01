@@ -1,5 +1,5 @@
 // lib/presentation/screens/ai_config/llm_test_screen.dart
-/// LLM Test 调试页(G-T4.2:保留,外观跟随主题即可)
+/// LLM test debug screen (retained; appearance follows the theme)
 library;
 
 import 'package:flutter/cupertino.dart';

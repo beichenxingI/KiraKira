@@ -1,5 +1,7 @@
-/// [P6-4/P2] 数学命令族:计算/统计/随机。语义对齐 ST variables.js 数学段。
-/// 操作数解析与 /if 同源:数字字面量 → 作用域变量 → chat变量 → global变量 → 字面量。
+/// Math command family: arithmetic/statistics/random. Semantics match the math
+/// section of ST variables.js.
+/// Operand resolution shares the same source as /if: number literal to scope
+/// variable to chat variable to global variable to literal.
 library;
 
 import 'dart:convert';
@@ -15,7 +17,7 @@ num _numOf(Object? v) {
   return num.tryParse(v?.toString() ?? '') ?? 0;
 }
 
-/// 数字 pipe 化:整数值去小数点(ST 的 String(Number(x)) 语义)。
+/// Numeric pipe: integer values drop the decimal point (ST's String(Number(x)) semantics).
 String numToString(num v) {
   if (v.isFinite && v % 1 == 0) {
     final i = v.toInt();
@@ -24,7 +26,7 @@ String numToString(num v) {
   return v.toString();
 }
 
-/// 操作数解析(与 /if 同序),供数学命令用。
+/// Operand resolution (same order as /if), used by math commands.
 Object? _resolveOperand(Object? raw, SlashArgs args) {
   if (raw == null) return null;
   final s = raw.toString();
@@ -41,7 +43,7 @@ Object? _resolveOperand(Object? raw, SlashArgs args) {
   return raw;
 }
 
-/// 值列表:split 无名参数逐个解析;单项若是 JSON 数组则展开。
+/// Number list: split unnamed arguments resolved one by one; a single JSON array item is expanded.
 List<num> _numberList(SlashArgs args) {
   final resolved =
       args.unnamed.map((e) => _resolveOperand(e, args)).toList();
@@ -67,7 +69,7 @@ void _registerBinary(
       if (list.length == 1) return numToString(op(0, list.first));
       var acc = list.first;
       for (var i = 1; i < list.length; i++) {
-        if (divLike && list[i] == 0) return ''; // 除零保护
+        if (divLike && list[i] == 0) return ''; // divide-by-zero guard
         acc = op(acc, list[i]);
       }
       return numToString(acc);
@@ -86,7 +88,7 @@ void _registerUnary(String name, num Function(num v) op) {
   ));
 }
 
-/// 注册数学命令(幂等)。
+/// Registers math commands (idempotent).
 void registerMathSlashCommands() {
   _registerBinary('add', (a, b) => a + b, false);
   _registerBinary('sub', (a, b) => a - b, false);
@@ -104,7 +106,7 @@ void registerMathSlashCommands() {
   _registerUnary('sin', (v) => math.sin(v));
   _registerUnary('cos', (v) => math.cos(v));
 
-  // /len:字符串字符数 / 列表项数 / 字典键数
+  // /len: string character count / list item count / dict key count
   SlashCommandRegistry.register(SlashCommand(
     name: 'len',
     aliases: ['length'],
@@ -125,7 +127,7 @@ void registerMathSlashCommands() {
     },
   ));
 
-  // /sort:列表排序(JSON 数组)
+  // /sort: list sorting (JSON array)
   SlashCommandRegistry.register(SlashCommand(
     name: 'sort',
     callback: (args) async {
@@ -146,7 +148,7 @@ void registerMathSlashCommands() {
     },
   ));
 
-  // /keysort:字典键排序(JSON 对象 → 排序后的键数组)
+  // /keysort: dict key sorting (JSON object to sorted key array)
   SlashCommandRegistry.register(SlashCommand(
     name: 'keysort',
     callback: (args) async {
@@ -168,7 +170,7 @@ void registerMathSlashCommands() {
     callback: (args) async {
       final from = num.tryParse(args.namedString('from') ?? '0') ?? 0;
       var to = num.tryParse(args.namedString('to') ?? '') ?? 1;
-      // ST 语义:to 缺省时用无名参数,再缺省 1
+      // ST semantics: when to is absent, use the unnamed argument, then default 1
       if (args.namedString('to') == null && args.unnamed.isNotEmpty) {
         to = _numOf(_resolveOperand(args.unnamed.first, args));
       }

@@ -1,7 +1,7 @@
 // lib/presentation/dialogs/appearance_settings_dialog.dart
-/// 主页外观设置浮窗(外观三项迁移)
-/// 内容完整迁自 home_appearance_screen.dart:背景(自定义/恢复默认) +
-/// 背景音乐(选择/移除)。字段一个不少。
+/// Home appearance settings dialog (appearance settings migration).
+/// Mirrors home_appearance_screen.dart with every field preserved: background
+/// (custom / reset to default) and background music (select / remove).
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -54,7 +54,8 @@ class _AppearanceSettingsDialog extends ConsumerWidget {
     await ref.read(homeMusicProvider.notifier).setMusic(path);
   }
 
-  /// 清除自定义背景 = 破坏操作 → CupertinoAlertDialog 确认(与原页一致)
+  /// Clearing the custom background is destructive, so it requires
+  /// CupertinoAlertDialog confirmation (matches the original page).
   Future<void> _confirmClearBackground(
       BuildContext context, WidgetRef ref) async {
     final confirm = await showCupertinoDialog<bool>(
@@ -115,7 +116,7 @@ class _AppearanceSettingsDialog extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 背景 ──
+          // Background
           KiraSection(
             title: '背景',
             children: [
@@ -142,7 +143,7 @@ class _AppearanceSettingsDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // ── 背景音乐 ──
+          // Background music
           KiraSection(
             title: '背景音乐',
             children: [

@@ -1,12 +1,13 @@
 // lib/presentation/dialogs/regex_system_dialog.dart
-/// 正则系统浮窗(极客Core迁移 P4)
-/// regex_settings_screen.dart(570行) + regex_script_edit_screen.dart(448行)
-/// 完整合并迁入 800px 左右分屏编辑器:
-/// 左(260px):总开关·搜索(防抖200ms)·筛选Chips·脚本列表(惰性+拖拽排序)·新建/导入/导出/预设/清空
-/// 右(自适应):未选中=空状态+全局应用范围设置;选中=完整编辑表单
-///   (脚本名/启用/应用范围多选/查找正则/替换内容/去除字符串Chips/
-///    markdownOnly·promptOnly·runOnEdit/宏替换模式/深度限制/测试区实时预览/取消/保存)
-/// 数据源复用 globalRegexScriptsProvider,导入导出不变。
+/// Regex system dialog.
+/// Merged from regex_settings_screen.dart (570 lines) + regex_script_edit_screen.dart (448 lines)
+/// into a single 800px-wide split editor:
+/// Left (260px): master switch, search (200ms debounce), filter chips, script list
+///   (lazy build + drag reorder), new/import/export/preset/clear.
+/// Right (adaptive): unselected = empty state + global apply-to settings; selected = full edit form
+///   (script name/enabled/apply-to multi-select/find regex/replace content/strip-strings chips/
+///    markdownOnly·promptOnly·runOnEdit/macro substitution mode/depth limit/live test preview/cancel/save).
+/// Reuses globalRegexScriptsProvider as data source; import/export unchanged.
 library;
 
 import 'dart:async';
@@ -42,16 +43,16 @@ class _RegexSystemDialog extends ConsumerStatefulWidget {
 }
 
 class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
-  // ── 左侧列表状态 ──
+  // Left list state
   final _searchCtrl = TextEditingController();
   Timer? _searchDebounce;
   String _search = '';
   _RegexFilter _filter = _RegexFilter.all;
 
-  // ── 右侧编辑状态 ──
+  // Right editor state
   String? _selectedId;
-  RegexScript? _editingBase; // 编辑中的脚本(null=新建未保存)
-  bool _editingEnabled = true; // 编辑表单内的启用态(保存时写回)
+  RegexScript? _editingBase; // script being edited (null = new, unsaved)
+  bool _editingEnabled = true; // enabled state from the edit form (written back on save)
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _findController;
@@ -106,7 +107,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     _editingEnabled = true;
   }
 
-  /// 选中脚本(或 null = 空白新建)
+  /// Selected script (null = blank new script)
   void _select(RegexScript? script) {
     setState(() {
       _selectedId = script?.id;
@@ -221,7 +222,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     } else {
       notifier.addScript(script);
     }
-    // 编辑表单内的启用态写回(与列表开关同源,即时生效)
+    // Write back the enabled state from the edit form (same source as the list toggle, effective immediately)
     if (script.disabled != !_editingEnabled) {
       notifier.toggleScript(script.id);
     }
@@ -281,12 +282,11 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // [问题一] 响应式布局:横屏左右分屏 / 竖屏上下两段
-  // 两种布局功能完全相同,仅排列方向不同,共用下列子构建器。
-  // ═══════════════════════════════════════════════════════════════════════════
+  // Responsive layout: landscape = side-by-side panes, portrait = stacked sections.
+  // Both layouts are functionally identical and share the sub-builders below;
+  // only the arrangement direction differs.
 
-  /// 总开关行(启用正则脚本)
+  /// Master switch row (enable regex scripts)
   Widget _buildMasterToggle(
       CoreDialogPalette palette, AppLocalizations l10n, WidgetRef ref, RegexSettings settings) {
     return _LeftRow(
@@ -310,7 +310,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     );
   }
 
-  /// 搜索框(防抖200ms)
+  /// Search box (200ms debounce)
   Widget _buildSearchField(CoreDialogPalette palette, AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.all(8),
@@ -333,7 +333,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     );
   }
 
-  /// 筛选 Chips(全部/已启用/已禁用)
+  /// Filter chips (all/enabled/disabled)
   Widget _buildFilterChips(CoreDialogPalette palette, List<RegexScript> scripts) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -364,7 +364,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     );
   }
 
-  /// 脚本列表(惰性构建 + 拖拽排序,空态自适应)
+  /// Script list (lazy build + drag reorder, adaptive empty state)
   Widget _buildScriptList(BuildContext context, WidgetRef ref,
       CoreDialogPalette palette, AppLocalizations l10n, List<RegexScript> filtered) {
     if (filtered.isEmpty) {
@@ -391,7 +391,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     return ReorderableListView.builder(
       itemCount: filtered.length,
       onReorder: (oldIndex, newIndex) {
-        // 过滤态下重排按可见序列映射到全量索引
+        // When filtered, map the reordered visible sequence back to full indexes
         if (newIndex > oldIndex) newIndex--;
         final allScripts = ref.read(globalRegexScriptsProvider);
         final visible = _filteredScripts(allScripts);
@@ -425,7 +425,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     );
   }
 
-  /// 底部:+新建 / 导入 / 导出
+  /// Bottom bar: new / import / export
   Widget _buildBottomActions(
       BuildContext context, WidgetRef ref, CoreDialogPalette palette, AppLocalizations l10n) {
     return Padding(
@@ -474,14 +474,14 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     );
   }
 
-  /// 编辑区(空状态提示 / 完整编辑表单)
+  /// Editor area (empty-state hint / full edit form)
   Widget _buildEditArea(BuildContext context, WidgetRef ref, CoreDialogPalette palette) {
     return _selectedId == null && _editingBase == null
         ? _buildEmptyPane(context, ref, palette)
         : _buildEditPane(context, ref, palette);
   }
 
-  /// 横屏:左右分屏(左 260px 列表区 + 右 编辑区)
+  /// Landscape: side-by-side split (left 260px list pane + right editor pane)
   Widget _buildLandscape(
     BuildContext context,
     WidgetRef ref,
@@ -494,7 +494,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ══ 左侧:列表区(260px 固定) ══
+        // Left: list pane (fixed 260px)
         SizedBox(
           width: 260,
           child: Column(
@@ -511,16 +511,16 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
             ],
           ),
         ),
-        // 分栏线
+        // Divider
         VerticalDivider(width: 0.5, thickness: 0.5, color: palette.divider),
-        // ══ 右侧:编辑区(自适应,可滚动) ══
+        // Right: editor pane (adaptive, scrollable)
         Expanded(child: _buildEditArea(context, ref, palette)),
       ],
     );
   }
 
-  /// 竖屏:上下两段(顶部工具栏 + 列表 + 编辑区 + 底部按钮)
-  /// 选中脚本时列表高度自动压缩(AnimatedContainer 250ms)
+  /// Portrait: stacked sections (top toolbar + list + editor area + bottom buttons)
+  /// List height auto-collapses when a script is selected (AnimatedContainer 250ms)
   Widget _buildPortrait(
     BuildContext context,
     WidgetRef ref,
@@ -534,12 +534,12 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ══ 顶部:总开关 + 搜索 + 筛选(固定) ══
+        // Top: master switch + search + filter (fixed)
         _buildMasterToggle(palette, l10n, ref, settings),
         _buildSearchField(palette, l10n),
         _buildFilterChips(palette, scripts),
         Divider(height: 0.5, thickness: 0.5, color: palette.divider),
-        // ══ 脚本列表(固定高度,选中时压缩,可滚动) ══
+        // Script list (fixed height, collapses when selected, scrollable)
         AnimatedContainer(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeInOut,
@@ -547,16 +547,16 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           child: _buildScriptList(context, ref, palette, l10n, filtered),
         ),
         Divider(height: 0.5, thickness: 0.5, color: palette.divider),
-        // ══ 编辑区(占剩余空间,可滚动) ══
+        // Editor area (fills remaining space, scrollable)
         Expanded(child: _buildEditArea(context, ref, palette)),
         Divider(height: 0.5, thickness: 0.5, color: palette.divider),
-        // ══ 底部:+新建 / 导入 / 导出 ══
+        // Bottom: new / import / export
         _buildBottomActions(context, ref, palette, l10n),
       ],
     );
   }
 
-  /// 右侧空状态:提示 + 全局应用范围设置(原设置页全局开关完整保留)
+  /// Right-side empty state: hint + global apply-to settings (the settings screen's global switch is fully preserved)
   Widget _buildEmptyPane(
       BuildContext context, WidgetRef ref, CoreDialogPalette palette) {
     final l10n = AppLocalizations.of(context);
@@ -655,7 +655,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     );
   }
 
-  /// 右侧编辑表单(字段与 regex_script_edit_screen 一致)
+  /// Right-side edit form (fields match regex_script_edit_screen)
   Widget _buildEditPane(
       BuildContext context, WidgetRef ref, CoreDialogPalette palette) {
     final l10n = AppLocalizations.of(context);
@@ -665,7 +665,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 脚本名(必填) + 启用开关 ──
+          // Script name (required) + enabled toggle
           const CoreSectionLabel('脚本名（必填）'),
           const SizedBox(height: 6),
           CoreTextField(
@@ -689,7 +689,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           ),
           const SizedBox(height: 12),
 
-          // ── 应用范围(多选Chips) ──
+          // Apply to (multi-select chips)
           const CoreSectionLabel('应用范围 Apply To'),
           const SizedBox(height: 6),
           Wrap(
@@ -745,7 +745,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           ),
           const SizedBox(height: 16),
 
-          // ── 查找正则(单行,代码字体) ──
+          // Find regex (single line, code font)
           const CoreSectionLabel('查找模式 Find Regex'),
           const SizedBox(height: 6),
           CupertinoTextField(
@@ -769,7 +769,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           ),
           const SizedBox(height: 12),
 
-          // ── 替换内容(多行) ──
+          // Replace with (multiline)
           const CoreSectionLabel('替换为 Replace With'),
           const SizedBox(height: 6),
           CupertinoTextField(
@@ -805,7 +805,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           ),
           const SizedBox(height: 16),
 
-          // ── 选项开关 ──
+          // Option toggles
           const CoreSectionLabel('选项 Options'),
           const SizedBox(height: 4),
           _Group(
@@ -846,7 +846,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           ),
           const SizedBox(height: 16),
 
-          // ── 高级:深度限制 + 去除字符串 ──
+          // Advanced: depth limit + strip strings
           const CoreSectionLabel('高级 Advanced'),
           const SizedBox(height: 6),
           Row(
@@ -877,7 +877,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           ),
           const SizedBox(height: 12),
 
-          // 去除字符串(Chips输入)
+          // Strip strings (chip input)
           if (_trimStrings.isNotEmpty)
             Wrap(
               spacing: 6,
@@ -931,7 +931,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           ),
           const SizedBox(height: 16),
 
-          // ── 测试区(输入→实时预览替换结果) ──
+          // Test area (input -> live preview of the replacement result)
           CoreSectionLabel(l10n.test),
           const SizedBox(height: 6),
           CupertinoTextField(
@@ -960,7 +960,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
           ],
           const SizedBox(height: 16),
 
-          // ── 底部:取消/保存 ──
+          // Bottom: cancel / save
           Row(
             children: [
               Expanded(
@@ -998,7 +998,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
     );
   }
 
-  /// 宏替换模式 → CupertinoActionSheet(与原页一致)
+  /// Macro substitution mode -> CupertinoActionSheet (matches original screen)
   Future<void> _pickSubstituteRegex() async {
     final selected = await showCupertinoModalPopup<SubstituteRegex>(
       context: context,
@@ -1203,7 +1203,7 @@ class _RegexSystemDialogState extends ConsumerState<_RegexSystemDialog> {
   }
 }
 
-/// 左侧面板行容器
+/// Left panel row container
 class _LeftRow extends StatelessWidget {
   const _LeftRow({required this.palette, required this.child});
 
@@ -1219,7 +1219,7 @@ class _LeftRow extends StatelessWidget {
   }
 }
 
-/// 筛选 Chip
+/// Filter chip
 class _FilterChip extends StatelessWidget {
   const _FilterChip({
     required this.palette,
@@ -1263,7 +1263,7 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-/// 脚本列表行(名称 + 启用开关 + 选中高亮 + 删除)
+/// Script list row (name + enabled toggle + selection highlight + delete)
 class _ScriptListTile extends StatelessWidget {
   const _ScriptListTile({
     super.key,
@@ -1352,7 +1352,7 @@ class _ScriptListTile extends StatelessWidget {
   }
 }
 
-/// 应用范围多选 Chip
+/// Apply-to multi-select chip
 class _PlacementChip extends StatelessWidget {
   const _PlacementChip({
     required this.palette,
@@ -1396,7 +1396,7 @@ class _PlacementChip extends StatelessWidget {
   }
 }
 
-/// 测试实时预览(输入→替换结果)
+/// Live test preview (input -> replacement result)
 class _TestPreview extends StatelessWidget {
   const _TestPreview({required this.palette, required this.result});
 
@@ -1480,7 +1480,7 @@ class _TestPreview extends StatelessWidget {
   }
 }
 
-/// 浮窗内分组容器
+/// Group container for dialogs
 class _Group extends StatelessWidget {
   const _Group({required this.palette, required this.children});
 

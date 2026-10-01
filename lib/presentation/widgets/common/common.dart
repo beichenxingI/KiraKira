@@ -1,5 +1,5 @@
 // lib/presentation/widgets/common/common.dart
-/// 通用组件桶文件:统一 import 入口
+/// Barrel file for common widgets: single import entry point
 library;
 
 export 'kira_button.dart';

@@ -67,7 +67,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 
   Widget _buildSearchBar(BuildContext context) {
-    // 宪法 §六.4:全局统一 KiraSearchBar
+    // Use the globally unified KiraSearchBar
     return KiraSearchBar(
       controller: _searchController,
       hintText: '搜索聊天记录...',
@@ -76,7 +76,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     );
   }
 
-  /// 返工条目6:聊天每页条数档位(10/20/30/50,持久化 chat_history_page_size)
+  /// Chat page size options (10/20/30/50), persisted as chat_history_page_size.
   void _showPageSizeSheet(BuildContext context) {
     final current = ref.read(chatHistoryPageSizeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -142,7 +142,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // 返工条目2:砍顶部大标题"聊天",搜索+新写按钮接顶
+            // No large title at the top; page-size chip, search and new-chat button sit flush with the top edge
             SliverToBoxAdapter(
               child: SafeArea(
                 bottom: false,
@@ -168,7 +168,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             ),
             const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceXs)),
             _ChatListSliver(searchQuery: _searchQuery),
-            // 避让底部胶囊导航
+            // Clearance for the bottom capsule navigation bar
             const SliverToBoxAdapter(child: SizedBox(height: 96)),
           ],
         ),
@@ -178,8 +178,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   }
 }
 
-/// 聊天列表 sliver 段(C-T2:嵌套滚动问题 → 必须 sliver 化)
-/// 返工条目6:每页 M 条 + PageView 左右滑翻 + 页码指示
+/// Chat list sliver section (slivers are required to avoid nested scroll conflicts).
+/// Paginated by page size: swipe horizontally in the PageView with a page indicator.
 class _ChatListSliver extends ConsumerStatefulWidget {
   final String searchQuery;
 
@@ -206,14 +206,14 @@ class _ChatListSliverState extends ConsumerState<_ChatListSliver> {
     final chatsAsync = ref.watch(allChatsProvider);
     final pageSize = ref.watch(chatHistoryPageSizeProvider);
 
-    // 搜索词变化 → 回第 1 页
+    // Reset to the first page when the search query changes
     if (widget.searchQuery != _lastQuery) {
       _lastQuery = widget.searchQuery;
       _currentPage = 0;
       if (_pageController.hasClients) _pageController.jumpToPage(0);
     }
 
-    // 分支返回 List<Widget> slivers,由 SliverMainAxisGroup 聚合成单 sliver
+    // Each branch returns a list of slivers, merged into one by SliverMainAxisGroup
     return SliverMainAxisGroup(
       slivers: chatsAsync.when(
       loading: () => const [
@@ -241,7 +241,7 @@ class _ChatListSliverState extends ConsumerState<_ChatListSliver> {
         ),
       ],
       data: (chats) {
-        // 搜索词过滤(标题)
+        // Filter chats by title
         final q = widget.searchQuery.trim().toLowerCase();
         final filtered = q.isEmpty
             ? chats
@@ -288,14 +288,14 @@ class _ChatListSliverState extends ConsumerState<_ChatListSliver> {
         ];
       }
 
-        // 返工条目6:按 pageSize 切多页
+        // Split into pages of pageSize
         final pageCount = (filtered.length + pageSize - 1) ~/ pageSize;
         if (_currentPage > pageCount - 1) {
-          _currentPage = pageCount - 1; // 数据收缩后收敛
+          _currentPage = pageCount - 1; // Clamp once the data shrinks
         }
 
         return [
-          // 分页控件 `《 ‹ 1/4 › 》`
+          // Pagination control
           if (pageCount > 1)
             SliverToBoxAdapter(
               child: _PaginationCard(
@@ -516,9 +516,9 @@ class _ChatListTile extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ① 顶部封面图
+                // Cover image
                 _buildCoverImage(context, character),
-                // ② 角色名
+                // Character name
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                   child: Text(
@@ -530,7 +530,7 @@ class _ChatListTile extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                // ③ 消息预览
+                // Message preview
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
@@ -548,7 +548,7 @@ class _ChatListTile extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // ④ 继续聊天
+                // Continue chat button
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: SizedBox(
@@ -575,7 +575,7 @@ class _ChatListTile extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // ⑤ 操作按钮行
+                // Action button row
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
@@ -668,7 +668,7 @@ class _ChatListTile extends ConsumerWidget {
   }
 
   Future<void> _importChatMessages(BuildContext context, WidgetRef ref) async {
-    // [CHRONICLE Phase 2] 注入Chronicle能力
+    // Inject Chronicle capabilities
     final exportService = ChatExportService(
       chronicleRepo: ref.read(chronicleRepositoryProvider),
       vectorStorage: ref.read(vectorStorageServiceProvider),
@@ -688,11 +688,11 @@ class _ChatListTile extends ConsumerWidget {
         }
         return;
       }
-      // 追加到当前聊天
+      // Append to the current chat
       for (final msg in result.messages) {
         await repo.addMessage(msg.toChatMessage(chat.id, ''));
       }
-      // [CHRONICLE Phase 2] 恢复内嵌的超级记忆
+      // Restore embedded super-memory
       if (result.chronicleData != null) {
         await exportService.restoreChronicleToChat(chat.id, result.chronicleData!);
       }
@@ -713,7 +713,7 @@ class _ChatListTile extends ConsumerWidget {
       _showActionResultSnackBar(context, '角色信息缺失，无法导出', isError: true);
       return;
     }
-    // [CHRONICLE Phase 2] 注入Chronicle能力，导出内嵌kira_chronicle
+    // Inject Chronicle capabilities; the export embeds kira_chronicle
     final exportService = ChatExportService(
       chronicleRepo: ref.read(chronicleRepositoryProvider),
       vectorStorage: ref.read(vectorStorageServiceProvider),
@@ -725,7 +725,7 @@ class _ChatListTile extends ConsumerWidget {
       if (context.mounted) {
         _showActionResultSnackBar(context, '正在导出 ${messages.length} 条消息...');
       }
-      // [问题1] 统一导出交付:分享 / 保存到文件(命名与 exportToFile 一致)
+      // Unified export delivery: share or save to file (naming matches exportToFile)
       final content = await exportService.exportToJsonl(
         chat,
         messages,
@@ -808,9 +808,9 @@ class _ChatListTile extends ConsumerWidget {
             onPressed: () async {
               Navigator.pop(dialogContext);
               await ref.read(chatRepositoryProvider).deleteChat(chat.id);
-              // RAG：同步清理内存中的向量集合（库已由 deleteChat 删除）
+              // RAG: also drop the in-memory vector collection (the underlying store was already deleted by deleteChat)
               ref.read(vectorStorageServiceProvider).deleteCollection(chat.id);
-              // 刷新集合列表，并在删的正是活跃集合时清空选择，避免下拉框指向幽灵集合
+              // Refresh the collection list; clear the active selection when it was the deleted collection so the dropdown never points at a ghost
               ref.read(vectorCollectionsProvider.notifier).refresh();
               final vsSettings = ref.read(vectorStorageSettingsProvider);
               if (vsSettings.activeCollectionId == chat.id) {
@@ -843,7 +843,7 @@ final _lastMessageProvider = FutureProvider.family((ref, String chatId) async {
   final repo = ref.watch(chatRepositoryProvider);
   return repo.getLastMessage(chatId);
 });
-/// 列表项进场:错峰 50ms 淡入上移(宪法 §五)
+/// List item entrance: staggered fade-in and slide-up with 50ms steps
 class _StaggeredEntrance extends StatelessWidget {
   final int index;
   final Widget child;
@@ -871,9 +871,7 @@ class _StaggeredEntrance extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// Phase 1: 独立分页控件 `《 ‹ 1/4 › 》`
-// ══════════════════════════════════════════════════════════
+// Pagination control
 class _PaginationCard extends StatelessWidget {
   final int currentPage;
   final int pageCount;
@@ -980,9 +978,7 @@ class _PaginationButton extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// Phase 3: 顶部栏组件
-// ══════════════════════════════════════════════════════════
+// Top bar widgets
 class _PageSizeChip extends StatelessWidget {
   final int currentSize;
   final VoidCallback onTap;
@@ -1086,9 +1082,7 @@ class _CircleActionButton extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// 操作浮窗的圆形操作按钮
-// ══════════════════════════════════════════════════════════
+// Round action buttons used by the chat actions dialog
 class _ActionIconButton extends StatelessWidget {
   final IconData icon;
   final String label;

@@ -1,7 +1,8 @@
 // lib/presentation/dialogs/statistics_dialog.dart
-/// 用量统计浮窗(极客Core迁移 P1)
-/// 内容完整迁自 statistics_screen.dart:应用统计(总览/消息/Token用量/性能)
-/// 与会话统计(消息/时间线/Token用量/生成性能),含重置入口。
+/// Usage statistics dialog.
+/// Mirrors statistics_screen.dart: app statistics (overview / messages / token
+/// usage / performance) and chat statistics (messages / timeline / token usage
+/// / generation performance), including the reset entry point.
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -274,7 +275,7 @@ class _ChatStatisticsView extends ConsumerWidget {
   }
 }
 
-/// 浮窗内分组容器
+/// Group container used inside the dialog.
 class _Group extends StatelessWidget {
   const _Group({required this.palette, required this.children});
 

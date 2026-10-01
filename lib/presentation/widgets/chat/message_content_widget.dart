@@ -391,7 +391,7 @@ class _MessageContentWidgetState extends ConsumerState<MessageContentWidget> {
 
   Widget _buildMarkdownContent(BuildContext context, String content) {
     final effectiveFontSize = widget.fontSize ?? 14.0;
-    // 流式输出期间跳过引号染色，省掉每帧重解析的开销
+    // Skip quote highlighting during streaming to save the cost of re-parsing every frame
     final highlight = widget.isStreaming
         ? const QuoteHighlight([], {})
         : QuoteHighlight.build(ref.watch(quoteColorStateProvider));

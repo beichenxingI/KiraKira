@@ -34,35 +34,35 @@ class _MainPageState extends ConsumerState<MainPage> {
   @override
   void initState() {
     super.initState();
-    // 触发全局音乐服务初始化（它自己管播放和 App 生命周期）
+    // Trigger global music service initialization (it manages playback and app lifecycle itself)
     ref.read(homeMusicServiceProvider);
     _timer = Timer.periodic(
       const Duration(seconds: 30),
       (_) { if (mounted) setState(() => _now = DateTime.now()); },
     );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // 预热 WebView 引擎，进入聊天页时省掉初始化时间
+      // Warm up the WebView engine so opening the chat screen skips its initialization time
       _warmupWebView = HeadlessInAppWebView(
         initialData: InAppWebViewInitialData(data: '<html></html>'),
       );
       await _warmupWebView!.run();
 
-      // 后台预解码角色头像进缓存
+      // Pre-decode character avatars into the cache in the background
       _preloadCharacterAvatars();
 
-      // 首次启动：强制先弹免责声明，同意后才继续
+      // First launch: show the disclaimer first; continue only after the user agrees
       if (!mounted) return;
       final prefs = ref.read(sharedPreferencesProvider);
       debugPrint('[协议] 到达调用点, 已同意标志=${prefs.getBool('agreed_terms_v1')}');
       await maybeShowTermsDialog(context, prefs);
       debugPrint('[协议] maybeShowTermsDialog 返回');
 
-      // 读取转圈页拉好的待弹公告（若有），弹完写已读并清空避免重复
+      // Show the announcement fetched by the splash screen (if any), then mark it read and clear it to avoid repeats
       if (!mounted) return;
       final pending = ref.read(pendingAnnouncementProvider);
       if (pending != null) {
         await showAnnouncementDialog(context, pending);
-        // 弹窗关闭后写入已读哈希（不在拉取时写，避免用户没看到就标记）
+        // Write the read hash after the dialog closes (not at fetch time, so an unseen announcement is not marked read)
         final pendingHash = prefs.getString('_pending_announcement_hash');
         if (pendingHash != null) {
           await prefs.setString('seen_announcement_hash', pendingHash);
@@ -105,18 +105,18 @@ class _MainPageState extends ConsumerState<MainPage> {
     final homeBg = ref.watch(homeBackgroundProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // C-T5 chrome:状态栏样式跟随主题(dark 底→亮图标,light 底→暗图标)
+    // System chrome: status bar style follows the theme (dark background uses light icons, light background uses dark icons)
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
       child: Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(        children: [
-          // ── 1. 背景层：视频 / 图片-GIF / 默认渐变 ──────────────────
+          // 1. Background layer: video / image-GIF / default gradient
           Positioned.fill(child: _buildBackground(homeBg)),
 
-          // ── 2. 左下角：时间 + 问候 ─────────────────────────────────
+          // 2. Bottom-left: time + greeting
           Positioned(
-            bottom: 96, // 留出底部导航栏的空间，不被压住
+            bottom: 96, // Clearance for the bottom navigation bar
             left: 24,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,15 +141,15 @@ class _MainPageState extends ConsumerState<MainPage> {
               ],
             ),
           ),
-          // ── 右下角：公告入口正上方：每日祈愿入口(返工条目9)────────
+          // Bottom-right: daily oracle entry, directly above the announcement entry
           const Positioned(
-            bottom: 240, // 公告按钮(bottom:172)正上方
+            bottom: 240, // Directly above the announcement button (bottom:172)
             right: 24,
             child: DailyOracleEntry(),
           ),
-          // ── 右下角：公告入口（手动回看，无视已读记录）──────────────
+          // Bottom-right: announcement entry (re-open manually, ignoring read state)
           Positioned(
-            bottom: 172, // 上移，避开右下角的极客Core悬浮球（bottom:100）
+            bottom: 172, // Raised to clear the floating ball at the bottom right (bottom:100)
             right: 24,
             child: GestureDetector(
               onTap: _openAnnouncementManually,
@@ -177,13 +177,13 @@ class _MainPageState extends ConsumerState<MainPage> {
     );
   }
 
-  /// 手动打开公告中心：Tab 布局（更新公告 + 日常公告）。
-  /// 无视已读记录，主动拉取并展示。
+  /// Opens the announcement center manually: tab layout (update + daily announcements).
+  /// Ignores the read state, fetches and displays fresh content.
   Future<void> _openAnnouncementManually() async {
     await showAnnouncementCenter(context);
   }
 
-  /// 根据当前时间选四时海景背景图（时段对齐 TimeGreeting 语义）
+  /// Picks the time-of-day seascape background (slots align with TimeGreeting semantics)
   String _timeBasedBackgroundAsset() {
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 9) return 'assets/images/bg_dawn.jpg';
@@ -206,7 +206,7 @@ class _MainPageState extends ConsumerState<MainPage> {
         ),
       );
     }
-    // 用户没设自定义背景 → 按当前时间显示四时海景
+    // No custom background set, so fall back to the time-of-day seascape
     return Image.asset(
       _timeBasedBackgroundAsset(),
       fit: BoxFit.cover,
@@ -215,7 +215,7 @@ class _MainPageState extends ConsumerState<MainPage> {
   }
 
   Widget _defaultGradient() {
-    // 宪法:无渐变系统,默认背景为平色 darkBackground
+    // No gradient system; the default background is a solid darkBackground
     return const DecoratedBox(
       decoration: BoxDecoration(color: DesignTokens.darkBackground),
     );

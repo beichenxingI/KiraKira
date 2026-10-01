@@ -1,9 +1,9 @@
 // lib/presentation/widgets/common/kira_search_bar.dart
-/// KiraSearchBar · 全局统一搜索栏(iOS 化:宪法 §五.5 + 手册 A-T5)
+/// KiraSearchBar, the app-wide unified search bar (iOS-style: Constitution §5.5 + handbook A-T5)
 ///
-/// iOS 搜索框规格:高 36、圆角 10(非全胶囊)、前缀 CupertinoIcons.search、
-/// 填充 dark=darkCard / light=lightFillTertiary、聚焦无描边(光标即反馈)、
-/// 清除按钮 clear_circled_solid。
+/// iOS search field spec: height 36, radius 10 (not a full capsule), prefix CupertinoIcons.search,
+/// fill dark=darkCard / light=lightFillTertiary, no stroke when focused (the cursor is the feedback),
+/// clear button clear_circled_solid.
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -29,7 +29,7 @@ class KiraSearchBar extends StatelessWidget {
   final VoidCallback? onClear;
   final bool autofocus;
 
-  /// 外层留白;传 EdgeInsets.zero 可裸贴(供 Block B/C 吸顶排版)
+  /// Outer spacing; pass EdgeInsets.zero to sit flush (for sticky layouts in blocks B/C)
   final EdgeInsetsGeometry padding;
 
   @override
@@ -42,7 +42,7 @@ class KiraSearchBar extends StatelessWidget {
     final tertiary = theme.textTheme.bodySmall?.color;
 
     final field = SizedBox(
-      height: 36, // iOS 搜索栏实测 36
+      height: 36, // measured 36 for the iOS search bar
       child: TextField(
         controller: controller,
         autofocus: autofocus,
@@ -79,7 +79,7 @@ class KiraSearchBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
             borderSide: BorderSide.none,
           ),
-          // iOS 搜索聚焦无边框描边,光标即反馈
+          // iOS search has no focused border stroke; the cursor is the feedback
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
             borderSide: BorderSide.none,
@@ -92,7 +92,7 @@ class KiraSearchBar extends StatelessWidget {
   }
 }
 
-/// 清除按钮:仅在有输入时显示
+/// Clear button: shown only when there is input
 class _ClearButton extends StatefulWidget {
   const _ClearButton({this.controller, this.onClear, this.color});
 

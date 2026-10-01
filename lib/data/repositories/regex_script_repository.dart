@@ -7,15 +7,17 @@ import 'package:kirakira/core/services/initialization_service.dart';
 import 'package:kirakira/data/database/database.dart';
 import 'package:kirakira/data/models/regex_script.dart';
 
-/// [Phase 2.3] Provider for regex script repository
+/// Provider for regex script repository
 final regexScriptRepositoryProvider = Provider<RegexScriptRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return RegexScriptRepository(db);
 });
 
-/// [紧急修复-A] 双格式解析：自家 fromJson 优先，SillyTavern fromSillyTavernJson 兜底。
-/// 与 database.dart 迁移逻辑保持一致；供 Repository 导入方法 / Provider 双读降级共用。
-/// 返回 null 表示无法解析（跳过该条，不阻断其余）。
+/// Robust dual-format parsing: native fromJson first, with SillyTavern's
+/// fromSillyTavernJson as fallback. Kept consistent with the migration logic
+/// in database.dart; shared by the Repository import methods and the Provider
+/// dual-read fallback. Returns null when parsing fails (that entry is skipped
+/// without blocking the rest).
 RegexScript? parseRegexScriptRobust(
   Map<String, dynamic> raw,
   String characterId,
@@ -42,15 +44,18 @@ RegexScript? parseRegexScriptRobust(
   }
 }
 
-/// [紧急修复-B] 角色级行 id：加角色前缀保证跨角色唯一。
-/// 同卡模板复用时不同角色可能携带相同 script.id，直接作主键会 PK 冲突
-/// → 事务炸 → 正则整体丢失。幂等：已带该角色前缀则原样返回，避免前缀叠加。
+/// Character-scoped row IDs: prefix with the character ID to guarantee
+/// cross-character uniqueness. When a card template is reused, different
+/// characters can carry the same script.id; using it directly as the primary
+/// key causes a PK conflict → transaction abort → all regex scripts lost.
+/// Idempotent: returns the ID as-is if it already carries this character's
+/// prefix, avoiding prefix stacking.
 String scopedRegexRowId(String characterId, String scriptId) {
   if (scriptId.startsWith('${characterId}_')) return scriptId;
   return '${characterId}_$scriptId';
 }
 
-/// [Phase 2.3] Repository for regex scripts stored in the dedicated
+/// Repository for regex scripts stored in the dedicated
 /// `regex_scripts` table (previously stored in characters.extensionsJson
 /// and SharedPreferences, which caused lost-update races and backup gaps).
 class RegexScriptRepository {
@@ -58,8 +63,9 @@ class RegexScriptRepository {
 
   RegexScriptRepository(this._db);
 
-  /// Row → model。行字段为准（id/scope/order/disabled/characterId），
-  /// JSON 内值兜底；解析失败返回禁用空规则（[IMP-7] 防整体丢失，不抛出）。
+  /// Row → model. Row fields take precedence (id/scope/order/disabled/characterId)
+  /// with JSON values as fallback; on parse failure returns a disabled empty
+  /// rule (prevents total loss instead of throwing).
   RegexScript _fromRow(RegexScriptRow row) {
     try {
       final json = jsonDecode(row.scriptJson) as Map<String, dynamic>;
@@ -84,7 +90,7 @@ class RegexScriptRepository {
     }
   }
 
-  /// 获取角色级正则（按 order 排序）
+  /// Get character-scoped regex scripts (sorted by order)
   Future<List<RegexScript>> getForCharacter(String characterId) async {
     final rows = await (_db.select(_db.regexScripts)
           ..where((t) =>
@@ -95,7 +101,7 @@ class RegexScriptRepository {
     return rows.map(_fromRow).toList();
   }
 
-  /// 获取全局正则（按 order 排序）
+  /// Get global regex scripts (sorted by order)
   Future<List<RegexScript>> getGlobal() async {
     final rows = await (_db.select(_db.regexScripts)
           ..where((t) => t.scope.equals('global'))
@@ -104,7 +110,7 @@ class RegexScriptRepository {
     return rows.map(_fromRow).toList();
   }
 
-  /// 保存角色级正则（事务内批量替换）
+  /// Save character-scoped regex scripts (batch replace within a transaction)
   Future<void> saveForCharacter(
       String characterId, List<RegexScript> scripts) async {
     debugPrint(
@@ -127,7 +133,7 @@ class RegexScriptRepository {
     }
   }
 
-  /// 保存全局正则（事务内批量替换）
+  /// Save global regex scripts (batch replace within a transaction)
   Future<void> saveGlobal(List<RegexScript> scripts) async {
     debugPrint('[RegexRepo] 开始保存全局: ${scripts.length} 条');
     try {
@@ -146,8 +152,10 @@ class RegexScriptRepository {
     }
   }
 
-  /// [紧急修复-B] 批量插入：行 id 加角色前缀防跨角色冲突；
-  /// 同批次内 id 重复（同卡模板复用/空 id）时用时间戳+序号兜底，防 PK 冲突炸事务。
+  /// Batch insert: row IDs get a character prefix to prevent cross-character
+  /// conflicts; duplicate IDs within a batch (reused card templates / empty
+  /// IDs) fall back to timestamp + index to prevent a PK conflict from
+  /// aborting the transaction.
   Future<void> _insertScripts(
     List<RegexScript> scripts, {
     String? characterId,
@@ -178,9 +186,11 @@ class RegexScriptRepository {
     }
   }
 
-  /// [紧急修复-C] 导入链路：角色卡 extensions['regex_scripts'] 原始列表 → 独立表。
-  /// 双格式解析（自家优先/ST 兜底），单条失败跳过；全部失败返回 0 不抛出
-  /// （extensions 原数据保留，Provider 双读降级兜底）。
+  /// Import path: raw extensions['regex_scripts'] list from a character card →
+  /// dedicated table. Dual-format parsing (native first, SillyTavern fallback);
+  /// a failed entry is skipped; returns 0 without throwing when all fail (the
+  /// original extensions data is preserved, and the Provider dual-read
+  /// fallback covers the gap).
   Future<int> importCharacterScriptsFromRaw(
       String characterId, dynamic rawList) async {
     if (rawList is! List || rawList.isEmpty) return 0;
@@ -215,7 +225,8 @@ class RegexScriptRepository {
     return parsed.length;
   }
 
-  /// 首启迁移全局正则（SharedPreferences → 表）。仅表为空时迁移，幂等。
+  /// Migrate global regex scripts on first launch (SharedPreferences → table).
+  /// Only migrates when the table is empty; idempotent.
   Future<void> migrateGlobalFromPrefs(List<RegexScript> prefsScripts) async {
     final existing = await getGlobal();
     if (existing.isEmpty && prefsScripts.isNotEmpty) {

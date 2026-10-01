@@ -6,7 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-/// 已导入的 sherpa-onnx TTS 模型条目
+/// An imported sherpa-onnx TTS model entry
 class TtsModelEntry {
   final String name;
   final String modelType; // 'vits' / 'kokoro' / 'matcha'
@@ -76,23 +76,23 @@ class TtsModelEntry {
                 DateTime.now(),
       );
 
-  /// 模型目录（modelPath 所在目录）
+  /// Model directory (the directory containing modelPath)
   Directory? get directory {
     final dir = Directory(p.dirname(modelPath));
     return dir.existsSync() ? dir : null;
   }
 
-  /// 模型文件大小（字节）
+  /// Model file size in bytes
   int get modelSizeBytes {
     final f = File(modelPath);
     return f.existsSync() ? f.lengthSync() : 0;
   }
 }
 
-/// sherpa-onnx TTS 模型导入/清单/删除服务。
+/// sherpa-onnx TTS model import/manifest/deletion service.
 ///
-/// 模型目录规范沿用 STT：`<docDir>/KiraKira/models/tts/`，
-/// 清单持久化到该目录下 manifest.json。
+/// The models directory convention follows STT: `<docDir>/KiraKira/models/tts/`,
+/// with the manifest persisted to manifest.json inside that directory.
 class TtsModelService {
   TtsModelService._();
   static final TtsModelService instance = TtsModelService._();
@@ -100,7 +100,7 @@ class TtsModelService {
   static const _modelsSubDir = 'KiraKira/models/tts';
   static const _manifestName = 'manifest.json';
 
-  /// 获取模型目录（不存在则创建）
+  /// Get the models directory (create it if missing)
   Future<Directory> getModelsDirectory() async {
     final appDir = await getApplicationDocumentsDirectory();
     final dir = Directory(p.join(appDir.path, _modelsSubDir));
@@ -110,7 +110,7 @@ class TtsModelService {
     return dir;
   }
 
-  /// 加载模型清单
+  /// Load the model manifest
   Future<List<TtsModelEntry>> loadManifest() async {
     try {
       final dir = await getModelsDirectory();
@@ -126,7 +126,7 @@ class TtsModelService {
     }
   }
 
-  /// 保存模型清单
+  /// Save the model manifest
   Future<void> _saveManifest(List<TtsModelEntry> entries) async {
     final dir = await getModelsDirectory();
     final manifestFile = File(p.join(dir.path, _manifestName));
@@ -134,8 +134,8 @@ class TtsModelService {
     await manifestFile.writeAsString(jsonEncode(json), flush: true);
   }
 
-  /// 导入模型：FilePicker 选 tar.bz2 → 解压 → 扫描 → 写清单。
-  /// 返回模型名；取消选择返回 null。
+  /// Import a model: pick a tar.bz2 via FilePicker, extract, scan, and write the manifest.
+  /// Returns the model name, or null if selection was cancelled.
   Future<String?> importModel() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.any,
@@ -145,12 +145,12 @@ class TtsModelService {
 
     final archivePath = result.files.single.path!;
     
-    // 验证文件名后缀
+    // Validate file extension
     if (!archivePath.toLowerCase().endsWith('.tar.bz2')) {
       throw Exception('仅支持 .tar.bz2 格式的模型包');
     }
     final baseName = p.basenameWithoutExtension(archivePath);
-    // xxx.tar.bz2 → xxx
+    // xxx.tar.bz2 becomes xxx
     final modelName =
         baseName.toLowerCase().endsWith('.tar') ? baseName.substring(0, baseName.length - 4) : baseName;
 
@@ -166,7 +166,7 @@ class TtsModelService {
       final tarBytes = BZip2Decoder().decodeBytes(bytes);
       final archive = TarDecoder().decodeBytes(tarBytes);
 
-      // tar 包内常有一层顶层目录（xxx/...），先归一化：全部解到 modelDir 下
+      // Tar archives often contain a top-level directory (xxx/...); normalize by extracting everything under modelDir
       String? modelPath;
       String? tokensPath;
       String? lexiconPath;
@@ -180,7 +180,7 @@ class TtsModelService {
       for (final file in archive.files) {
         if (!file.isFile) continue;
         final rel = file.name;
-        // 去掉顶层目录前缀
+        // Strip the top-level directory prefix
         final parts = p.split(rel);
         final inner = parts.length > 1 ? p.joinAll(parts.sublist(1)) : rel;
         final fileName = p.basename(inner);
@@ -190,7 +190,7 @@ class TtsModelService {
         await outFile.writeAsBytes(file.content as List<int>, flush: true);
 
         if (fileName.endsWith('.onnx')) {
-          // matcha 的 acoustic model 叫 model-steps-*.onnx，vocoder 是 vocos/hifigan
+          // Matcha acoustic model is named model-steps-*.onnx; the vocoder is vocos/hifigan
           final lower = fileName.toLowerCase();
           if (lower.contains('vocos') || lower.contains('hifigan')) {
             vocoderPath ??= destPath;
@@ -211,8 +211,7 @@ class TtsModelService {
         }
       }
 
-   // 检测是否为 ncnn 格式
-   // 检测是否为 ncnn 格式
+   // Detect ncnn format
    final hasNcnn = modelDir
        .listSync()
        .any((f) => f.path.endsWith('.ncnn.param'));
@@ -229,7 +228,7 @@ class TtsModelService {
      throw Exception('模型包不完整：缺少 .onnx 模型或 tokens.txt');
    }
 
-      // 推断模型类型：有 voices.bin → kokoro；有 vocoder → matcha；否则 vits
+      // Infer model type: voices.bin means kokoro, vocoder means matcha, otherwise vits
       String modelType = 'vits';
       if (voicesPath != null) {
         modelType = 'kokoro';
@@ -237,11 +236,11 @@ class TtsModelService {
         modelType = 'matcha';
       }
 
-      // 读取模型元数据（numSpeakers/sampleRate）
+      // Read model metadata (numSpeakers/sampleRate)
       int numSpeakers = 1;
       int sampleRate = 16000;
       
-      // 尝试读取 .onnx.json 配置文件
+      // Try to read the .onnx.json config file
       final jsonFile = File(p.join(modelDir.path, '$modelName.onnx.json'));
       if (await jsonFile.exists()) {
         try {
@@ -250,7 +249,7 @@ class TtsModelService {
           numSpeakers = (meta['num_speakers'] as int?) ?? 1;
           sampleRate = (meta['sample_rate'] as int?) ?? 16000;
         } catch (e) {
-          // JSON 解析失败，使用默认值
+          // JSON parsing failed; keep default values
         }
       }
 
@@ -277,7 +276,7 @@ class TtsModelService {
       await _saveManifest(manifest);
       return modelName;
     } catch (e) {
-      // 导入失败清理半成品目录
+      // On import failure, remove the partially extracted directory
       if (await modelDir.exists()) {
         await modelDir.delete(recursive: true);
       }
@@ -285,7 +284,7 @@ class TtsModelService {
     }
   }
 
-  /// 删除模型（目录 + 清单条目）
+  /// Delete a model (directory and manifest entry)
   Future<void> deleteModel(String modelName) async {
     final manifest = await loadManifest();
     final entry = manifest.firstWhere(
@@ -300,7 +299,7 @@ class TtsModelService {
     await _saveManifest(manifest);
   }
 
-  /// 清理临时 WAV 文件（tts_*.wav）
+  /// Clean up temporary WAV files (tts_*.wav)
   Future<int> clearTempWavFiles() async {
     final tmpDir = await getTemporaryDirectory();
     var count = 0;

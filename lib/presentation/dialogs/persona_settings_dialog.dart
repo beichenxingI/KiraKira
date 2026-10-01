@@ -1,9 +1,11 @@
 // lib/presentation/dialogs/persona_settings_dialog.dart
-/// 人设管理浮窗(问题三)
-/// 内容完整迁自 personas_screen.dart 的 PersonasScreen:
-/// 人设列表(头像/名称/描述/默认徽标/激活徽标/设为默认/编辑/删除)
-/// + 新建/编辑(经 PersonaEditorScreen) + 删除确认 + 空状态。
-/// 设置页只保留一个人设入口(_UserInfoCard),改为触发本浮窗。
+/// Persona management dialog.
+/// Mirrors PersonasScreen from personas_screen.dart with every element
+/// preserved: persona list (avatar / name / description / default badge /
+/// active badge / set default / edit / delete), plus create and edit (via
+/// PersonaEditorScreen), delete confirmation, and the empty state.
+/// The settings page keeps a single persona entry point (_UserInfoCard) that
+/// opens this dialog.
 library;
 
 import 'dart:io';
@@ -130,7 +132,8 @@ class _PersonaSettingsDialog extends ConsumerWidget {
   }
 
   void _showCreatePersonaDialog(BuildContext context, WidgetRef ref) {
-    // [问题5] 编辑浮窗化:全屏页 → 居中浮窗(编辑器内容包 CoreDialogShell)
+    // Editor presented as a dialog: the full-screen page is replaced by a
+    // centered dialog (editor content wrapped in CoreDialogShell).
     showKiraDialog(
       context: context,
       dialog: const PersonaEditorScreen(),
@@ -180,7 +183,8 @@ class _PersonaSettingsDialog extends ConsumerWidget {
   }
 }
 
-/// 人设卡(原 _PersonaCard 浮窗形态,信息与操作全保留)
+/// Persona card in dialog form (originally `_PersonaCard`); all information
+/// and actions preserved.
 class _PersonaCard extends StatelessWidget {
   final Persona persona;
   final bool isActive;

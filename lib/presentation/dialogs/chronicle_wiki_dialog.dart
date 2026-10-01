@@ -1,8 +1,11 @@
 // lib/presentation/dialogs/chronicle_wiki_dialog.dart
-/// [CHRONICLE Phase 4] Wiki管理浮窗（极客Core规范浮窗，720宽·90%高）
-/// 五标签页：词条/实体/关系/情感/状态（[改进4] 工作状态可视化）
-/// 功能：查看/编辑/删除/手动添加词条、标记锚点、始终注入开关。
-/// 解决"以前要用括号骗AI"的记忆编辑问题。
+/// Chronicle wiki management dialog (720 wide, 90% height).
+/// Five tabs: entries / entities / relationships / emotions / status, with
+/// work-status visualization.
+/// Supports viewing, editing, deleting and manually adding entries, marking
+/// anchors, and an always-inject toggle.
+/// Replaces the previous workaround of editing memory by instructing the AI
+/// with bracketed text.
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -66,7 +69,7 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
     final emotions = await repo.getAllEmotions(_chatId!);
     if (!mounted) return;
     setState(() {
-      _entries = entries.reversed.toList(); // 最新在前
+      _entries = entries.reversed.toList(); // newest first
       _entities = entities;
       _relationships = relationships;
       _emotions = emotions;
@@ -85,7 +88,7 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
       icon: CupertinoIcons.book_fill,
       maxWidth: 720,
       maxHeightFactor: 0.9,
-      disableScroll: true, // 列表自管滚动（Expanded需有界约束）
+      disableScroll: true, // lists manage their own scrolling (Expanded needs bounded constraints)
       trailing: CupertinoButton(
         padding: EdgeInsets.zero,
         minSize: 0,
@@ -113,7 +116,7 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
                   ],
                 ),
       footer: _tab == _WikiTab.status
-          ? null // [改进4] 状态 tab 只读，无新建按钮
+          ? null // Status tab is read-only, no create button
           : CoreDialogFooter(
               child: CoreSecondaryButton(
                 label: _newItemLabel,
@@ -209,7 +212,7 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
           itemBuilder: (_, i) => _buildEmotionTile(_emotions[i], palette),
         );
       case _WikiTab.status:
-        // [改进4] 工作状态可视化（五区展示 + 进度条）
+        // Work-status visualization (five-zone display + progress bars)
         return ChronicleStatusView(chatId: _chatId!);
     }
   }
@@ -220,7 +223,7 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
     );
   }
 
-  // ═══════════════════ 列表项 ═══════════════════
+  // List items
 
   Widget _buildEntryTile(models.MemoryEntry e, CoreDialogPalette palette) {
     final badges = <Widget>[
@@ -289,7 +292,7 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
     return const Color(0xFF8C8C8C);
   }
 
-  // ═══════════════════ 编辑器 ═══════════════════
+  // Editors
 
   void _onAdd() {
     switch (_tab) {
@@ -302,7 +305,7 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
       case _WikiTab.emotions:
         _editEmotion(null);
       case _WikiTab.status:
-        break; // 状态 tab 只读，无新建
+          break; // Status tab is read-only, nothing to create
     }
   }
 
@@ -641,7 +644,7 @@ class _ChronicleWikiDialogState extends ConsumerState<_ChronicleWikiDialog> {
   }
 }
 
-/// 编辑器外壳：标题栏 + 表单 + 底部（删除/保存）
+/// Editor shell: title bar + form + footer (delete / save).
 class _EditorShell extends StatelessWidget {
   const _EditorShell({
     required this.title,

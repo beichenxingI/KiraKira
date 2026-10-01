@@ -1,5 +1,5 @@
 // lib/presentation/screens/settings/settings_screen.dart
-/// 设置主页(返工条目3:只留 应用级设置——3 组一屏装完;高级功能全部移交 Core)
+/// Settings home (application-level settings only — 3 groups fit on one screen; advanced features moved to Core)
 library;
 
 import 'dart:io';
@@ -131,7 +131,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
       ),
-      // ══ 聊天设置(极客Core迁移 P1)══
+      // Chat settings
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.only(top: 20),
@@ -159,14 +159,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: '全局变量与对话变量 CRUD',
                 onTap: () => showVariablesDialog(context, ref),
               ),
-              // [CHRONICLE UI整合] "RAG 向量存储"入口已删除：
-              // 向量能力由Chronicle内部使用（wiki向量化/话题切换检测），
-              // 手动上传文档建知识库的入口不再暴露。
+              // The "RAG vector storage" entry has been removed:
+              // vector capabilities are used internally by Chronicle (worldbook vectorization / topic switch detection),
+              // and the manual document-upload knowledge base entry is no longer exposed.
             ],
           ),
         ),
       ),
-      // ══ 语音与翻译(极客Core迁移 P1)══
+      // Voice and translation
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.only(top: 20),
@@ -218,7 +218,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
       ),
-      // ══ 数据与诊断(极客Core迁移 P1)══
+      // Data and diagnostics
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.only(top: 20),
@@ -368,7 +368,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  /// E-T2 搜索态:过滤索引出结果列表
+  /// Search state: filter the index into a result list
   List<Widget> _searchSlivers() {
     final q = _query.toLowerCase();
     final hits = kSettingsIndex
@@ -416,8 +416,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ];
   }
 
-  /// 搜索索引浮窗分发表:dialog key → 迁移后的浮窗(极客Core迁移)
-  /// 原子页面路由已删,搜索直达浮窗。
+  /// Search index dialog dispatch: dialog key to the migrated dialog.
+  /// Original sub-page routes were removed; search results open dialogs directly.
   void _openSearchDialog(
       BuildContext context, WidgetRef ref, String dialog) {
     switch (dialog) {
@@ -467,9 +467,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
-/// 用户信息卡(设置页首屏置顶):显示当前人设头像+名字,点击进人设管理。
-/// 数据源 activePersonaProvider(手动选 > 默认),与"人设"行同源;
-/// 人设编辑保存后由 PersonaNotifier 失效该 provider,本卡自动刷新。
+/// User info card (pinned at the top of settings): shows the active persona avatar and name; taps open persona management.
+/// Data source is activePersonaProvider (manual selection overrides default), shared with the "persona" row;
+/// PersonaNotifier invalidates the provider after a persona edit is saved, so this card refreshes automatically.
 class _UserInfoCard extends ConsumerWidget {
   const _UserInfoCard();
 
@@ -616,7 +616,7 @@ class _UserInfoCard extends ConsumerWidget {
   }
 }
 
-/// 深色模式开关(返工条目7:深=星河入梦,浅=海天一色)
+/// Dark mode toggle (dark = "Star River Dream", light = "Sea and Sky")
 class _DarkModeTile extends ConsumerWidget {
   const _DarkModeTile();
 
@@ -639,7 +639,7 @@ class _DarkModeTile extends ConsumerWidget {
   }
 }
 
-/// 语言(通用组,触发语言选择 Sheet)
+/// Language (General group, triggers the language selection sheet)
 class _LanguageTile extends ConsumerWidget {
   const _LanguageTile();
 
@@ -764,7 +764,7 @@ class _LanguageTile extends ConsumerWidget {
   }
 }
 
-/// 版本号说明行(不可点,关于组收尾)
+/// Version row (not tappable, closes the About group)
 class _VersionTile extends StatelessWidget {
   const _VersionTile();
 
@@ -794,11 +794,9 @@ class _VersionTile extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 极客Core迁移 P1:聊天设置 / 语音与翻译 新组行
-// ═══════════════════════════════════════════════════════════════════════════
+// Chat settings / voice and translation group rows
 
-/// 流式输出(聊天设置组,数据源 llmConfigProvider.streamEnabled,与API界面同源)
+/// Stream output (chat settings group, sourced from llmConfigProvider.streamEnabled, same source as the API screen)
 class _StreamOutputTile extends ConsumerWidget {
   const _StreamOutputTile();
 
@@ -822,7 +820,7 @@ class _StreamOutputTile extends ConsumerWidget {
   }
 }
 
-/// 分词器计数(聊天设置组,数据源 tokenizerSettingsProvider.showTokenCount)
+/// Tokenizer count (chat settings group, sourced from tokenizerSettingsProvider.showTokenCount)
 class _TokenizerCountTile extends ConsumerWidget {
   const _TokenizerCountTile();
 
@@ -859,7 +857,7 @@ class _TokenizerCountTile extends ConsumerWidget {
   }
 }
 
-/// TTS 合成(语音与翻译组:就地开关 + 箭头弹完整配置浮窗)
+/// TTS synthesis (voice and translation group: inline switch, chevron opens the full config dialog)
 class _TtsTile extends ConsumerWidget {
   const _TtsTile();
 
@@ -896,7 +894,7 @@ class _TtsTile extends ConsumerWidget {
   }
 }
 
-/// STT 识别(语音与翻译组)
+/// STT recognition (voice and translation group)
 class _SttTile extends ConsumerWidget {
   const _SttTile();
 
@@ -933,7 +931,7 @@ class _SttTile extends ConsumerWidget {
   }
 }
 
-/// 翻译(语音与翻译组)
+/// Translation (voice and translation group)
 class _TranslationTile extends ConsumerWidget {
   const _TranslationTile();
 

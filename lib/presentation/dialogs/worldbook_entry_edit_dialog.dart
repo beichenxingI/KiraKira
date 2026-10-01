@@ -9,8 +9,8 @@ import '../components/kira_toast.dart';
 import '../providers/world_info_providers.dart';
 import '../theme/design_tokens.dart';
 
-/// 世界书条目完整编辑浮窗
-/// [entry] 非空 = 编辑；[worldInfoId] 非空 = 新增
+/// Full worldbook entry editor dialog.
+/// Non-null [entry] = edit existing entry; non-null [worldInfoId] = create new.
 Future<void> showWorldBookEntryEditDialog(
   BuildContext context,
   WidgetRef ref, {
@@ -150,7 +150,8 @@ class _WorldBookEntryEditDialogState
       if (_isEdit) {
         await notifier.updateEntry(_buildEntry());
       } else {
-        // 新增：先 addEntry 拿到带 id 的条目，再 updateEntry 补全全部字段
+        // Create: call addEntry first to obtain an entry with an id, then
+        // updateEntry to fill in all remaining fields.
         final created = await notifier.addEntry(
           worldInfoId: widget.worldInfoId!,
           keys: _keys,
@@ -264,7 +265,7 @@ class _WorldBookEntryEditDialogState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── 基础信息 ──
+                      // Basic info
                       Text('备注',
                           style: _labelStyle(labelColor)),
                       const SizedBox(height: 6),
@@ -287,7 +288,7 @@ class _WorldBookEntryEditDialogState
                         onChanged: (v) => setState(() => _constant = v),
                       ),
                       const SizedBox(height: 12),
-                      // ── 触发条件 ──
+                      // Trigger conditions
                       KiraAccordionCard(
                         title: '触发条件',
                         preview: _keys.isEmpty ? '无关键词' : _keys.join(', '),
@@ -373,7 +374,7 @@ class _WorldBookEntryEditDialogState
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // ── 内容 ──
+                      // Content
                       KiraAccordionCard(
                         title: '内容',
                         preview: _contentCtrl.text.isEmpty
@@ -427,7 +428,7 @@ class _WorldBookEntryEditDialogState
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // ── 插入控制 ──
+                      // Insertion control
                       KiraAccordionCard(
                         title: '插入控制',
                         preview: _positionLabel(_position),
@@ -476,7 +477,7 @@ class _WorldBookEntryEditDialogState
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // ── 高级设置 ──
+                      // Advanced settings
                       KiraAccordionCard(
                         title: '高级设置',
                         preview: '分组/粘性/冷却/延迟',
@@ -607,7 +608,7 @@ class _WorldBookEntryEditDialogState
     );
   }
 
-  // ── helpers ──
+  // Helpers
   String? _openSection;
   void _toggleSection(String key, bool open) {
     setState(() => _openSection = open ? key : null);
@@ -636,7 +637,7 @@ class _WorldBookEntryEditDialogState
       };
 }
 
-// ── 辅助组件 ──
+// Helper widgets
 
 class _SwitchRow extends StatelessWidget {
   final String label;
@@ -716,7 +717,8 @@ class _NumberFieldState extends State<_NumberField> {
   @override
   void didUpdateWidget(covariant _NumberField old) {
     super.didUpdateWidget(old);
-    // 仅在外部值变化且与当前文本不同时同步，避免打断输入光标
+    // Sync only when the external value differs from the current text, to
+    // avoid interrupting the input cursor.
     if (widget.value.toString() != _controller.text) {
       _controller.text = widget.value.toString();
     }

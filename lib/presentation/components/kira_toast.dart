@@ -5,7 +5,8 @@ import 'kira_dialog_theme.dart';
 
 enum KiraToastType { success, warning, error, info }
 
-/// 灵动岛 Toast：屏幕顶部居中滑入，自动消失，多条自动替换
+/// Dynamic Island-style toast: slides in centered at the top of the screen,
+/// auto-dismisses, and new toasts replace existing ones
 class KiraToast {
   KiraToast._();
 

@@ -11,12 +11,12 @@ import 'package:kirakira/presentation/screens/chat/image_picker_sheet.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
 import 'package:kirakira/data/models/chat.dart';
 
-/// 会话图片界面：图片统一存于 chat_images/{chatId}/，与 WebView 完全隔离。
-/// 文件名前缀区分来源：user_ = 用户发送，ai_ = AI生成。
+/// Chat images screen: images are stored in chat_images/{chatId}/, fully isolated from the WebView.
+/// Filename prefix identifies the source: user_ = sent by the user, ai_ = AI-generated.
 class ChatImagesScreen extends ConsumerStatefulWidget {
   final String chatId;
 
-  /// 可选发送回调：由聊天页传入。为 null 时相册页不显示"发送"选项。
+  /// Optional send callback provided by the chat screen. When null, the gallery page hides the "send" option.
   final Future<void> Function(File file)? onSend;
 
   const ChatImagesScreen({super.key, required this.chatId, this.onSend});
@@ -72,7 +72,7 @@ class _ChatImagesScreenState extends ConsumerState<ChatImagesScreen>
       if (name.startsWith('ai_')) {
         ai.add(f);
       } else {
-        // 无前缀的历史图片也归到用户发送
+        // Legacy images without a prefix are also treated as user-sent
         user.add(f);
       }
     }
@@ -110,7 +110,7 @@ class _ChatImagesScreenState extends ConsumerState<ChatImagesScreen>
         }
         await _load();
         if (mounted) {
-          _tab.animateTo(1); // 生成后跳到AI子页
+          _tab.animateTo(1); // Switch to the AI tab after generating
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('已生成 ${result.images.length} 张图片')),
           );
@@ -138,7 +138,7 @@ class _ChatImagesScreenState extends ConsumerState<ChatImagesScreen>
       await File(p.join(dir.path, name)).writeAsBytes(img.bytes);
     }
     await _load();
-    if (mounted) _tab.animateTo(0); // 添加后跳到用户子页
+    if (mounted) _tab.animateTo(0); // Switch to the user tab after adding
   }
 
   Future<void> _delete(File f) async {
@@ -165,8 +165,8 @@ class _ChatImagesScreenState extends ConsumerState<ChatImagesScreen>
     }
   }
 
-  /// 点击图片弹出操作菜单：发送到聊天 / 查看大图 / 删除。
-  /// 菜单在纯 Flutter 相册页内弹出，不涉及 WebView。
+  /// Action menu on image tap: send to chat / view full screen / delete.
+  /// The menu opens inside the pure-Flutter gallery page and never touches the WebView.
   void _showImageActions(File f) {
     showModalBottomSheet(
       context: context,
@@ -179,9 +179,9 @@ class _ChatImagesScreenState extends ConsumerState<ChatImagesScreen>
                 leading: const Icon(Icons.send),
                 title: const Text('发送到聊天'),
                 onTap: () async {
-                  Navigator.pop(ctx); // 关菜单
+                  Navigator.pop(ctx); // Close the menu
                   await widget.onSend!(f);
-                  if (mounted) Navigator.pop(context); // 关相册页，回到聊天
+                  if (mounted) Navigator.pop(context); // Close the gallery and return to the chat
                 },
               ),
             ListTile(
@@ -245,7 +245,7 @@ class _ChatImagesScreenState extends ConsumerState<ChatImagesScreen>
   }
 
   Widget _buildFab() {
-    // 根据当前子页显示不同的操作按钮
+    // Show a different action button for the current tab
     return AnimatedBuilder(
       animation: _tab,
       builder: (context, _) {

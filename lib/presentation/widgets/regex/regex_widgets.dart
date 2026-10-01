@@ -6,7 +6,7 @@ import 'package:kirakira/presentation/providers/regex_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
 
-/// 单条正则脚本的列表项（可复用：设置页、角色编辑页）
+/// List item for a single regex script (reused on the settings page and the character edit page)
 class RegexScriptTile extends StatelessWidget {
   final RegexScript script;
   final VoidCallback onTap;
@@ -67,7 +67,7 @@ class RegexScriptTile extends StatelessWidget {
   }
 }
 
-/// 创建/编辑正则脚本的编辑器（可复用：设置页、角色编辑页）
+/// Editor for creating/editing a regex script (reused on the settings page and the character edit page)
 class RegexScriptEditor extends StatefulWidget {
   final RegexScript? script;
   final void Function(RegexScript) onSave;
@@ -159,7 +159,7 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
           ),
           child: Column(
             children: [
-              // 拖动把手
+              // Drag handle
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 width: 40,
@@ -169,7 +169,7 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              // 标题栏
+              // Title bar
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
@@ -192,13 +192,13 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
                 ),
               ),
               const Divider(),
-              // 内容区
+              // Content area
               Expanded(
                 child: ListView(
                   controller: scrollController,
                   padding: const EdgeInsets.all(16),
                   children: [
-                    // ── 基本信息 ──────────────────────────────────────
+                    // Basic info
                     TextField(
                       controller: _nameController,
                       decoration: const InputDecoration(
@@ -216,7 +216,7 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ── 核心逻辑 ──────────────────────────────────────
+                    // Core logic
                     TextField(
                       controller: _findController,
                       decoration: const InputDecoration(
@@ -246,7 +246,7 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
                     ),
                     const SizedBox(height: 24),
 
-                    // ── 应用范围 ──────────────────────────────────────
+                    // Application scope
                     const Text(
                       '应用范围 Apply To',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
@@ -270,7 +270,7 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
                     ),
                     const SizedBox(height: 24),
 
-                    // ── 标准选项 ──────────────────────────────────────
+                    // Standard options
                     const Text(
                       '选项 Options',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
@@ -316,7 +316,7 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
                     ),
                     const SizedBox(height: 24),
 
-                    // ── 高级选项（折叠） ───────────────────────────────
+                    // Advanced options (collapsed)
                     InkWell(
                       onTap: () => setState(() => _showAdvanced = !_showAdvanced),
                       borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
@@ -342,7 +342,7 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
                     ),
                     if (_showAdvanced) ...[
                       const SizedBox(height: 8),
-                      // 消息深度范围
+                      // Message depth range
                       const Text(
                         '消息深度限制 Depth Range',
                         style: TextStyle(fontSize: DesignTokens.fontSizeSm, color: AppTheme.textSecondary),
@@ -384,7 +384,7 @@ class _RegexScriptEditorState extends State<RegexScriptEditor> {
                       ),
                       const SizedBox(height: 24),
 
-                      // 修剪字符串
+                      // Trim strings
                       const Text(
                         '修剪字符串 Trim Strings',
                         style: TextStyle(fontSize: DesignTokens.fontSizeSm, color: AppTheme.textSecondary),

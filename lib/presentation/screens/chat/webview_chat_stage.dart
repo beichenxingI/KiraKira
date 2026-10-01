@@ -84,8 +84,9 @@ import 'package:kirakira/domain/services/debug_log_service.dart';
 import 'package:kirakira/presentation/widgets/snackbar_utils.dart';
 import 'package:kirakira/core/utils/file_utils.dart';
 
-/// compute 用的顶层函数：isolate 中只读图片头部拿宽高，不解码整图（内存安全）。
-/// 返回 {'w': 宽, 'h': 高}，失败返回 null。
+/// Top-level function for compute: inside the isolate it reads only the image header to get
+/// width/height without decoding the whole image (memory safe).
+/// Returns {'w': width, 'h': height}; null on failure.
 Map<String, int>? _probeImageSize(String path) {
   try {
     final bytes = File(path).readAsBytesSync();
@@ -98,15 +99,13 @@ Map<String, int>? _probeImageSize(String path) {
     return null;
   }
 }
-// ─────────────────────────────────────────────────────────────────────────────
-//  KiraKira · 新聊天页
-//  by 北辰星（NorthStar）
+//  KiraKira - new chat screen
+//  by NorthStar
 //
-//  架构：Flutter 是外壳，消息区是一整个全屏 WebView。
-//  通信全部走 ChatBridge，禁止私开 evaluateJavascript 旁路。
-//  弹窗覆盖 WebView 前必须 pause()，关闭后 resume()——
-//  HC 模式下叠加任何 Flutter 图层都会触发昂贵合成，静止也掉帧。
-// ─────────────────────────────────────────────────────────────────────────────
+//  Architecture: Flutter is the shell; the message area is one full-screen WebView.
+//  All communication goes through ChatBridge; private evaluateJavascript bypasses are forbidden.
+//  Dialogs must pause() before covering the WebView and resume() on close --
+//  in HC mode any overlaid Flutter layer triggers expensive compositing and drops frames even when idle.
 
 class WebViewChatStage extends ConsumerStatefulWidget {
   final String chatId;
@@ -125,39 +124,40 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   // 星星脉动方向：true = 0→1，false = 1→0；onEnd 翻转以形成循环脉动
   bool _starPulseUp = true;
   ProviderSubscription<PromptManagerConfig>? _pmSub;
-  ProviderSubscription<String?>? _charSub; // [P5-7B] character 变化自愈监听
+  ProviderSubscription<String?>? _charSub; // self-healing listener for character changes
   InAppWebViewController? _controller;
   bool _pmIdentifiersLogged = false;
-  /// [P5-9/P1] ST 预设 settings 未知键会话级透传缓存(按预设名)。
-  /// 平台模型无对应字段的 settings 键不设白名单拦截,写时整袋暂存、读时铺底回出;
-  /// should_stream 等已建模键以真值为准覆盖,保证狐神 updatePresetWith 改写后读回一致。
+  /// Session-level passthrough cache for unknown ST preset settings keys, keyed by preset name.
+  /// Settings keys with no matching platform model field are not whitelist-blocked: the whole bag
+  /// is stashed on write and laid down as the base on read; modeled keys such as should_stream
+  /// override with their true values so reads stay consistent after Fox's updatePresetWith rewrite.
   final Map<String, Map<String, dynamic>> _stSettingsPassthrough = {};
-  // [P5-12] 预设读缓存(P5-11 方案1):getPreset TTL 缓存 + 在途请求合并。
-  // 狐神面板 800ms 轮询会高频 getPreset('in_use')(4MB JSON),Dart 侧先做
-  // TTL+合并;真正的带宽省法在 JS 侧 __KIRA_PRESET_CACHE(任务2.2/2.3)。
+  // Preset read cache: getPreset TTL cache + in-flight request coalescing.
+  // The Fox panel polls every 800ms and hits getPreset('in_use') heavily (4MB JSON), so the Dart
+  // side does TTL+coalescing first; the real bandwidth saving is the JS-side __KIRA_PRESET_CACHE.
   final Map<String, Map<String, dynamic>> _presetReadCache = {};
   final Map<String, DateTime> _presetCacheAt = {};
   final Map<String, Completer<dynamic>> _presetReadInflight = {};
   static const Duration _presetCacheTTL = Duration(milliseconds: 500);
-  int _wvCrashCount = 0; // [WV-6/P1-A5] renderer 崩溃自愈次数上限,防"崩→reload→再崩"死循环
-  // [P5-12] WebView 合成源统一从这里取(initialData 与崩溃自愈 loadData 必须同源)
+  int _wvCrashCount = 0; // renderer crash self-healing attempt cap, prevents a crash -> reload -> crash loop
+  // Single source for the WebView composition origin (initialData and crash-recovery loadData must stay same-origin)
   static const String _kWebViewBaseUrl = 'https://localhost/';
-  bool _webViewMounted = false; // 延迟挂载:入场后才创建WebView,避免动画期被重活饿死
+  bool _webViewMounted = false; // deferred mount: the WebView is created only after entry, so heavy work does not starve the entry animation
   final TextEditingController _inputController = TextEditingController();
 
-  /// [翻译] 进行中的消息id集合，防重复请求/占位闪烁
+  /// IDs of messages currently being translated; prevents duplicate requests and placeholder flicker
   final Set<String> _translatingIds = {};
-  // [发送] 有无待发文字:驱动发送按钮 enabled/disabled 样式(有字亮色/无字灰)
+  // whether there is pending input text: drives the send button enabled/disabled style (text = bright, empty = gray)
   final ValueNotifier<bool> _hasInput = ValueNotifier(false);
   final ImagePicker _imagePicker = ImagePicker();
   final List<ChatAttachment> _pendingAttachments = [];
-  // 气泡头像 data URI 缓存：角色/用户各一份，只算一次
+  // Bubble avatar data URI cache: one each for character/user, computed only once
   String? _charAvatarDataUri;
   String? _userAvatarDataUri;
   String? _cachedCharAvatarSrcPath;
   String? _cachedUserAvatarSrcPath;
 
-  /// 把头像文件读成 data URI（相对路径先转绝对，踩过的坑）。源路径没变则用缓存。
+  /// Reads an avatar file into a data URI (relative paths are converted to absolute first -- a past pitfall). Cached while the source path is unchanged.
   Future<String?> _avatarToDataUri(String? rawPath, bool isUser) async {
     if (rawPath == null || rawPath.isEmpty) return null;
     final cachedSrc = isUser ? _cachedUserAvatarSrcPath : _cachedCharAvatarSrcPath;
@@ -182,7 +182,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       return null;
     }
   }
-  /// attachment path → base64 字符串缓存，避免 _pushMessages 每次重复读磁盘
+  /// attachment path -> base64 string cache, avoids _pushMessages re-reading disk every time
   final Map<String, String> _attachmentB64Cache = {};
   final GlobalKey _webViewKey = GlobalKey();
   final FocusNode _inputFocus = FocusNode();
@@ -194,7 +194,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     vsync: this, duration: const Duration(milliseconds: 550));
   late final Animation<double> _maskAnim = CurvedAnimation(parent: _maskController, curve: DesignTokens.curveEmphasized);
 
-  // 第三方库缓存（jQuery/lodash/toastr/yaml），全类共享，只读一次
+  // Third-party library caches (jQuery/lodash/toastr/yaml), shared class-wide, read only once
   static String? _jqueryB64;
   static String? _lodashB64;
   static String? _toastrJsB64;
@@ -208,13 +208,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   static bool _ejsLoaded = false;
   static String? _ejsStubRaw;
   static bool _ejsStubLoaded = false;
-  // 聊天壳 asset:初始 HTML(带占位符)+ 桥 JS;读一次,失败走显性错误页
+  // Chat shell assets: initial HTML (with placeholders) + bridge JS; read once, failure goes to an explicit error page
   static String? _chatStageHtml;
   static String? _chatBridgeJs;
   static bool _chatStageLoaded = false;
 
-  // [P5-6阶段0.1] 世界书读缓存: (方法+参数+角色) → (到期时间, 结果), TTL 2s。
-  // 背景: 通路C复活后道渊等卡 5s 轮询 getWorldbook,不缓存则是 N+1 全量 DB+序列化。
+  // Worldbook read cache: (method + args + character) -> (expiry time, result), TTL 2s.
+  // Background: after path C was revived, cards like Daoyuan poll getWorldbook every 5s; without
+  // a cache each poll costs an N+1 full DB read + serialization.
   static const Duration _wiCacheTtl = Duration(seconds: 2);
   final Map<String, (DateTime, dynamic)> _wiCache = {};
   static const Object _wiCacheMiss = Object();
@@ -222,7 +223,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   String _wiCacheKey(String method, [Object? arg]) =>
       '$method|${arg ?? ''}|${ref.read(activeChatProvider).character?.id ?? 'none'}';
 
-  /// 读缓存命中返回缓存值;未命中/过期返回 _wiCacheMiss 哨兵(结果本身可为空列表)。
+  /// Returns the cached value on a read-cache hit; returns the _wiCacheMiss sentinel on miss/expiry (the result itself may be an empty list).
   dynamic _wiCacheLookup(String method, [Object? arg]) {
     final key = _wiCacheKey(method, arg);
     final hit = _wiCache[key];
@@ -241,15 +242,16 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     _wiCache[_wiCacheKey(method, arg)] = (DateTime.now().add(_wiCacheTtl), value);
   }
 
-  /// 世界书写操作/角色切换后调用,保证写后读一致(写路径不走缓存)。
+  /// Called after worldbook writes or a character switch to guarantee read-after-write consistency (the write path bypasses the cache).
   void _wiCacheInvalidate([String? reason]) {
     if (_wiCache.isEmpty) return;
     debugPrint('[WI缓存] 失效${reason == null ? '' : '($reason)'}: 清空 ${_wiCache.length} 条');
     _wiCache.clear();
   }
 
-  /// 读取聊天壳资产(html + 桥 js)。成功后才置 _chatStageLoaded=true,
-  /// 失败保持 false 以便下次重试,_htmlShell() 会走显性错误页而不是白屏。
+  /// Loads the chat shell assets (html + bridge js). _chatStageLoaded is set true only on
+  /// success; on failure it stays false so the next call retries, and _htmlShell() shows an
+  /// explicit error page instead of a white screen.
   static Future<void> _loadChatStageAssets() async {
     if (_chatStageLoaded) return;
     try {
@@ -261,14 +263,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
 
-  /// 加载并缓存第三方库（base64 编码，供内联注入）。只在首次调用时真正读取。
+  /// Loads and caches the third-party libraries (base64-encoded for inline injection). Only the first call actually reads them.
   static Future<void> _loadCompatLibs() async {
     if (_libsLoaded) return;
     try {
       final jquery = await rootBundle.loadString('assets/libs/jquery.min.js');
       final lodash = await rootBundle.loadString('assets/libs/lodash.min.js');
       final toastrJs = await rootBundle.loadString('assets/libs/toastr.min.js');
-      // [P3-C/T2] yaml 单独 try:缺失或损坏只失去 YAML,不拖垮 jquery/lodash/toastr 的既有加载
+      // yaml gets its own try: if missing or corrupt only YAML is lost, without breaking the existing jquery/lodash/toastr load
       final toastrCss = await rootBundle.loadString('assets/libs/toastr.min.css');
       String? yamlJs;
       try {
@@ -276,8 +278,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       } catch (e) {
         KiraLogger().info('兼容库', 'yaml 库读取失败(仅 YAML 全局缺失): $e');
       }
-      // [P3-M] vue 单独 try:必须用 global 构建才能挂 window.Vue,道渊 CDN bundle 依赖它;
-      // 缺失/损坏只失去 Vue,不拖垮其他库
+      // vue gets its own try: it must be the global build to attach window.Vue, which Daoyuan's CDN
+      // bundle depends on; if missing or corrupt only Vue is lost, the other libs are unaffected
       String? vueJs;
       try {
         vueJs = await rootBundle.loadString('assets/libs/vue.global.prod.js');
@@ -292,11 +294,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       _vueB64 = vueJs == null ? null : base64Encode(utf8.encode(vueJs));
       _libsLoaded = true;
     } catch (e) {
-      // 加载失败不阻断聊天，仅记录
+      // Load failure does not block chat, only logs it
       KiraLogger().info('兼容库', '第三方库加载失败: $e');
     }
   }
-  /// 加载并缓存 MVU bundle(base64),供引擎房内联。
+  /// Loads and caches the MVU bundle (base64) for inlining into the engine room.
   static Future<void> _loadEjsStub() async {
     if (_ejsStubLoaded) return;
     try {
@@ -330,8 +332,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
 
-  /// 把已缓存的第三方库（base64）注入到外层 WebView 的 window.__KIRA_LIBS。
-  /// 页面加载后调用一次，供 injectBridge 按需内联进 iframe。
+  /// Injects the cached third-party libraries (base64) into the outer WebView's window.__KIRA_LIBS.
+  /// Called once after page load so injectBridge can inline them into the iframe on demand.
   Future<void> _injectCompatLibs(InAppWebViewController c) async {
     if (!_libsLoaded) return;
     final js = 'window.__KIRA_LIBS={'
@@ -348,8 +350,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       KiraLogger().info('兼容库', '库注入失败: $e');
     }
   }
-  /// 把当前角色名/用户名注入到外层 WebView 的 window.__KIRA_MACRO_VALUES。
-  /// 供 injectBridge 内联的 substitudeMacros 同步读取。
+  /// Injects the current character name/user name into the outer WebView's window.__KIRA_MACRO_VALUES.
+  /// Read synchronously by substitudeMacros inlined by injectBridge.
   Future<void> _injectMacroValues(InAppWebViewController c) async {
     final activeChat = ref.read(activeChatProvider);
     final charName = activeChat.character?.name ?? 'Assistant';
@@ -365,8 +367,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       KiraLogger().info('宏值注入', '注入失败: \$e');
     }
   }
-  /// 把共享 TavernHelper 门面注入到外层 window.__ENGINE_FACADE_JS,
-  /// 供 createEngineRoom 建引擎房 iframe 时内联。
+  /// Injects the shared TavernHelper facade into the outer window.__ENGINE_FACADE_JS,
+  /// inlined when createEngineRoom builds the engine room iframe.
   Future<void> _injectEngineFacade(InAppWebViewController c) async {
     final mvu = ref.read(mvuSettingsProvider);
     final facade = buildTavernHelperFacadeJs(frameId: 'engine-room', mvu: mvu, ejsLoaded: _ejsLoaded);
@@ -378,17 +380,17 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
 
-  /// [P5-6阶段2.1] 把主环境快照注入外层 window.__KIRA_MAIN_ENV,
-  /// 供主文档 SillyTavern.getContext() 骨架读取(mvu_settings/EjsTemplate)。
-  /// 注入失败由 HTML 侧降级为空对象并打 [主环境] 日志,不阻断。
+  /// Injects the main environment snapshot into the outer window.__KIRA_MAIN_ENV,
+  /// read by the main document's SillyTavern.getContext() skeleton (mvu_settings/EjsTemplate).
+  /// On injection failure the HTML side degrades to an empty object and logs a [main env] message; it does not block.
   Future<void> _injectMainEnv(InAppWebViewController c) async {
     final mvu = ref.read(mvuSettingsProvider);
-    // [P5-9/P1] chatCompletionSettings 真值(狐神 agent 守卫等待它出现)
+    // chatCompletionSettings truth value (Fox's agent guard waits for it to appear)
     final llm = ref.read(llmConfigProvider);
     final env = <String, dynamic>{
       'mvu': <String, dynamic>{
         '更新方式': mvu.updateMode,
-        // [P5-8/P1] 通知四键同步进主环境(与 facade 烘焙同源)
+        // the four notification flags are synced into the main environment (same source as the facade bake)
         '通知': <String, dynamic>{
           'MVU框架加载成功': mvu.notifyFrameworkLoaded,
           '变量初始化成功': mvu.notifyInitSuccess,
@@ -404,7 +406,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           '模型名称': mvu.modelName,
         },
       },
-      // EJS 引擎真实加载状态门控(_ejsLoaded 静态标志),不是造假
+      // real EJS engine load-state gate (_ejsLoaded static flag), not faked
       'ejsLoaded': _ejsLoaded,
       'chatCompletion': <String, dynamic>{
         'temperature': llm.temperature,
@@ -420,7 +422,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
   Future<void> _injectPresetScripts(InAppWebViewController c) async {
-    // [P5-7B] 校验: 确保 provider 中的 chat 与本 widget 匹配,防止切卡竞态注入错误脚本
+    // Validate that the chat in the provider matches this widget, preventing wrong scripts from being injected on card-switch races
     final currentChat = ref.read(activeChatProvider).chat;
     if (currentChat?.id != widget.chatId) {
       debugPrint(
@@ -446,7 +448,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     var allowed = prefs.getBool(authKey);
     if (enabledScripts.isNotEmpty && allowed == null && mounted) {
       final names = enabledScripts.map((s) => '• ${s['name'] ?? '未命名脚本'}').join('\n');
-      // [弹窗] HTML确认框:注入阶段 WebView 已就绪,无需 Flutter 弹窗
+      // HTML confirm dialog: the WebView is already ready during injection, so no Flutter dialog is needed
       allowed = await _showHtmlConfirm(
         title: '此内容包含 ${enabledScripts.length} 个脚本',
         message: '$names\n\n是否允许运行？',
@@ -457,12 +459,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       if (!allowed) KiraLogger().info('预设脚本', '用户拒绝，脚本不执行');
     }
     if (allowed != true) enabledScripts.clear();
-// 修复: 部分脚本按同步语义读 _TH.getPreset（平台门面返回 Promise），
-// 导致无限自激循环。注入前 patch 这两个读点，改为读 __KIRA_PRESET_CACHE 同步镜像。
-// 对所有脚本尝试 patch，regex 未命中的原样返回，不影响其他脚本。
+// Fix: some scripts read _TH.getPreset with synchronous semantics (the platform facade returns
+// a Promise), causing an infinite self-triggering loop. Before injection, patch these two read
+// points to read the synchronous __KIRA_PRESET_CACHE mirror instead.
+// The patch is attempted for all scripts; regexes that do not match return the input unchanged,
+// so other scripts are unaffected.
     final patchedScripts = enabledScripts.map<Map<String, dynamic>>((s) {
-      final name = s['name']?.toString() ?? '';  // 保留供日志用
-      // patch对所有脚本尝试，regex命中与否自行决定
+      final name = s['name']?.toString() ?? '';  // kept for logging
+      // the patch is attempted for all scripts; each regex decides whether it applies
       final original = s['content'] as String;
       var patched = original;
       var hit1 = 0, hit2 = 0;
@@ -501,8 +505,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       await c.evaluateJavascript(
         source: 'window.__KIRA_PRESET_SCRIPTS=${jsonEncode(patchedScripts)};',
       );
-      // [P5-9/P0-3] 脚本级变量快照:为每个启用脚本预取持久化变量,注入后脚本房在
-      //   每个脚本启动前 hydrate 进门面 __varCache.script,getVariables({type:'script'}) 即可同步读到。
+      // Script-level variable snapshot: prefetch persistent variables for each enabled script so
+      //   after injection the script room hydrates them into the facade __varCache.script before
+      //   each script starts, making getVariables({type:'script'}) readable synchronously.
       final snapshot = <String, dynamic>{};
       for (final s in enabledScripts) {
         final sid = (s['id'] as String?)?.isNotEmpty == true
@@ -525,8 +530,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
 
-  /// 把 MVU bundle(base64)注入外层 window.__KIRA_MVU_BUNDLE,
-  /// 供 createEngineRoom 建引擎房时内联为 ES module。
+  /// Injects the MVU bundle (base64) into the outer window.__KIRA_MVU_BUNDLE,
+  /// inlined as an ES module when createEngineRoom builds the engine room.
   Future<void> _injectEjsStub(InAppWebViewController c) async {
     if (!_ejsStubLoaded || _ejsStubRaw == null) return;
     final b64 = base64Encode(utf8.encode(_ejsStubRaw!));
@@ -567,8 +572,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
 
-  /// 用自定义提示词替换 bundle 里的 const wX='...默认task...'。
-  /// 正则用 (?:[^'\\]|\\.)* 跳过内部转义单引号,避免非贪婪提前截断。
+  /// Replaces the bundle's const wX='...default task...' with the custom prompt.
+  /// The regex uses (?:[^'\\]|\\.)* to skip internally escaped single quotes, avoiding an early cut-off by a non-greedy match.
   String _replaceMvuTask(String bundle, String customTask) {
     final escaped = customTask
         .replaceAll('\\', '\\\\')
@@ -588,25 +593,27 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   double _keyboardHeight = 0;
   bool _keyboardVisible = false;
   bool _funcPanelOpen = false;
-  bool _topBarVisible = true; // [顶栏] 滚动隐藏/显示,方向判定在 JS 侧,这里只收结果
-  int _pushEpoch = 0; // [RC3] 推送代际计数器:新一次 _pushMessages 使在途的历史补发循环作废
-  // [弹窗] HTML弹窗等待表:callbackId → Completer,结果经 dialogResult 桥回传
+  bool _topBarVisible = true; // top bar scroll hide/show; direction detection happens on the JS side, this only receives the result
+  int _pushEpoch = 0; // push generation counter: a new _pushMessages invalidates in-flight history backfill loops
+  // HTML dialog wait table: callbackId -> Completer, results come back over the bridge via dialogResult
   final Map<String, Completer<dynamic>> _dialogCompleters = {};
 
    @override
   void initState() {
     super.initState();
-                    // 登记 EJS 渲染函数,供 LLMService 发送前渲染提示词
+                    // register the EJS render function so LLMService can render the prompt before sending
                     ref.read(ejsRenderRegistryProvider).register(
                       (text) => _handleRenderEJS({'text': text}),
                     );
-    // [P3-K2-4] 监听 prompt sections 变化, 出站推给悬浮球
-    // [P5-6阶段1.3] fireImmediately: provider 同步定型且早被别处读走,监听附加后
-    // 无"变化"则回调永不触发 → 隐藏列表首帧空。立即推一次兜底(outbox 排队,幂等无害)。
+    // Watch prompt section changes and push them out to the floating panel
+    // fireImmediately: the provider is finalized synchronously and read elsewhere early, so once the
+    // listener attaches there may be no "change" and the callback would never fire -> the hidden
+    // list would be empty on the first frame. Push once immediately as a fallback (queued in the
+    // outbox, idempotent and harmless).
     _pmSub = ref.listenManual<PromptManagerConfig>(
       promptManagerProvider,
       (prev, next) {
-        // ChatBridge.send 内部自动排队握手前消息, 无需检查 ready
+        // ChatBridge.send automatically queues messages sent before the handshake, no need to check ready
         _bridge.send(BridgeType.pmSectionsChanged, {
           'sections': next.sortedSections
               .map((s) => {
@@ -626,8 +633,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     _inputController.addListener(_syncHasInput);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      // [优化] 5 个资产加载互不依赖(各自只写自己的静态缓存),并行读取。
-      // 串行时低端机上这是遮罩期一段可观的白等。
+      // Optimization: the 5 asset loads are independent (each writes only its own static cache), so load in parallel.
+      // Serial loading is a noticeable dead wait during the mask phase on low-end devices.
       await Future.wait([
         _loadChatStageAssets(),
         _loadCompatLibs(),
@@ -636,17 +643,17 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         _loadEjsBundle(),
       ]);
       if (!mounted) return;
-      // [P5-7B] 等 loadChat 真正完成,确保 character 数据就绪后再挂 WebView
-      // [P0-3] 超时兜底:DB 挂起时不再永久阻塞 WebView 挂载(卡在加载界面)
+      // Wait for loadChat to actually finish so character data is ready before mounting the WebView
+      // Timeout fallback: a hung DB no longer blocks WebView mounting forever (stuck on the loading screen)
       await ref.read(activeChatProvider.notifier).loadChat(widget.chatId)
           .timeout(const Duration(seconds: 10), onTimeout: () {
         debugPrint('[卡点] loadChat超时10s');
       });
-      // 挂载 WebView(此前这里还有 350ms 人为延迟,已删——纯加载耗时)
+      // Mount the WebView (a 350ms artificial delay used to sit here; removed -- pure load time)
       if (!mounted) return;
       setState(() => _webViewMounted = true);
-      // [P0-3] 15s 安全网:loadData 失败/渲染进程异常等导致 onLoadStop 永不触发时,
-      // 遮罩会永久盖屏。15s 未撤强制撤下,宁可闪一下也不要永久卡死。
+      // 15s safety net: if loadData fails or the renderer process errors so onLoadStop never fires,
+      // the mask would cover the screen forever. Force-remove it after 15s; a brief flash beats a permanent freeze.
       Future.delayed(const Duration(seconds: 15), () {
         if (mounted && _maskController.status != AnimationStatus.dismissed) {
           debugPrint('[安全网] 15s遮罩未撤，强制撤下');
@@ -654,7 +661,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         }
       });
     });
-    // [P5-7B] 自愈: character 变化时重新注入脚本,防止时序竞态注入旧卡脚本
+    // Self-healing: re-inject scripts when the character changes, preventing timing races from injecting the previous card's scripts
     _charSub = ref.listenManual(
       activeChatProvider.select((s) => s.character?.id),
       (previous, next) {
@@ -663,7 +670,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
             _webViewMounted &&
             _controller != null) {
           debugPrint('[脚本监听] character变化: $previous → $next, 重新注入');
-          _wiCacheInvalidate('character变化'); // [P5-6阶段0.1] 切角色清空世界书缓存,防串卡旧值
+          _wiCacheInvalidate('character变化'); // clear the worldbook cache on character switch so stale values cannot leak across cards
           final c = _controller;
           if (c != null) _injectPresetScripts(c);
         }
@@ -700,38 +707,40 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   void didChangeMetrics() {
     super.didChangeMetrics();
     if (!mounted) return;
-    // [鬼畜修复] 有其它路由盖在本页之上时(全屏编辑页/导航/Flutter弹窗)完全不处理键盘度量。
-    // 本页此时仍在树下存活:键盘每帧度量变化 → setState → 重建整个 build()(含已 pause 的
-    // InAppWebView) → HC 平台视图重排 → 系统 IME 重挂 → 再次 didChangeMetrics → 无限循环。
-    // 表现即"长按选择文字时手机狂震、键盘反复弹、屏幕鬼畜、松手仍不停"。
+    // Runaway-loop fix: while another route covers this page (full-screen edit page / navigation /
+    // Flutter dialog), ignore keyboard metrics entirely. This page stays alive in the tree: keyboard
+    // metrics change each frame -> setState -> full build() rebuild (including the paused
+    // InAppWebView) -> HC platform view relayout -> system IME remount -> didChangeMetrics again ->
+    // infinite loop. Symptom: the phone vibrates wildly while long-press-selecting text, the keyboard
+    // pops repeatedly, the screen thrashes, and it never stops on release.
     if (ModalRoute.of(context)?.isCurrent != true) return;
     final view = View.of(context);
     final bottom = view.viewInsets.bottom / view.devicePixelRatio;
     final visible = bottom > 0;
-    if (visible && bottom > _keyboardHeight) _keyboardHeight = bottom; // 缓存键盘高度
+    if (visible && bottom > _keyboardHeight) _keyboardHeight = bottom; // cache the keyboard height
     if (visible != _keyboardVisible) {
-      setState(() => _keyboardVisible = visible); // 仅在显↔隐跳变时重建一次
-      // [键盘] 推送键盘状态给 WebView:body 底部 padding 补偿,否则贴底时
-      // 最新消息落在键盘后方且已在滚动上限,永远滚不出来
+      setState(() => _keyboardVisible = visible); // rebuild only on visible <-> hidden transitions
+      // Push keyboard state to the WebView: compensate with body bottom padding, otherwise when
+      // docked the newest message lands behind the keyboard at the scroll limit and can never scroll into view
       _bridge.send(BridgeType.keyboardInsets, {
         'visible': visible,
         'height': visible ? _keyboardHeight : 0,
       });
     }
-    // [聊天页大改] 同步布局 CSS 变量给 WebView(键盘高度/状态栏/导航栏/viewport 高度)
-    // 频率受 visible != _keyboardVisible 跳变门控,不会因每帧 metrics 抖动而刷爆桥
+    // Sync layout CSS variables to the WebView (keyboard height / status bar / nav bar / viewport height)
+    // Frequency is gated by visible != _keyboardVisible transitions, so per-frame metrics jitter cannot flood the bridge
     _injectLayoutVars();
   }
 
-  /// [顶栏] 显隐切换(仅状态跳变时 setState,滚动事件本身在 JS 侧已收敛)
+  /// Top bar show/hide toggle (setState only on state transitions; the scroll events themselves are already collapsed on the JS side)
   void _setTopBarVisible(bool visible) {
     if (!mounted || _topBarVisible == visible) return;
     setState(() => _topBarVisible = visible);
     _sendTopBarInsets();
   }
 
-  /// [顶栏] 把顶栏占位推给 JS:WebView 全出血,消息起始位置 = body padding-top。
-  /// 顶栏显示 → 让出 44+状态栏;收起 → 只留状态栏,那 44px 归消息区。
+  /// Push the top bar's occupied space to JS: the WebView is full-bleed, so message start = body padding-top.
+  /// Top bar shown -> yields 44 + status bar; collapsed -> only the status bar remains, and that 44px belongs to the message area.
   void _sendTopBarInsets() {
     if (!mounted) return;
     final status = MediaQuery.viewPaddingOf(context).top;
@@ -743,12 +752,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     _injectLayoutVars();
   }
 
-  // ── [聊天页大改] 布局变量统一注入 ───────────────────────────────────────────
-  // 所有布局相关 CSS 变量(--keyboard-height / --status-bar-height / --nav-bar-height /
+  // Unified layout variable injection
+  // All layout-related CSS variables (--keyboard-height / --status-bar-height / --nav-bar-height /
   // --app-viewport-height / --safe-area-inset-top / --safe-area-inset-bottom)
-  // 集中在这一个函数里组装,经 ChatBridge.layoutVars 一次性下发。
-  // 触发时机:onLoadStop 初始注入 + didChangeMetrics(键盘/方向变化)+ _sendTopBarInsets(顶栏切换)。
-  // 不直接 evaluateJavascript:遵守 webview_chat_stage.dart:101 通信全部走 ChatBridge 的硬性规定。
+  // are assembled here in one place and delivered in a single shot via ChatBridge.layoutVars.
+  // Triggered by: onLoadStop initial injection + didChangeMetrics (keyboard/orientation changes) + _sendTopBarInsets (top bar toggle).
+  // No direct evaluateJavascript: per the hard rule at webview_chat_stage.dart:101, all communication goes through ChatBridge.
   void _showApiErrorDialog(BuildContext context, String err) {
     final codeMatch = RegExp(r'HTTP (\d+)').firstMatch(err);
     final statusCode = codeMatch != null ? int.tryParse(codeMatch.group(1)!) : null;
@@ -887,9 +896,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     final statusBarHeight = mq.viewPadding.top;
     final navBarHeight = mq.viewPadding.bottom;
     final keyboardHeight = mq.viewInsets.bottom;
-    // visualViewport 在 WebView 里不一定可用,用实际可视高度(减去键盘)
+    // visualViewport is not necessarily available inside the WebView, so use the actual visible height (minus the keyboard)
     final viewportHeight = mq.size.height - keyboardHeight;
-    // [新菜单] 主题色注入（深色/浅色都跟随）
+    // Theme color injection (follows dark/light)
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     _bridge.send(BridgeType.layoutVars, {
@@ -915,7 +924,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     });
   }
 
-  /// Color → #RRGGBB（WebView setProperty 不认 ARGB）
+  /// Color -> #RRGGBB (WebView setProperty does not accept ARGB)
   static String _hex(Color c) {
     final r = (c.r * 255).round().toRadixString(16).padLeft(2, '0');
     final g = (c.g * 255).round().toRadixString(16).padLeft(2, '0');
@@ -923,16 +932,17 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     return '#$r$g$b';
   }
 
-  /// [P1-A5] 崩溃自愈超限后,用户点「重新加载」:重置计数并重挂 webview 恢复。
+  /// Crash self-healing exceeded its limit: the user tapped "reload", reset the counter and remount the WebView to recover.
   void _reloadWebViewAfterCrash() {
     _wvCrashCount = 0;
     _reloadWebViewContent();
   }
 
-  /// [P5-12] 崩溃自愈:重新 loadData 重建内容,而非 controller.reload()。
-  /// reload 会把 loadData 页面的历史条目(其 URL 即 baseUrl)当真实导航重新请求,
-  /// 公网域名会 net::ERR_NAME_NOT_RESOLVED(P5-11 诊断第五部分)。
-  /// loadData 重建文档后 onLoadStop 会重跑注入链(兼容库/门面/脚本房/MVU),等价完整恢复。
+  /// Crash self-healing: rebuild the content with a fresh loadData instead of controller.reload().
+  /// reload treats the loadData page's history entry (whose URL is the baseUrl) as a real navigation
+  /// and re-requests it, which fails with net::ERR_NAME_NOT_RESOLVED on a public domain (P5-11 diagnosis, part 5).
+  /// Once loadData rebuilds the document, onLoadStop re-runs the injection chain (compat libs / facade /
+  /// script room / MVU), which is equivalent to a full recovery.
   Future<void> _reloadWebViewContent() async {
     final c = _controller;
     if (c == null) return;
@@ -945,10 +955,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     } catch (e) {
       debugPrint('[WV-6] 自愈 loadData 失败: $e');
     }
-    // [RC3] 不再 delayed 补发 _pushMessages:loadData 成功必触发 onLoadStop,
-    // 那里已 await _pushMessages;这里再补一发会形成双跑,两个历史补发循环
-    // 交错 insertBefore → 楼层重复/乱序(消息丢失bug根因之一)。
-    // [弹窗] WebView 重建,页面上未决的 HTML 弹窗随之消失,按取消收场
+    // No more delayed _pushMessages backfill: a successful loadData always fires onLoadStop, which
+    // already awaits _pushMessages; sending another here would double-run, and two history backfill
+    // loops interleaving insertBefore would duplicate/reorder message indexes (one root cause of the message-loss bug).
+    // WebView rebuilt: any pending HTML dialogs on the page disappear with it, so settle them as cancelled
     for (final c in _dialogCompleters.values) {
       if (!c.isCompleted) c.complete(false);
     }
@@ -958,11 +968,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   @override
   void dispose() {
     _minLoadingTimer?.cancel();
-    // 清空 EJS 渲染函数登记(离开聊天页,回到安全态)
+    // Clear the EJS render function registration (leaving the chat page, back to a safe state)
     try {
       ref.read(ejsRenderRegistryProvider).clear();
     } catch (_) {}
-    // [弹窗] 未决 HTML 弹窗全部按取消收场,防 Completer 永久挂起
+    // Settle all pending HTML dialogs as cancelled so no Completer hangs forever
     for (final c in _dialogCompleters.values) {
       if (!c.isCompleted) c.complete(false);
     }
@@ -983,8 +993,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // 从相册等外部 Activity 返回时，WebView 的 PlatformView 触摸命中区域会失效，
-    // resume 时强制刷新一次，恢复手势。
+    // When returning from an external Activity (e.g. the gallery), the WebView's PlatformView touch
+    // hit-test region goes stale; force one refresh on resume to restore gestures.
     if (state == AppLifecycleState.resumed) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -1002,28 +1012,30 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
 
-  // ── build ──────────────────────────────────────────────────────────────────
+  // build
 
   @override
   Widget build(BuildContext context) {
-    // 消息变化 → 智能分流：结构变化走全量，内容增长走增量追加
+    // Message changes -> smart routing: structural changes go full, content growth goes incremental append
     ref.listen(activeChatProvider, (prev, next) {
       final prevMsgs = prev?.messages ?? const [];
       final nextMsgs = next.messages;
 
-      // 纯末尾追加（发消息 / 新增AI占位）：prev 是 next 前缀，只在末尾多出几条
-      // → 只追加新增 DOM，不清空整页，消除闪白抖动
+      // Pure tail append (sending a message / adding an AI placeholder): prev is a prefix of next
+      // with only extra entries at the end -> append only the new DOM instead of clearing the whole
+      // page, eliminating white-flash flicker
       final isPureAppend = prevMsgs.isNotEmpty &&
           nextMsgs.length > prevMsgs.length &&
           _isPrefix(prevMsgs, nextMsgs);
 
-      // [闪屏修复] 纯尾部截断（retry 删后续 / 删除此条及之后）：next 是 prev 的前缀且更短
-      // → 只摘掉多出来的 DOM。retry 走的就是这条路,原先落进"结构变化→全量重建"= 闪屏
+      // Flash fix: pure tail truncation (retry deleting follow-ups / delete this and after): next is
+      // a shorter prefix of prev -> remove only the surplus DOM. Retry takes exactly this path; it
+      // used to fall into "structure changed -> full rebuild" = screen flash
       final isPureTruncate = prevMsgs.isNotEmpty &&
           nextMsgs.length < prevMsgs.length &&
           _isPrefix(nextMsgs, prevMsgs);
 
-      // 结构变化（增删消息 / 换聊天）→ 全量重渲染
+      // Structural change (messages added/removed / chat switched) -> full re-render
       final sameStructure = prevMsgs.length == nextMsgs.length &&
           (nextMsgs.isEmpty || prevMsgs.last.id == nextMsgs.last.id);
 
@@ -1043,9 +1055,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         } else if (last.content != prevLast.content) {
           _updateSingleMessage(last.id);
         } else {
-          // 中间消息的 swipe 结构/索引变化（reroll 插占位、swipe 切换）→ 刷新同步 webview。
-          // 只看 swipes 数量与 index，不看 content：流式中间的 content 变化不在此刷，
-          // 交给生成结束时那次全量刷新，避免 reroll 每个 token 全量重建导致卡顿。
+          // Swipe structure/index changes on a middle message (reroll inserting a placeholder,
+          // swipe switching) -> refresh the synced webview.
+          // Only swipes length and index are compared, not content: content changes mid-stream are
+          // not refreshed here; they are left to the full refresh when generation ends, avoiding a
+          // full rebuild on every reroll token and the jank that causes.
           for (var i = 0; i < nextMsgs.length; i++) {
             if (i >= prevMsgs.length) break;
             if (nextMsgs[i].swipes.length != prevMsgs[i].swipes.length ||
@@ -1057,46 +1071,52 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         }
       }
 
-      // 生成结束的瞬间：全量刷新一次，把流式的纯文本正确渲染成 Markdown/HTML 卡片
+      // The instant generation ends: one full refresh to render the streamed plain text as Markdown/HTML cards
       final gen = next.isGenerating;
-      // 点火：用户发消息 → isGenerating false→true，用户消息已入 state
-      // → 通知引擎房 MVU initCheck（带 msgs 填充 __chatMessages / SillyTavern.chat）
+      // Ignition: user sends a message -> isGenerating false->true, the user message is already in state
+      // -> notify the engine room's MVU initCheck (with msgs filling __chatMessages / SillyTavern.chat)
       if (!_wasGenerating && gen) {
-        _syncPrimaryLorebookToEngine();   // 趁生成期间提前推主世界书名进镜像
+        _syncPrimaryLorebookToEngine();   // push the primary worldbook name into the mirror ahead of generation
         final msgsJson = jsonEncode(_serializeMessagesForMvu());
         _controller?.evaluateJavascript(
             source: 'if(window.__emitToEngine)window.__emitToEngine("generation_started",[],$msgsJson);');
-        // [聊天页大改] 生成开始:通知 WebView 输入栏切到停止按钮态
+        // Generation started: tell the WebView input bar to switch to the stop button state
         _pushInputBarState();
       }
       if (_wasGenerating && !gen) {
-        // [闪屏修复] 生成结束只定点刷新最后一条(把流式纯文本渲染成 Markdown/HTML),
-        // 不再整页 initial 重建 —— 那是"每次回复完成都闪一下"的根因。
-        // JS 侧节点缺失或内容是卡片时回 needFullPush,Dart 兜底全量重推。
+        // Flash fix: when generation ends only refresh the last message in place (rendering the
+        // streamed plain text as Markdown/HTML) instead of a full initial rebuild -- that rebuild
+        // was the root cause of "a flash on every completed reply".
+        // If the JS side finds the node missing or its content is already a card, it replies
+        // needFullPush and Dart falls back to a full re-push.
         _updateLastMessage(nextMsgs);
-        // 点火：AI 回复完成 → 通知引擎房 MVU 解析新回复、更新变量
+        // Ignition: AI reply finished -> notify the engine room's MVU to parse the new reply and update variables
         if (nextMsgs.isNotEmpty) {
           final lastIdx = nextMsgs.length - 1;
           final msgsJson = jsonEncode(_serializeMessagesForMvu());
           _controller?.evaluateJavascript(
               source: 'if(window.__emitToEngine)window.__emitToEngine("message_received",[$lastIdx],$msgsJson);');
         }
-        // [P5-9/P1] 生成结束(完成或取消)必发 GENERATION_ENDED(官方值 generation_ended),
-        // 狐神"生成结束后恢复"等 listener 依赖;取消路径 cancelGeneration 也走这里,不再空转。
+        // Generation end (completed or cancelled) must always emit GENERATION_ENDED (the official
+        // value is generation_ended), which listeners like Fox's "restore after generation" rely on;
+        // the cancel path via cancelGeneration also lands here instead of spinning idly.
         _emitPresetEvent('generation_ended');
-        // [聊天页大改] 生成结束:通知 WebView 输入栏切回发送按钮态
+        // Generation ended: tell the WebView input bar to switch back to the send button state
         _pushInputBarState();
       }
       _wasGenerating = gen;
-      // 自动生图完成：消息 attachments 变化 → 刷新让新图显示。
-      // 自动生图是异步的，完成时 isGenerating 早已 false，上面的分支都不刷。
+      // Auto image generation finished: message attachments changed -> refresh so the new image shows.
+      // Auto image generation is asynchronous, so isGenerating is long false by the time it completes
+      // and none of the branches above refresh.
       if (prevMsgs.length == nextMsgs.length) {
         for (var i = 0; i < nextMsgs.length; i++) {
           if (nextMsgs[i].attachments.length != prevMsgs[i].attachments.length) {
-            // [Bug6] 附件变化走定点更新：_pushMessages 全量重建(initial:true)会
-            // root.innerHTML='' 拆毁整页 → scrollTop 归零（图像生成后回顶的根因）。
-            // updateMessage 只换该气泡内容，滚动天然保持；rich 卡片由 JS 回
-            // needFullPush 兜底全量重推（与生成结束同路径，锚点机制恢复位置）。
+            // Attachment changes use a targeted update: a full _pushMessages rebuild (initial:true)
+            // does root.innerHTML='' and tears down the whole page -> scrollTop resets to zero (the
+            // cause of jumping back to the top after image generation).
+            // updateMessage only swaps that bubble's content, so scroll position is naturally kept;
+            // rich cards fall back to a full re-push when JS replies needFullPush (same path as at
+            // generation end, where the anchor mechanism restores the position).
             debugPrint('[Bug6] 消息 ${nextMsgs[i].id} 附件变化 → 定点更新');
             _updateSingleMessage(nextMsgs[i].id);
             break;
@@ -1104,9 +1124,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         }
       }
 
-      // 错误提示：空回复/生成失败，统一弹 SnackBar。
-      // 之前 error 默默设进 state 但 UI 从不消费，让人以为卡住。
-      // 503/网络错误显示简短提示，完整 error 留给日志（debugPrint 已有）。
+      // Error surfacing: empty reply / generation failure shows a unified dialog.
+      // Previously error was silently stored in state but never consumed by the UI, which looked like a hang.
+      // 503/network errors show a short hint; the full error stays in the logs (debugPrint already has it).
       final err = next.error;
       if (err != null && err.isNotEmpty && err != prev?.error) {
         if (mounted) _showApiErrorDialog(context, err);
@@ -1122,13 +1142,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       }
     });
 
-    // [聊天页大改] STT 设置变化时刷新输入栏:WebView 长按 textarea 的语音条要跟随开关显隐
+    // Refresh the input bar when STT settings change: the voice bar on the WebView's long-press textarea must follow the toggle
     ref.listen(sttSettingsProvider, (prev, next) {
       if (prev?.enabled != next.enabled && _webViewMounted) {
         _pushInputBarState();
       }
     });
-    // [聊天页大改] STT 录音中状态变化时刷新输入栏(供 UI 状态展示,目前未加录音指示,留作后续)
+    // Refresh the input bar when the STT recording state changes (for UI state display; no recording indicator yet, kept for later)
     ref.listen(sttListeningProvider, (prev, next) {
       if (prev != next && _webViewMounted) {
         _pushInputBarState();
@@ -1140,11 +1160,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         _controller?.evaluateJavascript(
             source: 'if(window.resetEngineRoom)window.resetEngineRoom();');
       }
-      // [顶栏] 切会话重置为显示,避免新会话开局顶栏消失
+      // Reset the top bar to visible on chat switch so it is not missing at the start of a new chat
       _setTopBarVisible(true);
     });
 
-    // 自动生图占位符：msgId 变化 → 显示/移除"生成中"占位
+    // Auto image generation placeholder: msgId changes -> show/remove the "generating" placeholder
     ref.listen(activeChatProvider.select((s) => s.generatingImageMsgId),
         (prev, next) {
       if (next != null) {
@@ -1154,7 +1174,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         _bridge.send(BridgeType.clearGenerating, {'genId': 'auto_$prev'});
       }
     });
-    // 自动生图进度 → 更新占位符百分比
+    // Auto image generation progress -> update the placeholder percentage
     ref.listen(activeChatProvider.select((s) => s.imageGenProgress),
         (prev, next) {
       final msgId = ref.read(activeChatProvider).generatingImageMsgId;
@@ -1163,7 +1183,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
             {'genId': 'auto_$msgId', 'progress': next});
       }
     });
-    // 自动生图失败 → 一次性提醒
+    // Auto image generation failure -> one-shot notification
     ref.listen(activeChatProvider.select((s) => s.imageGenError),
         (prev, next) {
       if (next != null && next.isNotEmpty && next != prev) {
@@ -1175,10 +1195,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
       }
     });
 
-    // [Bug3] Flutter 侧生图设置变化 → 推送打开中的生图浮窗：此前浮窗数据是
-    // 打开瞬间的快照（_openImageGenPanel 仅在打开时推一次），Flutter 设置页
-    // 改完浮窗不感知。带 targetPanel 让 JS 侧仅在生图面板正打开时才应用
-    // （防跨面板数据污染，见 chat_stage.html settingsPanelData handler）。
+    // Image generation settings changed -> push to the open image generation panel: the panel data
+    // used to be a snapshot taken when it opened (_openImageGenPanel pushes only once at open time),
+    // so changes made on the Flutter settings page were never picked up. targetPanel makes the JS
+    // side apply the data only while the image generation panel is open (prevents cross-panel data
+    // pollution, see the settingsPanelData handler in chat_stage.html).
     ref.listen(imageGenSettingsProvider, (prev, next) {
       if (prev == next) return;
       debugPrint('[Bug3] 生图设置变化 → 推送打开中的浮窗');
@@ -1188,9 +1209,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         'targetPanel': 'imageGen',
       });
     });
-    // [Bug3] 生图模型列表拉取完成 → 再推一次：模型列表是异步拉取的
-    // （fetchedModelsProvider 随 provider/apiKey 变化重建后拉取），设置变化时
-    // 先推了设置，模型到达后补推一次让浮窗显示最新列表。
+    // Image generation model list finished loading -> push again: the model list is fetched
+    // asynchronously (fetchedModelsProvider rebuilds and re-fetches when provider/apiKey changes),
+    // so settings were pushed first and a follow-up push after the models arrive keeps the panel
+    // showing the latest list.
     ref.listen(availableModelsProvider, (prev, next) {
       if (prev == next) return;
       debugPrint('[Bug3] 生图模型列表变化 → 推送打开中的浮窗');
@@ -1202,9 +1224,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     });
 
     final character = ref.watch(activeChatProvider.select((s) => s.character));
-    // [顶栏模型名] watch 生效配置 llmConfigProvider.model(而非 llmConfigsProvider):
-    // 切模型(updateModel)只写前者+直写DB,不刷新后者的内存列表 → watch 错源会不更新。
-    // 切方案(setActive→applyActiveMultiConfig)同样落 llmConfigProvider,两条路径都实时。
+    // Top bar model name: watch the effective config llmConfigProvider.model (not llmConfigsProvider):
+    // switching models (updateModel) only writes the former + writes straight to the DB and does not
+    // refresh the latter's in-memory list -> watching the wrong source would never update.
+    // Switching schemes (setActive -> applyActiveMultiConfig) also lands in llmConfigProvider, so both paths are live.
     final activeModel = ref.watch(llmConfigProvider.select((s) => s.model));
     final isGenerating = ref.watch(
       activeChatProvider.select((s) => s.isGenerating),
@@ -1229,27 +1252,28 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         fit: StackFit.expand,
         children: [
           ChatBackgroundWidget(
-        // [P-Opt] select 精准订阅 character.id：ActiveChatState 含全量 messages，
-        // 直接 watch 会使整个聊天外壳在每条消息/生成状态变化时全量 rebuild
+        // Precise select subscription on character.id: ActiveChatState contains the full messages
+        // list, so a direct watch would rebuild the whole chat shell on every message/generation state change
         characterId: ref.watch(activeChatProvider.select((s) => s.character?.id)),
         child: Stack(
         children: [
-                // WebView 下移到顶栏下方：顶栏后面只剩壁纸(Flutter层)，
-                // blur 采样不到 WebView，毛玻璃安全、不卡。
+                // WebView moved below the top bar: only wallpaper (Flutter layer) sits behind the
+                // bar, so blur cannot sample the WebView -- frosted glass stays safe and smooth.
                 Positioned.fill(
                   child: Padding(
                   padding: const EdgeInsets.only(
-                    // [顶栏] 全出血:WebView 恒定铺满(top:0),消息起始位置由 body
-                    // padding-top 决定(桥 topBarInsets 驱动)。顶栏收起时改 CSS 让出
-                    // 那 32px,而不是 resize 平台视图 —— 守住 HC 合成性能红线,
-                    // 也修掉"顶栏收回去了但那块仍是壁纸、等于没收"的问题。
+                    // Full bleed: the WebView always fills (top:0), and message start is decided by
+                    // body padding-top (driven by the bridge's topBarInsets). When the top bar
+                    // collapses we free that 32px via CSS instead of resizing the platform view --
+                    // staying inside the HC compositing performance red line, and fixing the issue
+                    // where the bar retracted but that area still showed wallpaper (as if it never retracted).
                     top: 0,
-                    // [聊天页大改] WebView 铺满到底部:输入栏已迁入 WebView
-                    // (position:fixed; bottom:var(--keyboard-height)),不需要 Flutter
-                    // 侧再留 64px 占位。消息列表底部留白改由 body padding-bottom
-                    // 在 chat_stage.html 的 keyboardInsets handler 里动态计算
-                    // (input-bar 高度 + safe-area + keyboard-height),消息不再被
-                    // 输入栏遮住。
+                    // WebView fills to the bottom: the input bar has moved into the WebView
+                    // (position:fixed; bottom:var(--keyboard-height)), so Flutter no longer needs a
+                    // 64px placeholder. Bottom whitespace for the message list is computed dynamically
+                    // by body padding-bottom in chat_stage.html's keyboardInsets handler (input-bar
+                    // height + safe-area + keyboard-height), so messages are no longer hidden behind
+                    // the input bar.
                     bottom: 0,
                   ),
                   child: _webViewMounted
@@ -1273,14 +1297,18 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     data: _htmlShell(),
                     mimeType: 'text/html',
                     encoding: 'utf-8',
-                    // [P5-9/P0-1] baseUrl 用合成 https 源替代 about:blank：
-                    //   about:blank 是不透明源(opaque origin)，主文档与 srcdoc 脚本房的
-                    //   localStorage 访问一律抛 SecurityError → 三预设(人间月下/狐神/玄枢)
-                    //   的"设置持久化/点击保存"全部失效（见 P5-9 报告第二部分）。
-                    //   改为稳定 https 源后，主文档与 iframe 获得同源真实 localStorage。
-                    //   合成源不会被网络解析(loadData 仅用 baseUrl 做资源/来源解析，不发起导航)。
-                    //   [P5-12] localhost 而非公网域名：渲染进程崩溃自愈 reload 会把该地址
-                    //   当真实导航重新请求，公网域名会 net::ERR_NAME_NOT_RESOLVED（P5-11 第五部分）。
+                    // baseUrl uses a synthetic https origin instead of about:blank:
+                    //   about:blank is an opaque origin, so any localStorage access from the main
+                    //   document or the srcdoc script room throws SecurityError -> settings
+                    //   persistence / save clicks break for all three presets (Daoyuan, Fox, XuanShu)
+                    //   (see part 2 of the P5-9 report).
+                    //   With a stable https origin the main document and the iframe get a real
+                    //   same-origin localStorage.
+                    //   The synthetic origin is never resolved by the network (loadData only uses
+                    //   baseUrl for resource/origin resolution and never starts a navigation).
+                    //   localhost rather than a public domain: a renderer crash self-healing reload
+                    //   re-requests that URL as a real navigation, and a public domain fails with
+                    //   net::ERR_NAME_NOT_RESOLVED (P5-11 part 5).
                     baseUrl: WebUri(_kWebViewBaseUrl),
                   ),
                   initialSettings: InAppWebViewSettings(
@@ -1292,8 +1320,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     mediaPlaybackRequiresUserGesture: false,
                     useHybridComposition: true,
                   ),
-                  // [WV-6] Android renderer 被系统 OOM 杀死时此前无人处理 → 永久白屏无日志。
-                  // [P1-A5] 会话级自愈上限 3 次,防"崩→reload→再崩"死循环;超限给用户可见提示,不许静默白屏。
+                  // Previously nobody handled the Android renderer being killed by the system OOM
+                  // killer -> permanent white screen with no logs.
+                  // Session-level self-healing cap of 3 attempts prevents a crash -> reload -> crash
+                  // loop; past the cap the user gets a visible prompt instead of a silent white screen.
                   onRenderProcessGone: (controller, detail) {
                     _wvCrashCount++;
                     print('[WV-6] RENDER PROCESS GONE didCrash=${detail.didCrash} x=$_wvCrashCount');
@@ -1314,11 +1344,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                       }
                       return;
                     }
-                    // [P5-12] 自愈改 loadData 重建,避免 reload 对 baseUrl 的真实导航
+                    // Self-healing uses a loadData rebuild to avoid reload's real navigation to the baseUrl
                     _reloadWebViewContent();
                   },
-                  // [P0-3] 主文档加载错误此前无人处理 → onLoadStop 永不触发 → 遮罩永久盖屏。
-                  // 撤下遮罩给用户出路(可返回/重进);加载完成后遮罩已撤,再触发是无视觉变化的立即完成。
+                  // Previously nobody handled main document load errors -> onLoadStop never fired -> the mask covered the screen forever.
+                  // Removing the mask gives the user a way out (back / re-enter); once loading finished the mask is already gone, so a late trigger completes instantly with no visual change.
                   onReceivedError: (controller, request, error) {
                     debugPrint('[WebView] 加载错误: ${error.description}');
                     // 加载出错同样视为“就绪”，交由统一判断（最短时间未到则等定时器）
@@ -1329,13 +1359,13 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _controller = c;
                     _bridge.attach(c);
                     _bridge.on(BridgeType.action, _handleAction);
-                    // [顶栏] 滚动方向事件:down=隐藏,up/top=显示。
-                    // JS 侧已做 ±8px 迟滞+方向变化才上报,这里只做纯映射。
+                    // Scroll direction events: down = hide, up/top = show.
+                    // The JS side already applies a +/-8px hysteresis and only reports direction changes, so this is a pure mapping.
                     _bridge.on(BridgeType.scroll, (payload) {
                       final dir = payload['dir'] as String?;
                       _setTopBarVisible(dir != 'down');
                     });
-                    // [弹窗] HTML 弹窗结果回传:按 callbackId 找到等待中的 Completer
+                    // HTML dialog result callback: find the waiting Completer by callbackId
                     _bridge.on(BridgeType.dialogResult, (payload) {
                       final callbackId = payload['callbackId'] as String?;
                       if (callbackId == null) return;
@@ -1344,8 +1374,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                         completer.complete(payload['value'] ?? payload['result']);
                       }
                     });
-                    // [P5-6阶段1.2] 卡片日志分级: error→toast+常驻缓冲, warn→常驻缓冲,
-                    // info/debug→仅开发模式打印(由 DebugLogService 捕获开关门控)
+                    // Card log severity levels: error -> toast + persistent buffer, warn -> persistent buffer,
+                    // info/debug -> printed only in dev mode (gated by the DebugLogService capture switch)
                     _bridge.on(BridgeType.log, (payload) {
                       final t = payload['text']?.toString() ?? '';
                       final level = payload['level']?.toString().toLowerCase() ?? 'info';
@@ -1365,12 +1395,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                           break;
                       }
                     });
-                    // 酒馆助手 API：读取当前会话消息（请求-响应）
+                    // TavernHelper API: read current chat messages (request-response)
                     _bridge.onRequest('th_getMessages', _handleGetMessages);
                     _bridge.onRequest('th_triggerSlash', _handleTriggerSlash);
-                    // [P6-3] EJS execute() 的后端:执行并回传 pipe
+                    // Backend for EJS execute(): runs it and returns the pipe
                     _bridge.onRequest('th_executeSlash', _handleExecuteSlash);
-                    // [P6-5.1] UI 交互桥:toastr → SnackBar,callGenericPopup → Dialog
+                    // UI interaction bridge: toastr -> SnackBar, callGenericPopup -> Dialog
                     _bridge.onRequest('th_toast', _handleToast);
                     _bridge.onRequest('th_popup', _handlePopup);
                     _bridge.onRequest('th_setInput', _handleSetInput);
@@ -1384,7 +1414,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     });
                     _bridge.onRequest('th_setMessages', _handleSetMessages);
                     _bridge.onRequest('th_setVars', _handleSetVariables);
-                    // 世界书 API
+                    // Worldbook API
                     _bridge.onRequest('th_wiGetLorebooks', _handleWiGetLorebooks);
                     _bridge.onRequest('th_wiCreateBook', _handleWiCreateBook);
                     _bridge.onRequest('th_wiGetEntries', _handleWiGetEntries);
@@ -1397,23 +1427,24 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.onRequest('th_generateRaw', _handleGenerateRaw);
                     _bridge.onRequest('th_renderEJS', _handleRenderEJS);
                     _bridge.onRequest('th_mvuParseMessage', _handleMvuParseMessage);
-                    // [P5-6阶段2.4] 酒馆正则只读桥(道渊第3条报警数据链)
+                    // Read-only Tavern regex bridge (Daoyuan's 3rd alert data chain)
                     _bridge.onRequest('th_getRegexes', _handleThGetRegexes);
-                    // [P3-K2] 提示词管理 API
+                    // Prompt management API
                     _bridge.onRequest(BridgeType.pmGetSections, _handlePmGetSections);
                     _bridge.onRequest(BridgeType.pmToggleSection, _handlePmToggleSection);
-                    // [P5-8/P1] extensionSettings 持久化(道渊/MVU 面板写回落盘)
+                    // extensionSettings persistence (Daoyuan/MVU panel writes are flushed to disk)
                     _bridge.onRequest(BridgeType.saveExtensionSettings, _handleSaveExtensionSettings);
-                    // [P5-9/P1] 预设管理 API(狐神读写预设)
+                    // Preset management API (Fox reads and writes presets)
                     _bridge.onRequest(BridgeType.getPresetNames, _handleGetPresetNames);
                     _bridge.onRequest(BridgeType.getPreset, _handleGetPreset);
                     _bridge.onRequest(BridgeType.setPreset, _handleSetPreset);
                     _bridge.onRequest(BridgeType.getLoadedPresetName, _handleGetLoadedPresetName);
-                    // [P5-9/P1] 生成控制(狐神自动推进/停止)
+                    // Generation control (Fox auto-advance / stop)
                     _bridge.onRequest(BridgeType.generate, _handleGenerate);
                     _bridge.onRequest(BridgeType.stopGeneration, _handleStopGeneration);
-                    // [Chronicle可视化] 记忆库浮窗"运行状态"tab 拉取五区工作状态
-                    // （归档进度 + 热/温/冷/只词条分区，复用 chronicleVisualizationProvider）
+                    // Chronicle visualization: the memory bank panel's "run state" tab fetches the
+                    // working state of all five zones (archive progress + hot/warm/cold/readonly
+                    // entry partitions, reusing chronicleVisualizationProvider)
                     _bridge.onRequest('getChronicleVisualization', (payload) async {
                       final chatId = widget.chatId;
                       if (chatId.isEmpty) {
@@ -1444,33 +1475,35 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     });
                   },
                   onLoadStop: (c, url) async {
-                    // [P0-2] 整体 try/finally:任一 await 抛异常不再中断回调 →
-                    // 遮罩在 finally 强制撤下,任何失败路径都不会永久卡"加载中"。
+                    // Overall try/finally: if any await throws, the callback is no longer interrupted ->
+                    // the mask is force-removed in finally, so no failure path can stick on "loading" forever.
                     try {
-                    // [顶栏] 页面(重)载完成(含崩溃自愈 loadData 重建)重置为显示
+                    // Page (re)load finished (including crash self-healing loadData rebuilds): reset to visible
                     _setTopBarVisible(true);
-                    _sendTopBarInsets(); // 重建后重新同步内容起始位置
-                    // [聊天页大改] 初始注入布局 CSS 变量(--keyboard-height 等)
+                    _sendTopBarInsets(); // re-sync the content start position after a rebuild
+                    // Initially inject the layout CSS variables (--keyboard-height etc.)
                     _injectLayoutVars();
-                    // [优化] 8 个注入互不依赖(各自只写不同的 window 全局,无返回值依赖),
-                    // 并行注入。此前 9 连串行 evaluateJavascript 是 onLoadStop 最大的自找耗时。
+                    // Optimization: the 8 injections are independent (each writes a different window
+                    // global and has no return-value dependency), so run them in parallel. The previous
+                    // 9-fold serial evaluateJavascript chain was the biggest self-inflicted cost in onLoadStop.
                     await Future.wait([
-                      _injectCompatLibs(c), // 注入第三方库到外层window
-                      _injectMacroValues(c), // 注入宏替换用的角色名/用户名
-                      _injectRegexRules(c), // [P6-5.2] 正则规则快照(引擎房烘焙用)
-                      _injectMainEnv(c), // [P5-6阶段2.1] 注入主环境快照(主文档ST骨架读)
-                      _injectEngineFacade(c), // 注入引擎房共享门面
+                      _injectCompatLibs(c), // inject third-party libs into the outer window
+                      _injectMacroValues(c), // inject character/user names for macro substitution
+                      _injectRegexRules(c), // regex rule snapshot (for engine room baking)
+                      _injectMainEnv(c), // inject the main environment snapshot (read by the main document's ST skeleton)
+                      _injectEngineFacade(c), // inject the engine room's shared facade
                       _injectMvuBundle(c),
                       _injectEjsStub(c),
-                      _injectEjsBundle(c), // 注入 EJS bundle 供引擎房内联
+                      _injectEjsBundle(c), // inject the EJS bundle for the engine room to inline
                     ]);
-                    // [依赖] _injectPresetScripts 含用户交互(授权弹窗),且其内部
-                    // resetPresetScriptsRoom 构建脚本房时同步读上面注入的
-                    // __KIRA_REGEX_RULES → 必须在并行注入完成后串行跑
+                    // Dependency: _injectPresetScripts involves user interaction (the authorization
+                    // dialog), and its internal resetPresetScriptsRoom synchronously reads the
+                    // __KIRA_REGEX_RULES injected above while building the script room -> it must run
+                    // serially after the parallel injections complete.
                     await _injectPresetScripts(c);
                     await c.evaluateJavascript(
                         source: 'if(window.createEngineRoom)window.createEngineRoom();');
-    // 保险丝：2 秒后若 JS 的 ready 信号仍未到（老 WebView），强制放行
+    // Fuse: if the JS ready signal still has not arrived after 2s (old WebView), force it through
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
       _bridge.markReadyIfMissing();
@@ -1527,9 +1560,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                           _bridge.send(BridgeType.scrollToFloor, {'floor': f});
                           break;
                         case 'pickImages':
-                          // [聊天页大改] 选完图后多次推送 inputBarState,
-                          // 因 _addAttachmentFromXFile 的 base64 缓存是 fire-and-forget
-                          // 异步,立即推送拿不到,延迟 500/1500ms 再推让缓存就绪
+                          // Push inputBarState several times after picking images, because
+                          // _addAttachmentFromXFile's base64 caching is fire-and-forget async:
+                          // an immediate push cannot see it yet, so push again after 500/1500ms
+                          // to let the cache become ready.
                           await _pickImages();
                           if (mounted) {
                             _pushInputBarState();
@@ -1623,7 +1657,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                           break;
                       }
                     });
-                    // [浮窗化] 设置面板操作回传
+                    // Settings panel action callback
                     _bridge.on(BridgeType.settingsPanelAction, (payload) async {
                       await _handleSettingsPanelAction(
                           (payload['panel'] as String?) ?? '',
@@ -1634,12 +1668,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     _bridge.on(BridgeType.settingsPanelClosed, (payload) {
                       debugPrint('[浮窗化] settings panel closed: ${payload['panel']}');
                     });
-                    // [聊天页大改] WebView 输入栏桥接入站(JS→Flutter)
+                    // WebView input bar bridge inbound (JS -> Flutter)
                     _bridge.on(BridgeType.inputSend, (payload) {
                       final text = (payload['text'] as String?) ?? '';
                       if (text.trim().isEmpty) return;
                       if (ref.read(activeChatProvider).isGenerating) return;
-                      // 把 WebView textarea 的 text 同步到 _inputController,_sendMessage 读它
+                      // Sync the WebView textarea's text into _inputController, which _sendMessage reads
                       _inputController.text = text;
                       _sendMessage();
                     });
@@ -1663,35 +1697,37 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                       final idx = (payload['index'] as num?)?.toInt() ?? -1;
                       _handleInputRemoveAttachment(idx);
                     });
-                    // [聊天页大改] STT 桥接入站(JS→Flutter,WebView 长按 textarea 触发)
+                    // STT bridge inbound (JS -> Flutter, triggered by long-pressing the WebView textarea)
                     _bridge.on(BridgeType.sttStart, (payload) {
                       _sttStart();
                     });
                     _bridge.on(BridgeType.sttStop, (payload) {
                       _sttFinish();
                     });
-                    // (此前这里还有 350ms 人为延迟,已删——注入链已就绪,直接推首屏)
+                    // (a 350ms artificial delay used to sit here; removed -- the injection chain is ready, push the first frame directly)
                     if (!mounted) return;
                     await _pushMessages();
-                    // [聊天页大改] WebView 就绪后推送输入栏初始状态(generating/stt/attachments)
+                    // Push the input bar's initial state once the WebView is ready (generating/stt/attachments)
                     _pushInputBarState();
-                    // [P3-E3] 存量变量快照推送: setMessages 建 iframe → patch 索要快照(__thRequestSnap)
-                    // 前先把已落库的 MvuData 逐条广播, card 门控(getMvuData/getAllVariables)才有数据。
+                    // Legacy variable snapshot push: setMessages builds the iframe -> the patch
+                    // requests a snapshot (__thRequestSnap), so broadcast the persisted MvuData
+                    // entry by entry first; the card gates (getMvuData/getAllVariables) then have data.
                     await _pushInitialVarSnapshots();
-                    // 开场白就绪后主动填充 __chatMessages 并触发 chat_changed，
-                    // 让 MVU initCheck 重跑一次（这次 SillyTavern.chat 非空）
+                    // Once the opening prompt is ready, actively fill __chatMessages and fire
+                    // chat_changed so MVU initCheck runs again (this time SillyTavern.chat is non-empty)
                     final initMsgsJson = jsonEncode(_serializeMessagesForMvu());
                     _controller?.evaluateJavascript(
                         source: 'if(window.__emitToEngine)window.__emitToEngine("chat_changed",[],$initMsgsJson);');
-                    // [P5-9/P1] 官方命名对齐:facade tavern_events 里 CHAT_CHANGED='chat_id_changed',
-                    // 只发旧串会让监听 CHAT_CHANGED 的脚本(狐神)收不到 → 双发兼容新旧。
+                    // Official naming alignment: in the facade's tavern_events, CHAT_CHANGED =
+                    // 'chat_id_changed'; emitting only the old string would leave scripts listening
+                    // for CHAT_CHANGED (Fox) blind -> emit both for old/new compatibility.
                     _controller?.evaluateJavascript(
                         source: 'if(window.__emitToEngine)window.__emitToEngine("chat_id_changed",[],$initMsgsJson);');
                     await Future.delayed(const Duration(milliseconds: 500));
                     } catch (e, st) {
                       debugPrint('[onLoadStop] 异常，强制撤遮罩: $e\n$st');
                     } finally {
-                      // [P0-2] 遮罩唯一清除点移入 finally:成功/异常/提前 return 都会撤下
+                      // The mask's single removal point moved into finally: removed on success, exception, or early return
                       _webViewReady = true;
                       _tryHideMask();
                     }
@@ -1700,12 +1736,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                       : const SizedBox.shrink(),
                 ),
                 ),
-              // 底部浮层：功能面板 + 输入栏，bottom 锚定。
-              // 面板展开往上盖住 WebView 内容，WebView 尺寸恒定、永不 resize —— 彻底消除展开/收起顿卡。
-              // [聊天页大改] 输入栏已迁入 WebView(chat_stage.html .chat-input-container),
-              // 通过 --keyboard-height CSS 变量自动跟随键盘(见 _injectLayoutVars)。
-              // 功能面板也早就在 WebView 内(见 openFunctionPanel 桥),
-              // Flutter 侧底部浮层不再需要任何 widget,这里用 SizedBox 占位避免布局变动。
+              // Bottom overlay: function panel + input bar, bottom-anchored.
+              // The panel expands upward over the WebView content while the WebView keeps a constant
+              // size and never resizes -- completely eliminating expand/collapse jank.
+              // The input bar has moved into the WebView (chat_stage.html .chat-input-container) and
+              // follows the keyboard automatically via the --keyboard-height CSS variable (see
+              // _injectLayoutVars). The function panel also lives in the WebView (see the
+              // openFunctionPanel bridge), so the Flutter-side bottom overlay no longer needs any
+              // widget; this SizedBox keeps the layout unchanged.
               const Align(
                 alignment: Alignment.bottomCenter,
                 child: SizedBox.shrink(),
@@ -1713,10 +1751,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
             ],
         ),
       ),
-          // 顶栏毛玻璃层:blur 磨砂壁纸 + 灰黑半透明底(让白字显眼)。
-          // 后面只有壁纸,blur 安全不卡。文字由 AppBar 浮在其上。
-          // [顶栏] 滚动隐藏:与 AppBar 的 AnimatedSlide 同参数联动,滑出后露出壁纸条。
-          // WebView 几何不动(不 resize),守住 HC 合成性能红线。
+          // Top bar frosted glass layer: blur over the wallpaper + a gray-black translucent base
+          // (so white text stands out).
+          // Only wallpaper sits behind it, so blur is safe and smooth. The text floats above via AppBar.
+          // Scroll hide: linked to the AppBar's AnimatedSlide with the same parameters, revealing the
+          // wallpaper strip once it slides out.
+          // The WebView geometry stays fixed (no resize), staying inside the HC compositing performance red line.
           AnimatedPositioned(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
@@ -1730,7 +1770,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                 bottom: Radius.circular(20),
               ),
               child: Container(
-                height: 56 + MediaQuery.viewPaddingOf(context).top, // [顶栏] 双行标题 44→56
+                height: 56 + MediaQuery.viewPaddingOf(context).top, // top bar two-line title 44 -> 56
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.82),
                   borderRadius: const BorderRadius.vertical(
@@ -1745,8 +1785,8 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
               ),
             ),
           ),
-        ], // Stack children 结束
-      ), // body Stack 结束
+        ], // end Stack children
+      ), // end body Stack
         ),
         IgnorePointer(
           child: FadeTransition(
@@ -1804,7 +1844,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
      ),
     );
   }
-  /// 角色名超过5个字用省略号截断
+  /// Truncate character names longer than 5 characters with an ellipsis
   String _truncateName(String name) {
     return name;
   }
@@ -1819,16 +1859,16 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
    }
    return {'ok': true};
  }
-  /// 酒馆助手 triggerSlash：精简版 STscript 执行器。
-  /// 支持管道 `|` 串联，覆盖开局类卡片高频命令：
-  ///   /send <text> · /sys <text>  → 发一条消息并触发 AI 生成
-  ///   /trigger                    → 触发 AI 生成（若前面已发消息则跳过，避免重复）
-  ///   /cut <id>                   → 稳妥起见做 noop（不删用户消息，保护数据）
-  /// 其余命令忽略但不报错，保证卡片脚本不中断。
+  /// TavernHelper triggerSlash: a stripped-down STscript executor.
+  /// Supports `|` pipelines and covers the high-frequency opening commands of cards:
+  ///   /send <text> - /sys <text>  -> send a message and trigger AI generation
+  ///   /trigger                    -> trigger AI generation (skipped if a message was just sent, to avoid duplicates)
+  ///   /cut <id>                   -> deliberately a no-op (does not delete user messages, protecting data)
+  /// Other commands are ignored without erroring so card scripts are never interrupted.
   bool _slashCommandsRegistered = false;
 
-  /// [P6-3] 平台命令注册:send/gen/trigger 等桥接到宿主能力。
-  /// 回调不捕获 this 状态,一切经 args.env 注入;注册幂等(覆盖写)。
+  /// Platform command registration: send/gen/trigger etc. bridged to host capabilities.
+  /// Callbacks do not capture this state; everything is injected via args.env. Registration is idempotent (overwrite).
   void _registerPlatformSlashCommands() {
     registerBasicSlashCommands();
     registerVariableSlashCommands();
@@ -1848,14 +1888,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }));
     SlashCommandRegistry.register(SlashCommand(name: 'sys',
         callback: (args) async {
-      // /sys 暂无独立系统消息通道,退化为普通发送
+      // /sys has no dedicated system message channel yet, so it degrades to a normal send
       final t = args.unnamedAsString();
       if (t.trim().isNotEmpty) await args.env?.sendMessage?.call(t);
       return '';
     }));
     SlashCommandRegistry.register(SlashCommand(name: 'sendas',
         callback: (args) async {
-      // 暂无"以指定身份发送"底层能力,退化为普通发送
+      // No "send as a specified identity" primitive yet, so it degrades to a normal send
       final t = args.unnamedAsString();
       if (t.trim().isNotEmpty) {
         await args.env?.sendMessage?.call(t);
@@ -1897,13 +1937,16 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }));
   }
 
-  /// [P6-5.1] toastr 桥:info/success/warning/error → SnackBar。
+  /// toastr bridge: info/success/warning/error -> SnackBar.
   /// payload: {level: string, message: string}
-  /// [P6-BUG-1] 同文案 5 秒去重:脚本房/引擎房重复初始化或循环调用时不再连环弹。
+  /// Dedupes identical text for 5 seconds so repeated script-room/engine-room initialization or
+  /// looped calls do not fire a chain of popups.
   static final Map<String, DateTime> _toastLastShown = {};
 
-  /// [降噪] MVU 框架生命周期提示兜底黑名单(老 bundle / title 缺失时按正文匹配)。
-  /// 字符串取自 mvu_bundle.js 实际文案,注意"需要有开场白"含"有"字,漏字即永不匹配。
+  /// Noise reduction: fallback blacklist for MVU framework lifecycle notices (matched against the
+  /// body when the old bundle has no title).
+  /// The strings come from the actual mvu_bundle.js wording; note that the "requires an opening
+  /// prompt" entry includes one extra particle character -- drop any character and it never matches.
   static const List<String> _mvuNoiseSnippets = [
     '开场白才能初始化变量',
     '构建信息',
@@ -1917,9 +1960,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     final message = payload['message']?.toString() ?? '';
     final title = payload['title']?.toString() ?? '';
     if (message.isEmpty || !mounted) return {'ok': true};
-    // [降噪] MVU 框架提示(构建信息/需要开场白/世界书加载…)每次会话初始化必弹,
-    // 属调试信息 → 只进调试日志。按 toastr title 前缀统一识别(根治),
-    // 正文黑名单仅作老 bundle 兜底。
+    // Noise reduction: MVU framework notices (build info / needs opening prompt / worldbook loaded...)
+    // pop on every session initialization and are debug information -> log only.
+    // Identified uniformly by the toastr title prefix (the fix), with the body blacklist merely as a
+    // fallback for old bundles.
     if (title.startsWith('[MVU]')) {
       DebugLogService().log('$title $message', level: 'INFO', source: 'MVU提示');
       return {'ok': true, 'muted': true};
@@ -1955,9 +1999,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     return {'ok': true};
   }
 
-  /// [P6-5.1] callGenericPopup 桥:TEXT/CONFIRM/INPUT/DISPLAY → HTML 弹窗(WebView内渲染)。
-  /// 返回值对齐 POPUP_RESULT:CONFIRM → 1(null=取消);INPUT → 字符串(null=取消);
-  /// TEXT/DISPLAY → 1。[弹窗] 原 Flutter ThPopupDialog 迁入 WebView,免 pause/resume 合成开销。
+  /// callGenericPopup bridge: TEXT/CONFIRM/INPUT/DISPLAY -> HTML dialog (rendered inside the WebView).
+  /// Return values align with POPUP_RESULT: CONFIRM -> 1 (null = cancel); INPUT -> string (null = cancel);
+  /// TEXT/DISPLAY -> 1. The original Flutter ThPopupDialog moved into the WebView, avoiding the
+  /// pause/resume compositing cost.
   Future<dynamic> _handlePopup(Map<String, dynamic> payload) async {
     final text = payload['text']?.toString() ?? '';
     final type = (payload['type'] as num?)?.toInt() ?? 1;
@@ -1974,7 +2019,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
             title: '输入', message: text, initial: inputValue);
         if (!mounted) return null;
         return value;
-      case 4: // DISPLAY(原 Flutter 实现无按钮且 barrierDismissible=false,弹窗无法关闭,此处补关闭钮)
+      case 4: // DISPLAY (the original Flutter implementation had no buttons and barrierDismissible=false, so the dialog could not be closed; a close button is added here)
       case 1: // TEXT
       default:
         await _showHtmlConfirm(
@@ -1984,7 +2029,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     }
   }
 
-  /// [P6-3] th_triggerSlash:执行斜杠脚本,返回 {ok, pipe, isAborted, ...}。
+  /// th_triggerSlash: executes a slash script, returns {ok, pipe, isAborted, ...}.
   Future<dynamic> _handleTriggerSlash(Map<String, dynamic> payload) async {
     final command = (payload['command'] as String?) ?? '';
     if (command.trim().isEmpty) {
@@ -1995,7 +2040,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     return {'ok': !result.isError, ...result.toMap()};
   }
 
-  /// [P6-3] EJS execute() 的后端:执行并回传完整 SlashResult(含 pipe)。
+  /// Backend for EJS execute(): runs it and returns the full SlashResult (including pipe).
   Future<dynamic> _handleExecuteSlash(Map<String, dynamic> payload) async {
     final command = (payload['command'] as String?) ??
         (payload['text'] as String?) ??
@@ -2004,7 +2049,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     return result.toMap();
   }
 
-  /// [P6-3] 统一执行入口:注册平台命令 → 构造 env → SlashRunner。
+  /// Unified execution entry: register platform commands -> build env -> SlashRunner.
   Future<SlashResult> _runSlashScript(String command) async {
     _registerPlatformSlashCommands();
     final config = ref.read(llmConfigProvider);
@@ -2029,7 +2074,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
           duration: const Duration(seconds: 3),
         ));
       },
-      // [P6-4] 变量命令落点:统一走 VariablesService + 落盘 + 引擎重同步
+      // Variable command landing point: always go through VariablesService + persist to disk + resync the engine
       onSetVar: (type, name, value, {index, asType}) async {
         final service = VariablesService.instance;
         if (type == 'global') {
@@ -2074,7 +2119,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
               lastMsgId: msgs.isNotEmpty ? msgs.length - 1 : null);
         }
       },
-      // [P6-4] /genraw:静默生成一次,聚合流回文本
+      // /genraw: silently generate once, aggregating the stream back into text
       generateRaw: (prompt) async {
         final config = ref.read(llmConfigProvider);
         final messages = <Map<String, dynamic>>[
@@ -2090,7 +2135,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         }
         return buffer.toString();
       },
-      // [P6-5.1] /buttons:按钮选择弹窗,选中项回管道 → HTML底部选择框
+      // /buttons: button-choice dialog, the selected item returns to the pipe -> HTML bottom sheet
       showButtons: (labels) async {
         if (!mounted) return null;
         final result = await _showHtmlBottomSheet([
@@ -2098,7 +2143,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         ]);
         return result;
       },
-      // [P6-5.3] 楼层操作:消息数 / 隐藏 / swipe
+      // Floor operations: message count / hide / swipe
       messageCount: () => ref.read(activeChatProvider).messages.length,
       setMessageHidden: (index, hidden) async {
         final msgs = ref.read(activeChatProvider).messages;
@@ -2113,14 +2158,14 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         if (index < 0 || index >= msgs.length) return;
         final m = msgs[index];
         if (swipeIndex == -1 || swipeIndex == -2) {
-          // 相对:-1=右(下一 swipe/新 swipe),-2=左(上一 swipe)
+          // Relative: -1 = right (next swipe / new swipe), -2 = left (previous swipe)
           final cur = m.currentSwipeIndex < 0 ? 0 : m.currentSwipeIndex;
           final target = swipeIndex == -1 ? cur + 1 : cur - 1;
           if (target < 0) return;
           if (target < m.swipes.length) {
             await notifier.swipeMessage(m.id, target);
           } else if (index == msgs.length - 1) {
-            // 末层右切超出 = 生成新 swipe
+            // Swiping right past the end of the last floor = generate a new swipe
             await notifier.regenerateLastMessage(config);
           }
           return;
@@ -2130,15 +2175,15 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         }
       },
     );
-    // 全局变量宏钩子({{getvar::}} 等) — 覆盖写,幂等
+    // Global variable macro hooks ({{getvar::}} etc.) -- overwrite, idempotent
     SlashRunner.globalMacroResolver = (input) =>
         VariablesService.instance.processVariableMacrosSync(
             input, chatId: widget.chatId);
     return SlashRunner.execute(command, env: env);
   }
 
-  /// 给 MVU 用的消息序列化：格式对齐 _handleGetMessages，
-  /// message 用原文(不走 _serializeMessage 的显示美化，保住 _.set 指令)。
+  /// Message serialization for MVU: format matches _handleGetMessages; messages use the raw text
+  /// (bypassing _serializeMessage's display polish so _.set commands survive).
   List<Map<String, dynamic>> _serializeMessagesForMvu() {
     final activeChat = ref.read(activeChatProvider);
     final messages = activeChat.messages;
@@ -2157,11 +2202,11 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         MessageRole.assistant => m.characterName ?? defaultCharName,
         MessageRole.system => 'System',
       };
-// 空卡兜底：给第 0 条消息种一个空的 MvuData 基座。
-// MVU 的 getLastValidVariable→isMvuData 要求本子里同时有 stat_data 和 schema，
-// 否则 update_variables.ts:1438 会因缺 stat_data 直接 return，
-// 导致 AI 回复里的 _.set 指令被丢弃。空卡没有世界书/开场白 initvar，
-// 这个空基座让 AI 驱动的变量更新能从零开始。
+// Empty-card fallback: seed an empty MvuData base on message 0.
+// MVU's getLastValidVariable->isMvuData requires the book to contain both stat_data and schema,
+// otherwise update_variables.ts:1438 returns early for missing stat_data, which drops the _.set
+// commands in AI replies. Empty cards have no worldbook/opening-prompt initvar, so this empty base
+// lets AI-driven variable updates start from zero.
 final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     ? <Map<String, dynamic>>[
         <String, dynamic>{
@@ -2177,7 +2222,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'message_id': i,
         'name': name,
         'role': m.role.name,
-        'is_hidden': m.isHidden, // [P6-5.3] 真值(/hide 语义)
+        'is_hidden': m.isHidden, // truth value (/hide semantics)
         'message': currentContent,
         'data': <String, dynamic>{},
         'extra': <String, dynamic>{},
@@ -2186,7 +2231,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'is_user': m.role == MessageRole.user,
         'content': m.content,
         'swipe_id': swipeId,
-        'swipes': swipes,          //开场白文本版本数组，MVU的143行读它找<initvar>
+        'swipes': swipes,          // opening prompt text version array; MVU line 143 reads it to find <initvar>
           'variables': effectiveSwipesData,
           'swipes_data': effectiveSwipesData,
         });
@@ -2194,9 +2239,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return result;
     }
 
-  /// thMvuParseMessage: 把卡片 iframe 的 parseMessage 请求转发到引擎房 MVU bundle。
-  /// 引擎房的 window.Mvu.parseMessage 是本地 qG 函数,不走 RPC,直接调即可。
-  /// fail-open:引擎房未就绪或 Mvu 不存在时返回 old_data 原样,不阻断卡片流程。
+  /// thMvuParseMessage: forwards the card iframe's parseMessage request to the engine room's MVU bundle.
+  /// The engine room's window.Mvu.parseMessage is the local qG function, not an RPC, so call it directly.
+  /// fail-open: if the engine room is not ready or Mvu is missing, return old_data unchanged so the card flow is never blocked.
   Future<dynamic> _handleMvuParseMessage(Map<String, dynamic> payload) async {
     final message = payload['message'] as String? ?? '';
     final oldData = payload['old_data'] ?? <String, dynamic>{};
@@ -2238,11 +2283,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// EJS 渲染桥:接收文本,发进引擎房跑 ST-Prompt-Template 的 evalTemplate,返回渲染后的文本。
+  /// EJS render bridge: receives text, sends it into the engine room to run ST-Prompt-Template's
+  /// evalTemplate, and returns the rendered text.
   ///
-  /// 主案 kick+poll:kick 脚本同步返回 seq id(零 Promise 穿桥依赖,老 WebView 也稳),
-  /// 渲染结果由 iframe 回调写进外层 window.__krRes 槽,Dart 轮询读取。
-  /// fail-open:任何失败回退 substituteParams 宏替换,再退原文,永不阻断发送。
+  /// Primary scheme kick+poll: the kick script synchronously returns a seq id (no Promise crossing
+  /// the bridge, so it stays stable even on old WebViews); the render result is written by the
+  /// iframe callback into the outer window.__krRes slot and polled by Dart.
+  /// fail-open: any failure falls back to substituteParams macro substitution, then to the raw text,
+  /// so sending is never blocked.
   Future<String> _handleRenderEJS(Map<String, dynamic> payload) async {
     final text = payload['text'] as String? ?? '';
     if (text.isEmpty) return text;
@@ -2251,16 +2299,18 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (controller == null) return text;
 
     try {
-      // E4:不含模板标签的内容不发起 kick+poll,直走宏替换快路径。
-      // (保留 {{user}}/{{char}} 宏行为;较原全量 kick 省去 25-75ms/条)
+      // E4: content without template tags does not start kick+poll; take the macro fast path.
+      // (Preserves {{user}}/{{char}} macro behavior; saves 25-75ms per message vs the full kick)
       if (!text.contains('<%')) {
         print('[EJSD-5] no-tag fast path -> macro only len=${text.length}');
         return await _macroFallbackRender(controller, text);
       }
 
-      // ── 补验1修复:渲染前把 Dart 权威变量快照灌进引擎房镜像(__varSync 同形)──
-      // 此前镜像只在 MVU 经 th_setVars 写后局部同步,引擎房重建后从空开始,
-      // Flutter 宏写的 global/chat 变量从不进镜像 → EJS 会读到旧值或空值。
+      // Supplement-check fix 1: pour the Dart authoritative variable snapshot into the engine room
+      // mirror before rendering (same shape as __varSync).
+      // Previously the mirror was only partially synced after MVU wrote through th_setVars, so it
+      // restarted empty when the engine room was rebuilt, and global/chat variables written by
+      // Flutter macros never entered the mirror -> EJS read stale or empty values.
       final snap = <String, dynamic>{
         'global': VariablesService.instance.getAllGlobalVariables(),
         'chat': VariablesService.instance.getAllLocalVariables(widget.chatId),
@@ -2271,8 +2321,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       };
       try {
         final msgs = ref.read(activeChatProvider).messages;
-        // [P6-5.2] Ancestor 历史楼层喂入:最近 30 层的当前 swipe 变量,
-        // dist getvar(withMsg) 可读历史;与 _pushInitialVarSnapshots 窗口一致。
+        // Feed ancestor floors: the current swipe variables of the most recent 30 floors, so dist
+        // getvar(withMsg) can read history; the window matches _pushInitialVarSnapshots.
         final floors = _collectAncestorFloors(msgs, 30);
         snap['floors'] = floors;
         if (floors.isNotEmpty) {
@@ -2299,7 +2349,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               if (w._TH) {
                 w._TH.__varCache.global = snap.global || {};
                 w._TH.__varCache.chat = snap.chat || {};
-                // [P6-5.2] Ancestor 多层灌入(最近30层当前swipe)
+                // Multi-layer ancestor injection (up to 30 layers, current swipe)
                 var fls = snap.floors || [];
                 for (var fi = 0; fi < fls.length; fi++) {
                   var fl = fls[fi];
@@ -2309,7 +2359,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
                   w.chat[fl.mid].variables = w.chat[fl.mid].variables || [];
                   w.chat[fl.mid].variables[fl.sid || 0] = fl.data || {};
                 }
-                // 兼容:最新层仍写 message/mid/sid
+                // Compat: the newest layer still writes message/mid/sid
                 if (snap.message && typeof snap.mid === 'number' && snap.mid >= 0) {
                   w._TH.__varCache.message[snap.mid] = snap.message;
                   w.chat[snap.mid] = w.chat[snap.mid] || {};
@@ -2327,7 +2377,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             var id = window.__krSeq;
             window.__krRes = window.__krRes || {};
             window.__krRes[id] = null;
-            // [TPL-1] 一次性 dump 模板作用域全量 key(EjsTemplate.prepareContext 即上游 Hf)
+            // One-time dump of all template-scope keys (EjsTemplate.prepareContext is the upstream Hf)
             if (!window.__krTplDumped) {
               window.__krTplDumped = true;
               try {
@@ -2346,8 +2396,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               }
             }
             var t = ${jsonEncode(text)};
-            // [P6-2] 渲染前快照:evalTemplate 后对 global/chat 桶做 diff,
-            // 把模板内 setvar/incvar/delvar 的变化经 th_setVars 持久化到 Dart。
+            // Pre-render snapshot: after evalTemplate, diff the global/chat
+            // buckets and persist setvar/incvar/delvar changes made by the
+            // template to Dart via th_setVars.
             window.__krPre = window.__krPre || {};
             try {
               window.__krPre[id] = {
@@ -2363,7 +2414,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
                 if (pre) {
                   var gAfter = ((w.extension_settings && w.extension_settings.variables) || {}).global || {};
                   var cAfter = (w.chat_metadata && w.chat_metadata.variables) || {};
-                  // dist 写入桶的值是 JSON 字符串,回写 Dart 前先解一层
+                  // Values written to the bucket are JSON strings; unwrap one
+                  // layer before writing back to Dart
                   var unwrap = function(x) {
                     if (typeof x === 'string') { try { return JSON.parse(x); } catch (eu) { return x; } }
                     return x;
@@ -2431,14 +2483,15 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         if (res == null) continue;
         if (res['ok'] == true) {
           final v = res['v']?.toString() ?? '';
-          // [P6-2] EJS 写回桥:先把模板内 setvar/delvar 的桶变化持久化,
-          // 必须在空串硬保护之前(纯写变量的模板输出为空也不能丢写回)。
+          // EJS write-back bridge: first persist the in-template setvar/delvar bucket changes;
+          // this must happen before the empty-string hard guard (a template that only writes
+          // variables outputs an empty string, and that write-back must not be lost).
           if (res['diff'] is Map) {
             await _persistEjsWriteback(
                 (res['diff'] as Map).cast<String, dynamic>());
           }
           print('[EJSD-5] evalTemplate ok vlen=${v.length}');
-          // E3 硬保护:null/undefined/空串一律回退原文,绝不把空内容交给 LLM
+          // E3 hard guard: null/undefined/empty string always falls back to the raw text; never hand empty content to the LLM
           if (v.isEmpty) {
             print('[EJSD-5] evalTemplate EMPTY result -> raw text');
             return text;
@@ -2459,14 +2512,15 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// [P6-2] EJS 写回桥:把引擎房 diff 出的 global/chat 桶变化持久化到 Dart。
-  /// scope 路由与 dist 语义对位;message 桶不落库(防 MVU 双写,只留在镜像)。
-  /// 写回后 _syncVarsToEngine 一次,让 Trinity cache 重合并(同 P6-1 §1.4 第5步)。
+  /// EJS write-back bridge: persist the global/chat bucket changes diffed by the engine room into Dart.
+  /// Scope routing matches the dist semantics; the message bucket is not persisted (prevents MVU
+  /// double-writing, it stays in the mirror only).
+  /// After writing back, call _syncVarsToEngine once so the Trinity cache re-merges (same as P6-1 §1.4 step 5).
   Future<void> _persistEjsWriteback(Map<String, dynamic> diff) async {
     try {
       final service = VariablesService.instance;
 
-      // ── global 桶 ──
+      // global bucket
       final g = diff['global'];
       if (g is Map) {
         final gm = g.cast<String, dynamic>();
@@ -2489,7 +2543,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         }
       }
 
-      // ── chat 桶 ──
+      // chat bucket
       final c = diff['chat'];
       if (c is Map) {
         final cm = c.cast<String, dynamic>();
@@ -2504,7 +2558,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           }
         }
         if (setMap.isNotEmpty) {
-          // setmap 分支自带落盘+引擎房重合并(读回整表)
+          // The setMap branch already persists + re-merges in the engine room (reads the whole table back)
           await _handleSetVariables(
               {'vars': setMap, 'option': const {'type': 'chat'}});
           KiraLogger().info(
@@ -2519,12 +2573,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         }
       }
     } catch (e) {
-      // fail-open:写回失败只记日志,绝不阻断渲染
+      // fail-open: a write-back failure is only logged and never blocks rendering
       KiraLogger().info('EJS写回', '持久化失败 error=$e');
     }
   }
 
-  /// 宏替换兜底(原 th_renderEJS 行为):{{user}}/{{char}}/<user>/<char>。
+  /// Macro substitution fallback (original th_renderEJS behavior): {{user}}/{{char}}/<user>/<char>.
   Future<String> _macroFallbackRender(dynamic controller, String text) async {
     print('[EJSD-5] macroFallback applied len=${text.length}');
     try {
@@ -2543,7 +2597,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         })();
       ''';
       final result = await controller.evaluateJavascript(source: js);
-      // E3 硬保护:宏替换结果为空(null/非串/空串)一律回退原文
+      // E3 hard guard: if the macro result is empty (null/non-string/empty string), fall back to the raw text
       if (result != null && result is String && result.isNotEmpty) return result;
       return text;
     } catch (e) {
@@ -2551,16 +2605,17 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       return text;
     }
   }
-  /// 酒馆助手 generateRaw：MVU 额外模型解析走这里。
-  /// 拆 cfg.custom_api 造临时 LLMConfig，拍平 ordered_prompts+injects 成 messages，
-  /// 调 llm_service 发一次请求，把文本原样回传给 MVU（MVU 自己解析 _.set 后走 setVariables 落库）。
+  /// TavernHelper generateRaw: MVU extra-model parsing goes through here.
+  /// Splits cfg.custom_api into a temporary LLMConfig, flattens ordered_prompts+injects into
+  /// messages, sends one request via llm_service, and returns the text verbatim to MVU (MVU parses
+  /// _.set itself and then persists via setVariables).
   Future<dynamic> _handleGenerateRaw(Map<String, dynamic> payload) async {
     final cfg = (payload['cfg'] as Map?)?.cast<String, dynamic>() ?? {};
     final customApi = (cfg['custom_api'] as Map?)?.cast<String, dynamic>();
 
     KiraLogger().info('额外模型', 'th_generateRaw 被调 hasCustomApi=${customApi != null}');
 
-    // 1) 造 config：有 custom_api 用独立配置，否则沿用主对话 config（"与插头相同"）
+    // 1) Build the config: use an independent config when custom_api exists, otherwise reuse the main chat config ("same as the plug")
     LLMConfig config = ref.read(llmConfigProvider);
     if (customApi != null) {
       final apiUrl = (customApi['apiurl'] as String?)?.trim();
@@ -2584,7 +2639,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       KiraLogger().info('额外模型', 'custom_api 为空，沿用主对话 config model=${config.model}');
     }
 
-    // 2) 拍平 ordered_prompts + injects 成 messages（B+：先顺序拼接）
+    // 2) Flatten ordered_prompts + injects into messages (B+: concatenate in order first)
     final messages = <Map<String, dynamic>>[];
     void appendList(dynamic list) {
       if (list is! List) return;
@@ -2596,7 +2651,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             messages.add({'role': role, 'content': content});
           }
         } else if (e == 'chat_history') {
-          // 展开真实聊天记录（最近 N 条），修复 past_observe 空壳
+          // Expand the real chat history (last N messages) to fix the empty past_observe shell
           final n = _asInt(cfg['max_chat_history']) ?? 10;
           final history = ref.read(activeChatProvider).messages;
           final recent =
@@ -2611,7 +2666,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
           for (int i = 0; i < recent.length; i++) {
             final m = recent[i];
-            // 与 _serializeMessagesForMvu 一致：优先取当前 swipe 的正文
+            // Consistent with _serializeMessagesForMvu: prefer the current swipe's body text
             final sw = m.swipes;
             final swIdx = m.currentSwipeIndex;
             final mContent =
@@ -2638,14 +2693,15 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             messages.add({'role': r, 'content': prefix + content});
           }
         }
-        // 其他字符串占位符(persona/char/world_info/user_input)B阶段忽略
+        // Other string placeholders (persona/char/world_info/user_input) are ignored in stage B
       }
     }
 
     appendList(cfg['ordered_prompts']);
     appendList(cfg['injects']);
-    // 注入当前变量状态（更新前）：从消息 swipesData 回溯取最后一条有效 stat_data，
-    // 与 MVU getLastValidVariable 的读取语义一致。不再读空的存储A。
+    // Inject the variable state (before the update): trace back through message swipesData to take
+    // the last valid stat_data, matching MVU getLastValidVariable's read semantics. No longer reads
+    // the empty storage A.
     try {
       final histMsgs = ref.read(activeChatProvider).messages;
       Map<String, dynamic>? currentStat;
@@ -2671,7 +2727,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       KiraLogger().info('额外模型', '注入变量状态失败: $e');
     }
 
-    // MVU 的 user_input 是 user turn 内容，补上——否则全 system，Claude 等通道 422
+    // MVU's user_input is the user turn content, add it -- otherwise everything is a system turn and Claude-like channels return 422
     final userInput = (cfg['user_input'] as String?)?.trim();
     if (userInput != null && userInput.isNotEmpty) {
       messages.add({'role': 'user', 'content': userInput});
@@ -2686,7 +2742,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       return '';
     }
 
-    // 3) 调 llm_service 发一次，聚合流为完整文本
+    // 3) Call llm_service once, aggregating the stream into the full text
     try {
       final buffer = StringBuffer();
       await for (final chunk
@@ -2700,7 +2756,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       return text;
     } catch (e) {
       KiraLogger().info('额外模型', 'generateRaw 请求失败: $e');
-      // 失败返回空串，让 MVU 走它的重试/降级，不抛异常炸桥
+      // On failure return an empty string so MVU takes its own retry/degradation path instead of throwing across the bridge
       return '';
     }
   }
@@ -2717,11 +2773,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (v is String) return double.tryParse(v);
     return null;
   }
-  /// 酒馆助手 getChatMessages 的 Flutter 侧实现。
-  /// 读取当前会话消息，映射成与 TavernHelper 对齐的格式返回。
-  /// 数据源唯一：ActiveChatNotifier.state.messages（避免串台）。
+  /// Flutter-side implementation of TavernHelper getChatMessages.
+  /// Reads the current chat messages and maps them to the TavernHelper-aligned format.
+  /// Single data source: ActiveChatNotifier.state.messages (prevents cross-chat mix-ups).
   Future<dynamic> _handleGetMessages(Map<String, dynamic> payload) async {
-    // 兼容两种参数名：规格 include_swipes / 旧版 include_swipe
+    // Accept both parameter names: spec include_swipes / legacy include_swipe
     final start = (payload['start'] as int?) ?? 0;
     final includeSwipe = (payload['include_swipes'] as bool?) ??
         (payload['include_swipe'] as bool?) ??
@@ -2730,7 +2786,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
     final activeChat = ref.read(activeChatProvider);
     final messages = activeChat.messages;
-    // name 推导：assistant/system 优先用消息缓存的角色名，其次用当前角色名
+    // Name derivation: assistant/system prefer the cached character name on the message, then the current character name
     final defaultCharName = activeChat.character?.name ?? 'Assistant';
     KiraLogger().info('助手API', 'th_getMessages 读到 ${messages.length} 条消息');
     final result = <Map<String, dynamic>>[];
@@ -2739,7 +2795,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       final m = messages[i];
       final swipes = m.swipes;
       final swipeId = m.currentSwipeIndex;
-      // 当前 swipe 内容：有 swipes 就取当前，否则用 content
+      // Current swipe content: take the current swipe when swipes exist, otherwise use content
       final currentContent =
           (swipes.isNotEmpty && swipeId >= 0 && swipeId < swipes.length)
               ? swipes[swipeId]
@@ -2749,16 +2805,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         MessageRole.assistant => m.characterName ?? defaultCharName,
         MessageRole.system => 'System',
       };
-      // 对齐 TavernHelper ChatMessage 规格字段
+      // Align with the TavernHelper ChatMessage spec fields
       final map = <String, dynamic>{
         'message_id': i,
         'name': name,
         'role': m.role.name, // system / assistant / user
-        'is_hidden': m.isHidden, // [P6-5.3] 真值(/hide 语义)
+        'is_hidden': m.isHidden, // truth value (/hide semantics)
         'message': currentContent,
         'data': <String, dynamic>{},
         'extra': <String, dynamic>{},
-        // 兼容旧字段（避免已依赖旧格式的地方炸）
+        // Legacy field compatibility (so places depending on the old format do not break)
         'id': m.id,
         'index': i,
         'is_user': m.role == MessageRole.user,
@@ -2767,7 +2823,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'variables': m.swipesData,
       };
       if (includeSwipe) {
-        // 对齐 ChatMessageSwiped 规格
+        // Align with the ChatMessageSwiped spec
         map['swipes'] = swipes;
         map['swipes_data'] = m.swipesData;
         map['swipes_info'] =
@@ -2778,8 +2834,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return result;
   }
 
-  /// 酒馆助手 getVariables：按 scope 返回整个变量表。
-  /// option.type: 'chat'(局部) / 'global'(全局)，默认 'chat'。
+  /// TavernHelper getVariables: returns the whole variable table for a scope.
+  /// option.type: 'chat' (local) / 'global', defaulting to 'chat'.
   Future<dynamic> _handleGetVariables(Map<String, dynamic> payload) async {
     final option = (payload['option'] as Map?)?.cast<String, dynamic>() ?? {};
     final type = (option['type'] as String?) ?? 'chat';
@@ -2789,20 +2845,20 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (type == 'global') {
       return service.getAllGlobalVariables();
     }
-    // [P5-9/P0-3] 脚本级变量(读走门面本地缓存,此处为桥直达路径的兜底)。
+    // Script-level variables (normally read through the facade's local cache; this is the fallback for the direct bridge path).
     if (type == 'script') {
       final scriptId = (option['script_id'] as String?) ??
           (option['scriptId'] as String?) ??
           '';
       return service.getScriptVariables(scriptId);
     }
-    // 默认 chat 局部变量
+    // Default: chat-local variables
     final result = service.getAllLocalVariables(widget.chatId);
     return result;
   }
 
-  /// 酒馆助手 setVariables：按 scope 写入变量表并持久化。
-  /// 语义：把传入的 vars 逐 key 写入（insertOrAssign），不整表替换。
+  /// TavernHelper setVariables: writes to the variable table for a scope and persists it.
+  /// Semantics: the incoming vars are written key by key (insertOrAssign), not replacing the whole table.
   Future<dynamic> _handleSetVariables(Map<String, dynamic> payload) async {
     final vars = (payload['vars'] as Map?)?.cast<String, dynamic>() ?? {};
     final option = (payload['option'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -2810,7 +2866,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final service = VariablesService.instance;
     KiraLogger().info('助手API', 'th_setVars 被调用 type=$type keys=${vars.keys.toList()}');
 
-    // [P5-9/P0-3] 脚本级变量:按 script_id 隔离,整表写入,设备级持久。
+    // Script-level variables: isolated by script_id, whole-table write, persisted at device level.
     if (type == 'script') {
       final scriptId = (option['script_id'] as String?) ??
           (option['scriptId'] as String?) ??
@@ -2829,15 +2885,17 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       }
       return service.getAllGlobalVariables();
     }
-    // MVU 消息级持久化：把整份 MvuData 写进消息的 swipesData 并落库。
-    // MVU 的 replaceVariables 用 type:message 但常不带 message_id（它靠宿主隐式定位"当前消息"）。
-    // 缺失时落到最后一条消息——契合 getLastValidVariable 从末尾回溯的读取语义。
+    // Message-level persistence: write the whole MvuData into the message's swipesData and persist.
+    // MVU's replaceVariables uses type:message but often omits message_id (it relies on the host to
+    // implicitly locate the "current message").
+    // When missing, fall back to the last message -- matching getLastValidVariable's backward
+    // read semantics from the tail.
     if (type == 'message') {
       final messageId = option['message_id'] as int?;
       final notifier = ref.read(activeChatProvider.notifier);
       final messages = ref.read(activeChatProvider).messages;
 
-      // 选定目标消息：有效 message_id 用它，否则回退到最后一条
+      // Pick the target message: use a valid message_id, otherwise fall back to the last one
       int? targetIndex;
       if (messageId != null && messageId >= 0 && messageId < messages.length) {
         targetIndex = messageId;
@@ -2849,7 +2907,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       if (targetIndex != null) {
         final target = messages[targetIndex];
         final swipeId = target.currentSwipeIndex < 0 ? 0 : target.currentSwipeIndex;
-        // [CHRONICLE Phase 4] 捕获更新前的最后有效stat_data（MVU桥接比对用）
+        // Capture the last valid stat_data before the update (for MVU bridge comparison)
         Map<String, dynamic>? chronicleOldStat;
         for (var i = targetIndex; i >= 0; i--) {
           final sd = messages[i].swipesData;
@@ -2875,7 +2933,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         debugPrint('[setVars修复] 已写入 mid=$targetIndex swipe=$swipeId keys=${vars.keys.toList()}');
         debugPrint('[setVars落点] targetIndex=$targetIndex '
             '写入的stat_data=${jsonEncode(vars['stat_data'])}');
-        // [CHRONICLE Phase 4] MVU→Chronicle桥接：重大数值变化→记忆事件（异步，只读MVU不回写）
+        // MVU -> Chronicle bridge: significant numeric changes become memory events (async, reads MVU without writing back)
         if (vars['stat_data'] is Map && (vars['stat_data'] as Map).isNotEmpty) {
           unawaited(ref.read(chronicleOrchestratorProvider).onMvuVariableUpdated(
                 widget.chatId,
@@ -2883,28 +2941,29 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
                 Map<String, dynamic>.from(vars['stat_data'] as Map),
               ));
         }
-        // 同步引擎房镜像
+        // Sync the engine room mirror
         _syncVarsToEngine('message', vars, messageId: targetIndex, lastMsgId: targetIndex, swipeId: swipeId);
         return vars;
       }
-      // 连一条消息都没有（极端情况），才落 chat 兜底
+      // Only when there is no message at all (extreme case) does it land on the chat fallback
       debugPrint('[setVars修复] 无任何消息，回退 chat 分支');
     }
-    // 默认 chat 局部变量：写内存 + 落盘持久化
+    // Default chat-local variables: write to memory + persist to disk
     for (final entry in vars.entries) {
       service.setLocalVariable(widget.chatId, entry.key, entry.value);
     }
     await service.saveLocalVariablesToPrefs(widget.chatId);
     final readBack = service.getAllLocalVariables(widget.chatId);
-    // [P3-E3] 补 lastMsgId: card 门控与 latest 解析都依赖它, 缺失时 card 端维持旧值
+    // Supply lastMsgId: both the card gate and the latest resolution depend on it; when missing the card side keeps its old value
     final msgsNow = ref.read(activeChatProvider).messages;
     _syncVarsToEngine('chat', readBack, lastMsgId: msgsNow.isNotEmpty ? msgsNow.length - 1 : null);
     return readBack;
   }
 
-  /// [P6-5.2] 注入正则规则快照(引擎房/脚本房/卡片门面的同步 getRegexedString 引擎消费)。
-  /// 字段紧凑形:f=findRegex r=replaceString p=placement索引 o=order d=disabled
-  /// mo=markdownOnly po=promptOnly e=runOnEdit t=trimStrings min/max=深度区间。
+  /// Injects a regex rule snapshot (consumed by the synchronous getRegexedString engine in the
+  /// engine room / script room / card facade).
+  /// Compact field form: f=findRegex r=replaceString p=placement indexes o=order d=disabled
+  /// mo=markdownOnly po=promptOnly e=runOnEdit t=trimStrings min/max=depth range.
   Future<void> _injectRegexRules(dynamic c) async {
     try {
       final character = ref.read(activeChatProvider).character;
@@ -2931,7 +2990,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// [P6-5.2] Ancestor 历史楼层快照:最近 N 层的当前 swipe 变量。
+  /// Ancestor floor snapshot: the current swipe variables of the most recent N floors.
   List<Map<String, dynamic>> _collectAncestorFloors(
       List<ChatMessage> msgs, int maxFloors) {
     final floors = <Map<String, dynamic>>[];
@@ -2943,11 +3002,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       final sid = swIdx < sd.length ? swIdx : 0;
       floors.add({'mid': i, 'sid': sid, 'data': sd[sid]});
     }
-    return floors.reversed.toList(); // 升序(老→新)
+    return floors.reversed.toList(); // ascending (old -> new)
   }
 
-  /// [P3-K2-2] 读取当前 prompt sections 列表（球用）
-  /// 返 [{type, name, enabled, order}, ...] 全 section（无论 enabled），方便球一次性渲染开关。
+  /// Reads the current prompt sections list (for the floating panel).
+  /// Returns [{type, name, enabled, order}, ...] for every section (regardless of enabled) so the
+  /// panel can render all toggles in one pass.
   Future<List<Map<String, dynamic>>> _handlePmGetSections(
       Map<String, dynamic> payload) async {
     final config = ref.read(promptManagerProvider);
@@ -2970,9 +3030,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         .toList();
   }
 
-  /// [P3-K2-2] 切换某 section 开关（球点击 → 这）
-  /// payload: { type: 'nsfw' } 或 { type: 'nsfw', enabled: false }。
-  /// 若提供 enabled 则直接 set；否则 toggle。返更新后的 section 列表。
+  /// Toggles a section (floating panel click lands here).
+  /// payload: { type: 'nsfw' } or { type: 'nsfw', enabled: false }.
+  /// If enabled is provided it is set directly; otherwise it toggles. Returns the updated section list.
   Future<List<Map<String, dynamic>>> _handlePmToggleSection(
       Map<String, dynamic> payload) async {
     final typeName = payload['type']?.toString() ?? '';
@@ -3000,16 +3060,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         payload.containsKey('enabled') ? payload['enabled'] == true : !cur.enabled;
     final notifier = ref.read(promptManagerProvider.notifier);
     await notifier.updateSection(cur.copyWith(enabled: next));
-    // 不主动 push,listener 会自动推 pmSectionsChanged;但同步返当前状态供球即时刷新
+    // No active push; the listener automatically pushes pmSectionsChanged, but return the current state so the panel can refresh instantly
     return _handlePmGetSections(payload);
   }
-  // ── [P5-9/P1] 预设管理 API(ST Preset 契约) ─────────────────────
-  // 狐神断链二修复:getPreset('in_use')/updatePresetWith 全链路。
-  // 形状对齐 ST: { name, settings:{should_stream,...}, prompts:[{identifier,name,role,content,enabled,...}] }。
-  // 'in_use' 名字解析到当前激活预设;settings/prompts 的活跃值读 live provider
-  // (llmConfigProvider.streamEnabled / promptManagerProvider.sections)。
+  // Preset management API (ST Preset contract)
+  // Fix for Fox's broken links, part 2: the full getPreset('in_use')/updatePresetWith chain.
+  // Shape aligns with ST: { name, settings:{should_stream,...}, prompts:[{identifier,name,role,content,enabled,...}] }.
+  // The 'in_use' name resolves to the active preset; active values for settings/prompts are read
+  // from the live providers (llmConfigProvider.streamEnabled / promptManagerProvider.sections).
 
-  /// ST prompt 条目 ← PromptSection(键集取 ST tavern-helper Preset 契约常用子集)
+  /// ST prompt entry <- PromptSection (key set taken from the common subset of the ST tavern-helper Preset contract)
   Map<String, dynamic> _stPromptFromSection(PromptSection s) => {
         'identifier': s.identifier ?? s.type.name,
         'name': s.name,
@@ -3025,15 +3085,15 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'marker': false,
       };
 
-  /// AIPreset → ST Preset JSON。live=true 时 settings/prompts 取 live provider 真值。
+  /// AIPreset -> ST Preset JSON. With live=true, settings/prompts take the live provider values.
   Map<String, dynamic> _stPresetJson(AIPreset preset, {required bool live}) {
     final passthrough = _stSettingsPassthrough[preset.name];
     final streamEnabled = live
         ? ref.read(llmConfigProvider).streamEnabled
         : preset.generationSettings.streamEnabled;
     final settings = <String, dynamic>{
-      if (passthrough != null) ...passthrough, // 未知键铺底
-      'should_stream': streamEnabled, // 已建模键以真值覆盖
+      if (passthrough != null) ...passthrough, // unknown keys laid down as the base
+      'should_stream': streamEnabled, // modeled keys overridden with their true values
       'allow_sending_images':
           (passthrough?['allow_sending_images'] as String?) ?? 'auto',
     };
@@ -3048,7 +3108,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     };
   }
 
-  /// 按名解析预设:'in_use' → 当前激活,否则全量按名查找。
+  /// Resolve a preset by name: 'in_use' -> the active one, otherwise a full lookup by name.
   (AIPreset?, bool) _resolveStPreset(String? name) {
     if (name == null || name.isEmpty || name == 'in_use') {
       final active = ref.read(activeAIPresetProvider);
@@ -3080,7 +3140,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       if (name == null || name.isEmpty) return null;
       final cacheKey = name;
 
-      // [P5-12] TTL 缓存命中
+      // TTL cache hit
       final cached = _presetReadCache[cacheKey];
       final cachedAt = _presetCacheAt[cacheKey];
       if (cached != null &&
@@ -3090,7 +3150,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         return cached;
       }
 
-      // [P5-12] 在途合并:同一预设的并发读只算一次
+      // In-flight coalescing: concurrent reads of the same preset are computed once
       final inflight = _presetReadInflight[cacheKey];
       if (inflight != null) {
         debugPrint('[getPreset] 在途合并: $name');
@@ -3118,12 +3178,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// setPreset(name, preset): 写回。
-  /// - settings.should_stream → 生成设置(in_use 立即生效到 llmConfig);
-  ///   其余 settings 键进会话透传袋(下次 getPreset 原样铺底,不做字段白名单)。
-  /// - prompts → 按 identifier 合并进 PromptManagerConfig
-  ///   (in_use 同步应用 live promptManagerProvider 并落盘激活预设,切预设往返不丢)。
-  /// - 完成后发 preset_changed / settings_updated 事件(供狐 invalidate/preset/load 钩子)。
+  /// setPreset(name, preset): write back.
+  /// - settings.should_stream -> generation settings (in_use takes effect immediately in llmConfig);
+  ///   all other settings keys go into the session passthrough bag (laid down verbatim as the base
+  ///   on the next getPreset, with no field whitelist).
+  /// - prompts -> merged into PromptManagerConfig by identifier
+  ///   (in_use applies synchronously to the live promptManagerProvider and persists the active
+  ///   preset, so switching presets back and forth loses nothing).
+  /// - On completion emits preset_changed / settings_updated events (for Fox's invalidate/preset/load hooks).
   Future<dynamic> _handleSetPreset(Map<String, dynamic> payload) async {
     try {
       final name = payload['name'] as String?;
@@ -3141,7 +3203,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             Map<String, dynamic>.from(settings);
       }
 
-      // prompts → sections 合并(按 identifier;未识条目跳过,不名单)
+      // prompts -> sections merge (by identifier; unrecognized entries are skipped, no whitelist)
       PromptManagerConfig? newConfig;
       final prompts = presetData['prompts'] as List<dynamic>?;
       if (prompts != null) {
@@ -3175,10 +3237,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         newConfig = PromptManagerConfig(sections: sections);
       }
 
-      // 应用到 live(仅 in_use):流式开关 + prompt 配置立即生效
+      // Apply to live (in_use only): the streaming toggle + prompt config take effect immediately
       if (isLive) {
         if (shouldStream != null) {
-          // updateStreamEnabled 是同步 setter(内部自持久化),不可 await
+          // updateStreamEnabled is a synchronous setter (persists internally) and must not be awaited
           ref.read(llmConfigProvider.notifier).updateStreamEnabled(shouldStream);
         }
         if (newConfig != null) {
@@ -3194,7 +3256,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         }
       }
 
-      // 持久化进预设对象(内建首次修改转自定义覆写,同 _saveCurrentToActivePreset)
+      // Persist into the preset object (first edit of a built-in converts it to a custom override, same as _saveCurrentToActivePreset)
       final updatedPreset = target.copyWith(
         isBuiltIn: false,
         updatedAt: DateTime.now(),
@@ -3211,8 +3273,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         await notifier.addPreset(updatedPreset);
       }
 
-      // [P5-12] 写成功 → 立即失效读缓存(双侧:本层 + 各脚本房 JS 侧由
-      // preset_changed 事件清 __KIRA_PRESET_CACHE)
+      // Successful write -> immediately invalidate the read cache (both sides: this layer plus each
+      // script room's JS-side __KIRA_PRESET_CACHE cleared by the preset_changed event)
       _presetReadCache.clear();
       _presetCacheAt.clear();
 
@@ -3227,10 +3289,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// [P5-9/P1] generate: 触发完整生成回合(狐神自动推进/二次生成)。
-  /// arg 形态(TH 契约): 'normal'/'continue' 字符串,或 {user_input:'文本'}。
-  /// 桥 30s 超时 < LLM 生成时长 → 不和生成结果绑定,立即返回;
-  /// 完成/取消由 generation_ended 事件通知(见 3.3),脚本应走事件而非返回值。
+  /// generate: triggers a full generation turn (Fox auto-advance / second generation).
+  /// Arg shape (TH contract): a 'normal'/'continue' string, or {user_input:'text'}.
+  /// The bridge's 30s timeout is shorter than LLM generation time -> the result is not bound to the
+  /// return value; completion/cancel is notified by the generation_ended event (see 3.3), so scripts
+  /// should follow the event rather than the return value.
   Future<dynamic> _handleGenerate(Map<String, dynamic> payload) async {
     try {
       if (ref.read(activeChatProvider).isGenerating) {
@@ -3244,10 +3307,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         userInput = (arg['user_input'] as String?)?.trim();
       }
       if (userInput != null && userInput.isNotEmpty) {
-        // {user_input} 语义:插一条用户消息并触发生成
+        // {user_input} semantics: insert a user message and trigger generation
         await ref.read(activeChatProvider.notifier).sendMessage(userInput, config);
       } else {
-        // 'normal'/'continue' 均 = 让 AI 基于当前会话生成下一条
+        // Both 'normal'/'continue' mean: have the AI generate the next message from the current chat
         await ref.read(activeChatProvider.notifier).continueGeneration(config);
       }
       return '';
@@ -3257,7 +3320,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// [P5-9/P1] stopGeneration: 取消当前生成。
+  /// stopGeneration: cancels the current generation.
   Future<dynamic> _handleStopGeneration(Map<String, dynamic> payload) async {
     try {
       await ref.read(activeChatProvider.notifier).cancelGeneration();
@@ -3268,14 +3331,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// 向引擎房发预设/设置事件(JS __emitToEngine 会中继到全部脚本房)。
+  /// Sends a preset/settings event to the engine room (JS __emitToEngine relays it to all script rooms).
   void _emitPresetEvent(String type) {
     _controller?.evaluateJavascript(
         source:
             'if(window.__emitToEngine)window.__emitToEngine(${jsonEncode(type)},[],null);');
   }
 
-  /// 反向同步:把变量表推进引擎房镜像。
+  /// Reverse sync: push the variable table into the engine room mirror.
   void _syncVarsToEngine(String type, Map<String, dynamic> data, {int? messageId, int? lastMsgId, int? swipeId}) {
     final dataJson = jsonEncode(data);
     final midArg = messageId?.toString() ?? 'null';
@@ -3286,9 +3349,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             '"$type",$dataJson,$midArg,$lastArg,$swipeArg);');
   }
 
-  /// [P3-E3] 启动/重建后把存量 MvuData(swipesData)逐条推进 __syncVarsToEngine,
-  /// 让 card iframe 的 window.Mvu 门控(需 message 级 stat_data)与快照读有数据可用。
-  /// 仅推最近 30 条(与首屏渲染批量一致), 避免长聊天整包注入。
+  /// After startup/rebuild, push the legacy MvuData (swipesData) entry by entry into
+  /// __syncVarsToEngine so the card iframe's window.Mvu gates (which need message-level stat_data)
+  /// and snapshot reads have data available.
+  /// Only the most recent 30 are pushed (matching the first-frame render batch) to avoid injecting
+  /// the whole package for long chats.
   Future<void> _pushInitialVarSnapshots() async {
     try {
       final messages = ref.read(activeChatProvider).messages;
@@ -3303,7 +3368,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         if (data.isEmpty) continue;
         _syncVarsToEngine('message', data, messageId: i, lastMsgId: lastIdx, swipeId: sid);
       }
-      // chat 变量也补一拍(card 门控兜底 + getAllVariables 合并用)
+      // Also push the chat variables in one shot (card gate fallback + for getAllVariables merging)
       final chatVars = VariablesService.instance.getAllLocalVariables(widget.chatId);
       if (chatVars.isNotEmpty) {
         _syncVarsToEngine('chat', chatVars, lastMsgId: lastIdx);
@@ -3313,14 +3378,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       KiraLogger().info('MVU', '存量变量快照推送失败: $e');
     }
   }
-  /// 推送角色主世界书名到引擎房镜像（供 MVU isExtraModelSupported 同步读）
+  /// Push the character's primary worldbook name into the engine room mirror (for MVU isExtraModelSupported to read synchronously)
   Future<void> _syncPrimaryLorebookToEngine() async {
     try {
       final charId = ref.read(activeChatProvider).character?.id;
       if (charId == null) return;
       final repo = ref.read(worldInfoRepositoryProvider);
       final books = await repo.getWorldInfosForCharacter(charId);
-      // A2修复:主书取第一本【有条目】的书——自动空壳排前时不再遮蔽真书
+      // A2 fix: the primary book is the first book with entries -- an auto empty shell sorted first no longer shadows the real book
       final names = books.map((b) => b.name).whereType<String>().toList();
       String? primary;
       for (final b in books) {
@@ -3338,14 +3403,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  // ── 世界书 API handlers ─────────────────────────────
-  // 把 WorldInfoEntry 序列化成卡片侧（SillyTavern 风格）的 JSON
+  // Worldbook API handlers
+  // Serializes WorldInfoEntry into card-side (SillyTavern-style) JSON
   Map<String, dynamic> _wiEntryToJson(models.WorldInfoEntry e) => {
         'uid': e.id,
         'worldId': e.worldInfoId,
-        // [P5-8/P0] 补 name 字段(ST 语义: name=comment 显示名)。
-        //   道渊对条目只做 e.name===/e.name.includes(...) 匹配(e.g pretty.js:1312-1314),
-        //   缺 name 即抛 "Cannot read properties of undefined (reading 'includes')"。
+        // Supply the name field (ST semantics: name = comment, the display name).
+        //   Daoyuan only matches entries with e.name === / e.name.includes(...) (e.g. pretty.js:1312-1314),
+        //   so a missing name throws "Cannot read properties of undefined (reading 'includes')".
         'name': e.comment,
         'keys': e.keys,
         'secondary_keys': e.secondaryKeys,
@@ -3360,9 +3425,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'probability': e.probability,
       };
 
-  /// 取当前角色绑定的世界书列表（含全局）。
+  /// Returns the worldbook list bound to the current character (including global ones).
   Future<dynamic> _handleWiGetLorebooks(Map<String, dynamic> payload) async {
-    // [P5-6阶段0.1] 读缓存: 5s 轮询稳态下 TTL 窗口内不再打 DB
+    // Read cache: in a steady 5s polling loop the TTL window keeps hitting the cache instead of the DB
     final cached = _wiCacheLookup('th_wiGetLorebooks');
     if (!identical(cached, _wiCacheMiss)) return cached;
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
@@ -3372,7 +3437,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return result;
   }
 
-  /// 新建一本世界书（SillyTavern createLorebook）。payload: {name}
+  /// Creates a worldbook (SillyTavern createLorebook). payload: {name}
   Future<dynamic> _handleWiCreateBook(Map<String, dynamic> payload) async {
     _wiCacheInvalidate('th_wiCreateBook');
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
@@ -3387,22 +3452,27 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return {'ok': true, 'name': book.name, 'id': book.id};
   }
 
-  /// 取角色世界书条目(走桥给 MVU/EJS)。payload: {name}
-  /// A2修复:合并语义——返回该角色【全部已绑定且启用】的世界书条目
-  /// (按 insertion_order 统一排序),不再被自动空壳遮蔽;
-  /// 表侧为空时回退角色卡内嵌 character_book(兼容旧数据)。
+  /// Fetches worldbook entries (over the bridge for MVU/EJS). payload: {name}
+  /// A2 fix: merge semantics -- returns all of the character's bound and enabled worldbook entries
+  /// (sorted uniformly by insertion_order), no longer shadowed by auto empty shells;
+  /// when the table side is empty it falls back to the character card's embedded character_book
+  /// (legacy data compatibility).
   Future<dynamic> _handleWiGetEntries(Map<String, dynamic> payload) async {
-    // [P5-6阶段0.1] 读缓存: key 含请求书名,合并语义下 null/同名同结果
+    // Read cache: the key includes the requested book name; under merge semantics null/same name gives the same result
     final reqName = payload['name'] as String?;
     final cached = _wiCacheLookup('th_wiGetEntries', reqName);
     if (!identical(cached, _wiCacheMiss)) return cached;
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
     final charId = ref.read(activeChatProvider).character?.id;
 
-    // [P5-8/P0] 按名精确取书:道渊/MVU 都是按名单本请求(TH getWorldbook(name) 语义)。
-    //   原合并语义会让道渊选"未绑定/禁用"书时取到别书条目、MVU 逐本请求拿到重复合集。
-    //   现在:有 reqName 时优先在仓库全量精确命中该书,命中即返回该书全部条目(含禁用,
-    //   道渊要做开关管理);未命中或空书才走下方合并+内嵌兜底(保 519 内嵌回退不回归)。
+    // Fetch a book precisely by name: both Daoyuan and MVU request books individually by name
+    //   (TH getWorldbook(name) semantics).
+    //   The old merge semantics made Daoyuan select entries from other books when it asked for an
+    //   unbound/disabled book, and made MVU's per-book requests return duplicated merged sets.
+    //   Now: when reqName is present, first look for an exact hit across the whole repository and
+    //   return all of that book's entries on a hit (including disabled ones, since Daoyuan manages
+    //   the toggles); only on a miss or an empty book does it fall through to the merge + embedded
+    //   fallback below (keeping the 519 embedded fallback from regressing).
     if (reqName != null && reqName.isNotEmpty) {
       final allBooks = await repo.getAllWorldInfos();
       final target = allBooks.firstWhereOrNull((b) => b.name == reqName);
@@ -3425,12 +3495,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       merged.sort((a, b) => (a['order'] as int? ?? 0).compareTo(b['order'] as int? ?? 0));
     }
     if (merged.isEmpty) {
-      // 回退:内嵌 character_book(表侧无条目时的旧数据兼容)
+      // Fallback: the embedded character_book (legacy data compatibility when the table side has no entries)
       final book = ref.read(activeChatProvider).character?.characterBook;
       final fallback = <Map<String, dynamic>>[];
       if (book != null) {
         final name = reqName;
-        // 519 返回的名字会原样传回来，对不上就不返
+        // The name returned by 519 comes back verbatim; if it does not match, return nothing
         if (name == null || (book.name ?? 'character_book') == name) {
           fallback.addAll(book.entries.map(_charBookEntryToMvu));
         }
@@ -3442,14 +3512,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return merged;
   }
   Future<dynamic> _handleWiGetLorebookSettings(Map<String, dynamic> payload) async {
-    // MVU 从这里拿 selected_global_lorebooks 当作全局启用世界书
-    // 先返空列表，保证 MVU 不报错、能继续跑
+    // MVU takes selected_global_lorebooks from here as the globally enabled worldbooks
+    // Return an empty list first so MVU does not error and can keep running
     return {'selected_global_lorebooks': <String>[], 'overflow_alert': false};
   }
 
-  /// [P5-6阶段2.4] getTavernRegexes 只读桥: RegexScript → ST TavernRegex 形状映射。
-  /// type=global 只回全局; character 回全局+当前角色合并(combined,禁用脚本已滤);
-  /// preset 平台无此维度,降级同 global。排序按 order(执行顺序)。
+  /// getTavernRegexes read-only bridge: maps RegexScript -> ST TavernRegex shape.
+  /// type=global returns only global; character returns the merged global + current character set
+  /// (combined, disabled scripts already filtered);
+  /// the platform has no preset dimension, so it degrades to the same as global. Sorted by order
+  /// (execution order).
   Future<dynamic> _handleThGetRegexes(Map<String, dynamic> payload) async {
     final type = payload['type']?.toString() ?? 'global';
     final character = ref.read(activeChatProvider).character;
@@ -3467,7 +3539,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return scripts.map(_regexScriptToTavernRegex).toList();
   }
 
-  /// RegexScript → TavernRegex(官方 tavern_regex.d.ts 形状: source/destination 布尔桶)
+  /// RegexScript -> TavernRegex (official tavern_regex.d.ts shape: source/destination boolean buckets)
   Map<String, dynamic> _regexScriptToTavernRegex(RegexScript s) => {
         'id': s.id,
         'script_name': s.scriptName,
@@ -3492,16 +3564,18 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'max_depth': s.maxDepth,
       };
 
-  /// [P5-8/P1] extensionSettings 持久化:道渊/MVU 面板写回 → 提取 mvu_settings 落定 MvuSettings。
-  /// 合并语义:null 键保留平台现值(JS 侧 MVU 每次写回完整解析对象,见 mvu_bundle:3154-3161,
-  /// 但防御性按键合并,避免未来半截对象清掉平台值)。
-  /// 持久化后重推 __KIRA_MAIN_ENV,主文档 getContext 当会话内同步新值。
+  /// extensionSettings persistence: Daoyuan/MVU panel write-back -> extract mvu_settings into MvuSettings.
+  /// Merge semantics: null keys keep the platform's current values (the JS side's MVU writes back a
+  /// fully parsed object every time, see mvu_bundle:3154-3161, but merging defensively key by key
+  /// avoids a future partial object wiping platform values).
+  /// After persisting, re-push __KIRA_MAIN_ENV so the main document's getContext picks up the new
+  /// values synchronously within the session.
   Future<dynamic> _handleSaveExtensionSettings(Map<String, dynamic> payload) async {
     try {
       final settings = payload['settings'] as Map<String, dynamic>?;
       if (settings == null) return {'ok': false, 'error': 'settings required'};
       final mvu = settings['mvu_settings'] as Map<String, dynamic>?;
-      if (mvu == null) return {'ok': true}; // 无 mvu 段,无事可做
+      if (mvu == null) return {'ok': true}; // no mvu section, nothing to do
       final notify = mvu['通知'] as Map<String, dynamic>?;
       final extra = mvu['额外模型解析配置'] as Map<String, dynamic>?;
       final cur = ref.read(mvuSettingsProvider);
@@ -3510,8 +3584,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         notifyFrameworkLoaded: notify?['MVU框架加载成功'] as bool?,
         notifyInitSuccess: notify?['变量初始化成功'] as bool?,
         notifyVarError: notify?['变量更新出错'] as bool?,
-        // [Bug2 修复] 四键都在"通知"里（道渊 In() 把四键全写在 通知 下），
-        // 此前从 额外模型解析配置 读 → 恒 null → 该键卡死在烘焙默认值
+        // All four keys live under the notification bucket (Daoyuan's In() writes all four there),
+        // previously they were read from the extra-model parsing config bucket -> always null -> that key stayed stuck
+        // at the baked default
         notifyExtraParsing: notify?['额外模型解析中'] as bool?,
         jailbreakScheme: extra?['破限方案'] as String?,
         autoRequest: extra?['启用自动请求'] as bool?,
@@ -3520,15 +3595,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         apiUrl: extra?['api地址'] as String?,
         apiKey: extra?['密钥'] as String?,
         modelName: extra?['模型名称'] as String?,
-        // [P6-BUG-1] 整份原始对象透传落盘(MVU 的 internal 已提醒标志等
-        // 全在其中;此前只留三段,标志丢失导致升级提醒每次进页重弹)
+        // Persist the whole raw object verbatim (MVU's internal already-notified flags etc. all
+        // live in it; previously only three sections were kept, so lost flags made the upgrade
+        // reminder pop again on every page entry)
         webRaw: mvu,
       );
       await ref.read(mvuSettingsProvider.notifier).applyFromWeb(updated);
-      // 主文档 __KIRA_MAIN_ENV 同源刷新,道渊下一轮读到的就是新值
+      // Same-origin refresh of the main document's __KIRA_MAIN_ENV, so Daoyuan reads the new values next turn
       final c = _controller;
       if (c != null) await _injectMainEnv(c);
-      // [P5-9/P1] 设置保存后发 SETTINGS_UPDATED(狐神监听它做面板状态同步)
+      // After saving settings, emit SETTINGS_UPDATED (Fox listens to it for panel state sync)
       _emitPresetEvent('settings_updated');
       return {'ok': true};
     } catch (e) {
@@ -3541,11 +3617,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   Future<dynamic> _handleWiSetLorebookSettings(Map<String, dynamic> payload) async {
     return {'ok': true};
   }
-  /// 内嵌世界书条目 → 卡片侧(SillyTavern风格)JSON，字段对齐 _wiEntryToJson。
-  /// MVU 读 comment(筛 [initvar]) 和 content(抽 <initvar> 块)。
+  /// Embedded worldbook entry -> card-side (SillyTavern-style) JSON, fields aligned with _wiEntryToJson.
+  /// MVU reads comment (to filter [initvar]) and content (to extract the <initvar> block).
   Map<String, dynamic> _charBookEntryToMvu(CharacterBookEntry e) => {
         'uid': e.id,
-        // [P5-8/P0] 补 name 字段(与 _wiEntryToJson 对齐,道渊 .name.includes 必需)。
+        // Supply the name field (aligned with _wiEntryToJson, required by Daoyuan's .name.includes).
         'name': e.name.isNotEmpty ? e.name : e.comment,
         'keys': e.keys,
         'secondary_keys': e.secondaryKeys,
@@ -3558,9 +3634,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'position': e.position,
       };
 
-  /// 角色绑定的世界书。MVU 期望 {primary, additional:[...]} 结构。
+  /// Worldbooks bound to the character. MVU expects a {primary, additional:[...]} structure.
   Future<dynamic> _handleWiGetCharLorebooks(Map<String, dynamic> payload) async {
-    // [P5-6阶段0.1] 读缓存: 同角色 2s 内复用
+    // Read cache: reuse for the same character within 2s
     final cached = _wiCacheLookup('th_wiGetCharLorebooks');
     if (!identical(cached, _wiCacheMiss)) return cached;
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
@@ -3571,7 +3647,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       return empty;
     }
     final books = await repo.getWorldInfosForCharacter(charId);
-    // A2修复:primary 取第一本【启用且有条目】的书,空壳不遮蔽真书
+    // A2 fix: primary is the first book that is enabled and has entries, so an empty shell does not shadow the real book
     final names = books.map((b) => b.name).whereType<String>().toList();
     String? primary;
     final additional = <String>[];
@@ -3597,7 +3673,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return result;
   }
 
-  /// 更新条目（按 uid 找到已有条目改内容/关键词）。payload: {worldId/name, entries:[...]}
+  /// Updates entries (finds existing entries by uid and changes content/keywords). payload: {worldId/name, entries:[...]}
   Future<dynamic> _handleWiSetEntries(Map<String, dynamic> payload) async {
     _wiCacheInvalidate('th_wiSetEntries');
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
@@ -3624,15 +3700,15 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
     return {'ok': true, 'updated': updated};
   }
-  /// 酒馆助手 setChatMessages（复数）：MVU 用它把 per-swipe 变量种进消息。
-  /// 每项 {message_id, swipes_data:[...]}，把 swipes_data 写进 ChatMessage.swipesData。
+  /// TavernHelper setChatMessages (plural): MVU uses it to seed per-swipe variables into messages.
+  /// Each item is {message_id, swipes_data:[...]}, writing swipes_data into ChatMessage.swipesData.
   Future<dynamic> _handleSetMessages(Map<String, dynamic> payload) async {
     final msgs = (payload['msgs'] as List?) ?? const [];
     final messages = ref.read(activeChatProvider).messages;
     final notifier = ref.read(activeChatProvider.notifier);
-    // [P5-12] 狐神 forceRefreshAll 会把全部楼层(仅 message_id,无 swipes_data)
-    // 发过来;此前无条件 _pushMessages 造成"空更新→全量重渲染"无意义回路
-    // (P5-11 第六部分)。改为只在有真实写入时才重渲染。
+    // Fox's forceRefreshAll sends all floors (message_id only, no swipes_data); previously an
+    // unconditional _pushMessages caused a pointless "empty update -> full re-render" loop
+    // (P5-11 part 6). Now re-render only when something was actually written.
     var changed = false;
     for (final raw in msgs) {
       if (raw is! Map) continue;
@@ -3652,7 +3728,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return {'ok': true};
   }
 
-  /// 新建条目。payload: {worldId/name, entries:[{keys, content, ...}]}
+  /// Creates entries. payload: {worldId/name, entries:[{keys, content, ...}]}
   Future<dynamic> _handleWiCreateEntries(Map<String, dynamic> payload) async {
     _wiCacheInvalidate('th_wiCreateEntries');
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
@@ -3674,7 +3750,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return {'ok': true, 'created': created};
   }
 
-  /// 删除条目。payload: {uids:[...]}
+  /// Deletes entries. payload: {uids:[...]}
   Future<dynamic> _handleWiDeleteEntries(Map<String, dynamic> payload) async {
     _wiCacheInvalidate('th_wiDeleteEntries');
     final WorldInfoRepository repo = ref.read(worldInfoRepositoryProvider);
@@ -3685,7 +3761,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return {'ok': true, 'deleted': uids.length};
   }
 
-  /// 从 payload 解析出目标世界书 id（支持传 worldId 或 name）。
+  /// Resolves the target worldbook id from the payload (accepts worldId or name).
   Future<String?> _wiResolveWorldId(WorldInfoRepository repo, Map<String, dynamic> payload) async {
     final worldId = payload['worldId'] as String?;
     if (worldId != null) return worldId;
@@ -3695,14 +3771,15 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final matches = all.where((b) => b.name == name);
     return matches.isEmpty ? null : matches.first.id;
   }
-  /// 酒馆助手 setChatMessage 的 Flutter 侧实现。
-  /// 按楼层索引定位消息，切换 swipe 或改写内容，然后触发 WebView 重渲染。
-  /// 数据源唯一：activeChatProvider（避免串台）。
+  /// Flutter-side implementation of TavernHelper setChatMessage.
+  /// Locates the message by floor index, switches the swipe or rewrites the content, then triggers
+  /// a WebView re-render.
+  /// Single data source: activeChatProvider (prevents cross-chat mix-ups).
   Future<dynamic> _handleSetMessage(Map<String, dynamic> payload) async {
     final index = payload['index'] as int?;
     final swipeId = payload['swipe_id'] as int?;
     final content = payload['content'] as String?;
-    final refresh = (payload['refresh'] != null); // 有 refresh 字段就刷新
+    final refresh = (payload['refresh'] != null); // refresh when the refresh field is present
     KiraLogger().info('助手API',
         'th_setMessage 被调用 index=$index swipe_id=$swipeId refresh=$refresh');
 
@@ -3718,11 +3795,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (swipeId != null &&
         swipeId >= 0 &&
         swipeId < target.swipes.length) {
-      // 优先按 swipe 切换：从 swipes 数组取内容更可靠
+      // Prefer switching by swipe: taking content from the swipes array is more reliable
       KiraLogger().info('助手API', 'th_setMessage 切换到 swipe $swipeId');
       await notifier.swipeMessage(target.id, swipeId);
     } else if (content != null) {
-      // 无有效 swipe_id 时，按内容改写当前楼层
+      // Without a valid swipe_id, rewrite the current floor's content
       await notifier.editMessage(target.id, content);
     } else {
       return {'ok': false, 'reason': 'no swipe_id or content'};
@@ -3738,7 +3815,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final avatarPath = character?.assets?.avatarPath;
     final avatarUrl = character?.assets?.avatarUrl;
 
-    // [顶栏] 头像 32→24:适配 32dp 矮顶栏
+    // Top bar avatar 32 -> 24: fits the 32dp short top bar
     const Widget fallback = CircleAvatar(
       radius: 12,
       backgroundColor: Colors.white12,
@@ -3746,7 +3823,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     );
 
     if (avatarPath != null && avatarPath.isNotEmpty) {
-      // 走统一组件：内部处理相对→绝对路径转换 + 缓存,修复顶栏头像不显示
+      // Use the shared component: it handles relative -> absolute path conversion + caching, fixing the top bar avatar not showing
       return ClipOval(
         child: SizedBox(
           width: 24,
@@ -3767,28 +3844,28 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
     return fallback;
   }
-  /// 深色磨砂玻璃顶栏：矮、半透明、通透
+  /// Dark frosted-glass top bar: short, semi-transparent, airy
   PreferredSizeWidget _buildGlassAppBar(
       Character? character, String? activeModel) {
     return AppBar(
-      // [顶栏] 56:双行标题(角色名+模型名);同高度需同步:
-      // bridge barHeight / 毛玻璃层 AnimatedPositioned / __KIRA_TOP_INSET__ 烘入
+      // 56: two-line title (character name + model name); the same height must stay in sync across:
+      // bridge barHeight / the frosted layer's AnimatedPositioned / __KIRA_TOP_INSET__ baked in
       toolbarHeight: 56,
       elevation: 0,
       scrolledUnderElevation: 0,
       shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
-      backgroundColor: Colors.transparent, // 背景交给 body 里的毛玻璃层
+      backgroundColor: Colors.transparent, // the background is left to the frosted layer in the body
       titleSpacing: 12,
-      // [返回] 简约尖括号 <,替代 AppBar 自动插入的 arrow_back(带横杠箭头);
-      // 走 _exitChat 与系统返回手势同一退出流程
+      // Simple chevron < replacing the arrow_back (arrow with a bar) that AppBar inserts automatically;
+      // goes through _exitChat, the same exit flow as the system back gesture
       leading: IconButton(
         tooltip: '返回',
         icon: const Icon(Icons.chevron_left, size: 28),
         color: activeGlassPalette.primaryText,
         onPressed: _exitChat,
       ),
-      // flexibleSpace 在此 AppBar 中不渲染,已放弃,毛玻璃改由 body 顶部独立层实现
+      // flexibleSpace does not render in this AppBar and was dropped; the frosted glass is now a separate layer at the top of the body
       title: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => _openModelSheet(),
@@ -3796,7 +3873,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           children: [
             _buildAvatar(character),
             const SizedBox(width: 10),
-            // [顶栏] 双行标题:上行角色名,下行模型名(小字灰),点击弹模型层
+            // Two-line title: character name on top, model name below (small gray text); tapping opens the model sheet
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -3835,7 +3912,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               ),
             ),
             const SizedBox(width: 6),
-            // 自动生图中：呼吸✨提示(从输入栏迁移至此,平时隐藏不占空间)
+            // Auto image generation in progress: breathing star hint (moved here from the input bar, hidden and taking no space normally)
             if (ref.watch(activeChatProvider.select((s) => s.isGeneratingImage)))
               Padding(
                 padding: const EdgeInsets.only(right: 6),
@@ -3850,7 +3927,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         ),
       ),
       actions: [
-        // 回到顶部：滚到第一条消息(楼层1,复用跳楼层桥)
+        // Back to top: scroll to the first message (floor 1, reusing the jump-to-floor bridge)
         Container(
           width: 28,
           height: 28,
@@ -3898,7 +3975,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   Future<void> _openModelSheet() async {
     final config = ref.read(llmConfigProvider);
     final configsState = ref.read(llmConfigsProvider);
-    // 先弹窗，显示 loading 状态
+    // Open the sheet first, showing the loading state
     _bridge.send(BridgeType.showModelSheet, {
       'models': <String>[],
       'current': config.model,
@@ -3908,7 +3985,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           .map((c) => {'id': c.id, 'name': c.name, 'active': c.isDefault})
           .toList(),
     });
-    // 后台拉取，完成后更新
+    // Fetch in the background, update when done
     await ref.read(modelFetchProvider.notifier).fetchModels(config);
     if (!mounted) return;
     final state = ref.read(modelFetchProvider);
@@ -3936,20 +4013,21 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     });
   }
 
-  // ── 底部输入栏 ──────────────────────────────────────────────────────────────
-  // [聊天页大改] 输入栏已迁入 WebView(chat_stage.html .chat-input-container)
-  // 通过 --keyboard-height CSS 变量跟随键盘,所有交互走 ChatBridge:
+  // Bottom input bar
+  // The input bar has moved into the WebView (chat_stage.html .chat-input-container) and follows
+  // the keyboard via the --keyboard-height CSS variable; all interaction goes through ChatBridge:
   //   inputSend / inputStop / inputUpload / inputFunc / inputRemoveAttachment
-  // Flutter 通过 inputBarState 推送状态(generating/attachments/tokenCount/stt 等)。
-  // 原 Flutter 输入栏 UI 不再渲染,相关状态(_inputController/_pendingAttachments/
-  // _hasInput/_TokenCountBadge/_SttMicButton 等)保留以便脚本 #send_but 等流程复用。
+  // Flutter pushes state through inputBarState (generating/attachments/tokenCount/stt etc.).
+  // The original Flutter input bar UI is no longer rendered; the related state
+  // (_inputController/_pendingAttachments/_hasInput/_TokenCountBadge/_SttMicButton etc.) is kept so
+  // script flows like #send_but can still reuse it.
 
   Widget _buildInputBar(bool isGenerating) {
     return const SizedBox.shrink();
   }
 
-  // [聊天页大改] WebView 输入栏桥:功能菜单按钮(原 Flutter IconButton 的 onPressed 逻辑)
-  // 现在由 WebView 的 #funcBtn 调 inputFunc 桥触发,这里实现原逻辑。
+  // WebView input bar bridge: function menu button (the original Flutter IconButton's onPressed logic).
+  // Now triggered by the WebView's #funcBtn calling the inputFunc bridge; this implements the original logic.
   void _handleInputFunc() {
     if (_funcPanelOpen) {
       _bridge.send(BridgeType.closeFunctionPanel, {});
@@ -3971,9 +4049,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     setState(() => _funcPanelOpen = true);
   }
 
-  // [聊天页大改] WebView 输入栏桥:图片上传按钮(已移除,保留方法以防回滚)
-  // 图片上传现在走 +号菜单 → func-overlay "图片" 项 → panelAction.pickImages → _pickImages
-  // 见 _bridge.on(BridgeType.panelAction) 的 case 'pickImages' 分支
+  // WebView input bar bridge: image upload button (removed; the method is kept in case of rollback)
+  // Image upload now goes through the + menu -> func-overlay "image" item -> panelAction.pickImages -> _pickImages
+  // See the case 'pickImages' branch in _bridge.on(BridgeType.panelAction)
   void _handleInputUpload() {
     _pickImages().then((_) {
       if (!mounted) return;
@@ -3987,15 +4065,15 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     });
   }
 
-  // [聊天页大改] WebView 输入栏桥:移除某张待发图片
+  // WebView input bar bridge: remove a pending image
   void _handleInputRemoveAttachment(int index) {
     if (index < 0 || index >= _pendingAttachments.length) return;
     setState(() => _pendingAttachments.removeAt(index));
     _pushInputBarState();
   }
 
-  // [聊天页大改] 把当前输入栏状态推给 WebView(generating / 附件 / token 计数 / STT 开关)
-  // 触发时机:isGenerating 变化 / 附件增删 / STT 开关变化 / STT 录音中变化
+  // Pushes the current input bar state to the WebView (generating / attachments / token count / STT toggle)
+  // Triggered by: isGenerating changes / attachments added or removed / STT toggle changes / STT recording state changes
   void _pushInputBarState() {
     if (!mounted) return;
     final isGenerating = ref.read(activeChatProvider).isGenerating;
@@ -4003,7 +4081,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final text = _inputController.text.trim();
     String? tokenCount;
     if (showTokenCount && text.isNotEmpty) {
-      // tokenCountEstimateProvider 是 Provider.family<int, String>,直接返回 int
+      // tokenCountEstimateProvider is a Provider.family<int, String> and returns an int directly
       final estimate = ref.read(tokenCountEstimateProvider(text));
       tokenCount = '$estimate';
     }
@@ -4024,13 +4102,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   }
 
 
-  // [发送] 同步"输入框是否有内容"到 _hasInput(ValueNotifier 值不变不通知,
-  // 只有 true↔false 跳变时重建按钮,不逐键重建整个 build)
+  // Syncs "whether the input field has content" into _hasInput (the ValueNotifier does not notify
+  // when the value is unchanged; the button is rebuilt only on true<->false transitions instead of
+  // rebuilding the whole build on every keystroke)
   void _syncHasInput() {
     _hasInput.value = _inputController.text.trim().isNotEmpty;
   }
 
-  // ── [STT] 话筒按钮:按住录音,松开识别,结果追加到输入框 ──────────────────────
+  // STT mic button: hold to record, release to recognize, result appended to the input field
 
   Future<void> _sttStart() async {
     HapticFeedback.mediumImpact();
@@ -4058,8 +4137,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     ref.read(sttClearResultProvider)();
     final text = result?.text.trim() ?? '';
     if (text.isEmpty) return;
-    // [聊天页大改] 输入栏在 WebView 里,STT 结果要桥回 WebView 填到 textarea
-    // 同时仍同步到 _inputController,以便 #send_but 等脚本流程读 _inputController.text 时一致
+    // The input bar lives in the WebView, so the STT result must be bridged back to fill the textarea.
+    // It is still synced into _inputController so flows like #send_but read consistent _inputController.text.
     _inputController.text = '${_inputController.text}$text';
     _inputController.selection = TextSelection.fromPosition(
       TextPosition(offset: _inputController.text.length),
@@ -4072,28 +4151,30 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     try {
       await ref.read(sttCancelListeningProvider)();
     } catch (_) {
-      // 取消失败静默处理
+      // Ignore cancellation failures silently
     }
   }
 
-  /// 退出聊天页:pause → 遮罩瞬间盖满 → 卸载 WebView → 一帧后 pop。
-  /// 顶栏返回按钮与 PopScope(系统返回手势)共用此流程。
+  /// Exit the chat page: pause -> mask covers instantly -> unmount the WebView -> pop one frame later.
+  /// The top bar's back button and PopScope (system back gesture) share this flow.
   Future<void> _exitChat() async {
     await _controller?.pause();
-    // 遮罩瞬间盖满(不用 forward 淡入——半透明×WebView 合成会卡)
+    // Cover with the mask instantly (no fade-in with forward -- translucent x WebView compositing janks)
     _maskController.value = 1.0;
-    // 先把 WebView 从树上卸载,消除 pop 切页时的残影闪烁
+    // Unmount the WebView from the tree first to eliminate the ghost-image flash during the pop transition
     if (mounted) setState(() => _webViewMounted = false);
-    // [空会话] 用户从没发过消息 → 丢弃(不进回忆/不占存储)。判定用持久标记
-    // hasUserMessage(发过即置位、删消息不回退),在 repository.addMessage 置位。
+    // Empty chat: if the user never sent a message -> discard it (no memory entry / no storage used).
+    // The decision uses the persistent hasUserMessage marker (set once a message is sent, never
+    // cleared by deleting messages), set in repository.addMessage.
     await _discardEmptyChatIfNeeded();
-    // 等一帧,确保 WebView 真正移除、遮罩已盖稳
+    // Wait one frame to make sure the WebView is truly removed and the mask is fully covering
     await Future.delayed(const Duration(milliseconds: 32));
     if (mounted) context.pop();
   }
 
-  /// [空会话] 退出时若本会话从未有过用户消息(只有开场白/空白),级联删除之。
-  /// 有标记的会话零接触。删除后失效聊天列表 provider,回忆页立即可见。
+  /// On exit, if this chat never had a user message (only the opening prompt / blank), delete it
+  /// cascade-style. Chats with the marker are untouched. After deletion the chat list providers are
+  /// invalidated so the memory page reflects it immediately.
   Future<void> _discardEmptyChatIfNeeded() async {
     final chatId = ref.read(activeChatProvider).chat?.id;
     if (chatId == null) return;
@@ -4119,15 +4200,15 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
   Future<void> _navigateTo(String route) async {
     await _controller?.pause();
-    _maskController.value = 1.0;   // 瞬间全黑，转场期间挡死 WebView，避免平台视图逐帧合成
+    _maskController.value = 1.0;   // instant full black, covering the WebView during the transition so the platform view is not composited per frame
     if (!mounted) return;
     await context.push(route);
     if (!mounted) return;
-    _maskController.reverse();      // 返回后黑幕淡出
+    _maskController.reverse();      // fade the black curtain out after returning
     await _controller?.resume();
   }
 
-  // ── [浮窗化] 设置面板:Flutter 端处理 ──────────────────────────────────
+  // Settings panel: Flutter-side handling
 
   Future<void> _handleSettingsPanelAction(
       String panel, String action, Map<String, dynamic> data) async {
@@ -4177,7 +4258,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// 打开正则浮窗面板(全局/角色tab):收集正则脚本数据推给 WebView。
+  /// Opens the regex panel (global/character tab): collects the regex script data and pushes it to the WebView.
   Future<void> _openRegexPanel(String charId, {String initialTab = 'global'}) async {
     final notifier =
         ref.read(characterRegexScriptsProvider(charId).notifier);
@@ -4191,7 +4272,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     });
   }
 
-  /// 序列化正则脚本数据(双scope列表+编辑态详情,打开/刷新复用)。
+  /// Serializes regex script data (dual-scope lists + edit-state detail; reused for open/refresh).
   Map<String, dynamic> _serializeRegexData(
       {Map<String, dynamic>? editDetail}) {
     final character = ref.read(activeChatProvider).character;
@@ -4219,7 +4300,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     };
   }
 
-  /// 正则面板操作处理:列表加载/详情/开关/删除/保存。
+  /// Regex panel action handling: list load / detail / toggle / delete / save.
   Future<void> _handleRegexPanelAction(
       String action, Map<String, dynamic> data) async {
     final character = ref.read(activeChatProvider).character;
@@ -4227,10 +4308,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final scope = data['scope'] as String? ?? 'global';
 
     Future<void> pushRefresh({Map<String, dynamic>? editDetail}) async {
-      // [Bug1.3] 变更后重注入正则规则快照（治 JS 同步引擎用旧规则）：
-      // __KIRA_REGEX_RULES 此前仅 onLoadStop 注入一次，面板开关/删除/保存/导入后
-      // JS 同步引擎（__kiraRunRegex 读 window.__KIRA_REGEX_RULES）一直拿旧值。
-      // 注入幂等（整体重写），顺带在面板打开（loadRegexList）时也刷新为最新。
+      // Re-inject the regex rule snapshot after a change (fixes the JS sync engine using stale
+      // rules): __KIRA_REGEX_RULES was previously injected only once at onLoadStop, so after a
+      // panel toggle/delete/save/import the JS sync engine (__kiraRunRegex reads
+      // window.__KIRA_REGEX_RULES) kept serving old values.
+      // The injection is idempotent (rewrites the whole object), and it also refreshes to the
+      // latest when the panel opens (loadRegexList).
       final controller = _controller;
       if (controller != null && _webViewMounted) {
         await _injectRegexRules(controller);
@@ -4306,7 +4389,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           }
         }
         await pushRefresh();
-        // [Bug4] 正则 display 效果已烘焙进已渲染气泡，重推才立刻生效
+        // The regex display effect is already baked into rendered bubbles, so a re-push is needed for it to take effect immediately
         await _repushRenderedWindowForRegexChange();
         break;
 
@@ -4330,7 +4413,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               .removeScript(id);
         }
         await pushRefresh();
-        // [Bug4] 规则删除后重推已渲染楼层（display 效果立刻消失）
+        // Re-push the rendered floors after deleting a rule (the display effect disappears immediately)
         await _repushRenderedWindowForRegexChange();
         break;
 
@@ -4436,7 +4519,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           }
         }
         await pushRefresh();
-        // [Bug4] 规则保存/新建后重推已渲染楼层（display 效果立刻生效）
+        // Re-push the rendered floors after saving/creating a rule (the display effect takes effect immediately)
         await _repushRenderedWindowForRegexChange();
         break;
 
@@ -4460,7 +4543,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
       case 'exportRegex':
         final json = ref.read(globalRegexScriptsProvider.notifier).exportScripts();
-        // [问题1] 统一导出交付:分享 / 保存到文件
+        // Unified export delivery: share / save to file
         await deliverExportFile(
           context: context,
           fileName: 'regex_scripts_${DateTime.now().millisecondsSinceEpoch}.json',
@@ -4472,7 +4555,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  // ── [浮窗化] 气泡背景面板 ─────────────────────────────────────────────
+  // Bubble background panel
 
   Future<void> _openBackgroundPanel() async {
     _bridge.send(BridgeType.openSettingsPanel, {
@@ -4628,11 +4711,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  // ── [浮窗化] TTS语音面板 ─────────────────────────────────────────────
+  // TTS voice panel
 
   Future<void> _openTtsPanel() async {
     final settings = ref.read(ttsSettingsProvider);
-    // [P2修复] 正确await语音列表,而非whenData可能拿到空列表
+    // Properly await the voice list instead of using whenData, which could yield an empty list
     List<Map<String, String>> voices = [];
     try {
       final voiceList = await ref
@@ -4683,7 +4766,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           orElse: () => TTSProvider.system,
         );
         notifier.setProvider(provider);
-        // [P2修复] 切换引擎后强制刷新语音列表
+        // Force-refresh the voice list after switching engines
         ref.refresh(availableVoicesProvider);
         try {
           final voices = await ref
@@ -4714,7 +4797,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
       case 'setApiKey':
         final ttsKeyValue = data['value'] as String;
-        // [密钥安全] 面板回显脱敏值时忽略,防止覆盖真实密钥
+        // Ignore the redacted value echoed back by the panel so it cannot overwrite the real key
         if (ttsKeyValue == '***REDACTED***') break;
         notifier.setApiKey(ttsKeyValue);
         break;
@@ -4749,7 +4832,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  // ── [浮窗化] 变量管理面板 ────────────────────────────────────────────
+  // Variable management panel
 
   Future<void> _openVariablesPanel() async {
     _bridge.send(BridgeType.openSettingsPanel, {
@@ -4873,7 +4956,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  // ── [Chronicle融合] Chronicle 超级记忆面板 ─────────────────────────
+  // Chronicle super memory panel
 
   Future<void> _openChroniclePanel() async {
     _bridge.send(BridgeType.openSettingsPanel, {
@@ -5014,7 +5097,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         {'data': await _serializeChronicleData(), 'refresh': true});
   }
 
-  // ── [Chronicle融合] Wiki 记忆库管理面板（运行监控+记忆管理） ────────
+  // Wiki memory bank management panel (run monitoring + memory management)
 
   Future<void> _openWikiPanel() async {
     _bridge.send(BridgeType.openSettingsPanel, {
@@ -5024,7 +5107,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     });
   }
 
-  /// 解析任务 messageIds JSON，返回id列表（失败返回空）
+  /// Parses the task's messageIds JSON and returns the id list (empty on failure)
   static List<String> _parseTaskMessageIds(String json) {
     try {
       final list = jsonDecode(json) as List;
@@ -5045,7 +5128,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final messages = ref.read(activeChatProvider).messages;
 
     return {
-      // 词条列表
+      // entry list
       'entries': [
         for (final e in entries)
           {
@@ -5064,7 +5147,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             'updatedAt': e.updatedAt.toIso8601String(),
           },
       ],
-      // 实体列表
+      // entity list
       'entities': [
         for (final en in entities)
           {
@@ -5076,7 +5159,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             'aliases': en.aliases,
           },
       ],
-      // 任务队列
+      // task queue
       'tasks': [
         for (final t in tasks)
           {
@@ -5090,7 +5173,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             'finishedAt': t.finishedAt?.toIso8601String(),
           },
       ],
-      // 统计
+      // stats
       'stats': {
         'entryCount': entries.length,
         'entityCount': entities.length,
@@ -5101,13 +5184,13 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'pendingTaskCount': tasks.where((t) => t.status == 'pending').length,
         'failedTaskCount': tasks.where((t) => t.status == 'failed').length,
       },
-      // 当前生效的完整prompt（内置模板，不含对话内容）
+      // the full prompt currently in effect (built-in template, without conversation content)
       'currentPrompt': ChronicleSummaryService.basePrompt,
-      // 用户自定义追加
+      // user-defined suffix
       'customPromptSuffix': cs.customPromptSuffix,
-      // 成人内容提示词追加（独立字段）
+      // mature content prompt suffix (separate field)
       'matureContentSuffix': cs.matureContentSuffix,
-      // 最大重试次数
+      // max retry count
       'maxRetries': cs.maxRetries,
     };
   }
@@ -5176,17 +5259,17 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       case 'fullResummarize':
         try {
           final settings = ref.read(chronicleSettingsProvider);
-          // 1. 清空现有词条、归档记录、任务队列
+          // 1. Clear the existing entries, archive records, and task queue
           await repo.deleteAllEntriesForChat(widget.chatId);
           await repo.clearArchivedMessageIds(widget.chatId);
           await repo.clearTasksForChat(widget.chatId);
-          // 2. 获取所有可见消息
+          // 2. Fetch all visible messages
           final allMessages = ref.read(activeChatProvider).messages
               .where((m) => !m.isHidden)
               .toList();
           if (allMessages.isEmpty) break;
-          // 3. 按summaryInterval（轮次×2=条数）切割，每批独立入队
-          // （单任务塞全部消息会导致LLM输入过长、JSON格式偶发错误）
+          // 3. Slice by summaryInterval (turns x2 = message count) and enqueue each batch separately
+          // (a single task holding all messages makes the LLM input too long and occasionally breaks JSON formatting)
           final batchSize = settings.summaryInterval * 2;
           for (int i = 0; i < allMessages.length; i += batchSize) {
             final end = (i + batchSize).clamp(0, allMessages.length);
@@ -5197,10 +5280,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
               messageIds: batchIds,
               fromTurn: i ~/ 2,
               toTurn: end ~/ 2,
-              forceEnqueue: true, // 跳过hasActiveTask检查
+              forceEnqueue: true, // skip the hasActiveTask check
             );
           }
-          // 入队后立即触发一轮消费（保持原forceEnqueueAll的即时执行）
+          // Kick one round of consumption right after enqueueing (preserving the original forceEnqueueAll's immediate execution)
           ref.read(chronicleOrchestratorProvider).kickProcess();
           final batchCount = (allMessages.length / batchSize).ceil();
           _snack('已重新对全部消息入队总结（$batchCount批）');
@@ -5211,7 +5294,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       case 'resummarizeEntry':
         final rEntryId = data['entryId'] as String? ?? '';
         if (rEntryId.isEmpty) break;
-        // LLM调用耗时较长，先发loading状态通知HTML（refresh:false不重渲染）
+        // The LLM call takes a while, so send a loading state to the HTML first (refresh:false does not re-render)
         _bridge.send(BridgeType.settingsPanelData, {
           'data': {'loading': true, 'loadingMessage': '正在重新总结，请稍候…'},
           'refresh': false,
@@ -5263,7 +5346,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         {'data': await _serializeWikiData(), 'refresh': true});
   }
 
-  // ── [浮窗化] STT 语音识别面板 ────────────────────────────────────────
+  // STT speech recognition panel
 
   Future<void> _openSttPanel() async {
     _bridge.send(BridgeType.openSettingsPanel, {
@@ -5330,7 +5413,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         {'data': await _serializeSttData(), 'refresh': true});
   }
 
-  // ── [浮窗化] 导出/导入面板 ───────────────────────────────────────────
+  // Export / import panel
 
   Future<void> _openExportPanel() async {
     final chatState = ref.read(activeChatProvider);
@@ -5374,7 +5457,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  // ── [浮窗化] 采样参数面板 ────────────────────────────────────────────
+  // Sampling parameters panel
 
   Future<void> _openSamplingPanel() async {
     _bridge.send(BridgeType.openSettingsPanel, {
@@ -5514,7 +5597,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         {'data': _serializeSamplingData(), 'refresh': true});
   }
 
-  // ── [浮窗化] 人设管理面板 ────────────────────────────────────────────
+  // Persona management panel
 
   Future<void> _openPersonaPanel() async {
     await ref.read(personaNotifierProvider.notifier).refresh();
@@ -5526,7 +5609,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     });
   }
 
-  /// 头像文件 → data URL（WebView loadData 无法加载 file://，转 base64 内联）
+  /// Avatar file -> data URL (WebView loadData cannot load file://, so base64 is inlined)
   static String _avatarDataUrl(String? path) {
     if (path == null || path.isEmpty) return '';
     try {
@@ -5675,7 +5758,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  // ── [浮窗化] 精灵图面板（占位配置） ──────────────────────────────────
+  // Sprite panel (placeholder configuration)
 
   Future<void> _openSpritePanel() async {
     _bridge.send(BridgeType.openSettingsPanel, {
@@ -5761,7 +5844,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         {'data': await _serializeSpriteData(), 'refresh': true});
   }
 
-  // ── [浮窗化] 预设&提示词面板 ─────────────────────────────────────────
+  // Preset & prompt panel
 
   Future<void> _openPresetPanel() async {
     _bridge.send(BridgeType.openSettingsPanel, {
@@ -5939,7 +6022,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           return;
         }
         final exportJson = jsonEncode(active.toExportJson());
-        // [问题1] 统一导出交付:分享 / 保存到文件
+        // Unified export delivery: share / save to file
         await deliverExportFile(
           context: context,
           fileName:
@@ -5952,7 +6035,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  // ── [浮窗化] 世界书面板（三级导航） ──────────────────────────────────
+  // Worldbook panel (three-level navigation)
 
   Future<void> _openWorldInfoPanel({String initialScope = 'global'}) async {
     final character = ref.read(activeChatProvider).character;
@@ -6285,7 +6368,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  // ── [浮窗化] 生图设置面板 ────────────────────────────────────────────
+  // Image generation settings panel
 
   Future<void> _openImageGenPanel() async {
     _bridge.send(BridgeType.openSettingsPanel, {
@@ -6347,7 +6430,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         final provider = ImageGenProvider.fromId(data['provider'] as String);
         if (provider != null) {
           notifier.setProvider(provider);
-          // [P1修复] 切换提供商后刷新面板,显示新提供商的API配置和模型
+          // Refresh the panel after switching providers so it shows the new provider's API config and model
           _bridge.send(BridgeType.settingsPanelData, {
             'data': _serializeImageGenData(),
             'refresh': true,
@@ -6359,7 +6442,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         break;
       case 'setApiKey':
         final imageGenKey = data['key'] as String?;
-        // [密钥安全] 面板回显脱敏值时忽略,防止覆盖真实密钥
+        // Ignore the redacted value echoed back by the panel so it cannot overwrite the real key
         if (imageGenKey == '***REDACTED***') break;
         notifier.setApiKey(imageGenKey);
         break;
@@ -6373,7 +6456,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         notifier.setDefaultHeight((data['height'] as num).toInt());
         break;
       case 'setImageSize':
-        // [P1修复] 预设尺寸选择:解析"宽x高"字符串,同时设置宽高
+        // Preset size selection: parse the "widthxheight" string and set both dimensions
         final size = data['size'] as String?;
         if (size != null && size != 'custom') {
           final parts = size.split('x');
@@ -6442,15 +6525,17 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  // ── [弹窗] HTML 弹窗辅助:确认框/输入框/底部选择框 ──────────────────────────
-  // 弹窗与消息同渲染在 WebView 内,无 Flutter 图层叠加的 HC 合成开销,
-  // 也免去 pause/resume(pause 会冻结卡片脚本)。结果经 dialogResult 按 callbackId 配对。
+  // HTML dialog helpers: confirm box / prompt box / bottom action sheet
+  // Dialogs render inside the WebView alongside messages, so there is no Flutter layer
+  // compositing overhead for HC, and no pause/resume either (pause freezes card scripts).
+  // Results come back through dialogResult, matched by callbackId.
 
   Future<dynamic> _waitForDialogResult(String callbackId) {
     final completer = Completer<dynamic>();
     _dialogCompleters[callbackId] = completer;
-    // [P0-8] 超时兜底:弹窗渲染失败/WebView 重建丢消息时 Completer 永久挂起,
-    // 会把调用方(含 onLoadStop 注入链)一起挂死。30s 未回应按取消收场。
+    // Timeout fallback: if dialog rendering fails or a WebView rebuild drops the message the
+    // Completer hangs forever, taking the caller (including the onLoadStop injection chain) down with it.
+    // A 30s wait with no reply resolves as a cancel.
     return completer.future.timeout(
       const Duration(seconds: 30),
       onTimeout: () {
@@ -6461,7 +6546,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     );
   }
 
-  /// HTML 确认框。[cancelText] 传空串 = 单按钮提示框。
+  /// HTML confirm box. Passing an empty [cancelText] turns it into a single-button alert.
   Future<bool> _showHtmlConfirm({
     required String title,
     required String message,
@@ -6482,7 +6567,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return result == true;
   }
 
-  /// HTML 输入弹窗。取消返回 null。
+  /// HTML input dialog. Returns null on cancel.
   Future<String?> _showHtmlPrompt({
     required String title,
     required String message,
@@ -6499,7 +6584,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return result is String ? result : null;
   }
 
-  /// HTML 底部选择框。取消返回 null,选中返回 value。
+  /// HTML bottom sheet. Returns null on cancel, the selected value otherwise.
   Future<String?> _showHtmlBottomSheet(
     List<Map<String, dynamic>> items, {
     String? title,
@@ -6514,8 +6599,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return result is String ? result : null;
   }
 
-  // [顶栏精简] 三个点按钮已改+号菜单(走 func-overlay);本方法暂无入口,
-  // 保留以防回滚——清空聊天/手动总结目前仅此处可达,后续可挂进 func-overlay。
+  // The three-dot button has been replaced by a plus menu (via func-overlay), so this method
+  // currently has no entry point; kept in case we roll back -- clear chat / manual summarize are
+  // only reachable from here today, and could later be hooked into func-overlay.
   Future<void> _showTopMenuSheet() async {
     final result = await _showHtmlBottomSheet([
       {'text': '导出聊天', 'value': 'exportChat'},
@@ -6545,7 +6631,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   }
 
   Future<void> _confirmClearChat() async {
-    // [弹窗] HTML确认框,无需 pause/resume(弹窗与消息同在 WebView 内)
+    // HTML confirm box, no pause/resume needed (dialogs live in the WebView alongside messages)
     final ok = await _showHtmlConfirm(
       title: '清空聊天',
       message: '将删除本对话的全部消息，且不可恢复。确定吗？',
@@ -6561,7 +6647,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   }
 
   Future<void> _confirmManualSummarize() async {
-    // [弹窗] HTML确认框,无需 pause/resume
+    // HTML confirm box, no pause/resume needed
     final ok = await _showHtmlConfirm(
       title: '手动总结上下文',
       message:
@@ -6584,8 +6670,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final userName =
         ref.read(activePersonaProvider).valueOrNull?.name ?? 'User';
 
-    // 先让用户选：分享，还是保存到文件（带参调用时跳过选择）
-    // [弹窗] HTML底部选择框,无需 pause/resume
+    // Let the user pick first: share, or save to file (skipped when called with arguments)
+    // HTML bottom sheet, no pause/resume needed
     String? mode;
     if (useJsonl == null && toFile == null) {
       mode = await _showHtmlBottomSheet(const [
@@ -6598,7 +6684,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       mode = (toFile == true) ? 'file' : 'share';
     }
 
-    // [CHRONICLE Phase 2] 注入Chronicle能力，导出内嵌kira_chronicle
+    // Inject Chronicle capability so the export embeds kira_chronicle
     final service = ChatExportService(
       chronicleRepo: ref.read(chronicleRepositoryProvider),
       vectorStorage: ref.read(vectorStorageServiceProvider),
@@ -6637,7 +6723,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     try {
       final exportService = ref.read(chatExportServiceProvider);
       final result = await exportService.importFromFile();
-      // [弹窗] 系统文件选择器结束即恢复 WebView:后续确认框改为 HTML,需要 WebView 存活
+      // Resume the WebView as soon as the system file picker returns: the confirm dialog after
+      // this is HTML-based, so the WebView must stay alive
       await _controller?.resume();
       if (result == null) {
         _snack('未选择文件');
@@ -6646,7 +6733,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
 
       if (!mounted) return;
 
-      // 确认弹窗：展示导入详情(HTML确认框,详情拼为多行文本)
+      // Confirmation dialog: show the import details (HTML confirm box, details joined into multiple lines)
       final details = [
         '${l10n.character}: ${result.characterName}',
         '${l10n.user}: ${result.userName}',
@@ -6666,7 +6753,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         return;
       }
 
-      // 落库：显式传 widget.chatId，不依赖 state.chat
+      // Persist: pass widget.chatId explicitly instead of relying on state.chat
       final chatNotifier = ref.read(activeChatProvider.notifier);
       const uuid = Uuid();
       final importedCount = await chatNotifier.importMessages(
@@ -6674,13 +6761,13 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         chatId: widget.chatId,
       );
 
-      // [CHRONICLE Phase 2] 恢复内嵌的超级记忆
+      // Restore the embedded super memory
       if (result.chronicleData != null) {
         await exportService.restoreChronicleToChat(
             widget.chatId, result.chronicleData!);
       }
 
-      // 更新作者注记
+      // Update the author note
       if (result.authorNote != null && result.authorNote!.isNotEmpty) {
         await chatNotifier.updateAuthorNote(result.authorNote!);
         if (result.authorNoteDepth != null) {
@@ -6701,15 +6788,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   Future<void> _sendMessage() async {
     final content = _inputController.text.trim();
     final attachments = List<ChatAttachment>.from(_pendingAttachments);
-    // 文字和图片都没有才跳过
+    // Skip only when there is neither text nor image
     if (content.isEmpty && attachments.isEmpty) return;
     final config = ref.read(llmConfigProvider);
     _inputController.clear();
-    // 清空待发附件并刷新预览
+    // Clear pending attachments and refresh the preview
     setState(() => _pendingAttachments.clear());
     _inputFocus.unfocus();
-    // 图片不进 WebView（统一由独立图片界面管理），带不带图都走普通发送。
-    // 触发 MVU initCheck（generation_started 在生成前点火）
+    // Images never enter the WebView (they are handled by a separate image view), so sending
+    // works the same with or without images.
+    // Fire MVU initCheck (generation_started is emitted before generation starts)
     _controller?.evaluateJavascript(
         source: 'if(window.__emitToEngine)window.__emitToEngine("generation_started",[],${jsonEncode(_serializeMessagesForMvu())});');
     await ref
@@ -6734,8 +6822,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// 把相册页选中的图片加入待发附件（不立即发送），
-  /// 返回聊天后用户可继续打字，最后图文一起发送。
+  /// Adds an image picked from the gallery to the pending attachments (without sending it
+  /// immediately), so the user can keep typing after returning to the chat and send text and
+  /// image together at the end.
   Future<void> _sendImageFile(File file) async {
     try {
       final stat = await file.stat();
@@ -6751,7 +6840,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         height: size?['h'],
       ));
       if (mounted) {
-        setState(() {}); // 刷新输入框上方的待发预览
+        setState(() {}); // refresh the pending preview above the input box
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('图片已添加，可继续输入文字后发送')),
         );
@@ -6765,7 +6854,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// 把选中图片的字节写入应用目录，构造 ChatAttachment。
+  /// Writes the selected image bytes into the app directory and builds a ChatAttachment.
   Future<void> _addAttachmentFromBytes(Uint8List bytes, String name) async {
     try {
       final appDir = await getApplicationDocumentsDirectory();
@@ -6800,7 +6889,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// 把选中的图片复制到应用文档目录，构造 ChatAttachment。
+  /// Copies the selected image into the app documents directory and builds a ChatAttachment.
   Future<void> _addAttachmentFromXFile(XFile file) async {
     try {
       final appDir = await getApplicationDocumentsDirectory();
@@ -6827,7 +6916,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         height: size?['h'],
       );
       _pendingAttachments.add(attachment);
-      // 预热缓存：在后台 isolate 读文件转 base64，发送时直接用，不阻塞主线程
+      // Warm the cache: read the file and base64-encode it in a background isolate so sending
+      // can use it directly without blocking the main thread
       compute(encodeFileToBase64, newPath).then((b64) {
         _attachmentB64Cache[newPath] = b64;
       });
@@ -6840,7 +6930,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// 根据扩展名推断 MIME 类型。
+  /// Infers the MIME type from the extension.
   String _getMimeType(String extension) {
     switch (extension.toLowerCase()) {
       case '.jpg':
@@ -6859,24 +6949,26 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  // ── 气泡操作按钮处理 ────────────────────────────────────────────────────────
+  // Bubble action button handling
 
   void _handleAction(Map<String, dynamic> payload) {
     final id = payload['id'] as String? ?? '';
     final action = payload['action'] as String? ?? '';
-    // 图片全屏查看：早于 id/生成中 拦截，看图不受这些限制
+    // Full-screen image viewer: intercepted before the id / isGenerating checks,
+    // since viewing an image is not subject to those limits
     if (action == 'viewImage') {
       final attPath = payload['attPath'] as String? ?? '';
       if (attPath.isNotEmpty) _showFullImage(attPath);
       return;
     }
-    // [闪屏修复] JS 定点更新失败(节点缺失/卡片消息) → 兜底全量重推
+    // Flicker fix: when the targeted JS update fails (missing node / card message) -> fall back to a full re-push
     if (action == 'needFullPush') {
       _pushMessages();
       return;
     }
-    // [P5-9/P1] 脚本经 #send_but 触发的发送(狐神等):等价于用户在输入框点发送。
-    // 无气泡 id,须在 id 判空拦截之前处理。
+    // A send triggered by a script via #send_but (Fox, etc.): equivalent to the user tapping
+    // send in the input box.
+    // It has no bubble id, so it must be handled before the empty-id bail-out.
     if (action == 'sendFromStage') {
       final text = (payload['text'] as String? ?? '').trim();
       if (text.isEmpty) return;
@@ -6886,7 +6978,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       return;
     }
     if (id.isEmpty) return;
-    // 生成中禁止操作气泡按钮，避免与正在进行的生成冲突
+    // Bubble action buttons are disabled while generating to avoid clashing with the running generation
     if (ref.read(activeChatProvider).isGenerating) return;
     final notifier = ref.read(activeChatProvider.notifier);
     final config = ref.read(llmConfigProvider);
@@ -6916,8 +7008,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         );
         break;
       case 'reroll':
-        // 保留旧版本，生成一个新版本（新增 swipe）
-        // [聊天页大改] 改 fire-and-forget 异步:regenerateMessage 是 Future,完成后提示
+        // Keep the old version and generate a new one (adds a swipe)
+        // Made fire-and-forget async: regenerateMessage is a Future, with a toast once it finishes
         () async {
           await notifier.regenerateMessage(id, config);
           if (mounted) {
@@ -6954,11 +7046,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final idx = msgs.indexWhere((m) => m.id == id);
     if (idx < 0) return;
     final speak = ref.read(ttsSpeakProvider);
-    speak(msgs[idx].content); // TTSService 内部会 _cleanTextForTTS 清洗
+    speak(msgs[idx].content); // TTSService runs _cleanTextForTTS internally
   }
   void _showFullImage(String encodedPath) {
     final path = Uri.decodeComponent(encodedPath);
-    // 从文件名解析 msgId：ai_auto_{msgId}_{i}.png
+    // Parse msgId from the file name: ai_auto_{msgId}_{i}.png
     String? msgId;
     final m = RegExp(r'ai_auto_(\d+)_').firstMatch(p.basename(path));
     if (m != null) msgId = m.group(1);
@@ -6972,7 +7064,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         onRegenerate: msgId == null
             ? null
             : () {
-                Navigator.of(context).pop(); // 关全屏
+                Navigator.of(context).pop(); // close the full-screen view
                 final config = ref.read(llmConfigProvider);
                 ref
                     .read(activeChatProvider.notifier)
@@ -6981,7 +7073,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       ),
     ));
   }
-  /// 为指定消息生成配图：弹出生图对话框，生成后作为附件挂到该消息。
+  /// Generates an illustration for a message: opens the image generation dialog, then attaches
+  /// the result to that message.
   void _showImageGenerationDialog(String messageId) async {
     final state = ref.read(activeChatProvider);
     final message = state.messages.firstWhere(
@@ -7003,7 +7096,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (result != null && result.images.isNotEmpty && mounted) {
       try {
         final appDocDir = await getApplicationDocumentsDirectory();
-        // 存进会话专属子目录 chat_images/{chatId}/，与相册页统一
+        // Store in the chat-specific subdirectory chat_images/{chatId}/, consistent with the gallery page
         final imagesDir = Directory(
             p.join(appDocDir.path, 'chat_images', widget.chatId));
         if (!await imagesDir.exists()) {
@@ -7013,7 +7106,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         for (int i = 0; i < result.images.length; i++) {
           final imageBytes = result.images[i];
           final imageId = const Uuid().v4();
-          // ai_ 前缀，让相册页归入"AI生成"子页
+          // the ai_ prefix makes the gallery page file it under the "AI generated" subpage
           final fileName = 'ai_$imageId.${result.format}';
           final filePath = p.join(imagesDir.path, fileName);
           await File(filePath).writeAsBytes(imageBytes);
@@ -7046,7 +7139,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       }
     }
   }
-  // 切换消息的回复版本（swipe）：delta 为 -1 上一版 / +1 下一版
+  // Switch a message's reply version (swipe): delta -1 for the previous version / +1 for the next
   void _switchSwipe(String id, int delta) {
     final state = ref.read(activeChatProvider);
     final msg = state.messages.firstWhere(
@@ -7055,24 +7148,24 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     );
     if (msg.swipes.length <= 1) return;
     final next = msg.currentSwipeIndex + delta;
-    if (next < 0 || next >= msg.swipes.length) return; // 到头不循环
+    if (next < 0 || next >= msg.swipes.length) return; // no wrap-around at either end
     ref.read(activeChatProvider.notifier).swipeMessage(id, next);
   }
 
-  // ── 通用确认框（pause WebView 防合成开销）──────────────────────────────────
+  // Generic confirm box (the WebView is paused to avoid compositing overhead)
 
   Future<void> _confirmAndRun(
     String title,
     String body,
     VoidCallback action,
   ) async {
-    // [弹窗] HTML确认框,无需 pause/resume
+    // HTML confirm box, no pause/resume needed
     final ok = await _showHtmlConfirm(title: title, message: body);
     if (!mounted) return;
     if (ok) action();
   }
 
-  // ── 编辑（全屏页，避免 HC 合成开销）───────────────────────────────────────
+  // Edit (full-screen page, to avoid HC compositing overhead)
 
   Future<void> _showEditDialog(String id) async {
     final messages = ref.read(activeChatProvider).messages;
@@ -7094,17 +7187,17 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (result != null) {
       await ref.read(activeChatProvider.notifier).editMessage(id, result);
       _updateSingleMessage(id);
-      // [聊天页大改] 编辑保存:WebView 动态岛提示
+      // Edit saved: dynamic-island toast in the WebView
       if (mounted) {
         _bridge.send(BridgeType.showToast, {'icon': '✏️', 'text': '消息已修改'});
       }
     }
   }
 
-  // ── 删除确认 ───────────────────────────────────────────────────────────────
+  // Delete confirmation
 
   Future<void> _showDeleteConfirm(String id) async {
-    // [弹窗] HTML确认框(上一轮迁移遗漏,本轮补上),无需 pause/resume
+    // HTML confirm box (missed in the previous migration round, added now), no pause/resume needed
     final ok = await _showHtmlConfirm(
       title: '删除消息',
       message: '确定删除这条消息吗？此操作无法撤销。',
@@ -7114,33 +7207,35 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     );
     if (!mounted) return;
     if (ok) {
-      // [闪屏修复] 不再显式全量 push:deleteMessage 改 state 后 ref.listen 会按变化类型
-      // 分流(中间删除→结构变化全量重排楼层;尾部截断→定点摘除),显式再推一次等于双重清屏
+      // Flicker fix: no explicit full push anymore -- after deleteMessage changes state, ref.listen
+      // branches by change type (mid-delete -> structural change, full re-layout of floors;
+      // tail truncation -> targeted removal), so pushing again would clear the screen twice
       await ref.read(activeChatProvider.notifier).deleteMessage(id);
-      // [聊天页大改] 删除完成:WebView 动态岛提示
+      // Delete finished: dynamic-island toast in the WebView
       if (mounted) {
         _bridge.send(BridgeType.showToast, {'icon': '🗑️', 'text': '消息已删除'});
       }
     }
   }
 
-  // ── 更多操作底部菜单 ───────────────────────────────────────────────────────
+  // More actions bottom menu
 
   Future<void> _showMoreSheet(String id) async {
-    // [弹窗] HTML底部选择框,无需 pause/resume
+    // HTML bottom sheet, no pause/resume needed
     final result = await _showHtmlBottomSheet(const [
       {'text': '删除此条及之后所有', 'value': 'delete_after', 'danger': true},
     ]);
     if (!mounted || result == null) return;
     if (result == 'delete_after') {
-      // [闪屏修复] 尾部截断由 ref.listen 走定点摘除(removeMessage),不再显式全量 push
+      // Flicker fix: tail truncation goes through ref.listen as a targeted removal
+      // (removeMessage), so no explicit full push
       await ref
           .read(activeChatProvider.notifier)
           .deleteMessageAndAfter(id);
     }
   }
 
-  // ── 翻译消息（LLM直译，结果显示在气泡下方浅色小字）────────────────────
+  // Translate message (direct LLM translation, result shown as light small text under the bubble)
 
   Future<void> _translateMessage(String id) async {
     if (_translatingIds.contains(id)) return;
@@ -7151,7 +7246,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     if (content.isEmpty) return;
 
     _translatingIds.add(id);
-    // 先推占位符，译文回来后覆盖
+    // Push a placeholder first, overwritten once the translation comes back
     _bridge.send(BridgeType.setMessageTranslation, {'id': id, 'text': '正在翻译…'});
     try {
       final config = ref.read(llmConfigProvider);
@@ -7176,7 +7271,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       _bridge.send(BridgeType.setMessageTranslation, {'id': id, 'text': text});
     } catch (e) {
       if (!mounted) return;
-      // 失败：清掉占位符
+      // Failure: clear the placeholder
       _bridge.send(BridgeType.setMessageTranslation, {'id': id, 'text': ''});
       showErrorSnackBar(context, '翻译失败：$e');
     } finally {
@@ -7184,9 +7279,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  // ── 推送消息到 WebView ────────────────────────────────────────────────────
+  // Push messages to the WebView
 
-  // 把单条消息序列化成Map，供_pushMessages使用
+  // Serializes a single message into a Map for _pushMessages
   Map<String, dynamic> _serializeMessage(
       ChatMessage m, int i, int lastAiIndex, Character? character, List<RegexScript> scripts) {
     String rawContent = m.content.isEmpty
@@ -7204,26 +7299,29 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             isEdit: false,
             depth: i,
           );
-    // 剥离自动生图的 <image> 标签，只影响显示，不动已存原文
+    // Strip the <image> tags from auto-generated images; display only, the stored source is untouched
     rawContent = rawContent
         .replaceAll(RegExp(r'<image>[\s\S]*?</image>', caseSensitive: false), '')
         .trim();
-    // [H1] afterRegexPrePeel = 2882 codeBlockMatch 剥壳之前的真实正则产物长度。
-    // 旧 [WV-2] 的 afterRegex 打的是剥壳之后的值(afterRegex==afterUnwrap 恒成立)，等于没有观测。
+    // afterRegexPrePeel = the real regex output length before codeBlockMatch peels the fence.
+    // The old afterRegex trace recorded the post-peel value (afterRegex == afterUnwrap always
+    // held), so it observed nothing.
     final afterRegexPrePeel = rawContent.length;
     final codeBlockMatch = RegExp(
-      // [MD修复] 仅剥 ```html 围栏。原 [a-zA-Z]* 匹配任意语言:整条消息是单个
-      // ```markdown/```text 围栏时(如AI讲解"脚本是什么"的全文)围栏被剥,
-      // 内容里出现 <style/<script 等字样就会被 isRichHtml 判成 HTML 卡片塞进
-      // iframe → 透明背景+黑字+空白折叠+markdown不渲染(排版全毁)。
-      // 非 html 围栏应保留 → markdown 库渲染成 <pre><code> 代码块。
+      // Strip only the ```html fence. The original [a-zA-Z]* matched any language: when an entire
+      // message was a single ```markdown/```text fence (e.g. an AI explaining "what is a script"),
+      // the fence was stripped, and any <style/<script text in the content made isRichHtml treat
+      // it as an HTML card and push it into an iframe -> transparent background + black text +
+      // blank collapsed content + markdown not rendered (layout completely broken).
+      // Non-html fences should be kept -> the markdown library renders them as <pre><code> blocks.
       r'^```html\s*\n([\s\S]*?)```\s*$',
       multiLine: false,
       caseSensitive: false,
     ).firstMatch(rawContent.trim());
-    // [P3-K1-3] 剥壳收窄:仅当全消息 ```html 围栏数 ≤1 时才剥。
-    // 多围栏消息剥壳会破坏 segs 配对(P3-H §2 实测);单围栏消息剥与不剥,
-    // 下游 htmlFenceMatch/docStart 两条路径结果一致,保持兼容。
+    // Peel narrowed: only strip when the whole message has <= 1 ```html fence.
+    // Peeling a multi-fence message breaks segs pairing (measured in P3-H section 2);
+    // for a single-fence message the downstream htmlFenceMatch/docStart paths agree
+    // whether or not we peel, so compatibility is preserved.
     final fenceCountPrePeel = RegExp(r'```html\s*\n', caseSensitive: false)
         .allMatches(rawContent)
         .length;
@@ -7232,9 +7330,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
     final codeBlockPeeled = codeBlockMatch != null && fenceCountPrePeel <= 1;
     final processed = rawContent;
-    // 若消息是"旁白文字 + 完整 HTML 文档"的混合体，以文档起点(<!DOCTYPE/<html)为界切开：
-    // 旁白走 markdown 气泡，文档单独进 iframe，避免旁白被拖进 iframe 与卡片抢 flex 空间(挤成窄条)。
-    // 优先识别 ```html 围栏：围栏前的文字走 markdown 当 prose，围栏内 HTML 走 iframe
+    // If the message mixes narration text with a complete HTML document, split it at the document
+    // start (<!DOCTYPE/<html): narration goes to the markdown bubble, the document goes into an
+    // iframe alone, so narration is not dragged into the iframe and squeezed into a narrow strip
+    // competing with the card for flex space.
+    // A ```html fence is detected first: text before the fence is prose in markdown, HTML inside
+    // the fence goes to the iframe
     final htmlFenceMatch = RegExp(
       r'```html\s*\n([\s\S]*?)```',
       caseSensitive: false,
@@ -7248,9 +7349,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             before,
             extensionSet: md.ExtensionSet.gitHubWeb)));
       }
-      bodyForRender = htmlFenceMatch.group(1) ?? ''; // 围栏内的纯 HTML
+      bodyForRender = htmlFenceMatch.group(1) ?? ''; // the pure HTML inside the fence
     } else {
-      // 无 ```html 围栏：走原有 <!DOCTYPE/<html 文档切分逻辑
+      // No ```html fence: fall through to the existing <!DOCTYPE/<html document-splitting logic
       final docStart = RegExp(r'<!DOCTYPE|<html', caseSensitive: false)
           .firstMatch(processed);
       if (docStart != null && docStart.start > 0) {
@@ -7263,8 +7364,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         bodyForRender = processed.substring(docStart.start);
       }
     }
-    // [MD修复2] 文档级判定替代子串级:正文提到 <script>/<body> 等字样的纯文本
-    // 不再被误判为HTML卡片塞进iframe(排版全毁根因)
+    // Document-level check instead of substring-level: plain text mentioning <script>/<body>
+    // is no longer misjudged as an HTML card and pushed into an iframe (root cause of broken layout)
     final looksLikeHtml = _looksLikeHtmlDoc(bodyForRender);
     final rendered = looksLikeHtml
         ? normalizeCodeQuotes(bodyForRender)
@@ -7319,7 +7420,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final wvScript = RegExp(r'<script', caseSensitive: false).hasMatch(m.content);
     final wvStyle = RegExp(r'<style', caseSensitive: false).hasMatch(m.content);
     final wvHtmlTag = RegExp(r'<[a-zA-Z]', caseSensitive: false).hasMatch(m.content);
-    // [H1] docCount: <!DOCTYPE|<html 出现次数(裸文档,无围栏)
+    // docCount: occurrences of <!DOCTYPE|<html (bare documents, without a fence)
     final docCount = RegExp(r'<!DOCTYPE|<html', caseSensitive: false)
         .allMatches(processed)
         .length;
@@ -7327,11 +7428,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         'script=$wvScript style=$wvStyle htmlTag=$wvHtmlTag '
         'fence=${htmlFenceMatch != null} fenceCount=${htmlFenceMatches.length} '
         'docCount=$docCount peeled=$codeBlockPeeled rich=$looksLikeHtml');
-    // [WV-2] 各步骤长度轨迹(raw→regex→fenceUnwrap→split→render),定位转义/吞内容步。
-    // afterRegex 改打剥壳(<codeBlockMatch>)之前的真实正则产物长度,否则与 afterUnwrap 恒等。
+    // Length trace across steps (raw->regex->fenceUnwrap->split->render) to locate the step that
+    // escapes or swallows content.
+    // afterRegex now records the real regex output length before peeling (<codeBlockMatch>),
+    // otherwise it always equals afterUnwrap.
     print('[WV-2] id=${m.id} raw=${m.content.length} afterRegex=$afterRegexPrePeel '
         'afterUnwrap=${processed.length} body=${bodyForRender.length} rendered=${rendered.length}');
-    // [WV-3] segs 产出审计：产没产、几段、每段 type+长度；null 时给原因(禁止静默)。
+    // Segs production audit: produced or not, how many segments, each segment's type + length;
+    // when null, give the reason (silent failures forbidden).
     if (segs != null) {
       final segDetail = segs
           .map((s) => '${s['type']}:${(s['html'] as String?)?.length ?? 0}')
@@ -7343,10 +7447,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
           : 'fenceCount<=1(单前端,走旧 prose/html 字段)';
       print('[WV-3] id=${m.id} segs=null reason=$reason');
     }
-    // [WV-4] 丢弃审计:真实被丢内容。铁律5落地——没它发现不了下一次静默丢弃。
-    // - segs 模式:构造上逐字符覆盖 processed,丢 0(回归守卫)。
-    // - 无 segs + 单围栏路径:围栏尾段(以及围栏标记)被静默丢弃 → droppedRaw=尾段长度+围栏标记开销。
-    // - 无 segs + docStart 路径:bodyForRender 切到消息末尾,无丢弃。
+    // Drop audit: content actually dropped. Iron rule 5 in practice -- without it the next
+    // silent drop would go unnoticed.
+    // - segs mode: by construction it covers processed character by character, drops 0 (regression guard).
+    // - no segs + single-fence path: the fence tail (and the fence markers) are silently dropped
+    //   -> droppedRaw = tail length + fence marker overhead.
+    // - no segs + docStart path: bodyForRender runs to the end of the message, nothing dropped.
     int droppedRaw = 0;
     if (segs != null) {
       droppedRaw = 0;
@@ -7362,11 +7468,12 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       'id': m.id,
       'role': m.role.name,
       'createdAt': m.timestamp.millisecondsSinceEpoch,
-      'prose': proseHtml, // 文档前的旁白文字，渲染层放在 iframe 之上
-      'rich': looksLikeHtml, // [MD修复2] 显式告知 JS 走 iframe 还是气泡,替代 JS 侧二次猜测
-      // [Bug5] 附件 HTML 改为独立字段，不再拼进 html：rich 时它会被拖进 iframe
-      // srcdoc（固定 300px 高、scrolling=no，图片埋进 iframe 尾部不可见），
-      // segs 时 html 字段被 JS 完全忽略（附件整段丢失）。
+      'prose': proseHtml, // narration before the document; the render layer puts it above the iframe
+      'rich': looksLikeHtml, // tells JS explicitly whether to use the iframe or the bubble, replacing JS-side guesswork
+      // Attachments HTML lives in its own field instead of being appended to html: in rich mode
+      // it would be dragged into the iframe srcdoc (fixed 300px height, scrolling=no, images buried
+      // at the end of the iframe and invisible), and in segs mode the html field is ignored
+      // entirely by JS (the attachments would be lost).
       'html': rendered,
       if (attachmentsHtml.isNotEmpty) 'attachmentsHtml': attachmentsHtml,
       if (segs != null) 'segs': segs,
@@ -7378,8 +7485,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     };
   }
 
-  /// [WV-8] 单条序列化故障隔离：任何一条 _serializeMessage 抛错，
-  /// 只降级为一条可见占位消息，绝不中断整批、绝不触发"全灭且零日志"。
+  /// Single-item serialization fault isolation: if any _serializeMessage call throws, degrade
+  /// to one visible placeholder message -- never abort the whole batch, never trigger a
+  /// "everything gone and zero logs" outcome.
   Map<String, dynamic> _safeSerializeMessage(
       ChatMessage m, int i, int lastAiIndex, Character? character, List<RegexScript> scripts) {
     try {
@@ -7402,9 +7510,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// [WV-8] 批量序列化兜底：把一组 map 编码成 setMessages 的 base64 载荷。
-  /// 批量 jsonEncode/utf8/base64 失败时降级为逐条 encode 逐条发（每条再单独 try），
-  /// 绝不出现"整批静默不发、JS 侧一无所知"；逐条也全失败时发一条可见占位。
+  /// Batch serialization fallback: encode a list of maps into the base64 payload for setMessages.
+  /// If the batch jsonEncode/utf8/base64 fails, fall back to encoding and sending one item at a
+  /// time (each with its own try), so the batch never silently fails to send with JS knowing
+  /// nothing; if single items fail too, send one visible placeholder.
   Future<void> _sendEncodedMessages(
       List<Map<String, dynamic>> list,
       {bool initial = false, bool prepend = false, Map<String, dynamic>? avatars}) async {
@@ -7422,15 +7531,16 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       print('[WV-8] BATCH-ENCODE-FAIL count=${list.length} err=$e');
     }
 
-    // 降级：逐条 encode 逐条发
+    // Fallback: encode and send one item at a time
     var anySent = false;
     var firstSent = false;
     for (final m in list) {
       try {
         final b64 = base64Encode(utf8.encode(jsonEncode([m])));
-        // [RC4] 只有第一条携带 initial/avatars:若逐条都带 initial,JS 每收一条就
-        // root.innerHTML='' 清一次屏,降级跑完只剩最后一条。prepend 必须逐条保留
-        // (每条都要头插,批内反转补偿才成立)。
+        // Only the first item carries initial/avatars: if every item carried initial, JS would
+        // clear the screen with root.innerHTML='' on each arrival, and the fallback run would end
+        // up with only the last item. prepend must be kept on every item (each one has to be
+        // prepended for the in-batch reversal compensation to work).
         final flags = <String, dynamic>{
           if (prepend) 'prepend': true,
           if (initial && !firstSent) 'initial': true,
@@ -7444,7 +7554,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       }
     }
 
-    // 逐条也全失败：发一条可见占位，避免空白无提示
+    // Single items all failed too: send a visible placeholder so the screen is not blank with no hint
     if (!anySent) {
       try {
         final placeholder = {
@@ -7466,7 +7576,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     }
   }
 
-  /// prev 是否为 next 的前缀（前 N 条 id 完全一致）
+  /// Whether prev is a prefix of next (the first N ids match exactly)
   bool _isPrefix(List<ChatMessage> prev, List<ChatMessage> next) {
     for (var i = 0; i < prev.length; i++) {
       if (prev[i].id != next[i].id) return false;
@@ -7474,13 +7584,15 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return true;
   }
 
-  /// 只序列化并追加"末尾新增的那几条"，不清空整页，避免闪白/抖动
+  /// Serializes and appends only the messages newly added at the end, without clearing the page,
+  /// to avoid white flashes and jitter
   Future<void> _appendNewMessages(
       int startFrom, List<ChatMessage> messages) async {
     final chatState = ref.read(activeChatProvider);
     final character = chatState.character;
-    // [优化] 原先这里还 await persona(3s超时)但从未使用(追加模式不带头像/名字)——
-    // 纯浪费的阻塞 await 已删。分析器报 unused_local_variable 即此。
+    // Previously this also awaited persona (3s timeout) but never used it (the append path sends
+    // no avatar/name) -- a blocking await that wasted time, now removed. This is what the analyzer's
+    // unused_local_variable was about.
     final scripts = ref.read(combinedRegexScriptsProvider(character?.id));
 
     int lastAiIndex = -1;
@@ -7493,15 +7605,19 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       list.add(_safeSerializeMessage(messages[i], i, lastAiIndex, character, scripts));
     }
     if (list.isEmpty) return;
-    // 不带 initial / prepend → setMessages 走"追加渲染"分支
+    // No initial / prepend -> setMessages takes the "append rendering" branch
     await _sendEncodedMessages(list);
-    // [Bug5] 纯追加路径也要补图：用户新发带图消息（sendMessage 一次性带附件入
-    // state）走这里，占位 <img data-att-path> 靠 setImage 通道填 src，缺这步图片永不显示
+    // The pure-append path also needs image patching: a new message with images (sendMessage
+    // adds attachments to state in one shot) comes through here, and the placeholder
+    // <img data-att-path> only gets its src filled by the setImage channel -- without this step
+    // the image never appears
     await _pushImages(messages.sublist(startFrom));
   }
 
-  /// [闪屏修复] 尾部截断:把 prev 中已不存在的尾部消息从 DOM 摘掉,不整页重建。
-  /// retry(删除后续重新生成)/删除此条及之后 都走这里,原先会落进全量 initial 重建 = 闪屏。
+  /// Tail truncation: remove the trailing messages that no longer exist in prev from the DOM
+  /// instead of rebuilding the page. Retry (delete the following content and regenerate) and
+  /// "delete this and everything after" both come through here; they used to fall into the full
+  /// initial rebuild = flicker.
   void _removeMessagesTail(List<ChatMessage> prev, int keepCount) {
     if (keepCount >= prev.length) return;
     final ids = prev.sublist(keepCount).map((m) => m.id).toList();
@@ -7509,9 +7625,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     _bridge.send(BridgeType.removeMessage, {'ids': ids});
   }
 
-  /// [闪屏修复] 定点刷新最后一条消息:替代生成结束时的全量 _pushMessages。
-  /// 把流式累积的纯文本换成正式 Markdown/HTML 渲染,只动这一个气泡。
-  /// JS 侧节点缺失或内容是卡片(rich)时回 needFullPush,Dart 兜底全量重推。
+  /// Targeted refresh of the last message: replaces the full _pushMessages after generation ends.
+  /// Swaps the accumulated streaming plain text for proper Markdown/HTML rendering, touching only
+  /// this one bubble. If the JS node is missing or the content is a card (rich) it sends back
+  /// needFullPush and Dart falls back to a full re-push.
   void _updateLastMessage(List<ChatMessage> msgs) {
     if (msgs.isEmpty) {
       _pushMessages();
@@ -7528,12 +7645,13 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final m = _safeSerializeMessage(
         msgs[lastIdx], lastIdx, lastAiIndex, character, scripts);
     _bridge.send(BridgeType.updateMessage, m);
-    // 附件占位图走独立通道补图(html 里是 data-att-path 占位)
+    // Attachment placeholder images go through a separate channel (html holds a data-att-path placeholder)
     _pushImages([msgs[lastIdx]]);
   }
 
-  /// 定点刷新单条消息：编辑后只更新那一条DOM节点，不触发全量重建。
-  /// rich卡片由JS侧回传needFullPush兜底全量重推。
+  /// Targeted refresh of a single message: after an edit only that one DOM node is updated,
+  /// with no full rebuild.
+  /// Rich cards are handled by JS replying needFullPush, falling back to a full re-push.
   void _updateSingleMessage(String id) {
     final chatState = ref.read(activeChatProvider);
     final msgs = chatState.messages;
@@ -7550,12 +7668,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     _pushImages([msgs[idx]]);
   }
 
-  /// [Bug4] 正则变更后重推已渲染楼层：display 效果在序列化时烘焙进气泡
-  /// (_serializeMessage 调 RegexService.getRegexedString)，不重推则已渲染楼层
-  /// 保持旧效果（要退出重进才生效的根因）。
-  /// 逐条 updateMessage 定点换内容（不整页 initial 重建，避开全量重建丢滚动位置）；
-  /// 只推默认渲染窗口（最近 50 条，与 _pushMessages 首屏窗口一致），更早楼层
-  /// 无 DOM 节点，updateMessage 会回 needFullPush 触发全量兜底。
+  /// Re-pushes already-rendered floors after a regex change: the display effect is baked into
+  /// the bubble at serialization time (_serializeMessage calls RegexService.getRegexedString),
+  /// so without a re-push the rendered floors keep the old effect (root cause of needing to
+  /// leave and re-enter for it to take effect).
+  /// updateMessage per message swaps content in place (no full initial rebuild, avoiding the
+  /// scroll position loss of a full rebuild); only the default render window is pushed (the
+  /// most recent 50, same as _pushMessages' first screen window) -- earlier floors have no DOM
+  /// node, so updateMessage replies needFullPush and triggers a full fallback push.
   Future<void> _repushRenderedWindowForRegexChange() async {
     final chatState = ref.read(activeChatProvider);
     final msgs = chatState.messages;
@@ -7573,7 +7693,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     for (var i = start; i < msgs.length; i++) {
       final m = _safeSerializeMessage(msgs[i], i, lastAiIndex, character, scripts);
       _bridge.send(BridgeType.updateMessage, m);
-      // 附件占位图同步补图(html 里是 data-att-path 占位)
+      // patch attachment placeholder images in step (html holds a data-att-path placeholder)
       await _pushImages([msgs[i]]);
     }
   }
@@ -7583,7 +7703,7 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final buf = StringBuffer('<div class="att-wrap">');
     for (final att in m.attachments) {
       final encPath = Uri.encodeComponent(att.path);
-      // 有宽高用真实比例，无（旧图）默认 1:1
+      // use the real aspect ratio when width/height are known, 1:1 otherwise (older images)
       final w = att.width ?? 1;
       final h = att.height ?? 1;
       buf.write(
@@ -7597,7 +7717,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   }
 
   Future<void> _pushMessages() async {
-    // [RC3] 代际递增:本次推送期间若又发生新推送,旧的补发循环按 epoch 作废
+    // Generation counter: if another push happens during this one, the old catch-up loop is
+    // invalidated by epoch
     _pushEpoch++;
     final epoch = _pushEpoch;
     debugPrint('[图片诊断] _pushMessages 开始执行 epoch=$epoch');
@@ -7617,21 +7738,23 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       if (messages[i].role != MessageRole.user) lastAiIndex = i;
     }
 
-    // [优化] 首屏批量 30→50:一次 base64 载荷多带 20 条,少一轮补发往返
+    // First-screen batch 30 -> 50: one base64 payload carries 20 more messages, one less catch-up round trip
     const int batchSize = 50;
     final total = messages.length;
-    // 初始只渲染最近batchSize条
+    // Only the most recent batchSize messages are rendered initially
     final startIndex = total > batchSize ? total - batchSize : 0;
 
     final initialList = <Map<String, dynamic>>[];
     for (var i = startIndex; i < total; i++) {
       initialList.add(_safeSerializeMessage(messages[i], i, lastAiIndex, character, scripts));
     }
-    // 先发送最近的消息
+    // Send the most recent messages first
     debugPrint('[图片诊断] _pushMessages 发送 setMessages, 条数=${initialList.length}');
-    // 头像+名字：全局各一份，随首屏一次性下发（不进每条消息，避免膨胀拖卡）
-    // [优化] persona 已在函数开头读过(带3s超时兜底),此处原第二次重复读取已删——
-    // 同一 provider 重复 await 最坏白等 6s,且结果必然相同
+    // Avatar + name: one copy of each globally, sent once with the first screen (kept out of
+    // every message to avoid bloat and stutter)
+    // persona was already read at the top of the function (with a 3s timeout fallback), so the
+    // second duplicate read here is removed -- awaiting the same provider twice could waste up
+    // to 6s with the result necessarily identical
     String? charUri;
     String? userUri;
     try {
@@ -7646,7 +7769,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     } catch (e) {
       debugPrint('[卡点] 头像转换 超时/出错: $e');
     }
-    // [RC3] 序列化/头像期间可能已有更新的推送启动:过时的本轮直接让位,防双份 initial 清屏
+    // A newer push may have started while serializing / loading avatars: this stale round steps
+    // aside to prevent a double initial clear
     if (epoch != _pushEpoch) {
       debugPrint('[PUSH] epoch=$epoch 已过时(当前=$_pushEpoch),放弃本轮推送');
       return;
@@ -7658,17 +7782,20 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       'userName': persona?.name ?? 'User',
     });
 
-    // 后台静默追加历史消息
+    // Silently append older history in the background
     if (startIndex > 0) {
-      // [优化] 启动延迟 100→50ms,批大小 20→30:补发整体提速约一半
+      // Startup delay 100 -> 50ms, batch size 20 -> 30: catch-up is about twice as fast
       Future.delayed(const Duration(milliseconds: 50), () async {
         const int historyBatchSize = 30;
-        // [RC1] 游标法覆盖 [0, startIndex) 全部楼层:原 for(start=startIndex-20; start>=0; start-=20)
-        // 在 (total-30)%20≠0 时(如100条→startIndex=70)会漏掉最早的 (total-30)%20 条(floor 1-10),
-        // 造成"顶部楼层永久缺失、滑上去消息消失"。
+        // The cursor approach covers every floor in [0, startIndex): the original
+        // for (start = startIndex - 20; start >= 0; start -= 20) missed the earliest
+        // (total - 30) % 20 floors when (total - 30) % 20 != 0 (e.g. 100 messages ->
+        // startIndex = 70), leaving floors 1-10 permanently missing ("messages disappear
+        // when you scroll to the top").
         var cursor = startIndex;
         while (cursor > 0) {
-          // [RC3] 每批前检查代际:期间发生过新渲染,本循环立即作废(新推送自己会补发历史)
+          // Check the generation before each batch: if a new render happened meanwhile this
+          // loop invalidates itself immediately (the new push catches up history on its own)
           if (epoch != _pushEpoch) {
             debugPrint('[PUSH] epoch=$epoch 补发作废(当前=$_pushEpoch),已补到index=$cursor');
             return;
@@ -7680,12 +7807,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             batch.add(_safeSerializeMessage(messages[i], i, lastAiIndex, character, scripts));
           }
           if (batch.isNotEmpty) {
-            // [P1-A4] JS 侧 prepend 逐条 insertBefore(root.firstChild) 是反向插入，
-            // 升序发批会导致批内阅读顺序颠倒 → 发送侧用 batch.reversed 补偿。
-            // 这是「补偿 JS 反向插入」的隐式耦合；P2 应改为 JS 侧用固定锚点插入、
-            // Dart 保持自然升序，还这块解耦。
+            // JS-side prepend inserts one item at a time via insertBefore(root.firstChild),
+            // which reverses the order, so sending batches in ascending order would read
+            // backwards within a batch -> the sender compensates with batch.reversed.
+            // This is an implicit coupling to "compensate for JS's reverse insertion"; in P2
+            // the JS side should insert against a fixed anchor and Dart should keep natural
+            // ascending order, decoupling this.
             await _sendEncodedMessages(batch.reversed.toList(), prepend: true);
-            // [优化] 批间让出 16→8ms:仍防连续多批阻塞,节奏减半
+            // Yield between batches 16 -> 8ms: still prevents consecutive batches from blocking, at half the cadence
             await Future.delayed(const Duration(milliseconds: 8));
           }
           cursor = batchStart;
@@ -7693,12 +7822,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       });
     }
 
-    // setMessages 之后，图片通过独立通道逐张推送（占位 img 已在 html 中）
+    // After setMessages, images are pushed one by one through a separate channel (the placeholder img is already in the html)
     _pushImages(messages);
   }
 
-  /// 把所有消息的图片附件逐张 base64 推给 WebView，按 data-att-path 匹配占位 img。
-  /// 每张独立发送，setMessages payload 不再因图片膨胀，大图也不会撑爆传输。
+  /// Pushes every message's image attachments to the WebView one base64 image at a time,
+  /// matching the placeholder img by data-att-path.
+  /// Each image is sent separately so the setMessages payload no longer bloats with images,
+  /// and large images cannot blow up the transfer.
   Future<void> _pushImages(List<ChatMessage> messages) async {
     for (final m in messages) {
       if (m.attachments.isEmpty) continue;
@@ -7717,26 +7848,26 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
             'mime': att.mimeType ?? 'image/jpeg',
             'b64': b64,
           });
-          // 让出事件循环，避免连续多图一次性阻塞
+          // Yield to the event loop so a run of images does not block at once
           await Future.delayed(const Duration(milliseconds: 8));
         } catch (_) {
-          // 单张失败跳过
+          // Skip on a single image failure
         }
       }
     }
   }
 
-  /// 给引号/括号包裹的对话内容加高亮span（符号连同内容一起染色）
-  /// 引号类 → quote-q（主色A暖橙），括号类 → quote-p（主色B碧蓝）
+  /// Adds a highlight span to quoted/bracketed dialogue (the markers are colored along with the content)
+  /// Quote-style markers -> quote-q (primary A, warm orange), bracket-style -> quote-p (primary B, cyan blue)
   String _highlightQuotes(String html) {
-    // 引号/方括号/书名号类：每种符号各自配对，符号+内容整体染
+    // Quote / square bracket / book title mark styles: each marker pairs with itself, markers and content colored together
     final quotePattern = RegExp(
         r'“[^”\r\n]*”|「[^」\r\n]*」|『[^』\r\n]*』|【[^】\r\n]*】|《[^》\r\n]*》',
         dotAll: true);
     html = html.replaceAllMapped(quotePattern, (m) {
       return '<span class="quote-q">${m.group(0)}</span>';
     });
-    // 圆括号类：中文圆括号、英文圆括号（符号+内容整体染）
+    // Parenthesis styles: Chinese and English parentheses (markers and content colored together)
     final parenPattern = RegExp(r'[（(][^（）()]*[）)]', dotAll: true);
     html = html.replaceAllMapped(parenPattern, (m) {
       return '<span class="quote-p">${m.group(0)}</span>';
@@ -7744,13 +7875,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     return html;
   }
 
-  /// Color转CSS十六进制字符串，供内联到webview样式变量
+  /// Converts a Color to a CSS hex string, for inlining into webview style variables
   String _colorToCss(Color c) =>
       '#${c.value.toRadixString(16).substring(2).padLeft(6, '0')}';
-  // ── HTML 骨架 ─────────────────────────────────────────────────────────────
+  // HTML skeleton
 
   String _chatStageErrorPage(String reason) {
-    // 显性失败页:asset 缺失/读取异常让用户立刻看到"哪里坏了",而不是白屏。
+    // Explicit failure page: a missing/unreadable asset shows the user exactly what broke
+    // instead of a white screen.
     return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>聊天壳加载失败</title></head>'
         '<body style="margin:24px;background:#14161C;color:#F5F7FA;'
         'font-family:-apple-system,BlinkMacSystemFont,sans-serif;">'
@@ -7770,9 +7902,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         '</div></body></html>';
   }
 
-  // [优化] _htmlShell 键控缓存:replaceAll 要扫 313KB×4,InAppWebView 只在创建时用
-  // initialData,键盘显隐等 setState 重建 build 时是纯白算。键含 quote 颜色 + 顶栏 inset
-  // (仅有的两个动态量),变了才重算,正确性与旧实现一致。
+  // Cached key for _htmlShell: replaceAll has to scan 313KB x 4, and InAppWebView only uses
+  // initialData on creation -- rebuilding it in build on keyboard show/hide setState was pure
+  // waste. The key holds the quote colors + top bar inset (the only two dynamic values), so it
+  // recomputes only when they change; correctness matches the old implementation.
   String? _cachedHtmlShell;
   String? _cachedHtmlShellKey;
 
@@ -7791,12 +7924,14 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final shell = html
         .replaceAll('__KIRA_QUOTE_Q_COLOR__', _colorToCss(ref.watch(quoteColorStateProvider).primaryA))
         .replaceAll('__KIRA_QUOTE_P_COLOR__', _colorToCss(ref.watch(quoteColorStateProvider).primaryB))
-        // [顶栏] 初始内容起始位置直接烘进 HTML:WebView 全出血后首帧就要避开顶栏,
-        // 不能等桥消息到达(会闪一下)
+        // The initial content start position is baked into the HTML: once the WebView goes
+        // edge-to-edge the first frame must already clear the top bar, and waiting for a bridge
+        // message would flash briefly
         .replaceAll('__KIRA_TOP_INSET__',
             (56 + MediaQuery.viewPaddingOf(context).top + 12).toStringAsFixed(1))
         .replaceAll('__KIRA_CHAT_BRIDGE__', bridge)
-        // [优化] 调试扫描总开关(kDebugMode 烘入,生产默认关,见 chat_stage.html head)
+        // Master switch for the debug scan (baked in from kDebugMode, off in production by
+        // default; see chat_stage.html head)
         .replaceAll('__KIRA_DEBUG__', kDebugMode ? 'true' : 'false');
     _cachedHtmlShell = shell;
     _cachedHtmlShellKey = key;
@@ -7804,9 +7939,8 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  全屏编辑页：不透明全屏 = WebView 被完全遮住 = 无合成开销 = 120fps 丝滑
-// ─────────────────────────────────────────────────────────────────────────────
+// Full-screen edit page: an opaque fullscreen = the WebView is fully covered = no compositing
+// overhead = smooth 120fps
 
 class _EditMessagePage extends StatefulWidget {
   final String initialText;
@@ -7829,8 +7963,9 @@ class _EditMessagePageState extends State<_EditMessagePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // [键盘] 固定布局:键盘 inset 逐帧变化不再重排 expands 字段,
-      // 长按选择/复制工具栏不会被弹起的键盘打断(键盘鬼畜根因)
+      // Fixed layout: the keyboard inset changing frame by frame no longer re-lays-out the
+      // expands field, so the long-press select/copy toolbar is not interrupted by the rising
+      // keyboard (root cause of the keyboard thrash)
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('编辑消息'),
@@ -7845,9 +7980,10 @@ class _EditMessagePageState extends State<_EditMessagePage> {
           ),
         ],
       ),
-      // [鬼畜修复] 普通 Padding 直接跟随系统 viewInsets:AnimatedPadding 的 200ms
-      // 动画会与系统键盘动画叠加,拖拽选择时每帧重排 expands 字段 → 选择手柄反复
-      // 重定位 → haptic 连发 + 视觉抖动。
+      // Jitter fix: plain Padding follows the system viewInsets directly. AnimatedPadding's
+      // 200ms animation stacked on top of the system keyboard animation re-laid-out the expands
+      // field every frame while dragging a selection -> the selection handles kept re-locating
+      // -> repeated haptics + visual jitter.
       body: Padding(
         padding: EdgeInsets.only(
           left: 16,
@@ -7867,8 +8003,9 @@ class _EditMessagePageState extends State<_EditMessagePage> {
     );
   }
 }
-/// 圆形操作按钮：图标严格居中 + 按下态反馈 + 触觉。
-/// 替代 IconButton.filled（其内部最小交互尺寸约束会把图标挤偏）。
+/// Circular action button: icon strictly centered + pressed-state feedback + haptics.
+/// Stands in for IconButton.filled (whose internal minimum interaction size constraint nudges
+/// the icon off-center).
 class _CircleActionButton extends StatelessWidget {
   final IconData icon;
   final Color background;
@@ -7893,7 +8030,7 @@ class _CircleActionButton extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          // 按下时的水波纹 + 高亮，给明确点击反馈
+          // Ripple + highlight on press, giving clear click feedback
           splashColor: Colors.white.withValues(alpha: 0.22),
           highlightColor: Colors.white.withValues(alpha: 0.12),
           child: SizedBox(
@@ -7909,7 +8046,7 @@ class _CircleActionButton extends StatelessWidget {
   }
 }
 
-/// 呼吸感的 ✨ 星星：亮一下暗一下，用于"正在生成图片"提示。
+/// A breathing sparkle that brightens and dims, used as the "generating image" indicator.
 class _BreathingStar extends StatefulWidget {
   @override
   State<_BreathingStar> createState() => _BreathingStarState();
@@ -7941,7 +8078,7 @@ class _BreathingStarState extends State<_BreathingStar>
 
 class _FullImageViewer extends StatelessWidget {
   final String path;
-  final VoidCallback? onRegenerate; // 为 null 时不显示重新生成按钮
+  final VoidCallback? onRegenerate; // when null the regenerate button is hidden
   const _FullImageViewer({required this.path, this.onRegenerate});
 
   @override
@@ -7985,51 +8122,61 @@ class _FullImageViewer extends StatelessWidget {
   }
 }
 
-/// [MD修复2] HTML卡片判定(文档级证据):
-/// a) 首个非空白字符是标签开始(<字母 或 <!),或
-/// b) 内容以 <!DOCTYPE / <html 文档标记开头(docStart 分支裁剪后即如此)。
-/// 旧子串级判定(<style|<script|<body 提及即真)会把"正文中讲到HTML标签的纯文本"
-/// ——讲脚本教程的AI回复必然出现——整条塞进 iframe:透明bg+黑字+空白折叠+
-/// markdown不渲染 → 排版全毁。非围栏的"前导文字+卡片"会退化为可读文本,
-/// 属可接受代价;显式 ```html 围栏路径不受影响。
+/// HTML card detection (document-level evidence):
+/// a) the first non-whitespace character starts a tag (<letter or <!), or
+/// b) the content opens with a <!DOCTYPE / <html document marker (exactly what the docStart
+///    branch leaves after trimming).
+/// The old substring-level check (true if <style|<script|<body was merely mentioned) shoved any
+/// plain text discussing HTML tags -- inevitable in an AI reply explaining scripting -- entirely
+/// into an iframe: transparent bg + black text + blank collapsed content + markdown not rendered
+/// -> layout completely broken. Non-fenced "leading text + card" degrades to readable text, an
+/// acceptable cost; the explicit ```html fence path is unaffected.
 bool _looksLikeHtmlDoc(String s) {
   final t = s.trimLeft();
   return t.isNotEmpty && RegExp(r'^<[a-zA-Z!]').hasMatch(t);
 }
 
-/// 把代码位置的弯引号(智能引号)归一化为直引号。仅用于进 iframe 的 HTML 卡片：
-/// 卡片作者/AI 常用中文弯引号,会破坏 JS 字符串定界(name:'x')与
-/// HTML/SVG 属性定界(viewBox="0"),导致 SyntaxError / 属性截断 → 卡片崩溃。
-/// 借鉴 RisuAI 渲染前归一化(仅阶段1)。正文走 markdown 气泡不经此处,
-/// 弯引号原样保留、_highlightQuotes 染色不受影响。
-/// 保留书名号《》与角引号「」『』(正文排版符,非代码定界符)。
+/// Normalizes curly (smart) quotes at code positions to straight quotes. Only for HTML cards
+/// that go into the iframe: card authors/AI commonly use Chinese curly quotes, which break JS
+/// string delimiters (name:'x') and HTML/SVG attribute delimiters (viewBox="0"), causing
+/// SyntaxError / truncated attributes -> the card crashes.
+/// Modeled on RisuAI's pre-render normalization (stage 1 only). Body text goes through the
+/// markdown bubble and never hits this, so curly quotes are preserved there and the
+/// _highlightQuotes coloring is unaffected.
+/// Book title marks and corner brackets are kept (typography characters, not code delimiters).
 ///
-/// [P3-D] 只在 <script>/<style> 块之外做替换,块内原样保留:
-/// 旧实现全文本替换,把 JS 字符串字面量内部的弯引号也换成直引号
-/// (如 desc:"“深蓝!”…" 被改成 desc:""深蓝!"…" → SyntaxError 整块脚本死亡)。
-/// 块外(HTML 属性/正文/裸文本JS)保持原归一化行为。
-/// 边界: <script> 未闭合 → 非贪婪匹配不命中 → 该段照旧归一化(与旧行为一致);
-/// JS 字符串内的字面量 "</script>" 与浏览器解析行为一致地提前截断块,
-/// 卡片本身已在字符串内写 <\/script> 转义,不受影响。
-/// [Bug4] 剥掉块级元素之间的空白换行（>\n< → ><）。
-/// markdown 包产物中所有原始 < > 都是标签定界符（文本内容已被转义），
-/// 块间空白换行在普通 white-space 下渲染为零高度行（不可见）；
-/// .msg 加 pre-wrap 后会把它们渲染成空行 → 段落间距炸裂。
-/// 剥掉后 pre-wrap 只影响真实文本内容里的换行（含 <pre> 代码块：其内容
-/// 已转义，且尾 \n 前是文本非 >，不受影响）。
+/// Replacements are applied only outside <script>/<style> blocks, leaving block contents intact
+/// (P3-D): the old implementation replaced everywhere, including curly quotes inside JS string
+/// literals (e.g. a desc:"..." value whose content held curly quotes became desc:""..." ->
+/// SyntaxError, killing the whole script). Outside blocks (HTML attributes / body / bare text
+/// in JS) normalization behaves as before.
+/// Edge cases: an unclosed <script> means the non-greedy match does not hit -> that segment is
+/// normalized as before (same as the old behavior);
+/// a literal "</script>" inside a JS string truncates the block early, matching browser parsing;
+/// cards that need it already escape it as <\/script>, so they are unaffected.
+/// Strips the whitespace newlines between block-level elements (>\n< -> ><).
+/// In markdown library output every raw < > is a tag delimiter (text content is already escaped),
+/// and whitespace newlines between blocks render as zero-height lines under normal white-space
+/// (invisible); once .msg gains pre-wrap they render as empty lines -> paragraph spacing blows up.
+/// After stripping, pre-wrap only affects real line breaks inside text content (including <pre>
+/// code blocks: their content is already escaped and the char before the trailing \n is text,
+/// not >, so they are unaffected).
 String _stripInterBlockWs(String html) =>
     html.replaceAll(RegExp(r'>[ \t]*\n+[ \t]*<'), '><');
 
 String normalizeCodeQuotes(String html) {
-  // [P3-D1 块感知] 块外归一化，块内原样保留（治正则替换出的游戏HTML内弯引号触发SyntaxError）。
-  // 弯引号作为JS字符串定界符时非法；作为字符串内容时合法（如 desc:"“深蓝!”…"），
-  // 全文替换会把内容里的弯引号也换成直引号 → 字符串提前终止 → 整块脚本死亡。
+  // Block-aware normalization (P3-D1): normalize outside blocks, leave block contents intact
+  // (fixes curly quotes inside a game's HTML triggering SyntaxError after regex replacement).
+  // Curly quotes are illegal as JS string delimiters but legal as string content
+  // (e.g. a desc:"..." value whose content held curly quotes); a global replace would also turn
+  // the ones inside content into straight quotes -> string terminates early -> the script dies.
   String norm(String s) => s
       .replaceAll(RegExp('[\u2018\u2019\u201a\u201b]'), "'")
       .replaceAll(RegExp('[\u201c\u201d\u201e\u201f\uff02]'), '"')
       .replaceAll(RegExp('\u2026+'), '...');
 
-  // 提取所有 <script>/<style> 块（非贪婪，未闭合块不命中 → 该段照旧归一化）
+  // Extract all <script>/<style> blocks (non-greedy; an unclosed block does not match -> that
+  // segment is normalized as before)
   final blocks = RegExp(
     r'<script[^>]*>[\s\S]*?</script>|<style[^>]*>[\s\S]*?</style>',
     caseSensitive: false,
@@ -8039,22 +8186,23 @@ String normalizeCodeQuotes(String html) {
   var last = 0;
 
   for (final m in blocks) {
-    // 块外归一化
+    // normalize outside the block
     buf.write(norm(html.substring(last, m.start)));
-    // 块内原样保留
+    // leave the block intact
     buf.write(html.substring(m.start, m.end));
     last = m.end;
   }
 
-  // 最后一段块外归一化
+  // normalize the final segment outside the blocks
   buf.write(norm(html.substring(last)));
 
   return buf.toString();
 }
 
-/// [顶栏] 滑动显隐包装:Scaffold 布局位不变(extendBodyBehindAppBar 下 body 全出血,
-/// WebView 几何零变化),仅视觉平移出屏;FractionalTranslation 的命中测试跟随位移,
-/// 滑走后按钮不可误触。
+/// Slide-to-hide wrapper: the Scaffold layout slot does not move (under extendBodyBehindAppBar
+/// the body runs edge-to-edge, so the WebView geometry is unchanged) -- only the visual slides
+/// off screen; FractionalTranslation's hit testing follows the offset, so the buttons cannot be
+/// tapped accidentally once slid away.
 class _SlidingAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool visible;
   final PreferredSizeWidget child;
@@ -8074,8 +8222,10 @@ class _SlidingAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 }
-/// [STT] 话筒按钮：长按开始录音（图标变红），松开识别并把结果填入输入框。
-/// 短按不触发录音（长按语义），中途手势被夺走走 onCancel 丢弃。
+/// STT mic button: long-press to start recording (icon turns red), release to recognize and
+/// fill the result into the input box.
+/// A short tap does not start recording (long-press semantics); if the gesture is taken over
+/// midway, onCancel discards it.
 class _SttMicButton extends StatelessWidget {
   const _SttMicButton({
     required this.color,
@@ -8109,9 +8259,10 @@ class _SttMicButton extends StatelessWidget {
     );
   }
 }
-/// [极客Core迁移 P5.3] 输入框旁的 token 计数徽标
-/// 消费 tokenizerSettingsProvider.showTokenCount(此前未接线);
-/// 监听输入框变化,仅重建自身,不逐键重建整个输入栏。
+/// Token count badge next to the input box.
+/// Consumes tokenizerSettingsProvider.showTokenCount (previously unwired);
+/// listens for input changes and rebuilds only itself instead of rebuilding the whole input
+/// bar on every keystroke.
 class _TokenCountBadge extends ConsumerStatefulWidget {
   const _TokenCountBadge({required this.controller, required this.color});
 

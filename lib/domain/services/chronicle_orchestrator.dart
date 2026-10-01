@@ -13,11 +13,13 @@ import 'package:kirakira/domain/services/vector_storage_service.dart';
 import 'package:kirakira/data/models/vector_storage.dart' as vs;
 import 'package:uuid/uuid.dart';
 
-/// [CHRONICLE Phase 1] 超级记忆调度器。
+/// Super memory orchestrator.
 ///
-/// 调整B：前台异步 Timer 轮询消费任务队列，**不使用后台isolate**——
-/// database.dart:372 明确"后台isolate写DB会被OS杀导致写丢失"。
-/// 所有 DB 读写都发生在主isolate；LLM调用/网络为IO等待不阻塞UI。
+/// The task queue is consumed by a foreground async timer instead of a
+/// background isolate: background isolates writing to the DB can be killed by
+/// the OS, causing lost writes (see database.dart:372). All DB reads/writes
+/// happen on the main isolate; LLM calls and network IO waits do not block
+/// the UI.
 class ChronicleOrchestrator {
   final ChronicleRepository _repo;
   final ChatSummarizationService _summarizationService;
@@ -25,13 +27,13 @@ class ChronicleOrchestrator {
   final EmbeddingService _embedder;
   final VectorStorageService _vectorStorage;
 
-  /// 运行时设置/LLM配置的只读getter（由Provider接线，避免orchestrator依赖Riverpod）
+  /// Read-only getters for runtime settings and LLM config (wired by Provider so the orchestrator does not depend on Riverpod)
   final vs.VectorStorageSettings Function() vectorSettingsGetter;
   final LLMConfig Function() llmConfigGetter;
   final models.ChronicleSettings Function() settingsGetter;
 
   Timer? _pollTimer;
-  bool _processing = false; // 单飞守卫：Timer重入保护
+  bool _processing = false; // Single-flight guard against timer re-entry
   static const _uuid = Uuid();
 
   ChronicleOrchestrator({
@@ -51,15 +53,15 @@ class ChronicleOrchestrator {
     start();
   }
 
-  /// 启动队列轮询（30s一次，幂等）
+  /// Start queue polling (every 30s, idempotent)
   void start() {
-    // 启动时重置僵尸任务（app被杀后running任务永远卡住队列）
+    // Reset zombie tasks on startup (running tasks stuck in the queue after the app is killed)
     unawaited(_repo.resetStuckRunningTasks());
     _pollTimer ??= Timer.periodic(
       const Duration(seconds: 30),
       (_) => _processPendingTasks(),
     );
-    // 启动时立即跑一轮，消化积压
+    // Run one pass immediately on startup to drain the backlog
     unawaited(_processPendingTasks());
   }
 
@@ -68,11 +70,13 @@ class ChronicleOrchestrator {
     _pollTimer = null;
   }
 
-  // ═══════════════════ 触发检查（发消息后异步调用） ═══════════════════
+  // Trigger checks (called asynchronously after sending a message)
 
-  /// 检查触发条件并入队。返回 true=Chronicle已接管（调用方跳过旧总结路径）。
-  /// [改进1] token 压力已移除（只作为 UI 建议指标，不影响自动触发）。
-  /// force=true（Wiki面板手动整理）：跳过轮次阈值与失败退避，全部归档立即入队。
+  /// Check trigger conditions and enqueue. Returns true when Chronicle takes
+  /// over (the caller skips the legacy summarization path). Token pressure is
+  /// only a UI suggestion metric and does not affect automatic triggering.
+  /// When force=true (manual tidy-up from the wiki panel), skips the turn
+  /// threshold and failure backoff and enqueues all messages immediately.
   Future<bool> checkAndEnqueue({
     required String chatId,
     required List<ChatMessage> messages,
@@ -88,32 +92,36 @@ class ChronicleOrchestrator {
           .where((m) => !archivedIds.contains(m.id) && !m.isHidden)
           .toList();
 
-      if (unarchived.isEmpty) return true; // 无可归档，但Chronicle已接管
+      if (unarchived.isEmpty) return true; // nothing to archive, but Chronicle has taken over
 
-      // [Bug2] 按轮次（user消息数）计，1 user + 1 assistant = 1轮；
-      // summaryInterval单位=轮。阈值统计口径=全部未归档 user 消息数。
-      // [改进1] 移除 token 压力判断：token 压力只作为 UI 建议指标。
+      // Turn counting is based on user messages: 1 user + 1 assistant = 1 turn;
+      // summaryInterval is measured in turns. The threshold counts all
+      // unarchived user messages. Token pressure is only a UI suggestion metric.
       final unarchivedUserTurns =
           unarchived.where((m) => m.role == MessageRole.user).length;
-      // [改进2] 满了等一条再总结（> 而非 >=）：checkAndEnqueue 在用户新消息落库
-      // 后触发，此刻最新一轮尚不完整（AI 未回复）；等一轮完整后才总结，
-      // 防止用户重试最后一条时该条被排除在总结外。
+      // Trigger with > rather than >=: checkAndEnqueue fires after a new user
+      // message is persisted, at which point the latest turn is incomplete
+      // (AI has not replied yet). Wait until a full turn completes before
+      // summarizing, so the message is not excluded when the user retries
+      // the last message.
       final bool shouldTrigger = unarchivedUserTurns > settings.summaryInterval;
       debugPrint('[Chronicle] 触发检查: 未归档 $unarchivedUserTurns 轮, '
           '阈值 ${settings.summaryInterval}, 触发=$shouldTrigger');
 
-      if (!force && !shouldTrigger) return true; // 未达阈值，已接管
+      if (!force && !shouldTrigger) return true; // below threshold, already taken over
 
-      // [改进2] 自动触发：总结最早的 summaryInterval 轮（1轮=user+AI≈2条消息），
-      // 留下最新的；
-      // [改进3] force（Wiki面板手动整理）= 全部归档，不留热窗。
+      // Automatic trigger: summarize the oldest summaryInterval turns
+      // (1 turn = user + AI, about 2 messages), keeping the newest ones.
+      // force (manual tidy-up from the wiki panel) archives everything,
+      // leaving no hot window.
       final toArchive = (force
               ? unarchived
               : unarchived.take(settings.summaryInterval * 2))
           .map((m) => m.id)
           .toList();
 
-      // 失败任务退避：超过最大重试次数停止入队，等待用户手动干预（force跳过）
+      // Failed-task backoff: stop enqueuing once max retries are exceeded and
+      // wait for manual intervention (force skips this)
       if (!force) {
         final failedCount = await _repo.getFailedTaskCountForChat(chatId);
         if (failedCount >= settings.maxRetries) {
@@ -139,14 +147,15 @@ class ChronicleOrchestrator {
     }
   }
 
-  /// [Phase 3] 话题切换触发：提前压缩溢出热窗的消息（不管轮次阈值）。
-  /// 由召回服务检测到话题切换后异步调用，绝不阻塞对话。
+  /// Topic-shift trigger: pre-emptively archive messages overflowing the hot
+  /// window (ignoring the turn threshold). Called asynchronously by the recall
+  /// service after a topic shift is detected; never blocks the conversation.
   Future<void> onTopicShift(
       String chatId, List<ChatMessage> messages) async {
     try {
       final settings = settingsGetter();
       if (!settings.enabled) return;
-      if (await _repo.hasActiveTaskForChat(chatId)) return; // 已有任务，不重复入队
+      if (await _repo.hasActiveTaskForChat(chatId)) return; // task already exists, do not enqueue again
 
       final archivedIds = await _repo.getArchivedMessageIds(chatId);
       final unarchived = messages
@@ -154,7 +163,7 @@ class ChronicleOrchestrator {
           .toList();
       final overflowCount =
           (unarchived.length - settings.hotWindowSize).clamp(0, unarchived.length);
-      if (overflowCount <= 0) return; // 热窗未满，无需压缩
+      if (overflowCount <= 0) return; // hot window not full, no need to compress
 
       final toArchive =
           unarchived.sublist(0, overflowCount).map((m) => m.id).toList();
@@ -172,14 +181,16 @@ class ChronicleOrchestrator {
     }
   }
 
-  // ═══════════════════ 队列消费 ═══════════════════
+  // Queue consumption
 
-  /// 立即触发一轮队列消费（幂等，单飞守卫保护；供面板手动入队后快速执行）
+  /// Trigger one queue-consumption pass immediately (idempotent, guarded by
+  /// the single-flight guard; used after manual enqueuing from the panel)
   void kickProcess() => unawaited(_processPendingTasks());
 
-  /// [单条重新总结] 针对词条源消息重新总结，替换旧词条。
-  /// 返回错误信息（null=成功，含"无产出保留原词条"场景）。
-  /// 耗时操作（LLM调用），调用方负责loading通知与错误展示。
+  /// Re-summarize from an entry's source messages and replace the old entry.
+  /// Returns an error message (null = success, including the "empty output
+  /// keeps the original entry" case). Long-running (LLM call); the caller is
+  /// responsible for loading feedback and error display.
   Future<String?> resummarizeEntry(
     String chatId,
     String entryId,
@@ -212,13 +223,13 @@ class ChronicleOrchestrator {
         extraRequirement: extraRequirement,
       );
 
-      // 空产出（LLM判定无变化）保留原词条，避免误删
+      // Empty output (LLM detected no changes): keep the original entry to avoid accidental deletion
       if (output.isEmpty) {
         debugPrint('[CHRONICLE] 单条重总结无产出，保留原词条');
         return null;
       }
 
-      // 删除旧词条 → 应用新词条（源消息沿用，turnIndex保持原值）
+      // Delete the old entry, then apply the new one (source messages carried over, turnIndex kept)
       await _repo.deleteEntry(entryId);
       final touchedEntries =
           await _applySummary(chatId, output, sourceIds, entry.turnIndex);
@@ -233,8 +244,11 @@ class ChronicleOrchestrator {
     }
   }
 
-  /// [修改三] Chronicle 专属总结模型配置：三项配置任一非空 → 走专属 openAICompatible，
-  /// 全空则沿用主对话模型（兼容旧 summaryModel 字段）。任务消费与单条重总结共用。
+  /// Chronicle-specific summary model config: if any of the three fields is
+  /// non-empty, use a dedicated openAICompatible provider; if all are empty,
+  /// fall back to the main chat model (backward compatible with the legacy
+  /// summaryModel field). Shared by task consumption and single-entry
+  /// re-summary.
   LLMConfig _buildSummaryConfig(
       models.ChronicleSettings settings, LLMConfig config) {
     final LLMConfig summaryConfig;
@@ -265,7 +279,7 @@ class ChronicleOrchestrator {
     return summaryConfig;
   }
 
-  /// 从消息中提取角色名/用户名（取不到用默认值，不阻断）
+  /// Extract character/user names from messages (fall back to defaults when unavailable)
   static (String, String) _extractNames(List<ChatMessage> messages) {
     String characterName = 'Char';
     String userName = 'User';
@@ -282,7 +296,7 @@ class ChronicleOrchestrator {
   }
 
   Future<void> _processPendingTasks() async {
-    if (_processing) return; // 单飞
+    if (_processing) return; // single-flight
     _processing = true;
     try {
       final tasks = await _repo.getPendingTasks(limit: 1);
@@ -305,7 +319,7 @@ class ChronicleOrchestrator {
         final config = llmConfigGetter();
         final summaryConfig = _buildSummaryConfig(settings, config);
 
-        // 1. [Phase 2] 结构化JSON抽取（失败降级纯文本，H5）
+        // 1. Structured JSON extraction (falls back to plain text on failure)
         final existingWiki = await _buildExistingWikiText(task.chatId);
         final (characterName, userName) = _extractNames(messages);
         final output = await _chronicleSummaryService.summarize(
@@ -319,16 +333,16 @@ class ChronicleOrchestrator {
           userName: userName,
         );
 
-        // 2. 应用增量patch到Wiki
+        // 2. Apply the incremental patch to the wiki
         final touchedEntries =
             await _applySummary(task.chatId, output, messageIds, task.toTurn);
 
-        // 3. 向量化所有新建/更新词条
+        // 3. Vectorize all new/updated entries
         for (final entry in touchedEntries) {
           await _vectorizeEntry(entry);
         }
 
-        // 4. 空输出（LLM判定无变化）跳过归档，任务仍标完成
+        // 4. Skip archiving on empty output (no LLM-detected changes), but still mark the task done
         if (!output.isEmpty) {
           await _repo.markMessagesArchived(task.chatId, messageIds);
         }
@@ -352,15 +366,17 @@ class ChronicleOrchestrator {
     }
   }
 
-  /// 构建现有Wiki快照文本（喂给总结Prompt，供LLM判断增量）。
-  /// 时序修复：按turnIndex升序排列，格式带轮次标记，id供deprecated_ids引用。
+  /// Build the existing wiki snapshot text (fed to the summary prompt so the
+  /// LLM can produce incremental changes). Entries are sorted by turnIndex
+  /// ascending and formatted with turn labels; ids are referenced by
+  /// deprecated_ids.
   Future<String> _buildExistingWikiText(String chatId) async {
     final buffer = StringBuffer();
     final activeEntries = (await _repo.getAllEntries(chatId))
         .where((e) => !e.deprecated)
         .toList()
       ..sort((a, b) => a.turnIndex.compareTo(b.turnIndex));
-    // 最近30条即可（控制prompt体积）；已按turnIndex升序，取最新的30条
+    // Keep only the most recent 30 entries to control prompt size; already sorted by turnIndex ascending
     final recent = activeEntries.length > 30
         ? activeEntries.sublist(activeEntries.length - 30)
         : activeEntries;
@@ -378,7 +394,7 @@ class ChronicleOrchestrator {
     return buffer.toString();
   }
 
-  /// 应用LLM输出的增量patch。返回被新建/更新的词条（待向量化）。
+  /// Apply the incremental patch from LLM output. Returns new/updated entries (pending vectorization).
   Future<List<models.MemoryEntry>> _applySummary(
     String chatId,
     models.ChronicleSummaryOutput output,
@@ -388,7 +404,7 @@ class ChronicleOrchestrator {
     final touched = <models.MemoryEntry>[];
     final now = DateTime.now();
 
-    // ① 实体upsert → 名字→id映射
+    // 1. Entity upsert, building name-to-id mapping
     final entityIdByName = <String, String>{};
     for (final inst in output.entities) {
       if (inst.name.isEmpty) continue;
@@ -398,7 +414,7 @@ class ChronicleOrchestrator {
           entity.name, () => entity.id);
     }
 
-    // ② 词条upsert
+    // 2. Entry upsert
     for (final inst in output.entries) {
       if (inst.title.isEmpty && inst.content.isEmpty) continue;
       final resolvedEntityIds = <String>[];
@@ -407,7 +423,7 @@ class ChronicleOrchestrator {
         if (id != null) {
           resolvedEntityIds.add(id);
         } else {
-          // 引用但未在本轮定义的实体 → 尝试按名查找
+          // Entity referenced but not defined in this turn: try looking it up by name
           final found = await _repo.getEntityByName(chatId, name);
           if (found != null) {
             entityIdByName[name] = found.id;
@@ -415,13 +431,13 @@ class ChronicleOrchestrator {
           }
         }
       }
-      // 有id且属于本聊天 → 更新；否则系统兜底查重再决定新建/覆盖
+      // If an id exists and belongs to this chat, update; otherwise fall back to dedup checks to decide create vs overwrite
       models.MemoryEntry? existing;
       if (inst.id != null && inst.id!.isNotEmpty) {
         final candidates = await _repo.getEntriesByIds(chatId, [inst.id!]);
         existing = candidates.isEmpty ? null : candidates.first;
       } else if (inst.content.isNotEmpty) {
-        // [Part A] 模型没带ID → 向量相似度兜底查重（≥0.92 视为同一件事，复用旧ID覆盖）
+        // Model did not provide an id: fall back to vector-similarity dedup (>= 0.92 treated as the same event, reuse the old id to overwrite)
         final dupId =
             await _findDuplicateEntry(chatId, inst.content, inst.title);
         if (dupId != null) {
@@ -462,7 +478,7 @@ class ChronicleOrchestrator {
       touched.add(entry);
     }
 
-    // ③ 关系upsert（名字→id解析，缺实体则自动建）
+    // 3. Relationship upsert (name-to-id resolution; missing entities auto-created)
     for (final inst in output.relationships) {
       final fromId = await _resolveEntityId(chatId, inst.fromName, entityIdByName);
       final toId = await _resolveEntityId(chatId, inst.toName, entityIdByName);
@@ -475,7 +491,7 @@ class ChronicleOrchestrator {
       );
     }
 
-    // ④ 情感upsert
+    // 4. Emotion upsert
     for (final inst in output.emotions) {
       final entityId =
           await _resolveEntityId(chatId, inst.entityName, entityIdByName);
@@ -484,14 +500,17 @@ class ChronicleOrchestrator {
           entityId: entityId, turnIndex: turnIndex);
     }
 
-    // ⑤ 过时词条标记
+    // 5. Deprecate stale entries
     for (final id in output.deprecatedIds) {
       await _repo.deprecateEntry(id);
     }
 
-    // ⑥ H5降级：JSON解析失败 → 纯文本词条（与旧总结同等质量）
-    // tags"降级总结"便于识别：单pass路径同一聊天只保留一条fallback词条，upsert覆盖而非新建；
-    // 多pass路径的降级词条（带轮次title）由summarize聚合循环产出，走上方正常upsert
+    // 6. Fallback when JSON parsing fails: plain-text entry (same quality as
+    // the legacy summary). The '降级总结' tag aids identification: on the
+    // single-pass path only one fallback entry is kept per chat, upserted
+    // (overwritten) rather than created; multi-pass fallback entries (with
+    // turn-based titles) are produced by the summarize aggregation loop and
+    // go through the normal upsert above.
     if (output.fallbackText != null && output.fallbackText!.isNotEmpty) {
       final all = await _repo.getAllEntries(chatId);
       models.MemoryEntry? existingFallback;
@@ -537,7 +556,8 @@ class ChronicleOrchestrator {
     return touched;
   }
 
-  /// 名字→实体id；未注册则按名查库，再没有就自动建轻量实体
+  /// Resolve a name to an entity id; look it up by name in the database if
+  /// unregistered, otherwise auto-create a lightweight entity.
   Future<String?> _resolveEntityId(
     String chatId,
     String name,
@@ -559,13 +579,14 @@ class ChronicleOrchestrator {
     return created.id;
   }
 
-  /// 词条向量化：embed后写入本聊天向量集合，documentId='chronicle_<entryId>'。
-  /// metadata.type='chronicle_entry' 与RAG原文向量共存（调整D）。
+  /// Vectorize an entry: embed it and write to the chat's vector collection
+  /// with documentId='chronicle_<entryId>'. metadata.type='chronicle_entry'
+  /// coexists with RAG original-text vectors.
   Future<void> _vectorizeEntry(models.MemoryEntry entry) async {
     try {
       final vsSettings = vectorSettingsGetter();
       final collection = _vectorStorage.getCollection(entry.chatId);
-      if (collection == null) return; // 集合未建（RAG未开），跳过
+      if (collection == null) return; // collection not created (RAG disabled), skip
 
       final vector =
           await _embedder.generateEmbedding(entry.vectorText, vsSettings);
@@ -585,16 +606,18 @@ class ChronicleOrchestrator {
               'tags': entry.tags,
             },
           ));
-      // 回写vectorId（下次更新时覆盖同id向量）
+      // Write back vectorId (the next update overwrites the vector with the same id)
       await _repo.upsertMemoryEntry(entry.copyWith(vectorId: docId));
     } catch (e) {
       debugPrint('[CHRONICLE] 词条向量化跳过（不影响流程）: $e');
     }
   }
 
-  /// [Part A] 向量相似度兜底查重：新词条与现有未过时词条比对，
-  /// 余弦相似度 ≥ 0.92 视为同一件事，返回旧词条id（供复用覆盖）。
-  /// 用于 LLM 未带 id 的新建场景，避免同一事件重复累积词条。
+  /// Vector-similarity dedup fallback: compare a new entry against existing
+  /// non-deprecated entries; cosine similarity >= 0.92 is treated as the same
+  /// event and the old entry id is returned (for reuse/overwrite). Used when
+  /// the LLM creates an entry without an id, preventing duplicate entries
+  /// from accumulating for the same event.
   Future<String?> _findDuplicateEntry(
     String chatId,
     String newContent,
@@ -631,8 +654,10 @@ class ChronicleOrchestrator {
     }
   }
 
-  /// [Phase 4] MVU桥接：数值型变量重大变化（|delta|≥20）→ 记忆事件词条。
-  /// 边界：Chronicle只读MVU数据作为上下文，**绝不回写MVU**（MVU引擎不碰记忆表）。
+  /// MVU bridge: major changes in numeric variables (|delta| >= 20) create a
+  /// memory event entry. Boundary: Chronicle reads MVU data as context only
+  /// and never writes back to MVU (the MVU engine does not touch memory
+  /// tables).
   Future<void> onMvuVariableUpdated(
     String chatId,
     Map<String, dynamic>? oldStat,
@@ -678,9 +703,10 @@ class ChronicleOrchestrator {
     }
   }
 
-  // ═══════════════════ 旧摘要迁移（一次性） ═══════════════════
+  // Legacy summary migration (one-time)
 
-  /// 旧 ChatSummary → Chronicle 初始词条。幂等：已有词条的聊天跳过。
+  /// Migrate legacy ChatSummary records into initial Chronicle entries.
+  /// Idempotent: chats that already have entries are skipped.
   Future<void> migrateOldSummaries(Chat chat) async {
     try {
       if (chat.summaries.isEmpty) return;
@@ -697,7 +723,7 @@ class ChronicleOrchestrator {
           title: '历史总结（迁移自旧版）',
           content: content,
           importance: 7,
-          alwaysInject: true, // 旧总结默认始终注入
+          alwaysInject: true, // legacy summaries default to always-inject
           anchor: false,
           tags: const [],
           sourceMessageIds: const [],
@@ -713,7 +739,7 @@ class ChronicleOrchestrator {
     }
   }
 
-  // ═══════════════════ 工具 ═══════════════════
+  // Utilities
 
   static List<String> _parseIds(String json) {
     try {

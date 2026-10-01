@@ -1,26 +1,28 @@
-/// 公告数据模型
+/// Announcement data model.
 ///
-/// 双轨：update（更新公告，按哈希去重）/ daily（日常公告，按 id 去重 + 时效过滤）。
-/// 对应远程 announcement.json 的结构。字段全部可选降级：
-/// 任何字段缺失或为空都不影响解析，UI层自行判断是否展示。
+/// Dual track: update (update announcements, deduplicated by hash) and daily
+/// (daily announcements, deduplicated by id plus time-window filtering).
+/// Maps to the remote announcement.json structure. All fields are optional
+/// with graceful degradation: missing or empty fields never break parsing;
+/// the UI layer decides whether to display.
 enum AnnouncementType {
-  update, // 更新公告
-  daily, // 日常公告
+  update, // Update announcement
+  daily, // Daily announcement
 }
 
 class Announcement {
-  final String id; // 唯一标识（更新公告用哈希前8位，日常公告用 JSON 的 id）
-  final AnnouncementType type; // 类型
-  final String version; // 保留字段（更新公告用，日常公告为空）
-  final String title; // 公告标题
-  final String content; // 公告正文，Markdown 格式
-  final String imageUrl; // 顶部横幅图，空则不显示
-  final String downloadUrl; // 新版下载地址，空则不显示下载按钮
-  final bool forceUpdate; // 保留但不使用
-  final String minAppVersion; // 保留但不使用
-  final DateTime? publishTime; // 日常公告专用
-  final DateTime? expireTime; // 日常公告专用
-  final int priority; // 日常公告排序权重（默认0，越大越优先）
+  final String id; // Unique id (update announcements use the first 8 hash chars, daily use the JSON id)
+  final AnnouncementType type; // Type
+  final String version; // Reserved field (used by update announcements, empty for daily)
+  final String title; // Announcement title
+  final String content; // Announcement body, Markdown format
+  final String imageUrl; // Top banner image, hidden when empty
+  final String downloadUrl; // New version download URL, download button hidden when empty
+  final bool forceUpdate; // Reserved but unused
+  final String minAppVersion; // Reserved but unused
+  final DateTime? publishTime; // Daily announcements only
+  final DateTime? expireTime; // Daily announcements only
+  final int priority; // Daily announcement sort weight (default 0, higher = higher priority)
 
   const Announcement({
     this.id = '',
@@ -37,10 +39,11 @@ class Announcement {
     this.priority = 0,
   });
 
-  /// 从远程 JSON 解析，任何字段缺失都安全降级为默认值。
+  /// Parse from remote JSON; any missing field safely degrades to a default value.
   ///
-  /// [computedHash]：更新公告用于计算 id（'update-' + 哈希前8位）。
-  /// 日常公告必须有 JSON 的 id，缺失时用时间戳兜底。
+  /// [computedHash] is used by update announcements to build the id
+  /// ('update-' + first 8 hash chars). Daily announcements require the JSON id,
+  /// falling back to a timestamp when missing.
   factory Announcement.fromJson(Map<String, dynamic> json,
       {String? computedHash}) {
     final typeStr = json['type'] as String?;
@@ -78,16 +81,16 @@ class Announcement {
     );
   }
 
-  /// 是否有可展示的内容（标题或正文非空才弹窗）
+  /// Whether there is displayable content (dialog only when title or body is non-empty)
   bool get hasContent => title.trim().isNotEmpty || content.trim().isNotEmpty;
 
-  /// 是否有配图
+  /// Whether an image is present
   bool get hasImage => imageUrl.trim().isNotEmpty;
 
-  /// 是否有下载链接
+  /// Whether a download link is present
   bool get hasDownload => downloadUrl.trim().isNotEmpty;
 
-  /// 日常公告是否已过期
+  /// Whether the daily announcement has expired
   bool get isExpired =>
       expireTime != null && DateTime.now().isAfter(expireTime!);
 }

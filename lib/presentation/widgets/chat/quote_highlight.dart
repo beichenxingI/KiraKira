@@ -3,7 +3,7 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../providers/quote_color_providers.dart';
 
-/// 诊断版:合并成一条 syntax,用 visitText 染色,加可视标记验证
+/// Diagnostic version: merged into a single syntax, colored through visitText, with visual markers for verification
 class _DiagQuoteSyntax extends md.InlineSyntax {
   static const tag = 'quote_color';
   _DiagQuoteSyntax()
@@ -59,7 +59,7 @@ class QuoteHighlight {
   const QuoteHighlight(this.syntaxes, this.builders);
 
   static QuoteHighlight build(QuoteColorState state) {
-    // 诊断阶段:忽略配置,统一一条 syntax + 红字黄底
+    // Diagnostic stage: ignore config, use a single syntax + red text on yellow background
     return QuoteHighlight(
       [_DiagQuoteSyntax()],
       {_DiagQuoteSyntax.tag: _DiagQuoteBuilder(state.primaryA)},

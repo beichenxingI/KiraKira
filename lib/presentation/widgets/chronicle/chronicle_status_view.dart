@@ -1,7 +1,7 @@
 // lib/presentation/widgets/chronicle/chronicle_status_view.dart
-/// [改进4] 超级记忆工作状态可视化（五区展示 + 进度条）。
-/// 图标全部 CustomPainter 手绘路径（无 emoji、无 Material Icons、无第三方库），
-/// 进度条 CustomPainter 绘制，颜色跟随主题（深/浅自适应）。
+/// Super Memory status visualization (five-zone display + progress bar).
+/// All icons are hand-drawn CustomPainter paths (no emoji, no Material Icons, no third-party libraries);
+/// the progress bar is drawn with CustomPainter and its colors follow the theme (dark/light adaptive).
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -61,7 +61,7 @@ class _StatusContent extends StatelessWidget {
   }
 }
 
-/// 未总结区（最高优先级）+ 距离下一次总结进度条
+/// Unarchived zone (highest priority) + progress bar toward the next summarize pass
 class _UnarchivedCard extends StatelessWidget {
   final ChronicleVisualizationData data;
   const _UnarchivedCard({required this.data});
@@ -165,7 +165,7 @@ class _UnarchivedCard extends StatelessWidget {
   }
 }
 
-/// 归档区卡片（热/温/冷/超冷）
+/// Archive zone card (hot/warm/cold/frozen)
 class _ZoneCard extends StatelessWidget {
   final ChronicleZone zone;
   const _ZoneCard({required this.zone});
@@ -261,9 +261,9 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// ═══════════════════ 区域配色/文案 ═══════════════════
+// Zone colors and labels
 
-/// 区域主题色（固定色相，深/浅色背景上均可读；文字/底色跟随主题自适应）
+/// Zone theme color (fixed hue, readable on both dark and light backgrounds; text/background adapt to the theme)
 Color _zoneColor(String key) {
   switch (key) {
     case 'hot':
@@ -294,7 +294,7 @@ String _zonePriority(String key) {
   }
 }
 
-// ═══════════════════ 手绘图标（CustomPainter，24x24 设计空间） ═══════════════════
+// Hand-drawn icons (CustomPainter, 24x24 design space)
 
 class _ZoneIcon extends StatelessWidget {
   final String iconKey;
@@ -321,7 +321,7 @@ class _ZoneIcon extends StatelessWidget {
   }
 }
 
-/// 闪电（未总结区）
+/// Lightning bolt (unarchived zone)
 class _BoltIconPainter extends CustomPainter {
   final Color color;
   _BoltIconPainter(this.color);
@@ -350,7 +350,7 @@ class _BoltIconPainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
-/// 火焰（热区）
+/// Flame (hot zone)
 class _FlameIconPainter extends CustomPainter {
   final Color color;
   _FlameIconPainter(this.color);
@@ -395,7 +395,7 @@ class _FlameIconPainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
-/// 温度计（温区）
+/// Thermometer (warm zone)
 class _ThermoIconPainter extends CustomPainter {
   final Color color;
   _ThermoIconPainter(this.color);
@@ -409,7 +409,7 @@ class _ThermoIconPainter extends CustomPainter {
       ..strokeWidth = 2 * s
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-    // 玻璃管：U 形（左壁-顶-右壁），下端接球泡
+    // Glass tube: U shape (left wall - top - right wall), meeting the bulb at the bottom
     final stem = Path()
       ..moveTo(10 * s, 15 * s)
       ..lineTo(10 * s, 4 * s)
@@ -419,9 +419,9 @@ class _ThermoIconPainter extends CustomPainter {
       )
       ..lineTo(14 * s, 15 * s);
     canvas.drawPath(stem, stroke);
-    // 球泡
+    // Bulb
     canvas.drawCircle(Offset(12 * s, 18 * s), 3.5 * s, stroke);
-    // 水银
+    // Mercury
     canvas.drawCircle(
         Offset(12 * s, 18 * s), 1.7 * s, Paint()..color = color);
     canvas.drawRect(
@@ -435,7 +435,7 @@ class _ThermoIconPainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
-/// 雪花（冷区）
+/// Snowflake (cold zone)
 class _SnowflakeIconPainter extends CustomPainter {
   final Color color;
   _SnowflakeIconPainter(this.color);
@@ -449,7 +449,7 @@ class _SnowflakeIconPainter extends CustomPainter {
       ..strokeWidth = 2 * s
       ..strokeCap = StrokeCap.round;
     final c = Offset(12 * s, 12 * s);
-    // 三条主轴（垂直 + 两条对角）
+    // Three main axes (vertical + two diagonals)
     final arms = <List<Offset>>[
       [Offset(12 * s, 2.5 * s), Offset(12 * s, 21.5 * s)],
       [Offset(3.8 * s, 7.2 * s), Offset(20.2 * s, 16.8 * s)],
@@ -458,13 +458,13 @@ class _SnowflakeIconPainter extends CustomPainter {
     for (final arm in arms) {
       canvas.drawLine(arm[0], arm[1], stroke);
     }
-    // 轴端点
+    // Axis endpoints
     final dot = Paint()..color = color;
     for (final arm in arms) {
       canvas.drawCircle(arm[0], 1.3 * s, dot);
       canvas.drawCircle(arm[1], 1.3 * s, dot);
     }
-    // 中心
+    // Center
     canvas.drawCircle(c, 1.6 * s, dot);
   }
 
@@ -473,7 +473,7 @@ class _SnowflakeIconPainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
-/// 归档箱（超冷区：原文已存档淡出）
+/// Archive box (frozen zone: originals archived and faded out)
 class _ArchiveBoxIconPainter extends CustomPainter {
   final Color color;
   _ArchiveBoxIconPainter(this.color);
@@ -487,7 +487,7 @@ class _ArchiveBoxIconPainter extends CustomPainter {
       ..strokeWidth = 2 * s
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-    // 箱体
+    // Box body
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(4 * s, 6.5 * s, 16 * s, 14 * s),
@@ -495,13 +495,13 @@ class _ArchiveBoxIconPainter extends CustomPainter {
       ),
       stroke,
     );
-    // 箱盖分界线
+    // Lid divider line
     canvas.drawLine(
       Offset(4 * s, 10.5 * s),
       Offset(20 * s, 10.5 * s),
       stroke,
     );
-    // 提手
+    // Handle
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(9.5 * s, 13 * s, 5 * s, 2.4 * s),
@@ -516,7 +516,7 @@ class _ArchiveBoxIconPainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
-/// 进度条（CustomPainter 绘制，无第三方库）
+/// Progress bar (drawn with CustomPainter, no third-party library)
 class _ProgressBarPainter extends CustomPainter {
   final double progress; // 0.0-1.0
   final Color backgroundColor;
@@ -531,12 +531,12 @@ class _ProgressBarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final radius = Radius.circular(size.height / 2);
-    // 背景
+    // Background
     canvas.drawRRect(
       RRect.fromRectAndRadius(Offset.zero & size, radius),
       Paint()..color = backgroundColor,
     );
-    // 前景（进度）
+    // Foreground (progress)
     if (progress > 0) {
       final progressWidth = size.width * progress;
       canvas.drawRRect(

@@ -6,30 +6,31 @@ import 'package:uuid/uuid.dart';
 
 /// Service for automatic chat history summarization
 ///
-/// [CHRONICLE v1.0] 旧自动总结已停用（shouldSummarize 恒 false）。
-/// 本service仍保留 generateSummary（Chronicle Phase 1 降级路径复用）
-/// 与 getRecentMessages/createSummaryMessage（兼容读取）。
+/// The legacy automatic summarization is disabled (shouldSummarize always
+/// returns false). This service still provides generateSummary (reused by the
+/// Chronicle fallback path) and getRecentMessages/createSummaryMessage (kept
+/// for backward-compatible reads).
 class ChatSummarizationService {
   final LLMService _llmService;
 
   ChatSummarizationService(this._llmService);
 
-  /// [CHRONICLE Phase 1] 绝对token上限（H7修正：1M上下文时纯比例阈值几乎永不触发）
+  /// Absolute token limit (a pure proportional threshold almost never triggers with 1M context)
   static const int absoluteTokenLimit = 50000;
 
   /// Check if summarization should be triggered based on current context usage
   ///
-  /// [CHRONICLE v1.0] 已强制停用：Chronicle超级记忆接管全部总结功能
-  /// （三窗口滑动 + 异步SummaryTask管线 + wiki词条）。
-  /// 旧自动总结（内存态ChatSummary，重启即失，H1）不再触发。
-  /// TODO: 待Chronicle稳定后删除此service
+  /// Forcefully disabled: Chronicle super memory takes over all summarization
+  /// (three-window sliding + async SummaryTask pipeline + wiki entries).
+  /// Legacy automatic summarization (in-memory ChatSummary, lost on restart)
+  /// no longer triggers. TODO: delete this service once Chronicle is stable.
   Future<bool> shouldSummarize({
     required List<ChatMessage> messages,
     required List<ChatSummary> existingSummaries,
     required LLMConfig config,
   }) async {
-    // Chronicle v1.0已接管总结功能，旧自动总结已停用
-    // TODO: 待Chronicle稳定后删除此service
+    // Chronicle has taken over summarization; legacy automatic summarization is disabled.
+    // TODO: delete this service once Chronicle is stable.
     return false;
   }
 
@@ -139,9 +140,9 @@ class ChatSummarizationService {
     
     // Create a config with modified settings for summarization
     final summaryConfig = config.copyWith(
-      temperature: 0.3, // 降低温度让总结更稳定聚焦
-      maxTokens: 9216, // 给总结足够空间保留细节
-      model: config.summaryModel.isNotEmpty ? config.summaryModel : config.model, // 有自定义总结模型就用它，否则沿用主模型
+      temperature: 0.3, // Lower temperature for more stable, focused summaries
+      maxTokens: 9216, // Enough room to preserve details
+      model: config.summaryModel.isNotEmpty ? config.summaryModel : config.model, // Use the custom summary model if set, otherwise the main model
     );
     
     // Build messages for summarization
@@ -173,46 +174,53 @@ class ChatSummarizationService {
     return allMessages.sublist(startIndex);
   }
 
-  /// [修复] 四窗口切分（未总结区 + 热区 + 温区 + 冷区），[windowSize] 单位为"轮"
-  /// （1 轮 = user + AI ≈ 2 条消息，内部 ×2 转条）。
+  /// Four-window split (unarchived zone + hot + warm + cold zones);
+  /// [windowSize] is measured in turns (1 turn = user + AI, about 2 messages;
+  /// internally multiplied by 2 to convert to messages).
   ///
-  /// - 未总结区：所有未归档消息（最高注意力，注入末尾）
-  /// - 热区：最近 [windowSize] 轮已归档消息（原文+词条）
-  /// - 温区：热区之前的 [windowSize] 轮已归档消息（原文+词条）
-  /// - 冷区：温区之前的 [windowSize] 轮已归档消息（原文+词条）
-  /// - 更早归档：彻底淡出，不注入原文（内容经 F-6/F-7 词条可达）
+  /// - Unarchived zone: all unarchived messages (highest attention, injected
+  ///   at the end)
+  /// - Hot zone: the most recent [windowSize] turns of archived messages
+  ///   (original text + entries)
+  /// - Warm zone: the [windowSize] turns of archived messages before the hot
+  ///   zone (original text + entries)
+  /// - Cold zone: the [windowSize] turns of archived messages before the warm
+  ///   zone (original text + entries)
+  /// - Older archived: fully faded out, original text not injected (content
+  ///   is still reachable via entries through F-6/F-7)
   ///
-  /// 注入顺序 冷→温→热→未总结，利用 Lost in the Middle：越新越靠末尾。
+  /// Injection order is cold, warm, hot, then unarchived, exploiting
+  /// Lost in the Middle: the newer the content, the closer to the end.
   WindowedMessages getWindowedMessages({
     required Set<String> archivedMessageIds,
     required List<ChatMessage> allMessages,
-    int windowSize = 20, // 单位：轮（1 轮 = user + AI ≈ 2 条消息）
+    int windowSize = 20, // in turns (1 turn = user + AI, about 2 messages)
   }) {
     final nonArchived =
         allMessages.where((m) => !archivedMessageIds.contains(m.id)).toList();
     final archived =
         allMessages.where((m) => archivedMessageIds.contains(m.id)).toList();
 
-    // windowSize 按"轮"，转"条"需 ×2
+    // windowSize is in turns; multiply by 2 to convert to messages
     final windowInMessages = windowSize * 2;
 
-    // 未总结区：所有未归档（注入末尾，最高注意力）
+    // Unarchived zone: all unarchived messages (injected at the end, highest attention)
     final unarchived = nonArchived;
 
-    // 热区：最近 windowInMessages 条归档
+    // Hot zone: the most recent windowInMessages archived messages
     final hotStart =
         (archived.length - windowInMessages).clamp(0, archived.length);
     final hot = archived.sublist(hotStart, archived.length);
 
-    // 温区：热区之前的 windowInMessages 条归档
+    // Warm zone: windowInMessages archived messages before the hot zone
     final warmStart = (hotStart - windowInMessages).clamp(0, hotStart);
     final warm = archived.sublist(warmStart, hotStart);
 
-    // 冷区：温区之前的 windowInMessages 条归档
+    // Cold zone: windowInMessages archived messages before the warm zone
     final coldStart = (warmStart - windowInMessages).clamp(0, warmStart);
     final cold = archived.sublist(coldStart, warmStart);
 
-    // 更早归档：不注入原文（只词条经 F-6/F-7 可达）
+    // Older archived: original text not injected (only reachable via entries through F-6/F-7)
 
     return WindowedMessages(
       unarchived: unarchived,

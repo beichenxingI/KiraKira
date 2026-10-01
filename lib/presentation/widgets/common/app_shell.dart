@@ -9,15 +9,15 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // [极客Core迁移 P7] 悬浮球(_AdvancedFab)已随极客Core删除;
-    // advancedModeProvider 保留(仍由 providers_registry 登记)。
+    // The floating ball (_AdvancedFab) was removed together with Geek Core;
+    // advancedModeProvider is kept (still registered in providers_registry).
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      extendBody: true, // true 才让内容滚到底栏底下,blur 有东西可模糊
+      extendBody: true, // true lets content scroll beneath the bottom bar so the blur has something to blur
       body: Stack(children: [
-        // 聊天背景只在这里,不再是全局的
+        // Chat background lives only here, no longer global
         child,
-        // 底栏浮在最上层,和背景叠层,毛玻璃生效
+        // Bottom bar floats on the top layer over the background so the frosted glass takes effect
         Positioned(
           left: 0,
           right: 0,
@@ -59,7 +59,7 @@ class _KiraNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 聊天 tab(/,index 2)关闭 blur:WebView 平台视图规避(A-T6)
+    // Disable blur on the chat tab (/, index 2): workaround for WebView platform views (A-T6)
     final enableBlur = sel != 2;
 
     return Center(

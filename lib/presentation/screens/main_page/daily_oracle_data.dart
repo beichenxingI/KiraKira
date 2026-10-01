@@ -1,21 +1,21 @@
 // lib/presentation/screens/main_page/daily_oracle_data.dart
-/// 每日祈愿·纯本地文案池(返工条目9)。全 const,零网络。
-/// 基调:治愈陪伴,不占卜不吓人,"看完心情变好"是唯一底线。
+/// Daily wish: purely local copy pool. All const, zero network.
+/// Tone: comforting companionship, no fortune-telling scare tactics; "leaves you in a better mood" is the only rule.
 library;
 
 import 'package:flutter/material.dart';
 
-/// 今日关键词(温柔积极)
+/// Today's keywords (gentle and positive)
 const kOracleKeywords = <String>[
   '闪耀', '松弛', '好奇', '温柔', '勇敢', '清澈', '明亮', '轻盈',
   '柔软', '热烈', '安静', '自由', '甜', '新鲜', '舒展', '笃定',
   '浪漫', '灵巧', '暖', '开阔', '细腻', '鲜活', '坦荡', '俏皮',
 ];
 
-/// 运势等级(全是正向/中性,最"低"也是安慰)
+/// Fortune levels (all positive/neutral; even the "lowest" is a comfort)
 const kOracleLevels = <String>['大吉', '上上签', '小确幸', '平和日', '慢慢来'];
 
-/// 今日寄语池(50+,温柔鼓励偶尔皮)
+/// Today's message pool (50+, gentle encouragement with a playful edge)
 const kOracleMessages = <String>[
   '今天的你自带主角光环,主动迈出一步,好消息会跑得更快。',
   '把烦恼写在纸上,再画个笑脸盖住它,今天就归你管。',
@@ -75,23 +75,23 @@ const kOracleMessages = <String>[
   '今晚的梦可能特别好,早点休息去领奖。',
 ];
 
-/// 五维维度名
+/// Five-dimension names
 const kOracleDims = <String>['综合', '灵感', '人缘', '活力', '财运'];
 
-/// 幸运时段
+/// Lucky time slots
 const kLuckyHours = <String>[
   '07:00 - 09:00', '09:00 - 11:00', '11:00 - 13:00', '13:00 - 15:00',
   '15:00 - 17:00', '17:00 - 19:00', '19:00 - 21:00', '21:00 - 23:00',
 ];
 
-/// 幸运方位(接地气版)
+/// Lucky directions (down-to-earth edition)
 const kLuckyDirections = <String>[
   '有绿植的地方', '窗边', '楼下便利店', '书桌朝南的一侧', '阳台',
   '常去的那家店', '有阳光的座位', '图书馆靠窗位', '厨房附近',
   '今天少走回头路', '电梯靠里的位置', '有音乐飘出的街角',
 ];
 
-/// 幸运物(emoji + 名称)
+/// Lucky items (emoji + name)
 const kLuckyItems = <Map<String, String>>[
   {'emoji': '🔑', 'name': '你的旧钥匙扣'},
   {'emoji': '🎧', 'name': '单曲循环的歌'},
@@ -111,7 +111,7 @@ const kLuckyItems = <Map<String, String>>[
   {'emoji': '🍪', 'name': '下午三点的饼干'},
 ];
 
-/// 幸运色(名称 + 色值)
+/// Lucky colors (name + color value)
 const kLuckyColors = <Map<String, dynamic>>[
   {'name': '星云紫', 'color': Color(0xFFB39DDB)},
   {'name': '樱粉', 'color': Color(0xFFF8BBD0)},
@@ -125,7 +125,7 @@ const kLuckyColors = <Map<String, dynamic>>[
   {'name': '青柠', 'color': Color(0xFFDCE775)},
 ];
 
-/// 宜(暖的小事)
+/// Do's (warm little things)
 const kDos = <String>[
   '夸奖自己', '尝试新歌单', '完成一件小事', '早点睡', '多喝水',
   '给旧友发句话', '晒晒太阳', '整理桌面', '吃点好的', '散步十分钟',
@@ -134,7 +134,7 @@ const kDos = <String>[
   '回复那条拖了很久的消息', '给自己买束花',
 ];
 
-/// 忌(轻松提醒,不吓人)
+/// Don'ts (light reminders, nothing scary)
 const kDonts = <String>[
   '忽略消息', '熬夜', '冲动消费', '跟自己较劲', '反复刷新等待',
   '空腹喝咖啡', '想起尴尬往事', '和机器人吵赢', '深夜做决定',
@@ -142,7 +142,7 @@ const kDonts = <String>[
   '对镜子太苛刻',
 ];
 
-/// 星签池(三选一抽出的小签)
+/// Star sign pool (one of three drawn per day)
 const kStarSigns = <String>[
   '这张签说:你想要的,正在来的路上,记得留门。',
   '签文:近期的努力会先开一朵小花,别急着摘。',
@@ -164,7 +164,7 @@ const kStarSigns = <String>[
   '签曰:今天适合原谅,包括原谅自己。',
 ];
 
-/// 节假日彩蛋表(公历固定:month*100+day;农历节用年份覆盖表)
+/// Holiday easter egg table (fixed solar dates: month*100+day; lunar festivals use the per-year override table)
 class OracleHoliday {
   final String name;
   final String emoji;
@@ -180,7 +180,7 @@ class OracleHoliday {
   });
 }
 
-/// 公历固定节日彩蛋
+/// Fixed solar-date holiday easter eggs
 const kSolarHolidays = <int, OracleHoliday>{
   101: OracleHoliday(
     name: '元旦', emoji: '🎊', accent: Color(0xFFEF9A9A),
@@ -272,9 +272,9 @@ const kSolarHolidays = <int, OracleHoliday>{
   ),
 };
 
-/// 农历节·按年份覆盖(可逐年补表;key = year*10000 + month*100 + day)
+/// Lunar festivals, overridden per year (extend the table yearly; key = year*10000 + month*100 + day)
 const kLunarHolidayOverrides = <int, OracleHoliday>{
-  // 2026 春节 2/17 · 元宵 3/3 · 端午 6/19 · 中秋 9/25
+  // 2026: Spring Festival 2/17, Lantern Festival 3/3, Dragon Boat Festival 6/19, Mid-Autumn Festival 9/25
   20260217: OracleHoliday(
     name: '春节', emoji: '🧧', accent: Color(0xFFE57373),
     title: '新年第一签,好运连连鸭',
@@ -307,7 +307,7 @@ const kLunarHolidayOverrides = <int, OracleHoliday>{
       '月饼甜,月亮圆,你和家人的距离,今晚只有一片天。',
     ],
   ),
-  // 2027 春节 2/6
+  // 2027: Spring Festival 2/6
   20270206: OracleHoliday(
     name: '春节', emoji: '🧧', accent: Color(0xFFE57373),
     title: '新年第一签,好运连连鸭',

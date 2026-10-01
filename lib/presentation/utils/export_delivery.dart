@@ -1,11 +1,13 @@
 // lib/presentation/utils/export_delivery.dart
-/// [问题1] 统一导出交付通道:先让用户选「分享 / 保存到文件」,再执行。
+/// Unified export delivery channel: let the user pick
+/// "share / save to file" first, then execute.
 ///
-/// - 保存到文件:FilePicker.saveFile —— 移动端(8.3.7 起)必传 bytes,
-///   不传会在 Android/iOS 抛 "Bytes are required" 异常;桌面端 saveFile
-///   只返回路径不写文件(且 macOS 传 bytes 会抛 UnsupportedError),
-///   需自行 writeAsBytes。
-/// - 分享:写临时目录 + SharePlus.instance.share(新 API)。
+/// - Save to file: FilePicker.saveFile — on mobile (since 8.3.7) `bytes` is
+///   mandatory; omitting it throws "Bytes are required" on Android/iOS.
+///   On desktop saveFile only returns a path without writing the file (and
+///   macOS throws UnsupportedError when given `bytes`), so writeAsBytes must
+///   be done manually.
+/// - Share: write to a temp directory + SharePlus.instance.share (new API).
 library;
 
 import 'dart:io';
@@ -17,11 +19,11 @@ import 'package:kirakira/presentation/dialogs/core_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// 交付模式
+/// Delivery mode
 enum ExportDeliveryMode { share, save }
 
-/// 弹出「分享 / 保存到文件」选择框(原生 AlertDialog,webview 侧已有
-/// _showHtmlBottomSheet 先例)。
+/// Shows the "share / save to file" chooser (native AlertDialog; the webview
+/// side already has the _showHtmlBottomSheet precedent).
 Future<ExportDeliveryMode?> askExportDelivery(
   BuildContext context,
   String fileName,
@@ -49,9 +51,11 @@ Future<ExportDeliveryMode?> askExportDelivery(
   );
 }
 
-/// 统一导出交付:[mode] 指定时直接执行对应通道(不依赖 context,适合
-/// 先问后异步生成的场景);否则用 [context] 弹选择框。
-/// 返回保存路径(save 模式)或 null(取消/分享模式返回临时文件路径)。
+/// Unified export delivery: when [mode] is given, runs that channel directly
+/// (no context needed, suited to ask-then-generate-async flows); otherwise
+/// shows the chooser with [context].
+/// Returns the saved path (save mode) or null (cancel/share mode returns the
+/// temp file path).
 Future<String?> deliverExportFile({
   BuildContext? context,
   required String fileName,
@@ -76,8 +80,9 @@ Future<String?> deliverExportFile({
   return _shareBytes(fileName, bytes, subject);
 }
 
-/// 保存到用户选择的位置。移动端由 saveFile(bytes) 直接写入;
-/// 桌面端 saveFile 只返回路径,需自行写入。
+/// Saves to the user-chosen location. On mobile saveFile(bytes) writes the
+/// file directly; on desktop saveFile only returns a path, so the write must
+/// be done manually.
 Future<String?> _saveBytes(String fileName, Uint8List bytes, String? ext) async {
   final isMobile = Platform.isAndroid || Platform.isIOS;
   final path = await FilePicker.platform.saveFile(
@@ -93,7 +98,8 @@ Future<String?> _saveBytes(String fileName, Uint8List bytes, String? ext) async 
   return path;
 }
 
-/// 写临时文件并分享(与既有导出的 getTemporaryDirectory 模式一致)。
+/// Writes a temp file and shares it (same getTemporaryDirectory pattern as
+/// existing exports).
 Future<String?> _shareBytes(String fileName, Uint8List bytes, String? subject) async {
   final tempDir = await getTemporaryDirectory();
   final file = File('${tempDir.path}/$fileName');

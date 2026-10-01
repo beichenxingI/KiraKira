@@ -1,9 +1,8 @@
 // lib/presentation/dialogs/variables_dialog.dart
-/// 变量管理浮窗(极客Core迁移 P5.2)
-/// 内容完整迁自 variables_settings_screen.dart(475行)+
-/// variable_edit_screen.dart(添加/编辑并入为嵌套浮窗):
-/// 关于变量说明 · 全局变量列表(编辑/删除/递增/递减) ·
-/// 本地变量列表(传入chatId时) · 宏测试 · 清除全部
+/// Variable management dialog.
+/// Variable system overview · global variable list (edit/delete/increment/
+/// decrement) · local variable list (when chatId is provided) · macro test ·
+/// clear all.
 library;
 
 import 'package:flutter/cupertino.dart';
@@ -48,7 +47,7 @@ class _VariablesDialog extends ConsumerWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 添加变量
+          // Add variable
           CupertinoButton(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             minSize: 0,
@@ -60,7 +59,7 @@ class _VariablesDialog extends ConsumerWidget {
             child: const Icon(CupertinoIcons.add_circled,
                 size: 22, color: DesignTokens.primary),
           ),
-          // 清除菜单
+          // Clear menu
           PopupMenuButton<String>(
             icon: Icon(CupertinoIcons.ellipsis_circle,
                 size: 22, color: palette.textSecondary),
@@ -99,7 +98,7 @@ class _VariablesDialog extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 关于变量 ──
+          // About variables
           CoreInfoRow(
             icon: CupertinoIcons.info,
             title: '变量系统',
@@ -119,7 +118,7 @@ class _VariablesDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
 
-          // ── 全局变量 ──
+          // Global variables
           CoreSectionLabel('Global Variables (${globalVars.length})'),
           const SizedBox(height: 4),
           if (globalVars.isEmpty)
@@ -152,7 +151,7 @@ class _VariablesDialog extends ConsumerWidget {
                 )),
           const SizedBox(height: 20),
 
-          // ── 本地变量(传入 chatId 时) ──
+          // Local variables (when chatId is provided)
           if (chatId != null) ...[
             CoreSectionLabel('Local Variables (${localVars.length})'),
             const SizedBox(height: 4),
@@ -188,7 +187,7 @@ class _VariablesDialog extends ConsumerWidget {
             const SizedBox(height: 20),
           ],
 
-          // ── 测试 ──
+          // Test
           const CoreSectionLabel('测试'),
           const SizedBox(height: 8),
           _VariableTestWidget(palette: palette, chatId: chatId),
@@ -262,7 +261,7 @@ class _VariablesDialog extends ConsumerWidget {
   }
 }
 
-/// 变量行(原 _VariableTile 浮窗形态)
+/// Variable row.
 class _VariableTile extends StatelessWidget {
   const _VariableTile({
     required this.palette,
@@ -395,7 +394,7 @@ class _VariableTile extends StatelessWidget {
   }
 }
 
-/// 宏测试(原 _VariableTestWidget 浮窗形态)
+/// Macro test.
 class _VariableTestWidget extends ConsumerStatefulWidget {
   const _VariableTestWidget({required this.palette, this.chatId});
 
@@ -530,7 +529,7 @@ class _VariableTestWidgetState extends ConsumerState<_VariableTestWidget> {
   }
 }
 
-/// 变量编辑浮窗(原 VariableEditScreen 浮窗化,字段与写入逻辑一致)
+/// Variable edit dialog (fields and write logic match the original screen).
 Future<void> _showVariableEditDialog(
   BuildContext context, {
   String? chatId,
@@ -593,7 +592,7 @@ class _VariableEditDialogState extends ConsumerState<_VariableEditDialog> {
     super.dispose();
   }
 
-  /// 写入逻辑与原页完全一致(provider 调用零改动)
+  /// Write logic identical to the original screen (zero changes to provider calls).
   void _save() {
     final name =
         _isEditing ? widget.initialName! : _nameController.text.trim();
@@ -654,7 +653,7 @@ class _VariableEditDialogState extends ConsumerState<_VariableEditDialog> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── 变量信息 ──
+          // Variable info
           const CoreSectionLabel('变量信息'),
           const SizedBox(height: 8),
           CoreTextField(
@@ -673,7 +672,7 @@ class _VariableEditDialogState extends ConsumerState<_VariableEditDialog> {
           ),
           const SizedBox(height: 16),
 
-          // ── 作用域(仅添加模式且在有 chatId 时可选) ──
+          // Scope (selectable only when adding and chatId is provided)
           if (!_isEditing && widget.allowScopeChoice) ...[
             const CoreSectionLabel('作用域'),
             const SizedBox(height: 4),

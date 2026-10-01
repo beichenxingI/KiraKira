@@ -1,24 +1,31 @@
 import 'dart:convert';
 import 'package:kirakira/data/models/mvu_settings.dart';
 
-/// 共享 TavernHelper 门面(酒馆助手环境注入脚本)。
+/// Shared TavernHelper facade (TavernHelper environment injection script).
 ///
-/// 来源:照 webview_chat_stage.dart 中已验证能跑的注入脚本誊抄,
-/// 剔除消息气泡专用的高度上报逻辑,frameId 参数化,宏值改由宿主注入。
-/// 消息 iframe 与全局脚本引擎房共用此门面。
+/// Source: transcribed from the proven injection script in
+/// webview_chat_stage.dart, with message-bubble-only height reporting removed,
+/// frameId parameterized, and macro values injected by the host. Shared by the
+/// message iframe and the global script engine room.
 ///
-/// [frameId] 每个 iframe 的唯一标识,用于 __thCall 请求路由。
-/// 宿主须在加载前往 window 注入 __KIRA_MACRO_VALUES({user,char})。
+/// [frameId] unique identifier for each iframe, used for __thCall request
+/// routing. The host must inject __KIRA_MACRO_VALUES({user,char}) into window
+/// before load.
 String buildTavernHelperFacadeJs({
   required String frameId,
   required MvuSettings mvu,
-  // [P5-8/P1] EJS 真实加载状态(静态标志 _ejsLoaded),驱动 extensionSettings.EjsTemplate.enabled。
-  //   道渊报警4按 Wt 17键比对;enabled 由真源驱动,其余16键为平台恒开/恒关行为声明(见下)。
+  // Real EJS load state (static flag _ejsLoaded); drives
+  // extensionSettings.EjsTemplate.enabled.
+  //   Alarm 4 compares 17 keys against Wt; enabled is driven by the real
+  //   source, the other 16 keys are platform always-on/always-off behavior
+  //   declarations (see below).
   required bool ejsLoaded,
 }) {
-  // [P6-BUG-1] mvu_settings 烘焙:webRaw(MVU 写回的原始对象,含 internal
-  // 已提醒标志/自动清理变量/兼容性等自有段)为底,平台已知值覆盖——
-  // 让 MVU 的"一次性升级提醒"标志跨会话生效,不再每次进页重弹。
+  // mvu_settings baking: webRaw (the raw object written back by MVU, containing
+  // its own internal sections such as already-reminded flags, auto-cleanup
+  // variables, compatibility settings) forms the base, overridden by known
+  // platform values — so MVU's one-time upgrade reminder flag persists across
+  // sessions instead of re-showing on every page entry.
   final webRaw = mvu.webRaw;
   final mvuBaked = <String, dynamic>{
     ...webRaw,
@@ -44,7 +51,7 @@ String buildTavernHelperFacadeJs({
     },
   };
   return '(function(){'
-      // ── localStorage / sessionStorage polyfill(老 WebView 兜底) ──
+      // localStorage / sessionStorage polyfill (fallback for old WebViews)
       'var _s={};try{localStorage.getItem("__t");}catch(e){'
       'try{Object.defineProperty(window,"localStorage",{configurable:true,value:{'
       'getItem:function(k){return _s[k]||null;},'
@@ -67,7 +74,7 @@ String buildTavernHelperFacadeJs({
       '}});parent.postMessage({__thLog:true,text:"[polyfill] sessionStorage 覆盖成功"},"*");}'
       'catch(e2){parent.postMessage({__thLog:true,text:"[polyfill] sessionStorage 覆盖失败: "+e2},"*");}'
       '}'
-      // ── DOMContentLoaded 补火 ──
+      // DOMContentLoaded re-fire
       '(function(){'
       'var _origAddEvt=document.addEventListener.bind(document);'
       'document.addEventListener=function(type,fn,opts){'
@@ -75,7 +82,7 @@ String buildTavernHelperFacadeJs({
       'else{_origAddEvt(type,fn,opts);}'
       '};'
       '})();'
-      // ── console / onerror / unhandledrejection 转发日志 ──
+      // console / onerror / unhandledrejection log forwarding
       '(function(){'
       'var _log=function(level){return function(){'
       'try{var parts=[];for(var i=0;i<arguments.length;i++){var a=arguments[i];'
@@ -90,21 +97,24 @@ String buildTavernHelperFacadeJs({
       'try{parent.postMessage({__thLog:true,text:"[引擎房:promise未捕获] "+(ev.reason&&ev.reason.message||ev.reason)},"*");}catch(e){}'
       '});'
       '})();'
-      // ── frameId(请求路由用) ──
+      // frameId (for request routing)
       'var _id=${jsonEncode(frameId)};'
-      // ── [P5-6阶段3.2] iframe内setInterval/clearInterval计数(照chat_stage.html:1986-1990) ──
-      // 主文档计数看不到 iframe 内的轮询计时器;扩到每个 iframe 后探针可断言"轮询活着/数量稳定"。
+      // setInterval/clearInterval counting inside the iframe (mirrors
+      // chat_stage.html:1986-1990). The main-document counter cannot see
+      // polling timers inside an iframe; with per-iframe counting, probes can
+      // assert that polling is alive and the count is stable.
       'window.__kiraTimerCount=0;'
       '(function(){var si=window.setInterval,ci=window.clearInterval,active={};'
       'window.setInterval=function(){var id=si.apply(this,arguments);active[id]=true;window.__kiraTimerCount++;return id;};'
       'window.clearInterval=function(id){if(active[id]){delete active[id];window.__kiraTimerCount=Math.max(0,window.__kiraTimerCount-1);}return ci.call(this,id);};})();'
-      // ── __thCall 通信桥(iframe → Dart 请求/响应) ──
+      // __thCall communication bridge (iframe -> Dart request/response)
       'var __thPending={};var __thId=1;'
       'function __thCall(method,args){'
       'return new Promise(function(resolve,reject){'
       'var rid=_id+"_"+(__thId++);'
       '__thPending[rid]={resolve:resolve,reject:reject};'
-      // 超时兜底:120 秒([P6-5.1] 从 30s 提升,容纳 th_popup 等用户操作)
+      // Timeout fallback: 120 s (raised from 30 s to accommodate user-driven
+      // operations such as th_popup)
       'setTimeout(function(){if(__thPending[rid]){delete __thPending[rid];reject(new Error("th timeout: "+method));}},120000);'
       'parent.postMessage({__thRequest:true,frameId:_id,rid:rid,method:method,args:args},"*");'
       '});'
@@ -114,10 +124,15 @@ String buildTavernHelperFacadeJs({
       'var p=__thPending[d.rid];if(!p)return;delete __thPending[d.rid];'
       'if(d.ok)p.resolve(d.result);else p.reject(new Error(d.error||"th failed"));'
       '});'
-      // ── [P5-4] 只读桥调用"进行中合并":道渊 5 秒轮询 getWorldbook,单次往返>5s 时
-      // setInterval 不等上次完成就会叠加桥消息/DB查询/序列化(实测卡、烫的根因)。
-      // 读是幂等的:同方法+同参数的请求在上一笔未完成时复用同一 Promise,语义不变;
-      // 完成/失败后自清缓存,下一笔照常新发。写路径(setVariables/replaceWorldbook 等)绝不走这里。
+      // Read-only bridge calls are coalesced while in flight: Daoyuan polls
+      // getWorldbook every 5 s, and when a round trip exceeds 5 s setInterval
+      // stacks bridge messages / DB queries / serialization without waiting
+      // for the previous call (measured root cause of jank and overheating).
+      // Reads are idempotent: a request with the same method + arguments
+      // reuses the same Promise while the previous one is pending, with
+      // unchanged semantics; the cache clears itself on completion/failure so
+      // the next call sends fresh. Write paths (setVariables/replaceWorldbook
+      // etc.) never go through here.
       'var __thInFlight={};'
       'function __thCallRead(method,args){'
       'var key;try{key=method+"|"+JSON.stringify(args||[]);}catch(e){key=method;}'
@@ -129,12 +144,14 @@ String buildTavernHelperFacadeJs({
       'p.then(done,done);'
       'return p;'
       '}'
-      // ── 收外层中继来的事件 → 触发 MVU 注册的 eventOn 回调(点火) ──
+      // Receive events relayed from the outer frame, then fire the eventOn
+      // callbacks registered by MVU (ignition).
       'window.__chatMessages=window.__chatMessages||[];'
       'window.addEventListener("message",function(e){'
       'var d=e.data;if(!d||!d.__thEvent)return;'
       'try{'
-      // [P5-12] 预设/设置变更事件 → 清 JS 侧预设缓存(与 setPreset 本地失效双保险)
+      // Preset/settings change events clear the JS-side preset cache (a
+      // second line of defense alongside setPreset's local invalidation)
       'if(d.type==="preset_changed"||d.type==="settings_updated"){try{if(typeof __KIRA_PRESET_CACHE_CLEAR==="function")__KIRA_PRESET_CACHE_CLEAR();}catch(e2){}}'
       'if(d.__msgs){window.__chatMessages=d.__msgs;}'
       'if(!window.__probed){window.__probed=1;'
@@ -145,7 +162,7 @@ String buildTavernHelperFacadeJs({
       'parent.postMessage({__thLog:true,text:"[引擎房] 点火 "+d.type},"*");}'
       'catch(err){parent.postMessage({__thLog:true,text:"[引擎房] 点火失败 "+d.type+": "+err},"*");}'
       '});'
-      // ── _TH 门面接口 ──
+      // _TH facade interface
       'var _TH={};'
       'window._TH=_TH;'
       '_TH.getChatMessages=function(range,option){'
@@ -166,49 +183,59 @@ String buildTavernHelperFacadeJs({
       '_TH.deleteChatMessages=function(ids,option){return __thCall("deleteChatMessages",[ids,option||{}]);};'
       '_TH.triggerSlash=function(cmd){return __thCall("triggerSlash",[cmd]);};'
       '_TH.setInput=function(t){return __thCall("setInput",[t]);};'
-      // ── [P6-5.1] UI 交互:toastr → Flutter SnackBar ──
-      // 卡片在引擎房/主文档没有 ST toastr 弹层,35+ 次高频调用全走桥
+      // UI interaction: toastr -> Flutter SnackBar.
+      // Cards have no ST toastr layer in the engine room / main document, so
+      // 35+ high-frequency calls all go through the bridge
       '_TH.toastr={'
  'info:function(m,t){return __thCall("th_toast",["info",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},'
  'success:function(m,t){return __thCall("th_toast",["success",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},'
  'warning:function(m,t){return __thCall("th_toast",["warning",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},'
  'error:function(m,t){return __thCall("th_toast",["error",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});}'
       '};'
-      // ── [P6-5.1] 通用弹窗 → Flutter Dialog ──
-      // 枚举真值对齐 ST popup.js:TEXT=1 CONFIRM=2 INPUT=3 DISPLAY=4 CROP=5;
-      // AFFIRMATIVE=1 NEGATIVE=0 CANCELLED=null(取消/关闭返回 null)
+      // Generic popup -> Flutter Dialog.
+      // Enum values align with ST popup.js: TEXT=1 CONFIRM=2 INPUT=3
+      // DISPLAY=4 CROP=5;
+      // AFFIRMATIVE=1 NEGATIVE=0 CANCELLED=null (cancel/close returns null)
       '_TH.POPUP_TYPE={TEXT:1,CONFIRM:2,INPUT:3,DISPLAY:4,CROP:5};'
       '_TH.POPUP_RESULT={AFFIRMATIVE:1,NEGATIVE:0,CANCELLED:null,CUSTOM1:1001,CUSTOM2:1002,CUSTOM3:1003,CUSTOM4:1004,CUSTOM5:1005};'
       '_TH.callGenericPopup=function(text,type,inputValue){'
       'return __thCall("th_popup",[text==null?"":String(text),(type==null?1:type),inputValue==null?"":String(inputValue)]).catch(function(){return null;});'
       '};'
-      // 旧版 ask(确认框,返回 bool)与 callPopup 别名
+      // Legacy ask (confirm dialog returning bool) and the callPopup alias
       '_TH.ask=function(text){'
       'return __thCall("th_popup",[text==null?"":String(text),2,""]).then(function(r){return r===1;}).catch(function(){return false;});'
       '};'
       '_TH.callPopup=_TH.ask;'
-      // ── 变量镜像(同步读):MVU 的 getVariables/getLastMessageId 是同步调用 ──
-      // 读走本地镜像,写走桥落库后回填镜像(见 updateVariablesWith / __varSync)
+      // Variable mirror (synchronous reads): MVU's getVariables /
+      // getLastMessageId are synchronous calls. Reads hit the local mirror;
+      // writes go over the bridge, persist, then backfill the mirror (see
+      // updateVariablesWith / __varSync)
       '_TH.__lastMsgId=0;'
       '_TH.__primaryLorebook=null;'
       '_TH.__varCache={global:{},chat:{},message:{},script:{}};'
-      // [P5-9/P0-3] 脚本级变量:主文档注入快照后,Dart/写入路径会调用此函数回填本地缓存。
-      //   脚本房每个脚本注入前先 hydrate 一次,getVariables({type:'script'}) 即可同步读到持久值。
+      // Script-level variables: after the main document injects a snapshot,
+      // the Dart write path calls this function to backfill the local cache.
+      //   Each script hydrates once before injection, so
+      //   getVariables({type:'script'}) reads the persisted value synchronously.
       'window.__kiraSetScriptVars=function(sid,vars){if(!sid)return;_TH.__varCache.script[sid]=vars&&typeof vars==="object"?(vars):{};};'
-      // 供 updateVariablesWith/setVariables 写成功后回填脚本缓存,保持读写一致。
+      // Backfills the script cache after a successful updateVariablesWith /
+      // setVariables write, keeping reads and writes consistent.
       '_TH.__kiraTouchScriptCache=function(option,vars){var _sid=(option&&option.script_id)||(option&&option.scriptId)||(window.__KIRA_CURRENT_SCRIPT_ID||"");if(_sid){_TH.__varCache.script[_sid]=vars&&typeof vars==="object"?vars:{};}};'
-      // ── EJS 标准对象:与镜像同源,供 dist/index.js 的 externals import ──
+      // EJS standard objects: same source as the mirror, for
+      // dist/index.js externals to import
       'window.extension_settings=window.extension_settings||{};'
       'window.extension_settings.variables=window.extension_settings.variables||{global:{}};'
       'window.chat_metadata=window.chat_metadata||{variables:{}};'
       'window.chat=window.chat||[];'
-      // ── 收外层推来的真实变量 → 回填镜像(反向同步) ──
+      // Receive real variables pushed from the outer frame, then backfill
+      // the mirror (reverse sync)
       'window.addEventListener("message",function(e){'
       'var d=e.data;if(!d||!d.__varSync)return;'
       'var t=d.type||"chat";'
       'if(t==="message"){_TH.__varCache.message[d.message_id]=d.data||{};}'
       'else{_TH.__varCache[t]=d.data||{};}'
-      // 同源回填 EJS 标准对象(与镜像并存,MVU 读镜像/EJS 读标准对象)
+      // Same-source backfill of the EJS standard objects (coexists with the
+      // mirror: MVU reads the mirror, EJS reads the standard objects)
       'if(t==="global"){window.extension_settings.variables.global=d.data||{};}'
       'else if(t==="chat"){window.chat_metadata.variables=d.data||{};}'
       'else if(t==="message"){'
@@ -222,8 +249,9 @@ String buildTavernHelperFacadeJs({
       '}}'
       'if(typeof d.lastMsgId==="number")_TH.__lastMsgId=d.lastMsgId;'
       'parent.postMessage({__thLog:true,text:"[引擎房] 变量同步 "+t},"*");'
-      '});'                                                              // ← 新增：闭合监听器①
-      // ── 收外层推来的主世界书名 → 回填镜像 ──
+      '});'                                                              // closes listener 1
+      // Receive the primary worldbook name pushed from the outer frame,
+      // then backfill the mirror
       'window.addEventListener("message",function(e){'
       'var d=e.data;if(!d||!d.__primaryLorebookSync)return;'
       '_TH.__primaryLorebook=(typeof d.name==="string")?d.name:null;'
@@ -238,13 +266,15 @@ String buildTavernHelperFacadeJs({
       'var mid=option.message_id;'
       'if(mid===undefined||mid==="latest")mid=_TH.__lastMsgId;'
       'if(typeof mid==="number"&&mid<0)mid=_TH.__lastMsgId+1+mid;'
-      // [P6-5.2] swipe_id 切片:引擎房标准对象按 swipe 存数组,优先读它
+      // swipe_id slice: the engine room's standard object stores an array
+      // per swipe; prefer reading that
       'var sw=option.swipe_id;'
       'if(typeof sw==="number"&&window.chat&&window.chat[mid]&&window.chat[mid].variables){'
       'var _arr=window.chat[mid].variables;return (_arr&&_arr[sw])||{};}'
       'return _TH.__varCache.message[mid]||{};'
       '}'
-      // [P5-9/P0-3] 脚本级变量:按 option.script_id(或当前脚本)取缓存。
+      // Script-level variables: read the cache by option.script_id (or the
+      // current script).
       'if(t==="script"){'
       'var _sid=option.script_id||option.scriptId||(window.__KIRA_CURRENT_SCRIPT_ID||"");'
       'if(_sid)return _TH.__varCache.script[_sid]||{};'
@@ -254,8 +284,10 @@ String buildTavernHelperFacadeJs({
       '};'
       '_TH.setVariables=function(vars,option){option=option||{};return __thCall("setVariables",[vars,option]).then(function(r){if(option.type==="script")_TH.__kiraTouchScriptCache(option,r||vars);return r;});};'
       '_TH.replaceVariables=function(vars,option){option=option||{};return __thCall("replaceVariables",[vars,option]).then(function(r){if(option.type==="script")_TH.__kiraTouchScriptCache(option,r||vars);return r;});};'
-      // ── 写接口(异步落库):MVU 的写操作都 await ──
-      // updater 是 MVU 传入的函数,不能过桥,必须在 iframe 内跑;新值(纯数据)才过桥落库
+      // Write interface (async persistence): MVU's write operations are all
+      // awaited. The updater is a function passed by MVU and cannot cross the
+      // bridge; it must run inside the iframe, and only the new value (pure
+      // data) crosses the bridge to be persisted.
       '_TH.__resolveMid=function(option){'
       'var mid=option.message_id;'
       'if(mid===undefined||mid==="latest")mid=_TH.__lastMsgId;'
@@ -282,25 +314,31 @@ String buildTavernHelperFacadeJs({
       'window.insertOrAssignVariables=_TH.insertOrAssignVariables;'
       '_TH.getAllVariables=function(){return __thCallRead("getAllVariables",[]);};'
       '_TH.getTavernHelperVersion=function(){return "4.9.1";};'
-      // [P5-9/P2] ST 本体版本号(玄枢 msgcompress 启动检查 getTavernVersion>="1.13.4")
+      // ST core version number (XuanShu msgcompress startup check requires
+      // getTavernVersion>="1.13.4")
       '_TH.getTavernVersion=function(){return "1.13.4";};'
-      // MVU 启动依赖:唯一脚本机制(假对象)
+      // MVU startup dependency: unique-script mechanism (stub object)
         '_TH.__gsidN=0;'
-        // [P5-9/P0-2] getScriptId 按脚本唯一：脚本房注入前设 __KIRA_CURRENT_SCRIPT_ID，
-        //   返回当前脚本 id；引擎房(未设置)回退 kirakira-mvu-0，保 MVU 选主语义不变。
+        // getScriptId is unique per script: the script room sets
+        //   __KIRA_CURRENT_SCRIPT_ID before injection and returns the current
+        //   script id; the engine room (unset) falls back to kirakira-mvu-0,
+        //   keeping MVU's primary-selection semantics unchanged.
         '_TH.getScriptId=function(){_TH.__gsidN++;if(_TH.__gsidN<=3||_TH.__gsidN%100===0){parent.postMessage({__thLog:true,text:"[身份] getScriptId被调 #"+_TH.__gsidN+" id="+((window.__KIRA_CURRENT_SCRIPT_ID)||"kirakira-mvu-0")},"*");}return (typeof window.__KIRA_CURRENT_SCRIPT_ID==="string"&&window.__KIRA_CURRENT_SCRIPT_ID.length>0)?window.__KIRA_CURRENT_SCRIPT_ID:"kirakira-mvu-0";};'      'window.getScriptId=_TH.getScriptId;'
       '_TH.registerAsUniqueScript=function(id){'
       'parent.postMessage({__thLog:true,text:"[身份] registerAsUniqueScript被调 id="+id},"*");'
       'return {listenPreferenceState:function(cb){parent.postMessage({__thLog:true,text:"[身份] listenPreferenceState注册,即将回调"},"*");try{cb("kirakira-mvu-0");}catch(e){parent.postMessage({__thLog:true,text:"[身份] cb异常"+e},"*");}return {stop:function(){}};}};};'
       'window.registerAsUniqueScript=_TH.registerAsUniqueScript;'
-      // [P5-9/P1] generate 真桥:完整生成回合(脚本须靠 generation_ended 事件拿结果,30s桥超时前即返回)
+      // Real generate bridge: a full generation turn (scripts must get the
+      // result from the generation_ended event; returns before the 30 s
+      // bridge timeout)
       '_TH.generate=function(arg){return __thCall("th_generate",[arg===undefined?"normal":arg]);};'
       'window.generate=_TH.generate;'
       '_TH.stopGeneration=function(){return __thCall("th_stopGeneration",[]);};'
       'window.stopGeneration=_TH.stopGeneration;'
       '_TH.generateRaw=function(cfg){parent.postMessage({__thLog:true,text:"[额外模型] generateRaw被调 hasCustomApi="+(!!(cfg&&cfg.custom_api))+" prompts="+((cfg&&cfg.ordered_prompts||[]).length)+" injects="+((cfg&&cfg.injects||[]).length)},"*");return __thCall("generateRaw",[cfg]);};'
       'window.generateRaw=_TH.generateRaw;'
-      // substitudeMacros:同步宏替换(读宿主注入的 window.__KIRA_MACRO_VALUES)
+      // substitudeMacros: synchronous macro replacement (reads the
+      // host-injected window.__KIRA_MACRO_VALUES)
       '_TH.substitudeMacros=function(t){'
       'if(typeof t!=="string")return t;'
       'var v=window.__KIRA_MACRO_VALUES||{user:"User",char:"Assistant"};'
@@ -310,16 +348,19 @@ String buildTavernHelperFacadeJs({
       '.replace(/<char>/gi,v.char);'
       '};'
       'window.substitudeMacros=_TH.substitudeMacros;'
-      // 世界书接口
+      // Worldbook API
       '_TH.getLorebookEntries=function(name){return __thCallRead("getLorebookEntries",[name]);};'
       '_TH.getWorldbookNames=function(){return __thCallRead("th_wiGetLorebooks",[]).then(function(names){if(!Array.isArray(names))throw new Error("worldbook names must be an array");return names;});};'
       '_TH.getWorldbook=function(name){return __thCallRead("th_wiGetEntries",[name]).then(function(entries){if(!Array.isArray(entries))throw new Error("worldbook entries must be an array");return entries;});};'
       '_TH.replaceWorldbook=function(name,entries){if(!Array.isArray(entries))return Promise.reject(new Error("replaceWorldbook requires an array"));return __thCall("th_wiSetEntries",[name,entries]).then(function(result){return result;});};'
       '_TH.getTavernRegexes=function(opts){var t=(opts&&opts.type)||"global";return __thCallRead("th_getRegexes",[t]);};'
-      // ── [P6-5.2] 正则引擎(平台 regex 资产 → JS 同步执行) ──
-      // 规则快照由 Dart 注入 __KIRA_REGEX_RULES:[{f,r,p,o,d,mo,po,e,t,min,max}];
-      // placement 参数是 ST 枚举值(USER_INPUT=1/AI_OUTPUT=2/SLASH_COMMAND=3/WORLD_INFO=5/REASONING=6),
-      // 内部映射平台索引(userInput=0/aiOutput=1/slashCommand=2/worldInfo=3/reasoning=4)。
+      // Regex engine (platform regex assets -> synchronous JS execution).
+      // The rule snapshot is injected by Dart as __KIRA_REGEX_RULES:
+      // [{f,r,p,o,d,mo,po,e,t,min,max}];
+      // placement is an ST enum value (USER_INPUT=1/AI_OUTPUT=2/
+      // SLASH_COMMAND=3/WORLD_INFO=5/REASONING=6), mapped internally to
+      // platform indexes (userInput=0/aiOutput=1/slashCommand=2/
+      // worldInfo=3/reasoning=4).
       'window.__kiraRunRegex=function(text,placement,opts){'
       'try{'
       'opts=opts||{};'
@@ -346,7 +387,8 @@ String buildTavernHelperFacadeJs({
       'var re=new RegExp(src,fl);'
       'out=out.replace(re,function(){'
       'var a=arguments;var m=a[0];'
-      // V8 只在有命名组时才追加 groups 参数,组数按尾参类型推断
+      // V8 only appends the groups argument when named groups exist; infer
+      // the group count from the trailing argument type
       'var gobj=(typeof a[a.length-1]==="string")?undefined:a[a.length-1];'
       'var n=(gobj===undefined)?(a.length-3):(a.length-4);'
       'var rep=String(r.r==null?"":r.r);'
@@ -362,7 +404,8 @@ String buildTavernHelperFacadeJs({
       '};'
       '_TH.getRegexedString=function(t,p,o){return window.__kiraRunRegex(t,p,o);};'
       'window.getRegexedString=_TH.getRegexedString;'
-      // [P6-5.2] 世界书高级:updateWorldbookWith(读→改→写) / createWorldbookEntries(批量)
+      // Advanced worldbook: updateWorldbookWith (read -> modify -> write) /
+      // createWorldbookEntries (batch)
       '_TH.updateWorldbookWith=function(name,updater){'
       'return _TH.getWorldbook(name).then(function(b){'
       'if(!b)throw new Error("worldbook not found: "+name);'
@@ -374,7 +417,9 @@ String buildTavernHelperFacadeJs({
       'window.createWorldbookEntries=_TH.createWorldbookEntries;'
       '_TH.createWorldbookEntry=function(name,entry){return _TH.createWorldbookEntries(name,[entry||{}]);};'
       '_TH.updateTavernRegexesWith=function(){return Promise.reject(new Error("updateTavernRegexesWith: no Flutter data source"));};'
-      // [P5-9/P2] getScriptTrees 与主文档同源:读主文档 __KIRA_PRESET_SCRIPTS(剥content只回元数据)
+      // getScriptTrees shares the main document's source: reads
+      // __KIRA_PRESET_SCRIPTS from the main document (content stripped,
+      // metadata only)
       '_TH.getScriptTrees=function(opts){var t=(opts&&opts.type)||"global";var all=[];try{all=(window.parent&&window.parent.__KIRA_PRESET_SCRIPTS)||[];}catch(e){}return Promise.resolve(all.map(function(s,i){return {id:String(s.id!=null?s.id:i),name:String(s.name!=null?s.name:("脚本"+(i+1))),enabled:!!s.enabled,type:t};}));};'
       '_TH.updateScriptTreesWith=function(){return Promise.reject(new Error("updateScriptTreesWith: no Flutter data source"));};'
       '_TH.getCurrentCharPrimaryLorebook=function(){return _TH.__primaryLorebook;};'
@@ -386,10 +431,10 @@ String buildTavernHelperFacadeJs({
       '_TH.deleteLorebookEntries=function(name,uids){return __thCall("deleteLorebookEntries",[name,uids||[]]);};'
       '_TH.getCharacterLorebooks=function(){return __thCallRead("getCharacterLorebooks",[]);};'
       '_TH.getCharacterLorebooks=function(){return __thCallRead("getCharacterLorebooks",[]);};'
-      'window.getCharacterLorebooks=_TH.getCharacterLorebooks;'  // MVU若喊长名
-      '_TH.getCharLorebooks=_TH.getCharacterLorebooks;'          // MVU实际喊的短名
-      'window.getCharLorebooks=_TH.getCharacterLorebooks;'       // 裸挂，让MVU够得着
-      '_TH.getCharWorldbookNames=function(t){return __thCallRead("getCharacterLorebooks",[]);};'  // MVU新版API名,initvar路径必调
+      'window.getCharacterLorebooks=_TH.getCharacterLorebooks;'  // if MVU calls the long name
+      '_TH.getCharLorebooks=_TH.getCharacterLorebooks;'          // the short name MVU actually calls
+      'window.getCharLorebooks=_TH.getCharacterLorebooks;'       // bare window mount so MVU can reach it
+      '_TH.getCharWorldbookNames=function(t){return __thCallRead("getCharacterLorebooks",[]);};'  // MVU's newer API name; always called on the initvar path
       'window.getCharWorldbookNames=_TH.getCharWorldbookNames;'
       '_TH.getLorebooks=function(){return __thCallRead("getLorebooks",[]);};'
       '_TH.getLorebookSettings=function(){return {selected_global_lorebooks:[]};};'
@@ -397,12 +442,18 @@ String buildTavernHelperFacadeJs({
       '_TH.setLorebookSettings=function(s){return true;};'
       'window.setLorebookSettings=_TH.setLorebookSettings;'
       '_TH.createLorebook=function(name){return __thCall("createLorebook",[name]);};'
-      // ── [P5-9/P1] 预设管理 API(狐神断链二:getPreset×27/updatePresetWith×38) ──
-      // 'in_use' 由 Dart 侧解析到当前激活预设;settings.should_stream 落 llmConfig 立即生效,
-      // prompts 按 identifier 合并进 PromptManagerConfig;写完发 preset_changed。
-      // [P5-12] JS 侧会话级预设缓存(方案1):狐神 UI 轮询高频读 getPreset('in_use'),
-      //   4MB JSON 每次桥往返是 OOM 主因;命中缓存直接返回同一对象引用(零序列化)。
-      //   失效口:setPreset 成功 / preset_changed / settings_updated 事件。
+      // Preset management API (Hushen broken-link 2: getPreset x27 /
+      // updatePresetWith x38).
+      // 'in_use' is resolved by the Dart side to the currently active preset;
+      // settings.should_stream lands in llmConfig and takes effect
+      // immediately; prompts merge into PromptManagerConfig by identifier;
+      // preset_changed is emitted after writing.
+      // JS-side session-level preset cache (plan 1): Hushen's UI polls
+      //   getPreset('in_use') at high frequency, and a 4MB JSON round trip
+      //   per call was the main cause of OOM; a cache hit returns the same
+      //   object reference (zero serialization).
+      //   Invalidation: setPreset success / preset_changed / settings_updated
+      //   events.
       'window.__KIRA_PRESET_CACHE=window.__KIRA_PRESET_CACHE||{};'
       '__KIRA_PRESET_CACHE_CLEAR=function(){try{for(var k in window.__KIRA_PRESET_CACHE){delete window.__KIRA_PRESET_CACHE[k];}}catch(e){}};'
       '_TH.getPresetNames=function(){return __thCallRead("th_getPresetNames",[]);};'
@@ -413,9 +464,10 @@ String buildTavernHelperFacadeJs({
       'return r;});};'
       '_TH.setPreset=function(name,preset){return __thCall("th_setPreset",[name,preset]).then(function(r){try{__KIRA_PRESET_CACHE_CLEAR();}catch(e){}return r;});};'
       '_TH.getLoadedPresetName=function(){return __thCallRead("th_getLoadedPresetName",[]);};'
-      // updatePresetWith: 读→updater→写(ST 语义;updater 返回 undefined 时用就地修改后的对象)
+      // updatePresetWith: read -> updater -> write (ST semantics; if the
+      // updater returns undefined, use the in-place modified object)
       '_TH.updatePresetWith=function(name,updater){return _TH.getPreset(name).then(function(p){if(!p)throw new Error("preset not found: "+name);var u=updater(p);return _TH.setPreset(name,(u===undefined||u===null)?p:u);}).then(function(){return _TH.getPreset(name);});};'
-      // ── 事件总线(iframe 本地实现) ──
+      // Event bus (iframe-local implementation)
       '_TH.__events={};'
       '_TH.__eventOn=function(type,listener){(_TH.__events[type]=_TH.__events[type]||[]).push(listener);try{parent.postMessage({__thLog:true,text:"[EVT-REG] on type="+type+" bucket="+_TH.__events[type].length},"*");}catch(_e0){}return {stop:function(){_TH.__eventRemove(type,listener);}};};'
 '_TH.eventOn=function(type,listener){var r=_TH.__eventOn(type,listener);if(type&&type.indexOf("th_unique_check.")===0){try{parent.postMessage({__thLog:true,text:"[选主] th_unique_check 立即回调 kirakira-mvu-0"},"*");listener("kirakira-mvu-0");}catch(e){parent.postMessage({__thLog:true,text:"[选主] 回调异常"+e},"*");}}return r;};'
@@ -426,15 +478,20 @@ String buildTavernHelperFacadeJs({
       '_TH.__eventRemove=function(type,listener){var l=_TH.__events[type];if(!l)return;var i=l.indexOf(listener);if(i>=0)l.splice(i,1);};'
       '_TH.eventClearAll=function(){_TH.__events={};};'
       '_TH.eventEmit=function(type){var args=Array.prototype.slice.call(arguments,1);if(type&&type.indexOf("th_unique_check.")===0){args=["kirakira-mvu-0"];parent.postMessage({__thLog:true,text:"[选主] eventEmit 强制 th_unique_check=kirakira-mvu-0"},"*");}'
-      // [P3-E3] MVU 事件上行: 引擎房 → 主文档(__mvuEvent) → 主文档中继 __thEvent 到所有 card iframe。
-      // 卡的 eventOn(Mvu.events.VARIABLE_UPDATE_ENDED,...) 在 card 本地总线被点火。无循环:
-      // card 端 eventEmit 是 chat_stage.html 内的另一份实现,不带此转发。
+      // MVU event upstream: engine room -> main document (__mvuEvent), then
+      // the main document relays __thEvent to all card iframes. The card's
+      // eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, ...) fires on the card's
+      // local bus. No loop: the card-side eventEmit is a separate
+      // implementation inside chat_stage.html without this forwarding.
       'try{parent.postMessage({__mvuEvent:true,type:type,args:args},"*");}catch(_fwdE){}'
       'var l=(_TH.__events[type]||[]).slice();for(var i=0;i<l.length;i++){try{parent.postMessage({__thLog:true,text:"[emit] "+type+" 调listener#"+i},"*");var _r=l[i].apply(null,args);parent.postMessage({__thLog:true,text:"[emit] "+type+" listener#"+i+" 返回="+(_r&&typeof _r.then==="function"?"promise":typeof _r)},"*");if(_r&&typeof _r.then==="function"){_r.catch(function(e){parent.postMessage({__thLog:true,text:"[事件异步错误]"+type+": "+((e&&e.stack)||e)},"*");});}}catch(e){parent.postMessage({__thLog:true,text:"[事件同步错误]"+type+": "+((e&&e.stack)||e)},"*");}}try{parent.postMessage({__thLog:true,text:"[EVT-3] done type="+type+" listeners="+l.length},"*");}catch(_e2){}};'
       '_TH.eventEmitAndWait=function(type){var args=Array.prototype.slice.call(arguments,1);var l=(_TH.__events[type]||[]).slice();var results=[];for(var i=0;i<l.length;i++){try{results.push(l[i].apply(null,args));}catch(e){console.error("[事件]"+type,e);}}return Promise.all(results);};'
-      // tavern_events / iframe_events 常量表
-      // [P5-6阶段3.1] 从36键补到60+键,对齐 slash-runner-types/iframe/event.d.ts:188-276 标准。
-      // 键名照抄官方,值是 ST 内部事件名字符串(CHARACTER_DELETED='characterDeleted' 等特例保留)。
+      // tavern_events / iframe_events constant tables.
+      // Expanded from 36 keys to 60+ keys, aligned with the standard in
+      // slash-runner-types/iframe/event.d.ts:188-276.
+      // Key names copy the official ones; values are ST internal event name
+      // strings (special cases such as CHARACTER_DELETED='characterDeleted'
+      // are preserved).
       'window.tavern_events={'
       'APP_READY:"app_ready",EXTRAS_CONNECTED:"extras_connected",'
       'MESSAGE_SWIPED:"message_swiped",MESSAGE_SENT:"message_sent",MESSAGE_RECEIVED:"message_received",MESSAGE_EDITED:"message_edited",MESSAGE_DELETED:"message_deleted",MESSAGE_UPDATED:"message_updated",MESSAGE_FILE_EMBEDDED:"message_file_embedded",MESSAGE_REASONING_EDITED:"message_reasoning_edited",MESSAGE_REASONING_DELETED:"message_reasoning_deleted",MESSAGE_SWIPE_DELETED:"message_swipe_deleted",MORE_MESSAGES_LOADED:"more_messages_loaded",IMPERSONATE_READY:"impersonate_ready",'
@@ -455,9 +512,10 @@ String buildTavernHelperFacadeJs({
       'PRESET_CHANGED:"preset_changed",PRESET_DELETED:"preset_deleted",PRESET_RENAMED:"preset_renamed",PRESET_RENAMED_BEFORE:"preset_renamed_before",MAIN_API_CHANGED:"main_api_changed",'
       'MEDIA_ATTACHMENT_DELETED:"media_attachment_deleted"'
       '};'
-      // iframe_events 补 MESSAGE_IFRAME_RENDER_STARTED/ENDED 两键(官方 event.d.ts:172-183)
+      // iframe_events adds MESSAGE_IFRAME_RENDER_STARTED/ENDED (official
+      // event.d.ts:172-183)
       'window.iframe_events={MESSAGE_IFRAME_RENDER_STARTED:"message_iframe_render_started",MESSAGE_IFRAME_RENDER_ENDED:"message_iframe_render_ended",GENERATION_STARTED:"js_generation_started",GENERATION_ENDED:"js_generation_ended",STREAM_TOKEN_RECEIVED_FULLY:"js_stream_token_received_fully",STREAM_TOKEN_RECEIVED_INCREMENTALLY:"js_stream_token_received_incrementally"};'
-      // 全部裸挂到 window
+      // mount everything bare on window
       'for(var _k in _TH){if(_TH.hasOwnProperty(_k)){window[_k]=_TH[_k];}}'
       'window.TavernHelper=_TH;'
       // clipboard polyfill
@@ -468,7 +526,7 @@ String buildTavernHelperFacadeJs({
       'return Promise.resolve();};}'
       'if(!navigator.clipboard.readText){navigator.clipboard.readText=function(){return Promise.resolve("");};}'
       '}catch(e){parent.postMessage({__thLog:true,text:"[polyfill] clipboard 失败: "+e},"*");}})();'
-      // ── SillyTavern.getContext() 骨架 ──
+      // SillyTavern.getContext() skeleton
       'var _ctx={'
       'eventSource:{'
       'on:function(t,l){return _TH.eventOn(t,l);},'
@@ -489,7 +547,7 @@ String buildTavernHelperFacadeJs({
       'saveSettingsDebounced:function(){try{__thCall("th_saveExtensionSettings",[window.SillyTavern.extensionSettings]);}catch(e){}},'
       'getRequestHeaders:function(){return {"Content-Type":"application/json"};},'
       'renderExtensionTemplateAsync:function(){return Promise.resolve("");},'
-      // [P6-5.1] 弹窗 API(exported.sillytavern.d.ts 同形)
+      // Dialog API (same shape as exported.sillytavern.d.ts)
       'POPUP_TYPE:_TH.POPUP_TYPE,'
       'POPUP_RESULT:_TH.POPUP_RESULT,'
       'callGenericPopup:function(c,t,i,o){return _TH.callGenericPopup(c,t,i,o);},'
@@ -497,7 +555,8 @@ String buildTavernHelperFacadeJs({
       '};'
       'window.SillyTavern={getContext:function(){return _ctx;},'
       'saveChat:function(){return Promise.resolve();},'
-      // [P5-8/P1] 持久化桥:MVU/道渊写回 extensionSettings → th_saveExtensionSettings → MvuSettings 落盘。
+      // Persistence bridge: MVU/Daoyuan writes back extensionSettings ->
+      // th_saveExtensionSettings -> MvuSettings persisted to disk.
       'saveSettingsDebounced:function(){try{__thCall("th_saveExtensionSettings",[window.SillyTavern.extensionSettings]);}catch(e){}},'
       'getCurrentChatId:function(){return window.__KIRA_CHAT_ID||"";},'
       '__macros:{},'
@@ -505,10 +564,13 @@ String buildTavernHelperFacadeJs({
       'unregisterMacro:function(k){try{delete window.SillyTavern.__macros[k];}catch(e){}},'
       'name1:"You",name2:((window.__KIRA_MACRO_VALUES&&window.__KIRA_MACRO_VALUES.char)||""),'
       'extensionSettings:{mvu_settings:${jsonEncode(mvuBaked)},'
-      // [P5-8/P1] EjsTemplate(道渊 Wt 期望17键,pretty.js:959-977)。
-      //   enabled 由 _ejsLoaded 真驱动;其余16键为平台行为声明:
-      //   平台确有真实 EJS 渲染(llm_service.dart EJSRenderer),模板管线恒按 ST-Prompt-Template
-      //   默认口径工作,无运行时状态可冲突——按"平台恒开/恒关"声明,不伪装 runtime 状态位。
+      // EjsTemplate (Daoyuan's Wt expects 17 keys, pretty.js:959-977).
+      //   enabled is driven by the real _ejsLoaded; the other 16 keys are
+      //   platform behavior declarations: the platform does have real EJS
+      //   rendering (llm_service.dart EJSRenderer) and the template pipeline
+      //   always works to the ST-Prompt-Template defaults with no runtime
+      //   state to conflict — so declare them platform always-on/always-off
+      //   rather than faking a runtime state bit.
       'EjsTemplate:{'
       'enabled:$ejsLoaded,'
       'generate_enabled:true,'

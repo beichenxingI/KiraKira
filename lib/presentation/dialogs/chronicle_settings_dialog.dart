@@ -37,7 +37,7 @@ class _ChronicleSettingsDialogState
     extends ConsumerState<_ChronicleSettingsDialog> {
   bool _migrationChecked = false;
   final _suffixController = TextEditingController();
-  // [修改三] 总结模型专属配置
+  // Dedicated summary-model configuration.
   final _baseUrlController = TextEditingController();
   final _apiKeyController = TextEditingController();
   final _modelNameController = TextEditingController();
@@ -47,7 +47,7 @@ class _ChronicleSettingsDialogState
   @override
   void initState() {
     super.initState();
-    // 首帧后检查迁移（避免浮窗构建期间弹第二层）
+    // Check migration after the first frame (avoids stacking a second layer while the dialog builds).
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkMigration());
   }
 
@@ -60,7 +60,7 @@ class _ChronicleSettingsDialogState
     super.dispose();
   }
 
-  // ═══════════════════ 迁移检查（修复四） ═══════════════════
+  // Migration check
 
   Future<void> _checkMigration() async {
     if (_migrationChecked || !mounted) return;
@@ -68,16 +68,16 @@ class _ChronicleSettingsDialogState
 
     final choiceNotifier = ref.read(chronicleMigrationChoiceProvider.notifier);
     final choice = ref.read(chronicleMigrationChoiceProvider);
-    if (choice != null) return; // 已做过决定，不再弹
+    if (choice != null) return; // Decision already made; don't prompt again.
 
     final vs = ref.read(vectorStorageServiceProvider);
     if (!vs.hasLegacyVectors) {
-      // 无旧数据：无需用户决定，标记已迁移（Chronicle默认开启）
+      // No legacy data: no user decision needed; mark as migrated (Chronicle enabled by default).
       await choiceNotifier.setChoice('migrated');
       return;
     }
 
-    // 有旧RAG数据 → 迁移选择弹窗（showKiraDialog带泛型返回值）
+    // Legacy RAG data present: show the migration choice dialog (showKiraDialog with a generic return value).
     final migrate = await showKiraDialog<bool>(
       context: context,
       dialog: const _MigrationDialog(),
@@ -86,7 +86,7 @@ class _ChronicleSettingsDialogState
       barrierColor: Colors.black.withValues(alpha: 0.6),
     );
     if (!mounted || migrate == null) {
-      // 被强制关闭视为"暂不开启"，避免反复弹
+      // Forced dismissal counts as "keep disabled" to avoid repeated prompts.
       await choiceNotifier.setChoice('kept');
       if (mounted) {
         ref.read(chronicleSettingsProvider.notifier).setEnabled(false);
@@ -94,7 +94,7 @@ class _ChronicleSettingsDialogState
       return;
     }
     if (migrate) {
-      // 开启Chronicle，删除旧向量（chronicle词条向量保留）
+      // Enable Chronicle and delete legacy vectors (Chronicle entry vectors are kept).
       await vs.removeLegacyVectors();
       await choiceNotifier.setChoice('migrated');
       if (mounted) {
@@ -102,7 +102,7 @@ class _ChronicleSettingsDialogState
         coreToast(context, '旧向量数据已清理，Chronicle已开启');
       }
     } else {
-      // 暂不开启，保留旧数据
+      // Keep disabled; retain legacy data.
       await choiceNotifier.setChoice('kept');
       if (mounted) {
         ref.read(chronicleSettingsProvider.notifier).setEnabled(false);
@@ -110,7 +110,7 @@ class _ChronicleSettingsDialogState
     }
   }
 
-  // ═══════════════════ [修改三] 获取模型列表 ═══════════════════
+  // Fetch model list
 
   Future<void> _fetchSummaryModels() async {
     final baseUrl = _baseUrlController.text.trim();
@@ -226,10 +226,10 @@ class _ChronicleSettingsDialogState
     );
   }
 
-  // ═══════════════════ [修改二] 工作原理 WebView 浮窗 ═══════════════════
+  // How it works: WebView dialog
 
   Future<void> _showPrincipleWebView() async {
-    // 注入实时数据：分段数/向量模型/词条累计/重试上限（原理页节点展示用）
+    // Inject live data: pass count/embedding model/total entries/max retries (for the principle page nodes).
     final cs = ref.read(chronicleSettingsProvider);
     final vs = ref.read(vectorStorageSettingsProvider);
     final embeddingLabel =
@@ -280,7 +280,7 @@ class _ChronicleSettingsDialogState
     final palette = CoreDialogPalette(isDark: isDark);
     final settings = ref.watch(chronicleSettingsProvider);
 
-    // 控制器只在首次或外部变更时同步（避免覆盖用户正在输入的内容）
+    // Sync controllers only on first load or external change (avoids overwriting in-progress input).
     if (_suffixController.text.isEmpty ||
         _suffixController.text == settings.customPromptSuffix) {
       _suffixController.text = settings.customPromptSuffix;
@@ -305,7 +305,7 @@ class _ChronicleSettingsDialogState
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 状态行（修复五：明确显示当前开关状态）
+          // Status row (explicitly shows the current toggle state).
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
@@ -345,7 +345,7 @@ class _ChronicleSettingsDialogState
             ),
           ),
           const SizedBox(height: 14),
-          // [修改二] 工作原理：可点击入口行 → WebView 浮窗
+          // How it works: clickable entry row opening the WebView dialog.
           CoreGroupBox(
             title: '工作原理',
             child: CoreTile(
@@ -416,7 +416,7 @@ class _ChronicleSettingsDialogState
             ),
           ),
           const SizedBox(height: 12),
-          // [修改三] 总结模型：完整模型配置区（BaseURL/APIKey/获取模型/模型名）
+          // Summary model: full model config (BaseURL/APIKey/fetch models/model name).
           CoreGroupBox(
             title: '总结模型',
             trailing: Text(
@@ -524,7 +524,7 @@ class _ChronicleSettingsDialogState
   }
 }
 
-/// 迁移选择弹窗（修复四）：有旧RAG数据且用户未做过决定时弹出
+/// Migration choice dialog: shown when legacy RAG data exists and no decision has been made yet.
 class _MigrationDialog extends ConsumerWidget {
   const _MigrationDialog();
 
@@ -579,8 +579,8 @@ class _MigrationDialog extends ConsumerWidget {
   }
 }
 
-/// [修改二] Chronicle 工作原理 HTML（内联，无网络依赖）
-/// {passes}/{embedding_label}/{entry_count}/{max_retries} 由Dart注入实时数据
+/// Chronicle "how it works" HTML (inline, no network dependency).
+/// {passes}/{embedding_label}/{entry_count}/{max_retries} are injected with live data from Dart.
 const String _kPrincipleHtml = r'''<!DOCTYPE html>
 <html lang="zh-CN">
 <head>

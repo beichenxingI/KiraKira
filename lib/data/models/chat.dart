@@ -171,7 +171,7 @@ class ChatMessage {
   final List<String>? reasoningSwipes; // Reasoning content for each swipe
   final List<ChatAttachment> attachments; // Image attachments
   final List<Map<String, dynamic>> swipesData; // per-swipe MvuData: {stat_data, schema, initialized_lorebooks, ...}
-  final bool isHidden; // [P6-5.3] 隐藏楼层(ST /hide 语义,不进提示词)
+  final bool isHidden; // Hidden message (SillyTavern /hide semantics, excluded from the prompt)
 
   const ChatMessage({
     required this.id,

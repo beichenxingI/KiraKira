@@ -7,7 +7,7 @@ import '../providers/world_info_providers.dart';
 import '../screens/world_info/world_info_screen.dart';
 import '../theme/design_tokens.dart';
 
-/// 角色世界书管理浮窗（编辑浮窗内入口）
+/// Character worldbook management dialog (entry point from the editor dialog).
 void showCharacterWorldBookDialog(
   BuildContext context,
   WidgetRef ref, {
@@ -56,7 +56,7 @@ class _CharacterWorldBookDialog extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 标题栏
+              // Title bar
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
                 child: Row(
@@ -87,7 +87,7 @@ class _CharacterWorldBookDialog extends ConsumerWidget {
                   height: 1,
                   color:
                       isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0)),
-              // 书列表
+              // Worldbook list
               Flexible(
                 child: worldBooksAsync.when(
                   loading: () => const Center(
@@ -138,7 +138,7 @@ class _CharacterWorldBookDialog extends ConsumerWidget {
                   height: 1,
                   color:
                       isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0)),
-              // 新建按钮
+              // Create button
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: SizedBox(
@@ -200,7 +200,8 @@ class _CharacterWorldBookDialog extends ConsumerWidget {
         ],
       ),
       onTap: () {
-        // 条目编辑保留既有全屏页（WorldInfoEntriesScreen）
+        // Entry editing keeps the existing full-screen page
+        // (WorldInfoEntriesScreen).
         Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute<void>(
               builder: (_) => WorldInfoEntriesScreen(worldInfo: worldBook)),
@@ -209,7 +210,7 @@ class _CharacterWorldBookDialog extends ConsumerWidget {
     );
   }
 
-  /// 新建/重命名（名称+描述）
+  /// Create / rename (name + description).
   void _showMetaDialog(
     BuildContext context,
     WidgetRef ref,

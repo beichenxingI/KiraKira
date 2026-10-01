@@ -1,21 +1,21 @@
-/// TTS 后端抽象接口
+/// TTS backend abstract interface
 ///
-/// 所有 TTS 引擎（系统/本地/云端）需实现此接口。
-/// TTSService 按 provider 路由到具体 backend。
+/// All TTS engines (system/local/cloud) must implement this interface.
+/// TTSService routes to the concrete backend by provider.
 abstract class TtsBackend {
-  /// 初始化引擎（加载模型/验证 API Key 等）
+  /// Initializes the engine (loads models / validates API key etc.)
   Future<void> initialize();
 
-  /// 获取可用音色列表，返回 [{value, label}] 统一格式
+  /// Gets the available voice list, returns the unified [{value, label}] format
   List<Map<String, String>> getAvailableVoices();
 
-  /// 朗读单段文本（await 到播放完成）
+  /// Speaks a single segment of text (awaits until playback completes)
   ///
-  /// [text] 已清洗的文本（_cleanTextForTTS 输出）
-  /// [voiceId] 音色 ID（system: "name|locale"；sherpa: sid；云端: voice name）
-  /// [rate] 语速 0.5-2.0
-  /// [pitch] 音调 0.5-2.0（部分后端忽略）
-  /// [volume] 音量 0.0-1.0
+  /// [text] cleaned text (_cleanTextForTTS output)
+  /// [voiceId] voice ID (system: "name|locale"; sherpa: sid; cloud: voice name)
+  /// [rate] speech rate 0.5-2.0
+  /// [pitch] pitch 0.5-2.0 (ignored by some backends)
+  /// [volume] volume 0.0-1.0
   Future<void> speak(
     String text, {
     String? voiceId,
@@ -24,30 +24,30 @@ abstract class TtsBackend {
     double volume = 1.0,
   });
 
-  /// 停止当前朗读
+  /// Stops the current playback
   Future<void> stop();
 
-  /// 暂停（如果引擎支持）
+  /// Pauses (if the engine supports it)
   Future<void> pause();
 
-  /// 恢复（如果引擎支持）
+  /// Resumes (if the engine supports it)
   Future<void> resume();
 
-  /// 释放资源（sherpa 的 free / 云端无操作）
+  /// Releases resources (sherpa's free / no-op for cloud)
   Future<void> dispose();
 
-  /// 是否本地引擎（影响 UI 提示）
+  /// Whether this is a local engine (affects UI hints)
   bool get isLocal;
 
-  /// 引擎显示名
+  /// Engine display name
   String get displayName;
 
-  /// 是否支持音调控制（sherpa 不支持，UI 隐藏 pitch 滑块）
+  /// Whether pitch control is supported (sherpa does not support it; the UI hides the pitch slider)
   bool get supportsPitch => true;
 
-  /// 是否支持语速控制
+  /// Whether speech rate control is supported
   bool get supportsRate => true;
 
-  /// 引擎特定的配置提示（UI 显示）
+  /// Engine-specific configuration hint (shown in the UI)
   String get configHint => '';
 }

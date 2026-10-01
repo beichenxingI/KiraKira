@@ -156,7 +156,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
             },
           ),
 
-          // Embedding API 配置（local 模式用本地模型，无需填）
+          // Embedding API config (local mode uses an on-device model, no config needed)
           if (settings.embeddingProvider != EmbeddingProvider.local) ...[
             const SizedBox(height: 12),
             TextFormField(
@@ -306,7 +306,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
   }
 
   void _showHelpDialog(BuildContext context, VectorStorageService service) {
-    // D-T2 规则 4:帮助 → 底部 Sheet(可滚)
+    // Help presented as a scrollable bottom sheet
     showDialog<void>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.6),
@@ -379,7 +379,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
     final descController = TextEditingController();
     final settings = ref.read(vectorStorageSettingsProvider);
 
-    // D-T2:双字段表单 → 底部 Sheet(键盘顶起)
+    // Two-field form in a bottom sheet (keyboard-aware)
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -465,7 +465,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
   }
 
   void _confirmDeleteCollection(BuildContext context, WidgetRef ref, String id) {
-    // D-T2 规则 1:破坏确认 → CupertinoAlertDialog
+    // Destructive confirmation uses a CupertinoAlertDialog
     showCupertinoDialog<void>(
       context: context,
       builder: (dialogCtx) => CupertinoAlertDialog(
@@ -509,7 +509,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
 
   void _importCollection(BuildContext context, WidgetRef ref) {
     final controller = TextEditingController();
-    // D-T2:JSON 多行导入 → 底部 Sheet
+    // Multi-line JSON import in a bottom sheet
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -779,7 +779,7 @@ class _CollectionDetails extends ConsumerWidget {
 
   void _showAddDocumentDialog(BuildContext context, WidgetRef ref) {
     final controller = TextEditingController();
-    // D-T2:文档多行输入 → 底部 Sheet
+    // Multi-line document input in a bottom sheet
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -854,7 +854,7 @@ class _CollectionDetails extends ConsumerWidget {
   }
 
   void _showDocumentsDialog(BuildContext context, WidgetRef ref, VectorCollection collection) {
-    // D-T2 规则 5:文档列表 → 底部 Sheet(可滚)
+    // Document list in a scrollable bottom sheet
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

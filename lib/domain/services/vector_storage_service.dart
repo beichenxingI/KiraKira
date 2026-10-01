@@ -5,7 +5,8 @@ import 'package:kirakira/data/database/database.dart' as db;
 import 'package:drift/drift.dart' show Value;
 
 /// Service for vector storage and RAG operations
-/// 混合存储：内存 Map 为运行时数据源（读同步），写操作异步持久化到数据库。
+/// Hybrid storage: the in-memory Map is the live data source (synchronous
+/// reads); writes are persisted to the database asynchronously.
 class VectorStorageService {
   final db.AppDatabase _db;
   VectorStorageService(this._db);
@@ -13,7 +14,7 @@ class VectorStorageService {
   /// In-memory storage for collections
   final Map<String, VectorCollection> _collections = {};
 
-  /// 启动时从数据库加载所有集合与文档到内存
+  /// Load all collections and documents from the database into memory on startup
   Future<void> load() async {
     try {
       final cols = await _db.select(_db.vectorCollections).get();
@@ -43,11 +44,11 @@ class VectorStorageService {
         );
       }
     } catch (e) {
-      // 加载失败保持空内存，不阻断
+      // On load failure keep empty in-memory state; do not block
     }
   }
 
-  // ── 持久化辅助（异步，不阻塞调用方）──
+  // Persistence helpers (async, do not block the caller)
   void _persistCollection(VectorCollection c) {
     unawaited(_db.into(_db.vectorCollections).insertOnConflictUpdate(
           db.VectorCollectionsCompanion.insert(
@@ -110,12 +111,12 @@ class VectorStorageService {
     return collection;
   }
 
-  /// Create a collection with a fixed id (用于按 chatId 绑定)
+  /// Create a collection with a fixed id (for binding by chatId)
   VectorCollection createCollectionWithId({
     required String id,
     required String name,
     String? description,
-    int dimensions = 384, // [CHRONICLE Phase 0] 512→384：本地bge-small-zh实际输出384维
+    int dimensions = 384, // 384 instead of 512: local bge-small-zh actually outputs 384 dims
   }) {
     final now = DateTime.now();
     final collection = VectorCollection(
@@ -156,7 +157,7 @@ class VectorStorageService {
       throw Exception('Collection not found: $collectionId');
     }
 
-    // [问题4修复] 无 type 的文档会被 legacy 清理误伤，手动知识库默认补 kb
+    // Documents without a type would be hit by legacy cleanup; default manual knowledge base docs to kb
     final meta = <String, dynamic>{
       ...?metadata,
       if (!(metadata?.containsKey('type') ?? false)) 'type': 'kb',
@@ -175,8 +176,10 @@ class VectorStorageService {
 
     return document;
   }
-  /// 按指定 id 入库（id 用 messageId）。先删旧再插新 → 同一消息幂等，
-  /// swipe/重生成/编辑多少次，向量库里始终只保留最新一条，不堆积。
+  /// Persist with a specified id (id is the messageId). Remove the old
+  /// document before inserting the new one, so it is idempotent per message:
+  /// no matter how many swipes/regenerations/edits, the vector store keeps
+  /// only the latest one instead of accumulating.
   VectorDocument addDocumentWithId({
     required String collectionId,
     required String documentId,
@@ -188,11 +191,12 @@ class VectorStorageService {
     if (collection == null) {
       throw Exception('Collection not found: $collectionId');
     }
-    // 先移除同 id 旧文档（内存）
+    // Remove the old document with the same id (in memory)
     final pruned =
         collection.documents.where((d) => d.id != documentId).toList();
-    // [问题4修复] 无 type 的文档会被 legacy 清理误伤，消息向量默认补 message
-    // （chronicle 词条自带 type='chronicle_entry'，不受影响）
+    // Documents without a type would be hit by legacy cleanup; default message
+    // vectors to message (chronicle entries carry type='chronicle_entry'
+    // already, so they are unaffected)
     final meta = <String, dynamic>{
       ...?metadata,
       if (!(metadata?.containsKey('type') ?? false)) 'type': 'message',
@@ -206,12 +210,12 @@ class VectorStorageService {
     );
     _collections[collectionId] =
         collection.copyWith(documents: [...pruned, document]);
-    // 库层 insertOnConflictUpdate 会按主键覆盖，无需先删
+    // insertOnConflictUpdate at the DB layer overwrites by primary key; no need to delete first
     _persistDocument(collectionId, document);
     return document;
   }
 
-  /// 按 documentId(=messageId) 删除向量，跨所有集合。删单条消息时用。
+  /// Remove a vector by documentId (=messageId) across all collections. Used when deleting a single message.
   void removeDocumentById(String documentId) {
     for (final entry in _collections.entries.toList()) {
       final col = entry.value;
@@ -284,7 +288,7 @@ class VectorStorageService {
     required List<double> queryEmbedding,
     int topK = 5,
     double? similarityThreshold,
-    /// [CHRONICLE Phase 3] metadata精确匹配过滤（null=不过滤，搜全部）
+    /// Exact metadata match filter (null = no filtering, search all)
     Map<String, dynamic>? metadataFilter,
   }) {
     final collection = _collections[collectionId];
@@ -295,7 +299,7 @@ class VectorStorageService {
     for (final document in collection.documents) {
       if (document.embedding == null) continue;
 
-      // [CHRONICLE Phase 3] metadata过滤：所有键值都匹配才保留
+      // Metadata filter: keep a document only if all key-value pairs match
       if (metadataFilter != null) {
         var matched = true;
         for (final entry in metadataFilter.entries) {
@@ -329,7 +333,7 @@ class VectorStorageService {
     return results.take(topK).toList();
   }
 
-  /// [CHRONICLE Phase 3] 按文档id取单个文档（话题切换检测复用已入库的消息向量）
+  /// Get a single document by id (topic-shift detection reuses stored message vectors)
   VectorDocument? getDocument(String collectionId, String documentId) {
     final collection = _collections[collectionId];
     if (collection == null) return null;
@@ -339,28 +343,31 @@ class VectorStorageService {
     return null;
   }
 
-  /// [CHRONICLE Phase 3] 判断集合内是否存在指定metadata类型的文档
+  /// Check whether the collection contains a document of the given metadata type
   bool hasDocumentsWithType(String collectionId, String type) {
     final collection = _collections[collectionId];
     if (collection == null) return false;
     return collection.documents.any((d) => d.metadata['type'] == type);
   }
 
-  /// [CHRONICLE UI整合·迁移检测] 是否存在旧版RAG向量数据。
-  /// 旧数据定义：迁移前入库、metadata 无 type 键的历史文档。
-  /// 新数据均带 type（消息 type='message' / 词条 type='chronicle_entry' /
-  /// 知识库 type='kb'），不会被误判——避免清理后新向量又被算作"旧向量"
-  /// 导致删除反复触发（问题4）。
+  /// Whether legacy RAG vector data exists. Legacy data is defined as
+  /// documents stored before migration whose metadata lacks a type key.
+  /// New data always carries a type (message type='message', entry
+  /// type='chronicle_entry', knowledge base type='kb') and is not misdetected,
+  /// preventing cleanup from repeatedly triggering because new vectors get
+  /// counted as legacy again.
   bool get hasLegacyVectors {
     return collections
         .any((c) => c.documents.any((d) => d.metadata['type'] == null));
   }
 
-  /// [CHRONICLE UI整合·迁移清理] 删除所有旧版RAG向量（保留带 type 的新数据）。
-  /// 用户选择"开启Chronicle，删除旧数据"时调用；消息原文向量后续仍会按需重建
-  /// （新消息照常入库，服务话题切换检测）。
-  /// [问题4修复] 一次性批量删除（单条 DELETE WHERE id IN）+ 事务包裹，
-  /// 替代逐条 fire-and-forget，避免内存与 DB 双源不一致。
+  /// Delete all legacy RAG vectors (keep new data carrying a type). Called
+  /// when the user chooses "enable Chronicle, delete old data"; message
+  /// original-text vectors are rebuilt on demand later (new messages are
+  /// stored as usual, serving topic-shift detection). Deletion is a one-time
+  /// batch (a single DELETE WHERE id IN) wrapped in a transaction instead of
+  /// per-row fire-and-forget, avoiding inconsistency between memory and DB
+  /// sources.
   Future<void> removeLegacyVectors() async {
     final legacyIds = <String>[];
     for (final collection in _collections.values.toList()) {
