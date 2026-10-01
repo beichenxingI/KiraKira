@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kirakira/data/models/persona.dart';
@@ -12,9 +14,9 @@ import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
-import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/dialogs/core_dialog.dart';
 
-/// Enhanced Persona Editor Screen with all new fields
+/// Persona editor screen
 class PersonaEditorScreen extends ConsumerStatefulWidget {
   final Persona? persona; // null for creating new persona
 
@@ -81,10 +83,15 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.persona == null ? 'Create Persona' : 'Edit Persona'),
-        actions: [
+    // Full-screen Scaffold replaced by a CoreDialogShell dialog (maxWidth 800,
+    // editor convention); favorite/save moved to the title bar trailing slot, TabBar moved into the body.
+    return CoreDialogShell(
+      title: widget.persona == null ? 'Create Persona' : 'Edit Persona',
+      icon: CupertinoIcons.person_crop_circle,
+      maxWidth: 800,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           IconButton(
             icon: Icon(_isFavorite ? Icons.star : Icons.star_border),
             tooltip: 'Favorite',
@@ -96,19 +103,26 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
             onPressed: _isSaving ? null : _save,
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: '角色设定', icon: Icon(Icons.person)),
-            Tab(text: '绑定角色卡', icon: Icon(Icons.link)),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      disableScroll: true,
+      body: Column(
         children: [
-          _buildBasicTab(),
-          _buildConnectionsTab(),
+          TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: '角色设定', icon: Icon(Icons.person)),
+              Tab(text: '绑定角色卡', icon: Icon(Icons.link)),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildBasicTab(),
+                _buildConnectionsTab(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -124,7 +138,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
           Center(child: _buildAvatarPicker()),
           const SizedBox(height: 24),
           
-          // 名字
+          // Name
           TextField(
             controller: _nameController,
             decoration: const InputDecoration(
@@ -136,7 +150,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
           ),
           const SizedBox(height: 16),
 
-          // 角色设定
+          // Persona description
           TextField(
             controller: _descriptionController,
             decoration: const InputDecoration(
@@ -149,7 +163,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
           ),
           const SizedBox(height: 20),
 
-          // 生效规则说明
+          // Persona activation rules note
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -157,27 +171,27 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
                   .colorScheme
                   .primary
                   .withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
             ),
-            child: Column(
+            child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  children: const [
+                  children: [
                     Icon(Icons.info_outline, size: 18),
                     SizedBox(width: 6),
                     Text('人设生效规则',
                         style: TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
-                const SizedBox(height: 8),
-                const Text(
+                SizedBox(height: 8),
+                Text(
                   '进入聊天时，按以下优先级决定使用哪个人设：\n'
                   '1. 你在聊天里手动选择的人设（最优先）\n'
                   '2. 当前角色卡在"绑定角色卡"里指定的人设\n'
                   '3. 都没有时，使用默认人设\n\n'
                   '你可以在"绑定角色卡"页把这个人设关联到一个或多个角色。',
-                  style: TextStyle(fontSize: 13, height: 1.6),
+                  style: TextStyle(fontSize: DesignTokens.fontSizeSm, height: 1.6),
                 ),
               ],
             ),
@@ -255,7 +269,7 @@ class _PersonaEditorScreenState extends ConsumerState<PersonaEditorScreen> with 
             child: const Text(
               '勾选角色卡，进入对应角色的聊天时将自动使用这个人设'
               '（除非你在聊天里手动选择了其他人设）。',
-              style: TextStyle(fontSize: 13, height: 1.5),
+              style: TextStyle(fontSize: DesignTokens.fontSizeSm, height: 1.5),
             ),
           ),
         ),

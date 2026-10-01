@@ -1,4 +1,5 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/logprobs.dart';
@@ -377,10 +378,10 @@ class _CandidateChip extends StatelessWidget {
       color: isSelected
           ? AppTheme.accentColor.withValues(alpha: 0.2)
           : Theme.of(context).colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Column(
@@ -427,7 +428,7 @@ class _OthersChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

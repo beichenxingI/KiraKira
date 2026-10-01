@@ -4,6 +4,37 @@ import 'dart:developer' as developer;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+
+/// EJS renderer interface (the domain layer does not depend on concrete presentation-layer implementations)
+abstract class EJSRenderer {
+  /// Renders an EJS template string and returns the result
+  Future<String> render(String text);
+}
+
+/// EJS render function signature
+typedef EJSRenderFn = Future<String> Function(String text);
+
+/// Registry for the active chat page's EJS render function (created in main, exposed via provider)
+class EJSRenderRegistry {
+  EJSRenderFn? _fn;
+  void register(EJSRenderFn fn) => _fn = fn;
+  void clear() => _fn = null;
+  EJSRenderFn? get current => _fn;
+}
+
+/// EJSRenderer implementation that fetches the current render function from the registry
+class RegistryEJSRenderer implements EJSRenderer {
+  final EJSRenderRegistry _registry;
+  RegistryEJSRenderer(this._registry);
+
+  @override
+  Future<String> render(String text) async {
+    final fn = _registry.current;
+    debugPrint('[EJSD-1a] registry.current=${fn != null ? "set" : "null"}');
+    if (fn == null) return text; // No active chat page, return text as-is
+    return await fn(text);
+  }
+}
 /// LLM Provider enum
 enum LLMProvider {
   openAICompatible,
@@ -82,8 +113,8 @@ class LLMConfig {
   // Auto-summarization settings
   final bool autoSummarizeEnabled;
   final double autoSummarizeThreshold;
-  final String summaryModel;   // 空 = 沿用主模型
-  final String summaryPrompt;  // 空 = 用内置中文提示词
+  final String summaryModel;   // Empty = fall back to the main model
+  final String summaryPrompt;  // Empty = use the built-in Chinese prompt
 
   const LLMConfig({
     required this.provider,
@@ -112,7 +143,7 @@ class LLMConfig {
     this.seed = -1,
     // Auto-summarization defaults
     this.autoSummarizeEnabled = true,
-    this.autoSummarizeThreshold = 0.8,
+    this.autoSummarizeThreshold = 0.6, // Lowered from 0.8 to 0.6 to intervene earlier
     this.summaryModel = '',
     this.summaryPrompt = '',
   });
@@ -235,7 +266,7 @@ class LLMConfig {
         stopSequences: (json['stopSequences'] as List<dynamic>?)?.cast<String>() ?? const [],
         seed: json['seed'] as int? ?? -1,
         autoSummarizeEnabled: json['autoSummarizeEnabled'] as bool? ?? true,
-        autoSummarizeThreshold: (json['autoSummarizeThreshold'] as num?)?.toDouble() ?? 0.8,
+        autoSummarizeThreshold: (json['autoSummarizeThreshold'] as num?)?.toDouble() ?? 0.6, // Lowered from 0.8 to 0.6
         summaryModel: json['summaryModel'] as String? ?? '',
         summaryPrompt: json['summaryPrompt'] as String? ?? '',
       );
@@ -244,6 +275,14 @@ class LLMConfig {
 /// LLM Service for generating responses
 class LLMService {
   final Dio _dio = Dio();
+
+  /// Optional EJS renderer, injected by the presentation layer
+  final EJSRenderer? _ejsRenderer;
+
+  /// EJS effectHash dedup cache: identical content+id within the same response cycle is rendered only once
+  final Set<String> _ejsEffectCache = {};
+
+  LLMService({EJSRenderer? ejsRenderer}) : _ejsRenderer = ejsRenderer;
   
   /// Log a message to the console
   /// Always calls debugPrint so DebugLogService can capture logs in all build modes
@@ -329,18 +368,6 @@ class LLMService {
     }
     
     _log('───────────────────────────────────────────────────────────────');
-    //   _log('Full Request JSON:');
-    //   try {
-    //     final encoder = const JsonEncoder.withIndent('  ');
-    //     final jsonStr = encoder.convert(data);
-    //     // Split into lines for better readability
-    //     for (final line in jsonStr.split('\n')) {
-    //       _log(line);
-    //     }
-    //   } catch (e) {
-    //     _log('(Could not serialize request: $e)');
-    //   }
-    //   _log('═══════════════════════════════════════════════════════════════');
   }
 
   /// Log response details
@@ -358,7 +385,7 @@ class LLMService {
     _log('Full Response:');
     try {
       if (responseData is Map || responseData is List) {
-        final encoder = const JsonEncoder.withIndent('  ');
+        const encoder = JsonEncoder.withIndent('  ');
         final jsonStr = encoder.convert(responseData);
         for (final line in jsonStr.split('\n')) {
           _log(line);
@@ -409,10 +436,71 @@ class LLMService {
   }
 
   /// Generate a response with reasoning/thinking support (non-streaming)
+  /// EJS rendering: iterates messages, invokes the registered EJS renderer for each content, and returns a new list.
+  /// effectHash dedup: identical content+id within the same response cycle is rendered only once.
+  /// Fail-open: on render failure, returns the original text with an ejsError marker; never blocks sending.
+  Future<List<Map<String, dynamic>>> _renderEJSInMessages(
+    List<Map<String, dynamic>> messages,
+  ) async {
+    final rendered = <Map<String, dynamic>>[];
+    // No EJS renderer, return messages as-is
+    if (_ejsRenderer == null) return messages;
+
+    _log('[EJSD-1] render pass msgs=${messages.length} '
+        'roles=${messages.map((m) => m['role']).join(",")}');
+
+    var i = 0;
+    for (final msg in messages) {
+      final role = msg['role'] as String? ?? 'system';
+      final content = msg['content'];
+
+      if (content is String && content.isNotEmpty) {
+        // Pre-render features of the original text: role/length/template tag count/signal words/first 80 chars
+        final tagCount = '<%'.allMatches(content).length;
+        final zis = content.contains('紫水晶');
+        final head = content.length > 80 ? content.substring(0, 80) : content;
+        _log('[EJSD-2] i=$i role=$role len=${content.length} '
+            'tags=$tagCount zis=$zis head=$head');
+
+        // effectHash dedup: skip content already rendered within the same response cycle
+        final id = msg['id']?.toString() ?? '';
+        final hash = '${content.hashCode}_$id';
+        if (_ejsEffectCache.contains(hash)) {
+          _log('[EJSD-2d] i=$i role=$role DEDUP skip');
+          rendered.add(msg);
+          i++;
+          continue;
+        }
+
+        try {
+          final renderedContent = await _ejsRenderer.render(content);
+          _ejsEffectCache.add(hash);
+          _log('[EJSD-2r] i=$i role=$role outLen=${renderedContent.length} '
+              'outTags=${'<%'.allMatches(renderedContent).length}');
+          rendered.add({'role': role, 'content': renderedContent});
+        } catch (e) {
+          // Fail-open: return the original text, mark the error for UI display
+          _ejsEffectCache.add(hash);
+          _log('[EJSD-2e] i=$i role=$role RENDER FAILED: $e');
+          rendered.add({'role': role, 'content': content, 'ejsError': e.toString()});
+        }
+      } else {
+        _log('[EJSD-2] i=$i role=$role SKIP(non-string or empty)');
+        rendered.add(msg);
+      }
+      i++;
+    }
+    return rendered;
+  }
+
   Future<LLMResponse> generateWithReasoning(
     List<Map<String, dynamic>> messages,
     LLMConfig config,
   ) async {
+    // Run EJS rendering before sending to the LLM
+    _ejsEffectCache.clear(); // Clear the dedup cache per response cycle
+    messages = await _renderEJSInMessages(messages);
+
     switch (config.provider) {
       
       case LLMProvider.deepSeek:
@@ -449,24 +537,27 @@ class LLMService {
   Stream<LLMStreamChunk> generateStreamWithReasoning(
     List<Map<String, dynamic>> messages,
     LLMConfig config,
-  ) {
+  ) async* {
+    // Run EJS rendering before streaming generation
+    messages = await _renderEJSInMessages(messages);
+
     switch (config.provider) {
       
       case LLMProvider.deepSeek:
       case LLMProvider.qwen:
       case LLMProvider.openAICompatible:
       case LLMProvider.openai:
-        return _streamOpenAIWithReasoning(messages, config);
+        yield* _streamOpenAIWithReasoning(messages, config);
       case LLMProvider.claude:
-        return _streamClaudeWithReasoning(messages, config);
+        yield* _streamClaudeWithReasoning(messages, config);
       case LLMProvider.openRouter:
-        return _streamOpenAIWithReasoning(messages, config); // Same as OpenAI
+        yield* _streamOpenAIWithReasoning(messages, config); // Same as OpenAI
       case LLMProvider.gemini:
-        return _streamGeminiWithReasoning(messages, config);
+        yield* _streamGeminiWithReasoning(messages, config);
       case LLMProvider.ollama:
-        return _streamOllamaWithReasoning(messages, config);
+        yield* _streamOllamaWithReasoning(messages, config);
       case LLMProvider.koboldCpp:
-        return _streamKoboldWithReasoning(messages, config);
+        yield* _streamKoboldWithReasoning(messages, config);
     }
   }
   Future<ConnectionMeasurement> measureConnection(LLMConfig config) async {

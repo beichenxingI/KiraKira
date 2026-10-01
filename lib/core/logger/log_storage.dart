@@ -29,7 +29,7 @@ class LogStorage {
 
   Future<void> _flush() async {
     if (_buffer.isEmpty || _file == null) return;
-    final lines = _buffer.map((e) => e.toLine()).join('\n') + '\n';
+    final lines = '${_buffer.map((e) => e.toLine()).join('\n')}\n';
     _buffer.clear();
     try {
       await _file!.writeAsString(lines, mode: FileMode.append);

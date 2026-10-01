@@ -129,8 +129,27 @@ class DebugLogService {
     String? error,
     StackTrace? stackTrace,
   }) {
-    if (!_isCapturing) return;
-    
+    // ERROR/WARN entries are not gated by _isCapturing; the ring buffer keeps
+    // them permanently so errors leave a trace even when capture is off.
+    final alwaysKeep = level == 'ERROR' || level == 'WARN';
+    if (!_isCapturing && !alwaysKeep) return;
+
+    // Deduplicate identical ERROR messages within a 5-second window to prevent
+    // high-frequency errors from flooding the buffer/toast
+    if (alwaysKeep) {
+      final key = '$level|$source|$message';
+      final last = _recentErrors[key];
+      if (last != null && DateTime.now().difference(last) < const Duration(seconds: 5)) {
+        return;
+      }
+      _recentErrors[key] = DateTime.now();
+      if (_recentErrors.length > 128) {
+        _recentErrors.removeWhere(
+          (k, v) => DateTime.now().difference(v) >= const Duration(seconds: 5),
+        );
+      }
+    }
+
     _addLog(LogEntry(
       timestamp: DateTime.now(),
       level: level,
@@ -148,6 +167,9 @@ class DebugLogService {
       stackTrace: stackTrace,
     );
   }
+
+  /// 5-second dedup window for ERROR/WARN: key to last recorded time
+  final Map<String, DateTime> _recentErrors = {};
 
   void _addLog(LogEntry entry) {
     _logs.add(entry);

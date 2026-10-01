@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -170,21 +170,26 @@ class WorldInfoRepository {
     bool? selective,
     int? insertionOrder,
     int depth = 4,
+    // Pass through all parameters fully (previously hardcoded, swallowing true/false/100/'{}')
+    bool? enabled,
+    bool? caseSensitive,
+    int? probability,
+    Map<String, dynamic>? extensions,
   }) async {
     final id = _uuid.v4();
-    
+
     // Get the next insertion order if not provided
     final existingEntries = await getEntriesForWorldInfo(worldInfoId);
     final actualInsertionOrder = insertionOrder ?? (existingEntries.isEmpty
         ? 0
         : existingEntries.map((e) => e.insertionOrder).reduce((a, b) => a > b ? a : b) + 1);
-    
+
     final actualPosition = position ?? models.WorldInfoPosition.before;
     // If no keys are provided, the entry is constant by default (always included)
     // Otherwise, default to the provided constant value or false
     final actualConstant = constant ?? (keys.isEmpty ? true : false);
     final actualSelective = selective ?? (secondaryKeys?.isNotEmpty ?? false);
-    
+
     final companion = WorldInfoEntriesCompanion(
       id: Value(id),
       worldInfoId: Value(worldInfoId),
@@ -192,22 +197,22 @@ class WorldInfoRepository {
       secondaryKeys: Value(jsonEncode(secondaryKeys ?? [])),
       content: Value(content),
       comment: Value(comment ?? ''),
-      enabled: const Value(true),
+      enabled: Value(enabled ?? true),
       constant: Value(actualConstant),
       selective: Value(actualSelective),
       insertionOrder: Value(actualInsertionOrder),
-      caseSensitive: const Value(false),
+      caseSensitive: Value(caseSensitive ?? false),
       matchWholeWords: const Value(false),
       useGroupScoring: const Value(false),
       automationId: const Value(''),
-      probability: const Value(100),
+      probability: Value(probability ?? 100),
       position: Value(actualPosition.index),
       depth: Value(depth),
       groupWeight: const Value(100),
       preventRecursion: const Value(false),
       delayUntilRecursion: const Value(false),
       scanDepth: const Value(1000),
-      extensionsJson: const Value('{}'),
+      extensionsJson: Value(jsonEncode(extensions ?? const {})),
     );
     
     await _db.into(_db.worldInfoEntries).insert(companion);
@@ -224,13 +229,13 @@ class WorldInfoRepository {
       secondaryKeys: secondaryKeys ?? [],
       content: content,
       comment: comment ?? '',
-      enabled: true,
+      enabled: enabled ?? true,
       constant: actualConstant,
       selective: actualSelective,
       insertionOrder: actualInsertionOrder,
-      caseSensitive: false,
+      caseSensitive: caseSensitive ?? false,
       matchWholeWords: false,
-      probability: 100,
+      probability: probability ?? 100,
       position: actualPosition,
       depth: depth,
       groupWeight: 100,
@@ -488,7 +493,7 @@ class WorldInfoRepository {
                   extensionsJson: Value(entry['extensions'] != null ? jsonEncode(entry['extensions']) : '{}'),
                 ),
               );
-            } catch (entryError, entryStack) {
+            } catch (entryError) {
               debugPrint('  ❌ Failed to insert entry ${entry['id']}: $entryError');
               debugPrint('  Entry data: ${jsonEncode(entry)}');
             }

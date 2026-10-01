@@ -67,3 +67,10 @@ android/app/upload-keystore.jks
 .env
 # Flutter 自动生成，不提交
 .flutter-plugins
+
+*.bak
+*.bak2
+
+# Agent tooling (never commit)
+.opencode/
+DiaoYan/

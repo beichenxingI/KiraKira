@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,7 +20,15 @@ final imageGenSettingsProvider = StateNotifierProvider<ImageGenSettingsNotifier,
 /// Notifier for image generation settings
 class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
   static const _prefsKey = 'image_gen_settings';
+  // API keys are stored only in secure storage, never in plaintext in SharedPreferences
+  static const _secureStorage = FlutterSecureStorage();
+  static const _secureApiKeysKey = 'image_gen_apikeys';
+  static const _securePromptOptApiKey = 'image_gen_promptopt_apikey';
   final ImageGenerationService _service;
+
+  // Keys last written to secure storage; skip the Keystore write when unchanged during high-frequency saves (e.g., slider updates)
+  Map<String, String> _lastSavedApiKeys = const {};
+  String? _lastSavedPromptOptKey;
 
   ImageGenSettingsNotifier(this._service) : super(const ImageGenSettings()) {
     _loadSettings();
@@ -29,10 +38,67 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jsonStr = prefs.getString(_prefsKey);
-      if (jsonStr != null) {
-        final json = jsonDecode(jsonStr) as Map<String, dynamic>;
-        state = ImageGenSettings.fromJson(json);
-        _service.updateSettings(state);
+      if (jsonStr == null) return;
+      final json = jsonDecode(jsonStr) as Map<String, dynamic>;
+
+      // Keys are read from secure storage; legacy plaintext in prefs is migrated once, then cleared
+      Map<String, String> secureKeys = {};
+      try {
+        final raw = await _secureStorage.read(key: _secureApiKeysKey);
+        if (raw != null && raw.isNotEmpty) {
+          final decoded = jsonDecode(raw) as Map<String, dynamic>;
+          secureKeys = decoded.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+        }
+      } catch (_) {}
+      final legacyKeys = (json['apiKeys'] is Map)
+          ? Map<String, String>.from(json['apiKeys'] as Map)
+          : (json['apiKey'] != null
+              ? <String, String>{
+                  (json['provider'] as String? ?? 'openai'): json['apiKey'].toString()
+                }
+              : <String, String>{});
+      legacyKeys.removeWhere((_, v) => v.isEmpty);
+      final migrated = Map<String, String>.from(secureKeys);
+      var didMigrate = false;
+      for (final entry in legacyKeys.entries) {
+        if ((migrated[entry.key] ?? '').isEmpty) {
+          migrated[entry.key] = entry.value;
+          didMigrate = true;
+        }
+      }
+      if (didMigrate) {
+        await _secureStorage.write(key: _secureApiKeysKey, value: jsonEncode(migrated));
+        _lastSavedApiKeys = migrated;
+      }
+      json['apiKeys'] = migrated;
+
+      // promptOptApiKey is migrated the same way
+      String? secureOpt;
+      try {
+        secureOpt = await _secureStorage.read(key: _securePromptOptApiKey);
+      } catch (_) {}
+      final legacyOpt = json['promptOptApiKey'] as String?;
+      if ((secureOpt == null || secureOpt.isEmpty) &&
+          legacyOpt != null &&
+          legacyOpt.isNotEmpty) {
+        await _secureStorage.write(key: _securePromptOptApiKey, value: legacyOpt);
+        json['promptOptApiKey'] = legacyOpt;
+        _lastSavedPromptOptKey = legacyOpt;
+        didMigrate = true;
+      } else if (secureOpt != null && secureOpt.isNotEmpty) {
+        json['promptOptApiKey'] = secureOpt;
+      }
+
+      state = ImageGenSettings.fromJson(json);
+      _service.updateSettings(state);
+
+      // Clear plaintext from prefs once migration completes
+      if (didMigrate) {
+        final stripped = Map<String, dynamic>.from(json);
+        stripped['apiKeys'] = <String, String>{};
+        stripped['apiKey'] = null;
+        stripped['promptOptApiKey'] = null;
+        await prefs.setString(_prefsKey, jsonEncode(stripped));
       }
     } catch (e) {
       // Use default settings on error
@@ -42,7 +108,22 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
   Future<void> _saveSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonStr = jsonEncode(state.toJson());
+      final json = state.toJson();
+      // Keys are written only to secure storage, never in plaintext to prefs
+      final keysToStore = Map<String, String>.from(state.apiKeys)
+        ..removeWhere((_, v) => v.isEmpty);
+      if (!mapEquals(_lastSavedApiKeys, keysToStore)) {
+        await _secureStorage.write(key: _secureApiKeysKey, value: jsonEncode(keysToStore));
+        _lastSavedApiKeys = keysToStore;
+      }
+      json['apiKeys'] = <String, String>{};
+      final optKey = state.promptOptApiKey;
+      if ((optKey ?? '').isNotEmpty && optKey != _lastSavedPromptOptKey) {
+        await _secureStorage.write(key: _securePromptOptApiKey, value: optKey!);
+        _lastSavedPromptOptKey = optKey;
+      }
+      json['promptOptApiKey'] = null;
+      final jsonStr = jsonEncode(json);
       await prefs.setString(_prefsKey, jsonStr);
       _service.updateSettings(state);
     } catch (e) {
@@ -56,8 +137,7 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
   }
 
   void setProvider(ImageGenProvider provider) {
-    // Also update the default model and clear custom endpoint when provider changes
-    // When switching providers, don't reset the apiEndpoint - each provider has its own
+    // Each provider keeps its own apiEndpoint, so it is not reset on provider switch
     state = state.copyWith(provider: provider);
     _saveSettings();
   }
@@ -117,6 +197,49 @@ class ImageGenSettingsNotifier extends StateNotifier<ImageGenSettings> {
 
   void setDefaultNegativePrompt(String? negativePrompt) {
     state = state.copyWith(defaultNegativePrompt: negativePrompt);
+    _saveSettings();
+  }
+
+  // Image generation prompt customization
+  void setPositivePromptPrefix(String? prefix) {
+    state = state.copyWith(positivePromptPrefix: prefix);
+    _saveSettings();
+  }
+
+  void setExtractionInstruction(String? instruction) {
+    state = state.copyWith(extractionInstruction: instruction);
+    _saveSettings();
+  }
+
+  void setImageTagInstruction(String? instruction) {
+    state = state.copyWith(imageTagInstruction: instruction);
+    _saveSettings();
+  }
+
+  // Full-auto image generation: additionally calls an LLM to optimize the prompt
+  void setEnableAutoPromptGeneration(bool value) {
+    state = state.copyWith(enableAutoPromptGeneration: value);
+    _saveSettings();
+  }
+
+  void setAutoPromptConfigId(String? configId) {
+    state = state.copyWith(autoPromptConfigId: configId);
+    _saveSettings();
+  }
+
+  // Prompt optimization: separate image generation API configuration
+  void setPromptOptBaseUrl(String? baseUrl) {
+    state = state.copyWith(promptOptBaseUrl: baseUrl?.isEmpty == true ? null : baseUrl);
+    _saveSettings();
+  }
+
+  void setPromptOptApiKey(String? apiKey) {
+    state = state.copyWith(promptOptApiKey: apiKey?.isEmpty == true ? null : apiKey);
+    _saveSettings();
+  }
+
+  void setPromptOptModel(String? model) {
+    state = state.copyWith(promptOptModel: model?.isEmpty == true ? null : model);
     _saveSettings();
   }
   
@@ -376,19 +499,21 @@ class FetchedModelsNotifier extends StateNotifier<FetchedModelsState> {
       final models = await _service.fetchModels();
       debugPrint('  Fetched models: $models');
       
-      if (!mounted) return; // 页面已销毁，避免 after dispose 崩溃
+      if (!mounted) return; // Page disposed; avoid updating state after dispose
       if (models != null && models.isNotEmpty) {
         state = FetchedModelsState(models: models);
       } else {
-        // Fall back to default models
-        debugPrint('  No models returned, using defaults');
-        state = FetchedModelsState(models: _settings.provider.defaultModels);
+        // Do not fall back to defaultModels in state.models: the UI cannot
+        // distinguish a real fetch from a hardcoded fallback and would always
+        // show DALL-E 3/2. null = no real models fetched, so the UI shows manual input.
+        debugPrint('  No models returned, state.models = null (UI shows manual input)');
+        state = const FetchedModelsState();
       }
     } catch (e) {
       debugPrint('  Error fetching models: $e');
-      if (!mounted) return; // 同上
+      if (!mounted) return; // Same as above (page disposed)
+      // On error, also avoid falling back to defaultModels; store only the error
       state = FetchedModelsState(
-        models: _settings.provider.defaultModels,
         error: e.toString(),
       );
     }

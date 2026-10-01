@@ -1,0 +1,601 @@
+import 'dart:convert';
+import 'package:kirakira/data/models/mvu_settings.dart';
+
+/// Shared TavernHelper facade (TavernHelper environment injection script).
+///
+/// Source: transcribed from the proven injection script in
+/// webview_chat_stage.dart, with message-bubble-only height reporting removed,
+/// frameId parameterized, and macro values injected by the host. Shared by the
+/// message iframe and the global script engine room.
+///
+/// [frameId] unique identifier for each iframe, used for __thCall request
+/// routing. The host must inject __KIRA_MACRO_VALUES({user,char}) into window
+/// before load.
+String buildTavernHelperFacadeJs({
+  required String frameId,
+  required MvuSettings mvu,
+  // Real EJS load state (static flag _ejsLoaded); drives
+  // extensionSettings.EjsTemplate.enabled.
+  //   Alarm 4 compares 17 keys against Wt; enabled is driven by the real
+  //   source, the other 16 keys are platform always-on/always-off behavior
+  //   declarations (see below).
+  required bool ejsLoaded,
+}) {
+  // mvu_settings baking: webRaw (the raw object written back by MVU, containing
+  // its own internal sections such as already-reminded flags, auto-cleanup
+  // variables, compatibility settings) forms the base, overridden by known
+  // platform values — so MVU's one-time upgrade reminder flag persists across
+  // sessions instead of re-showing on every page entry.
+  final webRaw = mvu.webRaw;
+  final mvuBaked = <String, dynamic>{
+    ...webRaw,
+    '更新方式': mvu.updateMode,
+    '通知': <String, dynamic>{
+      ...((webRaw['通知'] as Map?)?.cast<String, dynamic>() ?? const {}),
+      'MVU框架加载成功': mvu.notifyFrameworkLoaded,
+      '变量初始化成功': mvu.notifyInitSuccess,
+      '变量更新出错': mvu.notifyVarError,
+      '额外模型解析中': mvu.notifyExtraParsing,
+    },
+    '额外模型解析配置': <String, dynamic>{
+      ...((webRaw['额外模型解析配置'] as Map?)
+              ?.cast<String, dynamic>() ??
+          const {}),
+      '破限方案': mvu.jailbreakScheme,
+      '启用自动请求': mvu.autoRequest,
+      'max_chat_history': mvu.maxChatHistory,
+      '模型来源': mvu.modelSource,
+      'api地址': mvu.apiUrl,
+      '密钥': mvu.apiKey,
+      '模型名称': mvu.modelName,
+    },
+  };
+  return '(function(){'
+      // localStorage / sessionStorage polyfill (fallback for old WebViews)
+      'var _s={};try{localStorage.getItem("__t");}catch(e){'
+      'try{Object.defineProperty(window,"localStorage",{configurable:true,value:{'
+      'getItem:function(k){return _s[k]||null;},'
+      'setItem:function(k,v){_s[k]=String(v);},'
+      'removeItem:function(k){delete _s[k];},'
+      'clear:function(){_s={};},'
+      'key:function(i){return Object.keys(_s)[i]||null;},'
+      'get length(){return Object.keys(_s).length;}'
+      '}});parent.postMessage({__thLog:true,text:"[polyfill] localStorage 覆盖成功"},"*");}'
+      'catch(e2){parent.postMessage({__thLog:true,text:"[polyfill] localStorage 覆盖失败: "+e2},"*");}'
+      '}'
+      'var _ss={};try{sessionStorage.getItem("__t");}catch(e){'
+      'try{Object.defineProperty(window,"sessionStorage",{configurable:true,value:{'
+      'getItem:function(k){return _ss[k]||null;},'
+      'setItem:function(k,v){_ss[k]=String(v);},'
+      'removeItem:function(k){delete _ss[k];},'
+      'clear:function(){_ss={};},'
+      'key:function(i){return Object.keys(_ss)[i]||null;},'
+      'get length(){return Object.keys(_ss).length;}'
+      '}});parent.postMessage({__thLog:true,text:"[polyfill] sessionStorage 覆盖成功"},"*");}'
+      'catch(e2){parent.postMessage({__thLog:true,text:"[polyfill] sessionStorage 覆盖失败: "+e2},"*");}'
+      '}'
+      // DOMContentLoaded re-fire
+      '(function(){'
+      'var _origAddEvt=document.addEventListener.bind(document);'
+      'document.addEventListener=function(type,fn,opts){'
+      'if(type==="DOMContentLoaded"&&document.readyState!=="loading"){setTimeout(fn,0);}'
+      'else{_origAddEvt(type,fn,opts);}'
+      '};'
+      '})();'
+      // console / onerror / unhandledrejection log forwarding
+      '(function(){'
+      'var _log=function(level){return function(){'
+      'try{var parts=[];for(var i=0;i<arguments.length;i++){var a=arguments[i];'
+      'parts.push(typeof a==="object"?(function(){try{return JSON.stringify(a);}catch(e){return String(a);}})():String(a));}'
+      'parent.postMessage({__thLog:true,text:"[引擎房:"+level+"] "+parts.join(" ")},"*");}catch(e){}'
+      '};};'
+      'console.log=_log("log");console.error=_log("error");console.warn=_log("warn");console.info=_log("info");'
+      'window.onerror=function(msg,src,line,col,err){'
+      'try{parent.postMessage({__thLog:true,text:"[引擎房:onerror] "+msg+" @"+line+":"+col+(err&&err.stack?" | "+err.stack:"")},"*");}catch(e){}'
+      'return false;};'
+      'window.addEventListener("unhandledrejection",function(ev){'
+      'try{parent.postMessage({__thLog:true,text:"[引擎房:promise未捕获] "+(ev.reason&&ev.reason.message||ev.reason)},"*");}catch(e){}'
+      '});'
+      '})();'
+      // frameId (for request routing)
+      'var _id=${jsonEncode(frameId)};'
+      // setInterval/clearInterval counting inside the iframe (mirrors
+      // chat_stage.html:1986-1990). The main-document counter cannot see
+      // polling timers inside an iframe; with per-iframe counting, probes can
+      // assert that polling is alive and the count is stable.
+      'window.__kiraTimerCount=0;'
+      '(function(){var si=window.setInterval,ci=window.clearInterval,active={};'
+      'window.setInterval=function(){var id=si.apply(this,arguments);active[id]=true;window.__kiraTimerCount++;return id;};'
+      'window.clearInterval=function(id){if(active[id]){delete active[id];window.__kiraTimerCount=Math.max(0,window.__kiraTimerCount-1);}return ci.call(this,id);};})();'
+      // __thCall communication bridge (iframe -> Dart request/response)
+      'var __thPending={};var __thId=1;'
+      'function __thCall(method,args){'
+      'return new Promise(function(resolve,reject){'
+      'var rid=_id+"_"+(__thId++);'
+      '__thPending[rid]={resolve:resolve,reject:reject};'
+      // Timeout fallback: 120 s (raised from 30 s to accommodate user-driven
+      // operations such as th_popup)
+      'setTimeout(function(){if(__thPending[rid]){delete __thPending[rid];reject(new Error("th timeout: "+method));}},120000);'
+      'parent.postMessage({__thRequest:true,frameId:_id,rid:rid,method:method,args:args},"*");'
+      '});'
+      '}'
+      'window.addEventListener("message",function(e){'
+      'var d=e.data;if(!d||!d.__thResponse)return;'
+      'var p=__thPending[d.rid];if(!p)return;delete __thPending[d.rid];'
+      'if(d.ok)p.resolve(d.result);else p.reject(new Error(d.error||"th failed"));'
+      '});'
+      // Read-only bridge calls are coalesced while in flight: Daoyuan polls
+      // getWorldbook every 5 s, and when a round trip exceeds 5 s setInterval
+      // stacks bridge messages / DB queries / serialization without waiting
+      // for the previous call (measured root cause of jank and overheating).
+      // Reads are idempotent: a request with the same method + arguments
+      // reuses the same Promise while the previous one is pending, with
+      // unchanged semantics; the cache clears itself on completion/failure so
+      // the next call sends fresh. Write paths (setVariables/replaceWorldbook
+      // etc.) never go through here.
+      'var __thInFlight={};'
+      'function __thCallRead(method,args){'
+      'var key;try{key=method+"|"+JSON.stringify(args||[]);}catch(e){key=method;}'
+      'var p=__thInFlight[key];'
+      'if(p)return p;'
+      'p=__thCall(method,args);'
+      '__thInFlight[key]=p;'
+      'var done=function(){if(__thInFlight[key]===p){try{delete __thInFlight[key];}catch(e){}}};'
+      'p.then(done,done);'
+      'return p;'
+      '}'
+      // Receive events relayed from the outer frame, then fire the eventOn
+      // callbacks registered by MVU (ignition).
+      'window.__chatMessages=window.__chatMessages||[];'
+      'window.addEventListener("message",function(e){'
+      'var d=e.data;if(!d||!d.__thEvent)return;'
+      'try{'
+      // Preset/settings change events clear the JS-side preset cache (a
+      // second line of defense alongside setPreset's local invalidation)
+      'if(d.type==="preset_changed"||d.type==="settings_updated"){try{if(typeof __KIRA_PRESET_CACHE_CLEAR==="function")__KIRA_PRESET_CACHE_CLEAR();}catch(e2){}}'
+      'if(d.__msgs){window.__chatMessages=d.__msgs;}'
+      'if(!window.__probed){window.__probed=1;'
+      'parent.postMessage({__thLog:true,text:"[探针] typeof _="+(typeof window._)+" throttle="+((window._&&typeof window._.throttle))},"*");'
+      'if(window._&&window._.throttle){var _c=0;var _t=window._.throttle(function(){_c++;return "ran";},3000);var _rv=_t();parent.postMessage({__thLog:true,text:"[探针] throttle首调返回="+_rv+" 实际执行="+_c},"*");}}'
+      'parent.postMessage({__thLog:true,text:"[转接器] 收到 "+d.type+" 桶内监听器数="+((_TH.__events[d.type]||[]).length)+" 镜像条数="+((window.__chatMessages||[]).length)},"*");'
+      '_TH.eventEmit.apply(_TH,[d.type].concat(d.args||[]));'
+      'parent.postMessage({__thLog:true,text:"[引擎房] 点火 "+d.type},"*");}'
+      'catch(err){parent.postMessage({__thLog:true,text:"[引擎房] 点火失败 "+d.type+": "+err},"*");}'
+      '});'
+      // _TH facade interface
+      'var _TH={};'
+      'window._TH=_TH;'
+      '_TH.getChatMessages=function(range,option){'
+      'var _m=(window.__chatMessages||[]).slice();'
+      'var _r;'
+      'if(typeof range==="number"){'
+      'var idx=range<0?_m.length+range:range;'
+      'var one=_m[idx];'
+      '_r=one?[one]:[];'
+      '}else{_r=_m;}'
+      'var _last=_r[_r.length-1]||{};'
+      'parent.postMessage({__thLog:true,text:"[闸探针] range="+JSON.stringify(range)+" 取到name="+JSON.stringify(_last.name)+" name2="+JSON.stringify((window.SillyTavern&&window.SillyTavern.name2))+" is_user="+_last.is_user+" 返回条数="+_r.length},"*");'
+      'return _r;'
+      '};'
+      '_TH.setChatMessage=function(content,index,option){return __thCall("setChatMessage",[content,index,option||{}]);};'
+      '_TH.setChatMessages=function(msgs,option){return __thCall("setChatMessages",[msgs,option||{}]);};'
+      '_TH.createChatMessages=function(msgs,option){return __thCall("createChatMessages",[msgs,option||{}]);};'
+      '_TH.deleteChatMessages=function(ids,option){return __thCall("deleteChatMessages",[ids,option||{}]);};'
+      '_TH.triggerSlash=function(cmd){return __thCall("triggerSlash",[cmd]);};'
+      '_TH.setInput=function(t){return __thCall("setInput",[t]);};'
+      // UI interaction: toastr -> Flutter SnackBar.
+      // Cards have no ST toastr layer in the engine room / main document, so
+      // 35+ high-frequency calls all go through the bridge
+      '_TH.toastr={'
+ 'info:function(m,t){return __thCall("th_toast",["info",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},'
+ 'success:function(m,t){return __thCall("th_toast",["success",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},'
+ 'warning:function(m,t){return __thCall("th_toast",["warning",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});},'
+ 'error:function(m,t){return __thCall("th_toast",["error",m==null?"":String(m),t==null?"":String(t)]).catch(function(){return"";});}'
+      '};'
+      // Generic popup -> Flutter Dialog.
+      // Enum values align with ST popup.js: TEXT=1 CONFIRM=2 INPUT=3
+      // DISPLAY=4 CROP=5;
+      // AFFIRMATIVE=1 NEGATIVE=0 CANCELLED=null (cancel/close returns null)
+      '_TH.POPUP_TYPE={TEXT:1,CONFIRM:2,INPUT:3,DISPLAY:4,CROP:5};'
+      '_TH.POPUP_RESULT={AFFIRMATIVE:1,NEGATIVE:0,CANCELLED:null,CUSTOM1:1001,CUSTOM2:1002,CUSTOM3:1003,CUSTOM4:1004,CUSTOM5:1005};'
+      '_TH.callGenericPopup=function(text,type,inputValue){'
+      'return __thCall("th_popup",[text==null?"":String(text),(type==null?1:type),inputValue==null?"":String(inputValue)]).catch(function(){return null;});'
+      '};'
+      // Legacy ask (confirm dialog returning bool) and the callPopup alias
+      '_TH.ask=function(text){'
+      'return __thCall("th_popup",[text==null?"":String(text),2,""]).then(function(r){return r===1;}).catch(function(){return false;});'
+      '};'
+      '_TH.callPopup=_TH.ask;'
+      // Variable mirror (synchronous reads): MVU's getVariables /
+      // getLastMessageId are synchronous calls. Reads hit the local mirror;
+      // writes go over the bridge, persist, then backfill the mirror (see
+      // updateVariablesWith / __varSync)
+      '_TH.__lastMsgId=0;'
+      '_TH.__primaryLorebook=null;'
+      '_TH.__varCache={global:{},chat:{},message:{},script:{}};'
+      // Script-level variables: after the main document injects a snapshot,
+      // the Dart write path calls this function to backfill the local cache.
+      //   Each script hydrates once before injection, so
+      //   getVariables({type:'script'}) reads the persisted value synchronously.
+      'window.__kiraSetScriptVars=function(sid,vars){if(!sid)return;_TH.__varCache.script[sid]=vars&&typeof vars==="object"?(vars):{};};'
+      // Backfills the script cache after a successful updateVariablesWith /
+      // setVariables write, keeping reads and writes consistent.
+      '_TH.__kiraTouchScriptCache=function(option,vars){var _sid=(option&&option.script_id)||(option&&option.scriptId)||(window.__KIRA_CURRENT_SCRIPT_ID||"");if(_sid){_TH.__varCache.script[_sid]=vars&&typeof vars==="object"?vars:{};}};'
+      // EJS standard objects: same source as the mirror, for
+      // dist/index.js externals to import
+      'window.extension_settings=window.extension_settings||{};'
+      'window.extension_settings.variables=window.extension_settings.variables||{global:{}};'
+      'window.chat_metadata=window.chat_metadata||{variables:{}};'
+      'window.chat=window.chat||[];'
+      // Receive real variables pushed from the outer frame, then backfill
+      // the mirror (reverse sync)
+      'window.addEventListener("message",function(e){'
+      'var d=e.data;if(!d||!d.__varSync)return;'
+      'var t=d.type||"chat";'
+      'if(t==="message"){_TH.__varCache.message[d.message_id]=d.data||{};}'
+      'else{_TH.__varCache[t]=d.data||{};}'
+      // Same-source backfill of the EJS standard objects (coexists with the
+      // mirror: MVU reads the mirror, EJS reads the standard objects)
+      'if(t==="global"){window.extension_settings.variables.global=d.data||{};}'
+      'else if(t==="chat"){window.chat_metadata.variables=d.data||{};}'
+      'else if(t==="message"){'
+      'var _mid=d.message_id;'
+      'if(typeof _mid==="number"){'
+      'window.chat[_mid]=window.chat[_mid]||{};'
+      'window.chat[_mid].variables=window.chat[_mid].variables||[];'
+      'var _sw=(typeof d.swipe_id==="number")?d.swipe_id:0;'
+      'window.chat[_mid].swipe_id=_sw;'
+      'window.chat[_mid].variables[_sw]=d.data||{};'
+      '}}'
+      'if(typeof d.lastMsgId==="number")_TH.__lastMsgId=d.lastMsgId;'
+      'parent.postMessage({__thLog:true,text:"[引擎房] 变量同步 "+t},"*");'
+      '});'                                                              // closes listener 1
+      // Receive the primary worldbook name pushed from the outer frame,
+      // then backfill the mirror
+      'window.addEventListener("message",function(e){'
+      'var d=e.data;if(!d||!d.__primaryLorebookSync)return;'
+      '_TH.__primaryLorebook=(typeof d.name==="string")?d.name:null;'
+      'parent.postMessage({__thLog:true,text:"[引擎房] 主世界书同步 "+_TH.__primaryLorebook},"*");'
+      '});'
+      '_TH.getCurrentMessageId=function(){return (window.__chatMessages||[]).length-1;};'
+      '_TH.getLastMessageId=function(){return (window.__chatMessages||[]).length-1;};'
+      'window.getLastMessageId=function(){return (window.__chatMessages||[]).length-1;};'
+      '_TH.getVariables=function(option){'
+      'option=option||{};var t=option.type||"chat";'
+      'if(t==="message"){'
+      'var mid=option.message_id;'
+      'if(mid===undefined||mid==="latest")mid=_TH.__lastMsgId;'
+      'if(typeof mid==="number"&&mid<0)mid=_TH.__lastMsgId+1+mid;'
+      // swipe_id slice: the engine room's standard object stores an array
+      // per swipe; prefer reading that
+      'var sw=option.swipe_id;'
+      'if(typeof sw==="number"&&window.chat&&window.chat[mid]&&window.chat[mid].variables){'
+      'var _arr=window.chat[mid].variables;return (_arr&&_arr[sw])||{};}'
+      'return _TH.__varCache.message[mid]||{};'
+      '}'
+      // Script-level variables: read the cache by option.script_id (or the
+      // current script).
+      'if(t==="script"){'
+      'var _sid=option.script_id||option.scriptId||(window.__KIRA_CURRENT_SCRIPT_ID||"");'
+      'if(_sid)return _TH.__varCache.script[_sid]||{};'
+      'return {};'
+      '}'
+      'return _TH.__varCache[t]||{};'
+      '};'
+      '_TH.setVariables=function(vars,option){option=option||{};return __thCall("setVariables",[vars,option]).then(function(r){if(option.type==="script")_TH.__kiraTouchScriptCache(option,r||vars);return r;});};'
+      '_TH.replaceVariables=function(vars,option){option=option||{};return __thCall("replaceVariables",[vars,option]).then(function(r){if(option.type==="script")_TH.__kiraTouchScriptCache(option,r||vars);return r;});};'
+      // Write interface (async persistence): MVU's write operations are all
+      // awaited. The updater is a function passed by MVU and cannot cross the
+      // bridge; it must run inside the iframe, and only the new value (pure
+      // data) crosses the bridge to be persisted.
+      '_TH.__resolveMid=function(option){'
+      'var mid=option.message_id;'
+      'if(mid===undefined||mid==="latest")mid=_TH.__lastMsgId;'
+      'if(typeof mid==="number"&&mid<0)mid=_TH.__lastMsgId+1+mid;'
+      'return mid;'
+      '};'
+      '_TH.updateVariablesWith=function(updater,option){'
+      'option=option||{};var t=option.type||"chat";'
+      'var mid=(t==="message")?_TH.__resolveMid(option):null;'
+      'var cur;'
+      'if(t==="script"){var _sid=option.script_id||option.scriptId||(window.__KIRA_CURRENT_SCRIPT_ID||"");cur=_sid?(_TH.__varCache.script[_sid]||{}):{};}'
+      'else{cur=(t==="message")?(_TH.__varCache.message[mid]||{}):(_TH.__varCache[t]||{});}'
+      'return Promise.resolve(updater(cur)).then(function(next){'
+      'if(next===undefined)next=cur;'
+      'if(t==="script"){var _sid2=option.script_id||option.scriptId||(window.__KIRA_CURRENT_SCRIPT_ID||"");if(_sid2)_TH.__varCache.script[_sid2]=next;}'
+      'else if(t==="message"){_TH.__varCache.message[mid]=next;}else{_TH.__varCache[t]=next;}'
+      'return __thCall("setVariables",[next,option]).then(function(){return next;});'
+      '});'
+      '};'
+      '_TH.insertOrAssignVariables=function(vars,option){'
+      'return _TH.updateVariablesWith(function(data){return Object.assign(data||{},vars);},option);'
+      '};'
+      'window.updateVariablesWith=_TH.updateVariablesWith;'
+      'window.insertOrAssignVariables=_TH.insertOrAssignVariables;'
+      '_TH.getAllVariables=function(){return __thCallRead("getAllVariables",[]);};'
+      '_TH.getTavernHelperVersion=function(){return "4.9.1";};'
+      // ST core version number (XuanShu msgcompress startup check requires
+      // getTavernVersion>="1.13.4")
+      '_TH.getTavernVersion=function(){return "1.13.4";};'
+      // MVU startup dependency: unique-script mechanism (stub object)
+        '_TH.__gsidN=0;'
+        // getScriptId is unique per script: the script room sets
+        //   __KIRA_CURRENT_SCRIPT_ID before injection and returns the current
+        //   script id; the engine room (unset) falls back to kirakira-mvu-0,
+        //   keeping MVU's primary-selection semantics unchanged.
+        '_TH.getScriptId=function(){_TH.__gsidN++;if(_TH.__gsidN<=3||_TH.__gsidN%100===0){parent.postMessage({__thLog:true,text:"[身份] getScriptId被调 #"+_TH.__gsidN+" id="+((window.__KIRA_CURRENT_SCRIPT_ID)||"kirakira-mvu-0")},"*");}return (typeof window.__KIRA_CURRENT_SCRIPT_ID==="string"&&window.__KIRA_CURRENT_SCRIPT_ID.length>0)?window.__KIRA_CURRENT_SCRIPT_ID:"kirakira-mvu-0";};'      'window.getScriptId=_TH.getScriptId;'
+      '_TH.registerAsUniqueScript=function(id){'
+      'parent.postMessage({__thLog:true,text:"[身份] registerAsUniqueScript被调 id="+id},"*");'
+      'return {listenPreferenceState:function(cb){parent.postMessage({__thLog:true,text:"[身份] listenPreferenceState注册,即将回调"},"*");try{cb("kirakira-mvu-0");}catch(e){parent.postMessage({__thLog:true,text:"[身份] cb异常"+e},"*");}return {stop:function(){}};}};};'
+      'window.registerAsUniqueScript=_TH.registerAsUniqueScript;'
+      // Real generate bridge: a full generation turn (scripts must get the
+      // result from the generation_ended event; returns before the 30 s
+      // bridge timeout)
+      '_TH.generate=function(arg){return __thCall("th_generate",[arg===undefined?"normal":arg]);};'
+      'window.generate=_TH.generate;'
+      '_TH.stopGeneration=function(){return __thCall("th_stopGeneration",[]);};'
+      'window.stopGeneration=_TH.stopGeneration;'
+      '_TH.generateRaw=function(cfg){parent.postMessage({__thLog:true,text:"[额外模型] generateRaw被调 hasCustomApi="+(!!(cfg&&cfg.custom_api))+" prompts="+((cfg&&cfg.ordered_prompts||[]).length)+" injects="+((cfg&&cfg.injects||[]).length)},"*");return __thCall("generateRaw",[cfg]);};'
+      'window.generateRaw=_TH.generateRaw;'
+      // substitudeMacros: synchronous macro replacement (reads the
+      // host-injected window.__KIRA_MACRO_VALUES)
+      '_TH.substitudeMacros=function(t){'
+      'if(typeof t!=="string")return t;'
+      'var v=window.__KIRA_MACRO_VALUES||{user:"User",char:"Assistant"};'
+      'return t.replace(/\\{\\{user\\}\\}/gi,v.user)'
+      '.replace(/\\{\\{char\\}\\}/gi,v.char)'
+      '.replace(/<user>/gi,v.user)'
+      '.replace(/<char>/gi,v.char);'
+      '};'
+      'window.substitudeMacros=_TH.substitudeMacros;'
+      // Worldbook API
+      '_TH.getLorebookEntries=function(name){return __thCallRead("getLorebookEntries",[name]);};'
+      '_TH.getWorldbookNames=function(){return __thCallRead("th_wiGetLorebooks",[]).then(function(names){if(!Array.isArray(names))throw new Error("worldbook names must be an array");return names;});};'
+      '_TH.getWorldbook=function(name){return __thCallRead("th_wiGetEntries",[name]).then(function(entries){if(!Array.isArray(entries))throw new Error("worldbook entries must be an array");return entries;});};'
+      '_TH.replaceWorldbook=function(name,entries){if(!Array.isArray(entries))return Promise.reject(new Error("replaceWorldbook requires an array"));return __thCall("th_wiSetEntries",[name,entries]).then(function(result){return result;});};'
+      '_TH.getTavernRegexes=function(opts){var t=(opts&&opts.type)||"global";return __thCallRead("th_getRegexes",[t]);};'
+      // Regex engine (platform regex assets -> synchronous JS execution).
+      // The rule snapshot is injected by Dart as __KIRA_REGEX_RULES:
+      // [{f,r,p,o,d,mo,po,e,t,min,max}];
+      // placement is an ST enum value (USER_INPUT=1/AI_OUTPUT=2/
+      // SLASH_COMMAND=3/WORLD_INFO=5/REASONING=6), mapped internally to
+      // platform indexes (userInput=0/aiOutput=1/slashCommand=2/
+      // worldInfo=3/reasoning=4).
+      'window.__kiraRunRegex=function(text,placement,opts){'
+      'try{'
+      'opts=opts||{};'
+      'var rules=window.__KIRA_REGEX_RULES||[];'
+      'var out=String(text==null?"":text);'
+      'var stToDart={0:0,1:0,2:1,3:2,5:3,6:4};'
+      'var dp=(typeof stToDart[placement]==="number")?stToDart[placement]:placement;'
+      'var sorted=rules.slice().sort(function(a,b){return (a.o||0)-(b.o||0);});'
+      'for(var i=0;i<sorted.length;i++){'
+      'var r=sorted[i];'
+      'if(r.d)continue;'
+      'var ps=r.p||[];var hit=false;for(var q=0;q<ps.length;q++){if(ps[q]===dp){hit=true;break;}}'
+      'if(!hit)continue;'
+      'if(r.mo&&!opts.isMarkdown)continue;'
+      'if(r.po&&!opts.isPrompt)continue;'
+      'if(!r.mo&&!r.po&&opts.isPrompt)continue;'
+      'if(opts.isEdit&&!r.e)continue;'
+      'if(typeof opts.depth==="number"){'
+      'if(r.min!=null&&r.min>=-1&&opts.depth<r.min)continue;'
+      'if(r.max!=null&&r.max>=0&&opts.depth>r.max)continue;}'
+      'var src=String(r.f||"");if(!src)continue;'
+      'var fl="g";'
+      'if(src.charAt(0)==="/"){var last=src.lastIndexOf("/");if(last>0){var f=src.substring(last+1);src=src.substring(1,last);if(f.indexOf("i")>=0)fl+="i";if(f.indexOf("m")>=0)fl+="m";if(f.indexOf("s")>=0)fl+="s";}}'
+      'var re=new RegExp(src,fl);'
+      'out=out.replace(re,function(){'
+      'var a=arguments;var m=a[0];'
+      // V8 only appends the groups argument when named groups exist; infer
+      // the group count from the trailing argument type
+      'var gobj=(typeof a[a.length-1]==="string")?undefined:a[a.length-1];'
+      'var n=(gobj===undefined)?(a.length-3):(a.length-4);'
+      'var rep=String(r.r==null?"":r.r);'
+      'rep=rep.split("{{match}}").join(m);rep=rep.split("{{MATCH}}").join(m);'
+      'for(var gi=0;gi<=n;gi++){var gv=(gi===0)?m:(a[gi]==null?"":a[gi]);'
+      'if(gi>0&&r.t&&r.t.length){for(var ti=0;ti<r.t.length;ti++){gv=String(gv).split(r.t[ti]).join("");}}'
+      'rep=rep.split("\$"+gi).join(gv);}'
+      'if(gobj&&typeof gobj==="object"){rep=rep.replace(/\\\$<([^>]+)>/g,function(_,name){var v=gobj[name];return v==null?"":String(v);});}'
+      'if(_TH.substitudeMacros){rep=_TH.substitudeMacros(rep);}'
+      'return rep;});}'
+      '}catch(e){}'
+      'return out;'
+      '};'
+      '_TH.getRegexedString=function(t,p,o){return window.__kiraRunRegex(t,p,o);};'
+      'window.getRegexedString=_TH.getRegexedString;'
+      // Advanced worldbook: updateWorldbookWith (read -> modify -> write) /
+      // createWorldbookEntries (batch)
+      '_TH.updateWorldbookWith=function(name,updater){'
+      'return _TH.getWorldbook(name).then(function(b){'
+      'if(!b)throw new Error("worldbook not found: "+name);'
+      'var u=updater(b);'
+      'return _TH.replaceWorldbook(name,(u===undefined||u===null)?b:u).then(function(){return _TH.getWorldbook(name);});'
+      '});};'
+      'window.updateWorldbookWith=_TH.updateWorldbookWith;'
+      '_TH.createWorldbookEntries=function(name,entries){return __thCall("createLorebookEntries",[name,entries||[]]);};'
+      'window.createWorldbookEntries=_TH.createWorldbookEntries;'
+      '_TH.createWorldbookEntry=function(name,entry){return _TH.createWorldbookEntries(name,[entry||{}]);};'
+      '_TH.updateTavernRegexesWith=function(){return Promise.reject(new Error("updateTavernRegexesWith: no Flutter data source"));};'
+      // getScriptTrees shares the main document's source: reads
+      // __KIRA_PRESET_SCRIPTS from the main document (content stripped,
+      // metadata only)
+      '_TH.getScriptTrees=function(opts){var t=(opts&&opts.type)||"global";var all=[];try{all=(window.parent&&window.parent.__KIRA_PRESET_SCRIPTS)||[];}catch(e){}return Promise.resolve(all.map(function(s,i){return {id:String(s.id!=null?s.id:i),name:String(s.name!=null?s.name:("脚本"+(i+1))),enabled:!!s.enabled,type:t};}));};'
+      '_TH.updateScriptTreesWith=function(){return Promise.reject(new Error("updateScriptTreesWith: no Flutter data source"));};'
+      '_TH.getCurrentCharPrimaryLorebook=function(){return _TH.__primaryLorebook;};'
+      'window.getCurrentCharPrimaryLorebook=_TH.getCurrentCharPrimaryLorebook;'
+      '_TH.getEnabledLorebookList=function(){return __thCallRead("getEnabledLorebookList",[]);};'
+      'window.getEnabledLorebookList=_TH.getEnabledLorebookList;'
+      '_TH.setLorebookEntries=function(name,entries){return __thCall("setLorebookEntries",[name,entries||[]]);};'
+      '_TH.createLorebookEntry=function(name,entry){return __thCall("createLorebookEntry",[name,entry||{}]);};'
+      '_TH.deleteLorebookEntries=function(name,uids){return __thCall("deleteLorebookEntries",[name,uids||[]]);};'
+      '_TH.getCharacterLorebooks=function(){return __thCallRead("getCharacterLorebooks",[]);};'
+      '_TH.getCharacterLorebooks=function(){return __thCallRead("getCharacterLorebooks",[]);};'
+      'window.getCharacterLorebooks=_TH.getCharacterLorebooks;'  // if MVU calls the long name
+      '_TH.getCharLorebooks=_TH.getCharacterLorebooks;'          // the short name MVU actually calls
+      'window.getCharLorebooks=_TH.getCharacterLorebooks;'       // bare window mount so MVU can reach it
+      '_TH.getCharWorldbookNames=function(t){return __thCallRead("getCharacterLorebooks",[]);};'  // MVU's newer API name; always called on the initvar path
+      'window.getCharWorldbookNames=_TH.getCharWorldbookNames;'
+      '_TH.getLorebooks=function(){return __thCallRead("getLorebooks",[]);};'
+      '_TH.getLorebookSettings=function(){return {selected_global_lorebooks:[]};};'
+      'window.getLorebookSettings=_TH.getLorebookSettings;'
+      '_TH.setLorebookSettings=function(s){return true;};'
+      'window.setLorebookSettings=_TH.setLorebookSettings;'
+      '_TH.createLorebook=function(name){return __thCall("createLorebook",[name]);};'
+      // Preset management API (Hushen broken-link 2: getPreset x27 /
+      // updatePresetWith x38).
+      // 'in_use' is resolved by the Dart side to the currently active preset;
+      // settings.should_stream lands in llmConfig and takes effect
+      // immediately; prompts merge into PromptManagerConfig by identifier;
+      // preset_changed is emitted after writing.
+      // JS-side session-level preset cache (plan 1): Hushen's UI polls
+      //   getPreset('in_use') at high frequency, and a 4MB JSON round trip
+      //   per call was the main cause of OOM; a cache hit returns the same
+      //   object reference (zero serialization).
+      //   Invalidation: setPreset success / preset_changed / settings_updated
+      //   events.
+      'window.__KIRA_PRESET_CACHE=window.__KIRA_PRESET_CACHE||{};'
+      '__KIRA_PRESET_CACHE_CLEAR=function(){try{for(var k in window.__KIRA_PRESET_CACHE){delete window.__KIRA_PRESET_CACHE[k];}}catch(e){}};'
+      '_TH.getPresetNames=function(){return __thCallRead("th_getPresetNames",[]);};'
+      '_TH.getPreset=function(name){'
+      'try{if(window.__KIRA_PRESET_CACHE[name])return Promise.resolve(window.__KIRA_PRESET_CACHE[name]);}catch(e){}'
+      'return __thCallRead("th_getPreset",[name]).then(function(r){'
+      'try{if(r)window.__KIRA_PRESET_CACHE[name]=r;}catch(e){}'
+      'return r;});};'
+      '_TH.setPreset=function(name,preset){return __thCall("th_setPreset",[name,preset]).then(function(r){try{__KIRA_PRESET_CACHE_CLEAR();}catch(e){}return r;});};'
+      '_TH.getLoadedPresetName=function(){return __thCallRead("th_getLoadedPresetName",[]);};'
+      // updatePresetWith: read -> updater -> write (ST semantics; if the
+      // updater returns undefined, use the in-place modified object)
+      '_TH.updatePresetWith=function(name,updater){return _TH.getPreset(name).then(function(p){if(!p)throw new Error("preset not found: "+name);var u=updater(p);return _TH.setPreset(name,(u===undefined||u===null)?p:u);}).then(function(){return _TH.getPreset(name);});};'
+      // Event bus (iframe-local implementation)
+      '_TH.__events={};'
+      '_TH.__eventOn=function(type,listener){(_TH.__events[type]=_TH.__events[type]||[]).push(listener);try{parent.postMessage({__thLog:true,text:"[EVT-REG] on type="+type+" bucket="+_TH.__events[type].length},"*");}catch(_e0){}return {stop:function(){_TH.__eventRemove(type,listener);}};};'
+'_TH.eventOn=function(type,listener){var r=_TH.__eventOn(type,listener);if(type&&type.indexOf("th_unique_check.")===0){try{parent.postMessage({__thLog:true,text:"[选主] th_unique_check 立即回调 kirakira-mvu-0"},"*");listener("kirakira-mvu-0");}catch(e){parent.postMessage({__thLog:true,text:"[选主] 回调异常"+e},"*");}}return r;};'
+      '_TH.eventMakeLast=function(type,listener){return _TH.__eventOn(type,listener);};'
+      '_TH.eventMakeFirst=function(type,listener){var l=_TH.__events[type]=_TH.__events[type]||[];l.unshift(listener);try{parent.postMessage({__thLog:true,text:"[EVT-REG] makeFirst type="+type+" bucket="+l.length},"*");}catch(_e1){}return {stop:function(){_TH.__eventRemove(type,listener);}};};'
+      '_TH.eventOnce=function(type,listener){var wrap=function(){_TH.__eventRemove(type,wrap);return listener.apply(this,arguments);};return _TH.__eventOn(type,wrap);};'
+      '_TH.eventRemoveListener=function(type,listener){_TH.__eventRemove(type,listener);};'
+      '_TH.__eventRemove=function(type,listener){var l=_TH.__events[type];if(!l)return;var i=l.indexOf(listener);if(i>=0)l.splice(i,1);};'
+      '_TH.eventClearAll=function(){_TH.__events={};};'
+      '_TH.eventEmit=function(type){var args=Array.prototype.slice.call(arguments,1);if(type&&type.indexOf("th_unique_check.")===0){args=["kirakira-mvu-0"];parent.postMessage({__thLog:true,text:"[选主] eventEmit 强制 th_unique_check=kirakira-mvu-0"},"*");}'
+      // MVU event upstream: engine room -> main document (__mvuEvent), then
+      // the main document relays __thEvent to all card iframes. The card's
+      // eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, ...) fires on the card's
+      // local bus. No loop: the card-side eventEmit is a separate
+      // implementation inside chat_stage.html without this forwarding.
+      'try{parent.postMessage({__mvuEvent:true,type:type,args:args},"*");}catch(_fwdE){}'
+      'var l=(_TH.__events[type]||[]).slice();for(var i=0;i<l.length;i++){try{parent.postMessage({__thLog:true,text:"[emit] "+type+" 调listener#"+i},"*");var _r=l[i].apply(null,args);parent.postMessage({__thLog:true,text:"[emit] "+type+" listener#"+i+" 返回="+(_r&&typeof _r.then==="function"?"promise":typeof _r)},"*");if(_r&&typeof _r.then==="function"){_r.catch(function(e){parent.postMessage({__thLog:true,text:"[事件异步错误]"+type+": "+((e&&e.stack)||e)},"*");});}}catch(e){parent.postMessage({__thLog:true,text:"[事件同步错误]"+type+": "+((e&&e.stack)||e)},"*");}}try{parent.postMessage({__thLog:true,text:"[EVT-3] done type="+type+" listeners="+l.length},"*");}catch(_e2){}};'
+      '_TH.eventEmitAndWait=function(type){var args=Array.prototype.slice.call(arguments,1);var l=(_TH.__events[type]||[]).slice();var results=[];for(var i=0;i<l.length;i++){try{results.push(l[i].apply(null,args));}catch(e){console.error("[事件]"+type,e);}}return Promise.all(results);};'
+      // tavern_events / iframe_events constant tables.
+      // Expanded from 36 keys to 60+ keys, aligned with the standard in
+      // slash-runner-types/iframe/event.d.ts:188-276.
+      // Key names copy the official ones; values are ST internal event name
+      // strings (special cases such as CHARACTER_DELETED='characterDeleted'
+      // are preserved).
+      'window.tavern_events={'
+      'APP_READY:"app_ready",EXTRAS_CONNECTED:"extras_connected",'
+      'MESSAGE_SWIPED:"message_swiped",MESSAGE_SENT:"message_sent",MESSAGE_RECEIVED:"message_received",MESSAGE_EDITED:"message_edited",MESSAGE_DELETED:"message_deleted",MESSAGE_UPDATED:"message_updated",MESSAGE_FILE_EMBEDDED:"message_file_embedded",MESSAGE_REASONING_EDITED:"message_reasoning_edited",MESSAGE_REASONING_DELETED:"message_reasoning_deleted",MESSAGE_SWIPE_DELETED:"message_swipe_deleted",MORE_MESSAGES_LOADED:"more_messages_loaded",IMPERSONATE_READY:"impersonate_ready",'
+      'CHAT_CHANGED:"chat_id_changed",'
+      'GENERATION_AFTER_COMMANDS:"GENERATION_AFTER_COMMANDS",GENERATION_STARTED:"generation_started",GENERATION_STOPPED:"generation_stopped",GENERATION_ENDED:"generation_ended",SD_PROMPT_PROCESSING:"sd_prompt_processing",'
+      'EXTENSIONS_FIRST_LOAD:"extensions_first_load",EXTENSION_SETTINGS_LOADED:"extension_settings_loaded",SETTINGS_LOADED:"settings_loaded",SETTINGS_UPDATED:"settings_updated",MOVABLE_PANELS_RESET:"movable_panels_reset",SETTINGS_LOADED_BEFORE:"settings_loaded_before",SETTINGS_LOADED_AFTER:"settings_loaded_after",'
+      'CHATCOMPLETION_SOURCE_CHANGED:"chatcompletion_source_changed",CHATCOMPLETION_MODEL_CHANGED:"chatcompletion_model_changed",OAI_PRESET_CHANGED_BEFORE:"oai_preset_changed_before",OAI_PRESET_CHANGED_AFTER:"oai_preset_changed_after",OAI_PRESET_EXPORT_READY:"oai_preset_export_ready",OAI_PRESET_IMPORT_READY:"oai_preset_import_ready",'
+      'WORLDINFO_SETTINGS_UPDATED:"worldinfo_settings_updated",WORLDINFO_UPDATED:"worldinfo_updated",WORLDINFO_FORCE_ACTIVATE:"worldinfo_force_activate",WORLDINFO_ENTRIES_LOADED:"worldinfo_entries_loaded",WORLDINFO_SCAN_DONE:"worldinfo_scan_done",WORLD_INFO_ACTIVATED:"world_info_activated",'
+      'CHARACTER_EDITOR_OPENED:"character_editor_opened",CHARACTER_EDITED:"character_edited",CHARACTER_PAGE_LOADED:"character_page_loaded",CHARACTER_SELECTED:"characterSelected",CHARACTER_CREATED:"character_created",CHARACTER_DUPLICATED:"character_duplicated",CHARACTER_RENAMED:"character_renamed",CHARACTER_RENAMED_IN_PAST_CHAT:"character_renamed_in_past_chat",CHARACTER_DELETED:"characterDeleted",CHARACTER_FIRST_MESSAGE_SELECTED:"character_first_message_selected",CHARACTER_MESSAGE_RENDERED:"character_message_rendered",USER_MESSAGE_RENDERED:"user_message_rendered",'
+      'FORCE_SET_BACKGROUND:"force_set_background",CHAT_DELETED:"chat_deleted",CHAT_CREATED:"chat_created",GROUP_UPDATED:"group_updated",'
+      'GENERATE_BEFORE_COMBINE_PROMPTS:"generate_before_combine_prompts",GENERATE_AFTER_COMBINE_PROMPTS:"generate_after_combine_prompts",GENERATE_AFTER_DATA:"generate_after_data",'
+      'TEXT_COMPLETION_SETTINGS_READY:"text_completion_settings_ready",CHAT_COMPLETION_SETTINGS_READY:"chat_completion_settings_ready",CHAT_COMPLETION_PROMPT_READY:"chat_completion_prompt_ready",'
+      'SMOOTH_STREAM_TOKEN_RECEIVED:"stream_token_received",STREAM_TOKEN_RECEIVED:"stream_token_received",STREAM_REASONING_DONE:"stream_reasoning_done",FILE_ATTACHMENT_DELETED:"file_attachment_deleted",'
+      'OPEN_CHARACTER_LIBRARY:"open_character_library",ONLINE_STATUS_CHANGED:"online_status_changed",IMAGE_SWIPED:"image_swiped",'
+      'CONNECTION_PROFILE_LOADED:"connection_profile_loaded",CONNECTION_PROFILE_CREATED:"connection_profile_created",CONNECTION_PROFILE_DELETED:"connection_profile_deleted",CONNECTION_PROFILE_UPDATED:"connection_profile_updated",'
+      'TOOL_CALLS_PERFORMED:"tool_calls_performed",TOOL_CALLS_RENDERED:"tool_calls_rendered",CHARACTER_MANAGEMENT_DROPDOWN:"charManagementDropdown",'
+      'SECRET_WRITTEN:"secret_written",SECRET_DELETED:"secret_deleted",SECRET_ROTATED:"secret_rotated",SECRET_EDITED:"secret_edited",'
+      'PRESET_CHANGED:"preset_changed",PRESET_DELETED:"preset_deleted",PRESET_RENAMED:"preset_renamed",PRESET_RENAMED_BEFORE:"preset_renamed_before",MAIN_API_CHANGED:"main_api_changed",'
+      'MEDIA_ATTACHMENT_DELETED:"media_attachment_deleted"'
+      '};'
+      // iframe_events adds MESSAGE_IFRAME_RENDER_STARTED/ENDED (official
+      // event.d.ts:172-183)
+      'window.iframe_events={MESSAGE_IFRAME_RENDER_STARTED:"message_iframe_render_started",MESSAGE_IFRAME_RENDER_ENDED:"message_iframe_render_ended",GENERATION_STARTED:"js_generation_started",GENERATION_ENDED:"js_generation_ended",STREAM_TOKEN_RECEIVED_FULLY:"js_stream_token_received_fully",STREAM_TOKEN_RECEIVED_INCREMENTALLY:"js_stream_token_received_incrementally"};'
+      // mount everything bare on window
+      'for(var _k in _TH){if(_TH.hasOwnProperty(_k)){window[_k]=_TH[_k];}}'
+      'window.TavernHelper=_TH;'
+      // clipboard polyfill
+      '(function(){try{'
+      'if(!navigator.clipboard){Object.defineProperty(navigator,"clipboard",{configurable:true,value:{}});}'
+      'if(!navigator.clipboard.writeText){navigator.clipboard.writeText=function(t){'
+      'try{if(window.setInput){window.setInput(String(t));}}catch(e){}'
+      'return Promise.resolve();};}'
+      'if(!navigator.clipboard.readText){navigator.clipboard.readText=function(){return Promise.resolve("");};}'
+      '}catch(e){parent.postMessage({__thLog:true,text:"[polyfill] clipboard 失败: "+e},"*");}})();'
+      // SillyTavern.getContext() skeleton
+      'var _ctx={'
+      'eventSource:{'
+      'on:function(t,l){return _TH.eventOn(t,l);},'
+      'once:function(t,l){return _TH.eventOnce(t,l);},'
+      'emit:function(t){var a=Array.prototype.slice.call(arguments,1);return _TH.eventEmit.apply(_TH,[t].concat(a));},'
+      'removeListener:function(t,l){return _TH.eventRemoveListener(t,l);},'
+      'makeLast:function(t,l){return _TH.eventMakeLast(t,l);},'
+      'makeFirst:function(t,l){return _TH.eventMakeFirst(t,l);}'
+      '},'
+      'eventTypes:window.tavern_events,'
+      'getChatMessages:function(r,o){return _TH.getChatMessages(r,o);},'
+      'setChatMessage:function(c,i,o){return _TH.setChatMessage(c,i,o);},'
+      'chat:[],characters:[],characterId:0,groupId:null,chatId:(window.__KIRA_CHAT_ID||""),'
+      'chatMetadata:{},extensionSettings:{},name1:"You",name2:((window.__KIRA_MACRO_VALUES&&window.__KIRA_MACRO_VALUES.char)||""),'
+      'saveChat:function(){return Promise.resolve();},'
+      'saveMetadata:function(){return Promise.resolve();},'
+      'reloadCurrentChat:function(){return Promise.resolve();},'
+      'saveSettingsDebounced:function(){try{__thCall("th_saveExtensionSettings",[window.SillyTavern.extensionSettings]);}catch(e){}},'
+      'getRequestHeaders:function(){return {"Content-Type":"application/json"};},'
+      'renderExtensionTemplateAsync:function(){return Promise.resolve("");},'
+      // Dialog API (same shape as exported.sillytavern.d.ts)
+      'POPUP_TYPE:_TH.POPUP_TYPE,'
+      'POPUP_RESULT:_TH.POPUP_RESULT,'
+      'callGenericPopup:function(c,t,i,o){return _TH.callGenericPopup(c,t,i,o);},'
+      'ask:function(t){return _TH.ask(t);}'
+      '};'
+      'window.SillyTavern={getContext:function(){return _ctx;},'
+      'saveChat:function(){return Promise.resolve();},'
+      // Persistence bridge: MVU/Daoyuan writes back extensionSettings ->
+      // th_saveExtensionSettings -> MvuSettings persisted to disk.
+      'saveSettingsDebounced:function(){try{__thCall("th_saveExtensionSettings",[window.SillyTavern.extensionSettings]);}catch(e){}},'
+      'getCurrentChatId:function(){return window.__KIRA_CHAT_ID||"";},'
+      '__macros:{},'
+      'registerMacro:function(k,fn){try{window.SillyTavern.__macros[k]=fn;}catch(e){}},'
+      'unregisterMacro:function(k){try{delete window.SillyTavern.__macros[k];}catch(e){}},'
+      'name1:"You",name2:((window.__KIRA_MACRO_VALUES&&window.__KIRA_MACRO_VALUES.char)||""),'
+      'extensionSettings:{mvu_settings:${jsonEncode(mvuBaked)},'
+      // EjsTemplate (Daoyuan's Wt expects 17 keys, pretty.js:959-977).
+      //   enabled is driven by the real _ejsLoaded; the other 16 keys are
+      //   platform behavior declarations: the platform does have real EJS
+      //   rendering (llm_service.dart EJSRenderer) and the template pipeline
+      //   always works to the ST-Prompt-Template defaults with no runtime
+      //   state to conflict — so declare them platform always-on/always-off
+      //   rather than faking a runtime state bit.
+      'EjsTemplate:{'
+      'enabled:$ejsLoaded,'
+      'generate_enabled:true,'
+      'generate_loader_enabled:true,'
+      'render_enabled:true,'
+      'render_loader_enabled:true,'
+      'with_context_disabled:false,'
+      'debug_enabled:false,'
+      'autosave_enabled:false,'
+      'preload_worldinfo_enabled:true,'
+      'code_blocks_enabled:true,'
+      'raw_message_evaluation_enabled:true,'
+      'filter_message_enabled:true,'
+      'inject_loader_enabled:false,'
+      'invert_enabled:true,'
+      'depth_limit:-1,'
+      'compile_workers:false,'
+      'sandbox:false'
+      '}'
+      '}'
+      '};'
+      'try{Object.defineProperty(window.SillyTavern,"chat",{configurable:true,get:function(){return window.__chatMessages||[];}});}catch(e){window.SillyTavern.chat=window.__chatMessages||[];}'
+      'window.appendInexistentScriptButtons=function(){};'
+      'window.getButtonEvent=function(n){return "button_event_"+n;};'
+      'window.getScriptButtons=function(){return [];};'
+      'window.getContext=function(){return _ctx;};'
+      '})();';
+}

@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import '../../../data/models/character.dart';
 import 'app_dialog.dart';
 
-/// 开场白选择结果。
-/// 返回 null 表示用户取消；返回字符串表示选中的开场白正文。
+/// Result of the greeting picker.
+/// Returns null when the user cancels; returns the selected greeting text as a string.
 Future<String?> showGreetingPicker(
   BuildContext context,
   Character character,
 ) {
-  // 主开场白 + 所有非空备用开场白
+  // Primary greeting + all non-empty alternate greetings
   final greetings = <String>[
     if (character.firstMessage.isNotEmpty) character.firstMessage,
     ...character.alternateGreetings.where((g) => g.trim().isNotEmpty),
@@ -60,12 +60,12 @@ Future<String?> showGreetingPicker(
   );
 }
 
-/// 生成预览文本：清掉 HTML 标签和常见宏，再取前 20 字。
+/// Builds preview text: strips HTML tags and common macros, then takes the first 20 characters.
 String _preview(String raw) {
   var s = raw
-      .replaceAll(RegExp(r'<[^>]*>'), '') // 去 HTML 标签
-      .replaceAll(RegExp(r'\{\{[^}]*\}\}'), '') // 去 {{宏}}
-      .replaceAll(RegExp(r'\s+'), ' ') // 折叠空白
+      .replaceAll(RegExp(r'<[^>]*>'), '') // strip HTML tags
+      .replaceAll(RegExp(r'\{\{[^}]*\}\}'), '') // strip {{macros}}
+      .replaceAll(RegExp(r'\s+'), ' ') // collapse whitespace
       .trim();
   if (s.length > 20) s = '${s.substring(0, 20)}...';
   return s;

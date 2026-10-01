@@ -1,4 +1,3 @@
-﻿import 'dart:collection';
 import 'package:kirakira/data/models/tokenizer.dart';
 
 /// Service for tokenization operations
@@ -102,7 +101,7 @@ class TokenizerService {
     int offset = 0;
 
     // Split into words and punctuation
-    final pattern = RegExp(r"(\s+|[^\s\w]|\w+)");
+    final pattern = RegExp(r'(\s+|[^\s\w]|\w+)');
     final matches = pattern.allMatches(text);
 
     for (final match in matches) {
@@ -225,7 +224,7 @@ When exact tokenization isn't available, we estimate using ~3.35 characters per 
 /// Simple LRU cache implementation
 class _LRUCache<K, V> {
   final int maxSize;
-  final _cache = LinkedHashMap<K, V>();
+  final _cache = <K, V>{};
 
   _LRUCache({required this.maxSize});
 

@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'settings_providers.dart';
 
-/// 主页背景音乐路径，独立存储，和背景图/视频分开
+/// Home background music path, stored independently of the background image/video
 const String _homeMusicKey = 'home_music_path';
 
 final homeMusicProvider =

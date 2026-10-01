@@ -1,17 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 
-/// bge-small-zh-v1.5 专用 WordPiece 分词器（BERT 系）。
+/// WordPiece tokenizer for bge-small-zh-v1.5 (BERT family).
 ///
-/// 与界面上那个"数 token 的分词器"完全无关——那个面向用户算预算，
-/// 用的是对话模型的 BPE 规则；这个面向机器算向量，喂给本地 ONNX，
-/// 用的是 bge 训练时的 WordPiece 规则和词表。两者井水不犯河水。
+/// Completely unrelated to the user-facing "token counter" tokenizer — that one
+/// estimates budgets for users using chat-model BPE rules; this one computes
+/// vectors for the machine, feeding local ONNX, using the WordPiece rules and
+/// vocabulary from bge training. The two never mix.
 ///
-/// 从 assets 的 vocab.txt 加载词表，把中文文字切成 bge 认识的 token ID。
+/// Loads the vocabulary from assets vocab.txt and converts Chinese text into
+/// token IDs that bge understands.
 class BgeTokenizer {
   static const _vocabPath = 'assets/models/bge-small-zh/vocab.txt';
 
-  // BERT 中文默认特殊 token
+  // BERT Chinese default special tokens
   static const _clsToken = '[CLS]';
   static const _sepToken = '[SEP]';
   static const _unkToken = '[UNK]';
@@ -25,19 +27,19 @@ class BgeTokenizer {
   int get unkId => _vocab[_unkToken] ?? 100;
   int get padId => _vocab[_padToken] ?? 0;
 
-  /// 首次使用时加载词表（幂等）。
+  /// Load the vocabulary on first use (idempotent).
   Future<void> load() async {
     if (_loaded) return;
     final raw = await rootBundle.loadString(_vocabPath);
     final lines = const LineSplitter().convert(raw);
     _vocab = {};
     for (var i = 0; i < lines.length; i++) {
-      _vocab[lines[i]] = i; // vocab.txt 行号即 token id
+      _vocab[lines[i]] = i; // vocab.txt line number is the token id
     }
     _loaded = true;
   }
 
-  /// 把文字编码成 token id 序列（含 [CLS]/[SEP]，最长 maxLen）。
+  /// Encode text into a token id sequence (includes [CLS]/[SEP], capped at maxLen).
   List<int> encode(String text, {int maxLen = 512}) {
     final tokens = <int>[clsId];
     for (final word in _basicTokenize(text)) {
@@ -51,7 +53,8 @@ class BgeTokenizer {
     return tokens;
   }
 
-  /// 基础分词：中文按字拆，英文/数字按空格和标点拆，统一小写。
+  /// Basic tokenization: split Chinese by character, English/numbers by whitespace
+  /// and punctuation, lowercase everything.
   List<String> _basicTokenize(String text) {
     final out = <String>[];
     final buf = StringBuffer();
@@ -66,24 +69,24 @@ class BgeTokenizer {
       final ch = String.fromCharCode(rune);
       if (_isCjk(rune)) {
         flush();
-        out.add(ch); // 中文单字成词
+        out.add(ch); // Each Chinese character becomes a token
       } else if (_isWhitespace(ch)) {
         flush();
       } else if (_isPunctuation(ch)) {
         flush();
-        out.add(ch); // 标点单独成词
+        out.add(ch); // Punctuation becomes its own token
       } else {
-        buf.write(ch); // 英文/数字累积
+        buf.write(ch); // Accumulate English/digits
       }
     }
     flush();
     return out;
   }
 
-  /// WordPiece：贪心最长匹配子词，匹配不到用 [UNK]。
+  /// WordPiece: greedy longest-match subwords; fall back to [UNK] when nothing matches.
   List<int> _wordpiece(String word) {
     if (word.isEmpty) return [];
-    // 中文单字或短词直接查
+    // Single Chinese characters or short words are looked up directly
     final directId = _vocab[word];
     if (directId != null) return [directId];
 
@@ -103,7 +106,7 @@ class BgeTokenizer {
         end--;
       }
       if (cur == null) {
-        return [unkId]; // 任一子词失配，整词标 UNK（BERT 标准行为）
+        return [unkId]; // Any subword mismatch marks the whole word UNK (standard BERT behavior)
       }
       ids.add(_vocab[cur]!);
       start = end;

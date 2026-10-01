@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
@@ -8,7 +9,6 @@ import 'package:kirakira/presentation/providers/locale_provider.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/domain/services/debug_log_service.dart';
 import 'package:kirakira/presentation/widgets/debug_log_overlay.dart';
-import 'package:kirakira/presentation/screens/terms_dialog.dart';
 
 /// Global navigator key for showing dialogs from anywhere
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -131,7 +131,7 @@ class _DebugLogOverlayWrapperState extends ConsumerState<DebugLogOverlayWrapper>
                     top: MediaQuery.of(context).padding.top + 50,
                     bottom: MediaQuery.of(context).padding.bottom + 100,
                     child: Material(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                       clipBehavior: Clip.antiAlias,
                       child: DebugLogViewerInline(onClose: _toggleLogViewer),
                     ),

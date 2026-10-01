@@ -1,20 +1,26 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kirakira/data/models/announcement.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/utils/kira_dialog.dart';
+import 'package:kirakira/presentation/dialogs/core_dialog.dart';
 
-/// 弹出公告对话框
+/// Shows the announcement dialog.
 ///
-/// 半透明毛玻璃 + 星星点缀，与 app 整体清新美学统一。
-/// 图片、下载按钮按内容有无自动显隐，全部可降级。
+/// Uses showKiraDialog for the PiuPiu soft-bounce animation, matching the
+/// project-wide dialog feel. Frosted translucent glass with star accents,
+/// consistent with the app's overall clean aesthetic. The image and download
+/// button show or hide based on the available content; everything degrades gracefully.
 Future<void> showAnnouncementDialog(
   BuildContext context,
   Announcement announcement,
 ) {
-  return showDialog(
+  return showKiraDialog(
     context: context,
-    barrierColor: Colors.black.withValues(alpha: 0.55),
-    builder: (ctx) => _AnnouncementCard(announcement: announcement),
+    barrierColor: Colors.black54,
+    dialog: _AnnouncementCard(announcement: announcement),
   );
 }
 
@@ -22,6 +28,13 @@ class _AnnouncementCard extends StatelessWidget {
   final Announcement announcement;
 
   const _AnnouncementCard({required this.announcement});
+
+  /// Type theme: update = orange, daily = coral pink
+  (IconData, Color) get _typeTheme => switch (announcement.type) {
+        AnnouncementType.update =>
+          (Icons.rocket_launch, DesignTokens.statusWarning),
+        AnnouncementType.daily => (Icons.auto_awesome, DesignTokens.primary),
+      };
 
   Future<void> _openDownload(BuildContext context) async {
     final uri = Uri.tryParse(announcement.downloadUrl);
@@ -34,6 +47,7 @@ class _AnnouncementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final (icon, accent) = _typeTheme;
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -47,7 +61,7 @@ class _AnnouncementCard extends StatelessWidget {
           maxHeight: size.height * 0.8,
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
@@ -57,17 +71,17 @@ class _AnnouncementCard extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [
                     Colors.white.withValues(alpha: 0.16),
-                    const Color(0xFF1a1a2e).withValues(alpha: 0.55),
+                    DesignTokens.darkBackground.withValues(alpha: 0.55),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
                 border: Border.all(
                   color: Colors.white.withValues(alpha: 0.2),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFa78bfa).withValues(alpha: 0.2),
+                    color: accent.withValues(alpha: 0.2),
                     blurRadius: 30,
                     spreadRadius: 2,
                   ),
@@ -86,16 +100,49 @@ class _AnnouncementCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _buildTitle(),
+                              _buildTitle(icon, accent),
                               const SizedBox(height: 14),
                               if (announcement.content.trim().isNotEmpty)
-                                Text(
-                                  announcement.content,
-                                  style: TextStyle(
-                                    color:
-                                        Colors.white.withValues(alpha: 0.85),
-                                    fontSize: 14,
-                                    height: 1.6,
+                                MarkdownBody(
+                                  data: announcement.content,
+                                  shrinkWrap: true,
+                                  softLineBreak: true,
+                                  styleSheet:
+                                      MarkdownStyleSheet.fromTheme(
+                                              Theme.of(context))
+                                          .copyWith(
+                                    p: TextStyle(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.85),
+                                      fontSize: 14,
+                                      height: 1.6,
+                                    ),
+                                    h1: TextStyle(
+                                      color: accent,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    h2: TextStyle(
+                                      color: accent,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    h3: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    listBullet: TextStyle(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.7),
+                                    ),
+                                    strong: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    a: TextStyle(
+                                      color: accent,
+                                    ),
                                   ),
                                 ),
                             ],
@@ -105,7 +152,7 @@ class _AnnouncementCard extends StatelessWidget {
                       _buildActions(context),
                     ],
                   ),
-                  // 右上角关闭按钮
+                  // Close button in the top-right corner
                   Positioned(
                     top: 8,
                     right: 8,
@@ -165,17 +212,17 @@ class _AnnouncementCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTitle() {
+  Widget _buildTitle(IconData icon, Color accent) {
     return Row(
       children: [
-        const Icon(Icons.auto_awesome, color: Color(0xFFa78bfa), size: 20),
-        const SizedBox(width: 8),
+        Icon(icon, color: accent, size: 20),
+        const SizedBox(width: DesignTokens.spaceSm),
         Expanded(
           child: Text(
             announcement.title.trim().isNotEmpty ? announcement.title : '公告',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: DesignTokens.fontSizeXl,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -186,26 +233,24 @@ class _AnnouncementCard extends StatelessWidget {
 
   Widget _buildActions(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      padding: const EdgeInsets.fromLTRB(DesignTokens.spaceMd,
+          DesignTokens.spaceXs, DesignTokens.spaceMd, DesignTokens.spaceMd),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
         children: [
           if (announcement.hasDownload)
-            TextButton.icon(
-              onPressed: () => _openDownload(context),
-              icon: const Icon(Icons.download, size: 18),
-              label: const Text('前往下载'),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFa78bfa),
+            Expanded(
+              child: CorePrimaryButton(
+                label: '前往下载',
+                icon: Icons.download,
+                onPressed: () => _openDownload(context),
               ),
             ),
-          const SizedBox(width: 8),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white.withValues(alpha: 0.8),
+          if (announcement.hasDownload) const SizedBox(width: DesignTokens.spaceSm),
+          Expanded(
+            child: CoreSecondaryButton(
+              label: '知道了',
+              onPressed: () => Navigator.of(context).pop(),
             ),
-            child: const Text('知道了'),
           ),
         ],
       ),

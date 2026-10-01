@@ -3204,7 +3204,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String entriesCount(Object count) {
-    return '计数';
+    return '$count 条';
   }
 
   @override

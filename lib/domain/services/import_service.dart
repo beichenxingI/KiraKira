@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/domain/services/png_character_card_parser.dart';
@@ -9,6 +8,7 @@ import 'package:kirakira/core/utils/path_utils.dart';
 import 'package:path/path.dart' as p;
 import 'package:kirakira/data/models/world_info.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
+import 'package:kirakira/data/repositories/regex_script_repository.dart';
 
 /// Service for importing and exporting character cards
 class ImportService {
@@ -22,17 +22,17 @@ class ImportService {
     final bytes = await file.readAsBytes();
 
     // DIAGNOSTIC: log file info and dump to temp
-    debugPrint('[PNG-FILE] path=' + filePath);
-    debugPrint('[PNG-FILE] size=' + bytes.length.toString());
-    debugPrint('[PNG-FILE] exists=' + (await file.exists()).toString());
+    debugPrint('[PNG-FILE] path=$filePath');
+    debugPrint('[PNG-FILE] size=${bytes.length}');
+    debugPrint('[PNG-FILE] exists=${await file.exists()}');
     if (bytes.isNotEmpty) {
       final sig = String.fromCharCodes(bytes.take(8));
-      debugPrint('[PNG-FILE] first8bytes=' + sig);
-      final tempPath = filePath + '.dump.bin';
+      debugPrint('[PNG-FILE] first8bytes=$sig');
+      final tempPath = '$filePath.dump.bin';
       await File(tempPath).writeAsBytes(bytes);
-      debugPrint('[PNG-FILE] dumped to=' + tempPath);
+      debugPrint('[PNG-FILE] dumped to=$tempPath');
     try {
-      File(filePath + '.diagnostic.txt').writeAsStringSync('PNG file at: ' + filePath + '\nSize: ' + bytes.length.toString() + ' bytes\nFirst 8 bytes: ' + bytes.take(8).toList().toString());
+      File('$filePath.diagnostic.txt').writeAsStringSync('PNG file at: $filePath\nSize: ${bytes.length} bytes\nFirst 8 bytes: ${bytes.take(8).toList()}');
       debugPrint('[PNG-FILE] diagnostic info saved');
     } catch (_) {}
     }
@@ -42,7 +42,7 @@ class ImportService {
 
   /// Import character from PNG bytes (extracts embedded JSON from tEXt chunk)
   Future<Character> importFromPngBytes(Uint8List bytes) async {
-    // Step 3: Try dedicated parser
+    // Try the dedicated parser
     final data = await PngCharacterCardParser.parse(bytes, sourcePath: null);
     if (data == null) { throw Exception('No character data found in PNG - Diagnostic report saved to Downloads folder'); }
 
@@ -106,7 +106,15 @@ class ImportService {
   }
 
   /// Export character to PNG with embedded data
-  Future<Uint8List> exportToPng(Character character, Uint8List? avatarData) async {
+  ///
+  /// When worldInfoRepo is non-null, assembles characterBook from the world_infos table (live data)
+  /// replacing the import snapshot (fixes stale worldbook export); when null, keeps the snapshot (legacy fallback).
+  Future<Uint8List> exportToPng(
+    Character character,
+    Uint8List? avatarData, {
+    WorldInfoRepository? worldInfoRepo,
+    RegexScriptRepository? regexRepo,
+  }) async {
     // Get avatar data
     Uint8List imageBytes;
     if (avatarData != null) {
@@ -122,23 +130,73 @@ class ImportService {
     } else {
       imageBytes = _createPlaceholderPng();
     }
-    
+
+    // Live assembly: replace the import snapshot when the world_infos table has bound book entries
+    Character exportChar = character;
+    if (worldInfoRepo != null) {
+      final liveBook =
+          await assembleCharacterBookFromRepo(worldInfoRepo, character.id);
+      if (liveBook != null) exportChar = character.copyWith(characterBook: liveBook);
+    }
+
+    // Sync the latest regex scripts before export
+    if (regexRepo != null) {
+      final latestRegexScripts = await regexRepo.getForCharacter(character.id);
+      if (latestRegexScripts.isNotEmpty) {
+        exportChar = exportChar.copyWith(
+          extensions: {
+            ...exportChar.extensions,
+            'regex_scripts': latestRegexScripts.map((s) => s.toJson()).toList(),
+          },
+        );
+      }
+    }
+
     // Create character JSON
-    final json = _characterToV3Json(character);
+    final json = _characterToV3Json(exportChar);
     final jsonString = jsonEncode(json);
     final encoded = base64Encode(utf8.encode(jsonString));
-    
+
     // Embed in PNG
     return _embedPngTextChunk(imageBytes, 'chara', encoded);
   }
 
   /// Export character to CharX archive
-  Future<Uint8List> exportToCharX(Character character, Uint8List? avatarData) async {
+  ///
+  /// When worldInfoRepo is non-null, assembles characterBook from the world_infos table (live data)
+  /// replacing the import snapshot (fixes stale worldbook export); when null, keeps the snapshot (legacy fallback).
+  Future<Uint8List> exportToCharX(
+    Character character,
+    Uint8List? avatarData, {
+    WorldInfoRepository? worldInfoRepo,
+    RegexScriptRepository? regexRepo,
+  }) async {
     final encoder = ZipEncoder();
     final archive = Archive();
-    
+
+    // Live assembly: replace the import snapshot when the world_infos table has bound book entries
+    Character exportChar = character;
+    if (worldInfoRepo != null) {
+      final liveBook =
+          await assembleCharacterBookFromRepo(worldInfoRepo, character.id);
+      if (liveBook != null) exportChar = character.copyWith(characterBook: liveBook);
+    }
+
+    // Sync the latest regex scripts before export
+    if (regexRepo != null) {
+      final latestRegexScripts = await regexRepo.getForCharacter(character.id);
+      if (latestRegexScripts.isNotEmpty) {
+        exportChar = exportChar.copyWith(
+          extensions: {
+            ...exportChar.extensions,
+            'regex_scripts': latestRegexScripts.map((s) => s.toJson()).toList(),
+          },
+        );
+      }
+    }
+
     // Add card.json
-    final json = _characterToV3Json(character);
+    final json = _characterToV3Json(exportChar);
     final jsonBytes = utf8.encode(jsonEncode(json));
     archive.addFile(ArchiveFile('card.json', jsonBytes.length, jsonBytes));
     
@@ -157,14 +215,45 @@ class ImportService {
   }
 
   /// Export character to JSON
-  String exportToJson(Character character) {
-    final json = _characterToV3Json(character);
+  ///
+  /// When worldInfoRepo is non-null, assembles characterBook from the world_infos table (live data)
+  /// replacing the import snapshot (fixes stale worldbook export); when null, keeps the snapshot (legacy fallback).
+  /// Changed from sync to async (assembly requires a database query); both callers already run in async contexts.
+  Future<String> exportToJson(
+    Character character, {
+    WorldInfoRepository? worldInfoRepo,
+    RegexScriptRepository? regexRepo,
+  }) async {
+    // Live assembly: replace the import snapshot when the world_infos table has bound book entries
+    Character exportChar = character;
+    if (worldInfoRepo != null) {
+      final liveBook =
+          await assembleCharacterBookFromRepo(worldInfoRepo, character.id);
+      if (liveBook != null) exportChar = character.copyWith(characterBook: liveBook);
+    }
+
+    // Sync the latest regex scripts before export
+    if (regexRepo != null) {
+      final latestRegexScripts = await regexRepo.getForCharacter(character.id);
+      if (latestRegexScripts.isNotEmpty) {
+        exportChar = exportChar.copyWith(
+          extensions: {
+            ...exportChar.extensions,
+            'regex_scripts': latestRegexScripts.map((s) => s.toJson()).toList(),
+          },
+        );
+      }
+    }
+
+    final json = _characterToV3Json(exportChar);
     return jsonEncode(json);
   }
 
   // Private methods
   
   Character _parseCharacterJson(Map<String, dynamic> json) {
+    // Parse entry point: spec and branch determination
+    print('[IMP-1] entry keys=${json.keys.toList()} spec=${json['spec']} hasData=${json.containsKey('data')}');
     String name = '';
     String description = '';
     String personality = '';
@@ -181,50 +270,156 @@ class ImportService {
     Map<String, dynamic> extensions = {};
     CharacterBook? characterBook;
 
+    // AICC-Chat format (spec='aicc_card', specific to aicharactercards.com, e.g. Rin Card Forge exports).
+    // Structured fields: personality/dialogue/prompts/world/metadata are all Maps; a flat cast would break.
+    if (json['spec'] == 'aicc_card' && json.containsKey('data')) {
+      final data = json['data'] is Map ? Map<String, dynamic>.from(json['data'] as Map) : <String, dynamic>{};
+      name = _castStringSafe(data['name']);
+      // AICC: general_description is the main description; appearance/background_history are AICC extensions (passed through to extensions)
+      description = _castStringSafe(data['general_description']);
+      scenario = _castStringSafe(data['world_setting_context']);
+      // AICC: personality (structured core/behavior_rules/speech_style) converted to readable text
+      final personalityRaw = data['personality'];
+      if (personalityRaw is Map) {
+        personality = _aiccPersonalityToString(personalityRaw);
+      } else {
+        personality = _castStringSafe(personalityRaw);
+      }
+      // AICC: dialogue.greetings[0] = first_mes, greetings[1..] = alternate_greetings
+      final dialogue = data['dialogue'] is Map ? Map<String, dynamic>.from(data['dialogue'] as Map) : null;
+      final greetings = dialogue?['greetings'];
+      if (greetings is List) {
+        final gList = greetings.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+        if (gList.isNotEmpty) {
+          firstMessage = gList.first;
+          if (gList.length > 1) alternateGreetings = gList.sublist(1);
+        }
+      }
+      // AICC: dialogue.dialogue_examples maps to mes_example (ST semantics: <START> separates example dialogues)
+      final examples = dialogue?['dialogue_examples'];
+      if (examples is List) {
+        final exList = examples.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+        if (exList.isNotEmpty) exampleMessages = exList.join('\n<START>\n');
+      }
+      // AICC: prompts.system_prompt / post_history_instructions
+      final prompts = data['prompts'] is Map ? Map<String, dynamic>.from(data['prompts'] as Map) : null;
+      systemPrompt = _castStringSafe(prompts?['system_prompt']);
+      postHistoryInstructions = _castStringSafe(prompts?['post_history_instructions']);
+      // AICC: metadata.creator/notes/version/tags (tags also accepts a comma-separated String)
+      final metadata = data['metadata'] is Map ? Map<String, dynamic>.from(data['metadata'] as Map) : null;
+      creator = _castStringSafe(metadata?['creator']);
+      creatorNotes = _castStringSafe(metadata?['notes']);
+      version = _castStringSafe(metadata?['version']);
+      tags = _parseTagsSafe(metadata?['tags']);
+      // AICC: world.worldbook_entries maps to character_book (not created when empty)
+      final world = data['world'] is Map ? Map<String, dynamic>.from(data['world'] as Map) : null;
+      final wbEntries = world?['worldbook_entries'];
+      final hasWbEntries = (wbEntries is List && wbEntries.isNotEmpty) ||
+          (wbEntries is Map && wbEntries.isNotEmpty);
+      if (hasWbEntries) {
+        characterBook = _parseCharacterBook({
+          'name': _castStringSafe(world?['worldbook_name']),
+          'entries': wbEntries,
+          'extensions': <String, dynamic>{},
+        });
+      }
+      // Pass AICC-specific fields through to extensions (convention: app-specific data goes in namespaced extensions)
+      final aiccExt = <String, dynamic>{};
+      void keep(String key, dynamic v) {
+        if (v != null && (v is! String || v.isNotEmpty)) aiccExt[key] = v;
+      }
+      keep('appearance', data['appearance']);
+      keep('background_history', data['background_history']);
+      keep('group_only_greetings', dialogue?['group_only_greetings']);
+      keep('depth_prompt', prompts?['depth_prompt']);
+      keep('card_format', metadata?['card_format']);
+      keep('features', metadata?['features']);
+      keep('aicc_id', json['aicc_id']);
+      keep('aicc_version', json['aicc_version']);
+      aiccExt['spec'] = 'aicc_card';
+      final dataExtensions = data['extensions'];
+      extensions = dataExtensions is Map
+          ? {...Map<String, dynamic>.from(dataExtensions), 'aicc': aiccExt}
+          : {'aicc': aiccExt};
+      print('[IMP-1] AICC-Chat card: name=$name greetings=${greetings is List ? greetings.length : 0} '
+          'examples=${examples is List ? examples.length : 0}');
+    }
     // Check for V3 format (also matches V2 with spec field)
-    if (json.containsKey('spec') && json.containsKey('data')) {
+    else if (json.containsKey('spec') && json.containsKey('data')) {
       final data = json['data'] as Map<String, dynamic>? ?? {};
-      name = data['name'] as String? ?? '';
-      description = data['description'] as String? ?? '';
-      personality = data['personality'] as String? ?? '';
-      scenario = data['scenario'] as String? ?? '';
-      firstMessage = data['first_mes'] as String? ?? '';
-      alternateGreetings = (data['alternate_greetings'] as List<dynamic>?)?.cast<String>() ?? [];
-      exampleMessages = data['mes_example'] as String? ?? '';
-      systemPrompt = data['system_prompt'] as String? ?? '';
-      postHistoryInstructions = data['post_history_instructions'] as String? ?? '';
-      creatorNotes = data['creator_notes'] as String? ?? '';
-      tags = (data['tags'] as List<dynamic>?)?.cast<String>() ?? [];
-      creator = data['creator'] as String? ?? '';
-      version = data['character_version'] as String? ?? '';
-      extensions = data['extensions'] as Map<String, dynamic>? ?? {};
+      name = _castStringSafe(data['name']);
+      description = _castStringSafe(data['description']);
+      // AICC compat: V2 core field tolerance — Map/List values (e.g. structured personality) are passed through as JSON strings
+      personality = _castStringSafe(data['personality']);
+      scenario = _castStringSafe(data['scenario']);
+      firstMessage = _castStringSafe(data['first_mes']);
+      alternateGreetings = _parseStringList(data['alternate_greetings']);
+      exampleMessages = _castStringSafe(data['mes_example']);
+      systemPrompt = _castStringSafe(data['system_prompt']);
+      postHistoryInstructions = _castStringSafe(data['post_history_instructions']);
+      creatorNotes = _castStringSafe(data['creator_notes']);
+      // AICC compat: tags tolerance — list elements converted per-item; comma-separated String split into a list
+      tags = _parseTagsSafe(data['tags']);
+      creator = _castStringSafe(data['creator']);
+      version = _castStringSafe(data['character_version']);
+      extensions = data['extensions'] is Map
+          ? Map<String, dynamic>.from(data['extensions'] as Map)
+          : {};
       
       // Parse character book (embedded lorebook)
       if (data['character_book'] != null) {
         print('[ImportService] Found character_book in data, parsing...');
         characterBook = _parseCharacterBook(data['character_book'] as Map<String, dynamic>);
-        print('[ImportService] Parsed character_book with ${characterBook?.entries.length ?? 0} entries');
+        print('[ImportService] Parsed character_book with ${characterBook.entries.length ?? 0} entries');
       } else {
         print('[ImportService] No character_book found in data. Data keys: ${data.keys.toList()}');
       }
+
+      // [IMP-2] data field survey (report when non-empty)
+      void f(String k, dynamic v) {
+        final ok = v != null && ('$v'.isNotEmpty);
+        print('[IMP-2] $k=${ok ? (v is List ? 'list(${v.length})' : (v is String ? 'len=${v.length}' : v)) : 'EMPTY'}');
+      }
+      f('name', name);
+      f('description', description.isEmpty ? null : description);
+      f('personality', personality.isEmpty ? null : personality);
+      f('scenario', scenario.isEmpty ? null : scenario);
+      f('first_mes', firstMessage.isEmpty ? null : firstMessage);
+      f('alternate_greetings', alternateGreetings);
+      f('mes_example', exampleMessages.isEmpty ? null : exampleMessages);
+      f('system_prompt', systemPrompt.isEmpty ? null : systemPrompt);
+      f('post_history_instructions', postHistoryInstructions.isEmpty ? null : postHistoryInstructions);
+      f('creator_notes', creatorNotes.isEmpty ? null : creatorNotes);
+      f('tags', tags);
+      f('creator', creator.isEmpty ? null : creator);
+      f('character_version', version.isEmpty ? null : version);
+
+      // [IMP-4] Extensions top-level keys and regex_scripts presence
+      print('[IMP-4] extKeys=${extensions.keys.toList()} regexScriptsCount=${(extensions['regex_scripts'] as List<dynamic>?)?.length ?? 'null'}');
     }
     // Check for V2 format
     else if (json.containsKey('data')) {
       final data = json['data'] as Map<String, dynamic>? ?? {};
-      name = data['name'] as String? ?? json['name'] as String? ?? '';
-      description = data['description'] as String? ?? '';
-      personality = data['personality'] as String? ?? '';
-      scenario = data['scenario'] as String? ?? '';
-      firstMessage = data['first_mes'] as String? ?? '';
-      alternateGreetings = (data['alternate_greetings'] as List<dynamic>?)?.cast<String>() ?? [];
-      exampleMessages = data['mes_example'] as String? ?? '';
-      systemPrompt = data['system_prompt'] as String? ?? '';
-      postHistoryInstructions = data['post_history_instructions'] as String? ?? '';
-      creatorNotes = data['creator_notes'] as String? ?? '';
-      tags = (data['tags'] as List<dynamic>?)?.cast<String>() ?? [];
-      creator = data['creator'] as String? ?? '';
-      version = data['character_version'] as String? ?? '';
-      extensions = data['extensions'] as Map<String, dynamic>? ?? {};
+      name = _castStringSafe(data['name']) != ''
+          ? _castStringSafe(data['name'])
+          : _castStringSafe(json['name']);
+      description = _castStringSafe(data['description']);
+      // AICC compat: V2 core field tolerance — Map/List values passed through as JSON strings
+      personality = _castStringSafe(data['personality']);
+      scenario = _castStringSafe(data['scenario']);
+      firstMessage = _castStringSafe(data['first_mes']);
+      alternateGreetings = _parseStringList(data['alternate_greetings']);
+      exampleMessages = _castStringSafe(data['mes_example']);
+      systemPrompt = _castStringSafe(data['system_prompt']);
+      postHistoryInstructions = _castStringSafe(data['post_history_instructions']);
+      creatorNotes = _castStringSafe(data['creator_notes']);
+      // AICC compat: tags tolerance
+      tags = _parseTagsSafe(data['tags']);
+      creator = _castStringSafe(data['creator']);
+      version = _castStringSafe(data['character_version']);
+      extensions = data['extensions'] is Map
+          ? Map<String, dynamic>.from(data['extensions'] as Map)
+          : {};
       
       // Parse character book (embedded lorebook)
       if (data['character_book'] != null) {
@@ -233,12 +428,23 @@ class ImportService {
     }
     // V1 format
     else {
-      name = json['name'] as String? ?? json['char_name'] as String? ?? '';
-      description = json['description'] as String? ?? json['char_persona'] as String? ?? '';
-      personality = json['personality'] as String? ?? '';
-      scenario = json['scenario'] as String? ?? json['world_scenario'] as String? ?? '';
-      firstMessage = json['first_mes'] as String? ?? json['char_greeting'] as String? ?? '';
-      exampleMessages = json['mes_example'] as String? ?? json['example_dialogue'] as String? ?? '';
+      name = _castStringSafe(json['name']) != ''
+          ? _castStringSafe(json['name'])
+          : _castStringSafe(json['char_name']);
+      description = _castStringSafe(json['description']) != ''
+          ? _castStringSafe(json['description'])
+          : _castStringSafe(json['char_persona']);
+      // AICC compat: V1 core field tolerance
+      personality = _castStringSafe(json['personality']);
+      scenario = _castStringSafe(json['scenario']) != ''
+          ? _castStringSafe(json['scenario'])
+          : _castStringSafe(json['world_scenario']);
+      firstMessage = _castStringSafe(json['first_mes']) != ''
+          ? _castStringSafe(json['first_mes'])
+          : _castStringSafe(json['char_greeting']);
+      exampleMessages = _castStringSafe(json['mes_example']) != ''
+          ? _castStringSafe(json['mes_example'])
+          : _castStringSafe(json['example_dialogue']);
     }
 
     final now = DateTime.now();
@@ -265,9 +471,28 @@ class ImportService {
   }
 
   CharacterBook _parseCharacterBook(Map<String, dynamic> json) {
-    final entriesJson = json['entries'] as List<dynamic>? ?? [];
-    final entries = entriesJson.map((e) {
-      final entry = e as Map<String, dynamic>;
+    final rawEntries = json['entries'];
+    // [IMP-3] Entry shape detection: use arrays directly; for map shape (ST partial exports/old cards), take values as a list
+    print('[IMP-3] book=${json['name']} entriesRawType=${rawEntries?.runtimeType} '
+        'count=${rawEntries is List ? rawEntries.length : (rawEntries is Map ? rawEntries.length : 'null')}');
+    List<dynamic> entriesJson;
+    if (rawEntries is List) {
+      entriesJson = rawEntries;
+    } else if (rawEntries is Map) {
+      entriesJson = rawEntries.values.toList();
+    } else {
+      entriesJson = [];
+    }
+    for (final e in entriesJson.take(10)) {
+      if (e is Map) {
+        final k = e['keys'];
+        print('[IMP-3] entry id=${e['id']} keys=${k is List ? k.take(3).toList() : k} '
+            'constant=${e['constant']} contentLen=${(e['content']?.toString() ?? '').length} '
+            'content40=${(e['content']?.toString() ?? '').substring(0, (e['content']?.toString() ?? '').length > 40 ? 40 : (e['content']?.toString() ?? '').length)}');
+      }
+    }
+    final entries = entriesJson.whereType<Map>().map((e) {
+      final entry = Map<String, dynamic>.from(e);
       return CharacterBookEntry(
         id: _parseIntSafe(entry['id']) ?? 0,
         keys: _parseStringList(entry['keys']),
@@ -289,7 +514,7 @@ class ImportService {
     return CharacterBook(
       name: json['name']?.toString(),
       description: json['description']?.toString(),
-      scanDepth: _parseBoolSafe(json['scan_depth']) ?? true,
+      scanDepth: _parseScanDepthSafe(json['scan_depth']),
       tokenBudget: _parseIntSafe(json['token_budget']) ?? 2048,
       recursiveScanning: _parseBoolSafe(json['recursive_scanning']) ?? false,
       entries: entries,
@@ -317,6 +542,68 @@ class ImportService {
       if (lower == 'false' || lower == '0') return false;
     }
     return null;
+  }
+
+  /// Safely parse scan_depth: spec requires int; legacy bool values map true→1, false→0
+  int? _parseScanDepthSafe(dynamic value) {
+    if (value is bool) return value ? 1 : 0;
+    return _parseIntSafe(value);
+  }
+
+  /// AICC compat: safely cast a dynamic value to String:
+  /// V2 core field tolerance — Map/List (structured fields) are JSON-stringified, others use toString
+  String _castStringSafe(dynamic value) {
+    if (value == null) return '';
+    if (value is String) return value;
+    if (value is Map || value is List) {
+      try {
+        return jsonEncode(value);
+      } catch (_) {
+        return value.toString();
+      }
+    }
+    return value.toString();
+  }
+
+  /// AICC compat: safely parse tags — List (per-item toString) or comma-separated String split into a list
+  List<String> _parseTagsSafe(dynamic value) {
+    if (value is List) {
+      return value.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+    }
+    if (value is String && value.isNotEmpty) {
+      return value.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    }
+    return [];
+  }
+
+  /// AICC compat: structured personality (core/behavior_rules/speech_style) converted to readable text
+  String _aiccPersonalityToString(Map<dynamic, dynamic> personality) {
+    final buf = StringBuffer();
+    final core = personality['core'];
+    if (core != null && '$core'.isNotEmpty) buf.writeln('$core');
+    final rules = personality['behavior_rules'];
+    if (rules is List && rules.isNotEmpty) {
+      buf.writeln();
+      buf.writeln('Behavior rules:');
+      for (final r in rules) {
+        final line = r?.toString() ?? '';
+        if (line.isNotEmpty) buf.writeln('- $line');
+      }
+    }
+    final style = personality['speech_style'];
+    if (style is Map) {
+      buf.writeln();
+      buf.writeln('Speech style:');
+      style.forEach((k, v) {
+        if (v is List) {
+          final items = v.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).join('; ');
+          if (items.isNotEmpty) buf.writeln('- $k: $items');
+        } else if (v != null && '$v'.isNotEmpty) {
+          buf.writeln('- $k: $v');
+        }
+      });
+    }
+    return buf.toString().trim();
   }
 
   /// Safely parse a list of strings from dynamic value
@@ -362,7 +649,7 @@ class ImportService {
     return {
       'name': book.name,
       'description': book.description,
-      'scan_depth': book.scanDepth,
+      if (book.scanDepth != null) 'scan_depth': book.scanDepth,
       'token_budget': book.tokenBudget,
       'recursive_scanning': book.recursiveScanning,
       'extensions': book.extensions,
@@ -405,21 +692,21 @@ class ImportService {
 
   /// Dump all PNG text chunk keys + content preview
   void _dumpPngInfo(Uint8List bytes) {
-    debugPrint("[PNG-DUMP] size=" + bytes.length.toString());
+    debugPrint('[PNG-DUMP] size=${bytes.length}');
     int off = 8; int n = 0;
     while (off + 8 <= bytes.length) {
       final len = (bytes[off] << 24) | (bytes[off + 1] << 16) | (bytes[off + 2] << 8) | bytes[off + 3]; off += 4;
       final tp = String.fromCharCodes(bytes.sublist(off, off + 4)); off += 4; n++;
-      if (tp == "tEXt" || tp == "iTXt" || tp == "zTXt") {
+      if (tp == 'tEXt' || tp == 'iTXt' || tp == 'zTXt') {
         int ke = off; while (ke < off + len && bytes[ke] != 0) { ke++; }
         final key = String.fromCharCodes(bytes.sublist(off, ke));
-        String prev = ""; if (ke + 1 < off + len) { final mx = (ke + 1 + 200) > (off + len) ? (off + len) : (ke + 1 + 200); prev = String.fromCharCodes(bytes.sublist(ke + 1, mx)); }
-        debugPrint("[PNG-DUMP] #" + n.toString() + " " + tp + " key=" + key + " len=" + len.toString());
-        debugPrint("[PNG-DUMP]   preview=" + prev);
+        String prev = ''; if (ke + 1 < off + len) { final mx = (ke + 1 + 200) > (off + len) ? (off + len) : (ke + 1 + 200); prev = String.fromCharCodes(bytes.sublist(ke + 1, mx)); }
+        debugPrint('[PNG-DUMP] #$n $tp key=$key len=$len');
+        debugPrint('[PNG-DUMP]   preview=$prev');
       }
       off += len + 4;
     }
-    debugPrint("[PNG-DUMP] Done: " + n.toString() + " chunks");
+    debugPrint('[PNG-DUMP] Done: $n chunks');
   }
 
   /// Extract text chunk from PNG
@@ -612,8 +899,8 @@ class ImportService {
   }
 }
 
-/// 把角色卡内嵌的 characterBook 提取为独立 WorldInfo（关联该角色）。
-/// 单个导入与 zip 批量导入共用，避免逻辑重复。
+/// Extracts the characterBook embedded in a character card into a standalone WorldInfo (linked to that character).
+/// Shared by single import and zip batch import to avoid duplicated logic.
 Future<void> importEmbeddedLorebook(
   WorldInfoRepository worldInfoRepo,
   String characterId,
@@ -621,6 +908,8 @@ Future<void> importEmbeddedLorebook(
   String characterName,
 ) async {
   final worldInfoName = characterBook.name ?? '$characterName Lorebook';
+  // [IMP-5] Entry count to write before persisting
+  print('[IMP-5] creating WI "$worldInfoName" for char=$characterId entriesToWrite=${characterBook.entries.length}');
   final worldInfo = await worldInfoRepo.createWorldInfo(
     name: worldInfoName,
     description:
@@ -630,7 +919,9 @@ Future<void> importEmbeddedLorebook(
   );
 
   for (final entry in characterBook.entries) {
+    // A2-T3: full position mapping (upstream 0: above char, 1: below char, 2: above AN, 3: below AN, 4: at depth)
     WorldInfoPosition position;
+    int depth = 4;
     switch (entry.position) {
       case 0:
         position = WorldInfoPosition.before;
@@ -638,10 +929,31 @@ Future<void> importEmbeddedLorebook(
       case 1:
         position = WorldInfoPosition.after;
         break;
+      case 2:
+        position = WorldInfoPosition.ANTop;
+        break;
+      case 3:
+        position = WorldInfoPosition.ANBottom;
+        break;
+      case 4:
+        position = WorldInfoPosition.atDepth;
+        final extDepth = entry.extensions['depth'];
+        if (extDepth is int) depth = extDepth;
+        if (extDepth is String) depth = int.tryParse(extDepth) ?? 4;
+        break;
       default:
         position = WorldInfoPosition.after;
     }
+    // A2-T3: depth fallback from extensions (may also be present outside position=4)
+    if (position != WorldInfoPosition.atDepth) {
+      final extDepth = entry.extensions['depth'];
+      if (extDepth is int && extDepth > 0 && extDepth != 4) depth = extDepth;
+    }
 
+    // [IMP-5] Per-entry write details (constant/order/enabled/caseSensitive/extensions passed through)
+    print('[IMP-5] addEntry keys=${entry.keys.take(3).toList()} constant=${entry.constant} '
+        'enabled=${entry.enabled} order=${entry.insertionOrder} '
+        'contentLen=${entry.content.length} comment=${entry.name.isNotEmpty ? entry.name : entry.comment}');
     await worldInfoRepo.addEntry(
       worldInfoId: worldInfo.id,
       keys: entry.keys,
@@ -650,7 +962,75 @@ Future<void> importEmbeddedLorebook(
           entry.secondaryKeys.isNotEmpty ? entry.secondaryKeys : null,
       comment: entry.name.isNotEmpty ? entry.name : entry.comment,
       position: position,
-      depth: 4,
+      depth: depth,
+      // A2-T3 full passthrough: semantics like blue-light constant entries are no longer swallowed by defaults
+      constant: entry.constant,
+      selective: entry.selective,
+      insertionOrder: entry.insertionOrder,
+      enabled: entry.enabled,
+      caseSensitive: entry.caseSensitive,
+      extensions: entry.extensions,
     );
+  }
+  // [IMP-6] Read back after persisting: actual entry count (compare with IMP-5; the difference is dropped entries)
+  final written = await worldInfoRepo.getEntriesForWorldInfo(worldInfo.id);
+  print('[IMP-6] readback WI="${worldInfo.name}" id=${worldInfo.id} entriesInDb=${written.length} (expected ${characterBook.entries.length})');
+}
+
+/// Reassembles a CharacterBook from the world_infos table (live data), fixing stale worldbook export.
+///
+/// Worldbook dual-track storage: live data lives in the world_infos/world_info_entries tables (the editor writes only there),
+/// while characters.characterBookJson is the import-time snapshot, with zero sync between tracks. Exporting directly
+/// from the snapshot loses all user changes made after import (the export is always the original import-time data).
+/// Call this before export to reassemble the live track into a CharacterBook, replacing the snapshot.
+///
+/// Returns null when the character has no bound book or zero entries (callers keep the original snapshot as fallback).
+/// Field mapping (aligned with _characterBookToJson / _wiEntryToJson):
+/// - WorldInfoEntry has no name field; the name is stored in comment (at import, entry.name ?: comment becomes comment)
+/// - id uses the merged list index (deterministic, collision-free; ST uid is numeric, losslessly parsed back as int on re-import)
+/// - position uses the enum index (consistent with _wiEntryToJson's 'position': e.position.index)
+/// - WorldInfo has no tokenBudget/extensions fields, so CharacterBook uses defaults
+///   (book-level extensions have no storage in the world_infos table and export empty; entry-level extensions are fully preserved)
+Future<CharacterBook?> assembleCharacterBookFromRepo(
+  WorldInfoRepository worldInfoRepo,
+  String characterId,
+) async {
+  try {
+    final books = await worldInfoRepo.getWorldInfosForCharacter(characterId);
+    if (books.isEmpty) return null;
+
+    // Merge entries from all books bound to the character (ST character_book is already a flat list,
+    // consistent with the merge fallback semantics of _handleWiGetEntries)
+    final merged = <CharacterBookEntry>[];
+    String? bookName;
+    for (final book in books) {
+      bookName ??= book.name;
+      for (final e in book.entries) {
+        merged.add(CharacterBookEntry(
+          id: merged.length,
+          keys: e.keys,
+          secondaryKeys: e.secondaryKeys,
+          content: e.content,
+          comment: e.comment,
+          name: e.comment,
+          enabled: e.enabled,
+          insertionOrder: e.insertionOrder,
+          caseSensitive: e.caseSensitive,
+          constant: e.constant,
+          selective: e.selective,
+          position: e.position.index,
+          extensions: e.extensions,
+        ));
+      }
+    }
+    if (merged.isEmpty) return null;
+
+    return CharacterBook(
+      name: bookName,
+      entries: merged,
+    );
+  } catch (e) {
+    debugPrint('[导出] 组装世界书失败: $e');
+    return null;
   }
 }

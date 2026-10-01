@@ -1062,6 +1062,16 @@ class $ChatsTable extends Chats with TableInfo<$ChatsTable, Chat> {
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("author_note_enabled" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _hasUserMessageMeta =
+      const VerificationMeta('hasUserMessage');
+  @override
+  late final GeneratedColumn<bool> hasUserMessage = GeneratedColumn<bool>(
+      'has_user_message', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("has_user_message" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -1084,6 +1094,7 @@ class $ChatsTable extends Chats with TableInfo<$ChatsTable, Chat> {
         authorNote,
         authorNoteDepth,
         authorNoteEnabled,
+        hasUserMessage,
         createdAt,
         updatedAt
       ];
@@ -1142,6 +1153,12 @@ class $ChatsTable extends Chats with TableInfo<$ChatsTable, Chat> {
           authorNoteEnabled.isAcceptableOrUnknown(
               data['author_note_enabled']!, _authorNoteEnabledMeta));
     }
+    if (data.containsKey('has_user_message')) {
+      context.handle(
+          _hasUserMessageMeta,
+          hasUserMessage.isAcceptableOrUnknown(
+              data['has_user_message']!, _hasUserMessageMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -1179,6 +1196,8 @@ class $ChatsTable extends Chats with TableInfo<$ChatsTable, Chat> {
           .read(DriftSqlType.int, data['${effectivePrefix}author_note_depth'])!,
       authorNoteEnabled: attachedDatabase.typeMapping.read(
           DriftSqlType.bool, data['${effectivePrefix}author_note_enabled'])!,
+      hasUserMessage: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}has_user_message'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -1201,6 +1220,11 @@ class Chat extends DataClass implements Insertable<Chat> {
   final String authorNote;
   final int authorNoteDepth;
   final bool authorNoteEnabled;
+
+  /// [空会话] 用户是否发过消息:一旦置位永不回退。
+  /// 退出聊天页时无标记 → 级联丢弃;启动清扫无标记遗留。
+  /// 用持久标记而非实时数 messages(user) 是为了覆盖"发了又删"的边界(发过就算)。
+  final bool hasUserMessage;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Chat(
@@ -1212,6 +1236,7 @@ class Chat extends DataClass implements Insertable<Chat> {
       required this.authorNote,
       required this.authorNoteDepth,
       required this.authorNoteEnabled,
+      required this.hasUserMessage,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -1227,6 +1252,7 @@ class Chat extends DataClass implements Insertable<Chat> {
     map['author_note'] = Variable<String>(authorNote);
     map['author_note_depth'] = Variable<int>(authorNoteDepth);
     map['author_note_enabled'] = Variable<bool>(authorNoteEnabled);
+    map['has_user_message'] = Variable<bool>(hasUserMessage);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -1244,6 +1270,7 @@ class Chat extends DataClass implements Insertable<Chat> {
       authorNote: Value(authorNote),
       authorNoteDepth: Value(authorNoteDepth),
       authorNoteEnabled: Value(authorNoteEnabled),
+      hasUserMessage: Value(hasUserMessage),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1261,6 +1288,7 @@ class Chat extends DataClass implements Insertable<Chat> {
       authorNote: serializer.fromJson<String>(json['authorNote']),
       authorNoteDepth: serializer.fromJson<int>(json['authorNoteDepth']),
       authorNoteEnabled: serializer.fromJson<bool>(json['authorNoteEnabled']),
+      hasUserMessage: serializer.fromJson<bool>(json['hasUserMessage']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -1277,6 +1305,7 @@ class Chat extends DataClass implements Insertable<Chat> {
       'authorNote': serializer.toJson<String>(authorNote),
       'authorNoteDepth': serializer.toJson<int>(authorNoteDepth),
       'authorNoteEnabled': serializer.toJson<bool>(authorNoteEnabled),
+      'hasUserMessage': serializer.toJson<bool>(hasUserMessage),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -1291,6 +1320,7 @@ class Chat extends DataClass implements Insertable<Chat> {
           String? authorNote,
           int? authorNoteDepth,
           bool? authorNoteEnabled,
+          bool? hasUserMessage,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       Chat(
@@ -1302,6 +1332,7 @@ class Chat extends DataClass implements Insertable<Chat> {
         authorNote: authorNote ?? this.authorNote,
         authorNoteDepth: authorNoteDepth ?? this.authorNoteDepth,
         authorNoteEnabled: authorNoteEnabled ?? this.authorNoteEnabled,
+        hasUserMessage: hasUserMessage ?? this.hasUserMessage,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -1323,6 +1354,9 @@ class Chat extends DataClass implements Insertable<Chat> {
       authorNoteEnabled: data.authorNoteEnabled.present
           ? data.authorNoteEnabled.value
           : this.authorNoteEnabled,
+      hasUserMessage: data.hasUserMessage.present
+          ? data.hasUserMessage.value
+          : this.hasUserMessage,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1339,6 +1373,7 @@ class Chat extends DataClass implements Insertable<Chat> {
           ..write('authorNote: $authorNote, ')
           ..write('authorNoteDepth: $authorNoteDepth, ')
           ..write('authorNoteEnabled: $authorNoteEnabled, ')
+          ..write('hasUserMessage: $hasUserMessage, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1346,8 +1381,18 @@ class Chat extends DataClass implements Insertable<Chat> {
   }
 
   @override
-  int get hashCode => Object.hash(id, characterId, groupId, title, settingsJson,
-      authorNote, authorNoteDepth, authorNoteEnabled, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      characterId,
+      groupId,
+      title,
+      settingsJson,
+      authorNote,
+      authorNoteDepth,
+      authorNoteEnabled,
+      hasUserMessage,
+      createdAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1360,6 +1405,7 @@ class Chat extends DataClass implements Insertable<Chat> {
           other.authorNote == this.authorNote &&
           other.authorNoteDepth == this.authorNoteDepth &&
           other.authorNoteEnabled == this.authorNoteEnabled &&
+          other.hasUserMessage == this.hasUserMessage &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1373,6 +1419,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
   final Value<String> authorNote;
   final Value<int> authorNoteDepth;
   final Value<bool> authorNoteEnabled;
+  final Value<bool> hasUserMessage;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -1385,6 +1432,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
     this.authorNote = const Value.absent(),
     this.authorNoteDepth = const Value.absent(),
     this.authorNoteEnabled = const Value.absent(),
+    this.hasUserMessage = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1398,6 +1446,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
     this.authorNote = const Value.absent(),
     this.authorNoteDepth = const Value.absent(),
     this.authorNoteEnabled = const Value.absent(),
+    this.hasUserMessage = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -1414,6 +1463,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
     Expression<String>? authorNote,
     Expression<int>? authorNoteDepth,
     Expression<bool>? authorNoteEnabled,
+    Expression<bool>? hasUserMessage,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -1427,6 +1477,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
       if (authorNote != null) 'author_note': authorNote,
       if (authorNoteDepth != null) 'author_note_depth': authorNoteDepth,
       if (authorNoteEnabled != null) 'author_note_enabled': authorNoteEnabled,
+      if (hasUserMessage != null) 'has_user_message': hasUserMessage,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -1442,6 +1493,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
       Value<String>? authorNote,
       Value<int>? authorNoteDepth,
       Value<bool>? authorNoteEnabled,
+      Value<bool>? hasUserMessage,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
@@ -1454,6 +1506,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
       authorNote: authorNote ?? this.authorNote,
       authorNoteDepth: authorNoteDepth ?? this.authorNoteDepth,
       authorNoteEnabled: authorNoteEnabled ?? this.authorNoteEnabled,
+      hasUserMessage: hasUserMessage ?? this.hasUserMessage,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -1487,6 +1540,9 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
     if (authorNoteEnabled.present) {
       map['author_note_enabled'] = Variable<bool>(authorNoteEnabled.value);
     }
+    if (hasUserMessage.present) {
+      map['has_user_message'] = Variable<bool>(hasUserMessage.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1510,6 +1566,7 @@ class ChatsCompanion extends UpdateCompanion<Chat> {
           ..write('authorNote: $authorNote, ')
           ..write('authorNoteDepth: $authorNoteDepth, ')
           ..write('authorNoteEnabled: $authorNoteEnabled, ')
+          ..write('hasUserMessage: $hasUserMessage, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -1616,6 +1673,14 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('[]'));
+  static const VerificationMeta _swipesDataJsonMeta =
+      const VerificationMeta('swipesDataJson');
+  @override
+  late final GeneratedColumn<String> swipesDataJson = GeneratedColumn<String>(
+      'swipes_data_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -1630,7 +1695,8 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
         metadataJson,
         characterId,
         characterName,
-        attachmentsJson
+        attachmentsJson,
+        swipesDataJson
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1713,6 +1779,12 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
           attachmentsJson.isAcceptableOrUnknown(
               data['attachments_json']!, _attachmentsJsonMeta));
     }
+    if (data.containsKey('swipes_data_json')) {
+      context.handle(
+          _swipesDataJsonMeta,
+          swipesDataJson.isAcceptableOrUnknown(
+              data['swipes_data_json']!, _swipesDataJsonMeta));
+    }
     return context;
   }
 
@@ -1748,6 +1820,8 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
           .read(DriftSqlType.string, data['${effectivePrefix}character_name']),
       attachmentsJson: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}attachments_json'])!,
+      swipesDataJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}swipes_data_json'])!,
     );
   }
 
@@ -1771,6 +1845,7 @@ class Message extends DataClass implements Insertable<Message> {
   final String? characterId;
   final String? characterName;
   final String attachmentsJson;
+  final String swipesDataJson;
   const Message(
       {required this.id,
       required this.chatId,
@@ -1784,7 +1859,8 @@ class Message extends DataClass implements Insertable<Message> {
       required this.metadataJson,
       this.characterId,
       this.characterName,
-      required this.attachmentsJson});
+      required this.attachmentsJson,
+      required this.swipesDataJson});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1805,6 +1881,7 @@ class Message extends DataClass implements Insertable<Message> {
       map['character_name'] = Variable<String>(characterName);
     }
     map['attachments_json'] = Variable<String>(attachmentsJson);
+    map['swipes_data_json'] = Variable<String>(swipesDataJson);
     return map;
   }
 
@@ -1827,6 +1904,7 @@ class Message extends DataClass implements Insertable<Message> {
           ? const Value.absent()
           : Value(characterName),
       attachmentsJson: Value(attachmentsJson),
+      swipesDataJson: Value(swipesDataJson),
     );
   }
 
@@ -1847,6 +1925,7 @@ class Message extends DataClass implements Insertable<Message> {
       characterId: serializer.fromJson<String?>(json['characterId']),
       characterName: serializer.fromJson<String?>(json['characterName']),
       attachmentsJson: serializer.fromJson<String>(json['attachmentsJson']),
+      swipesDataJson: serializer.fromJson<String>(json['swipesDataJson']),
     );
   }
   @override
@@ -1866,6 +1945,7 @@ class Message extends DataClass implements Insertable<Message> {
       'characterId': serializer.toJson<String?>(characterId),
       'characterName': serializer.toJson<String?>(characterName),
       'attachmentsJson': serializer.toJson<String>(attachmentsJson),
+      'swipesDataJson': serializer.toJson<String>(swipesDataJson),
     };
   }
 
@@ -1882,7 +1962,8 @@ class Message extends DataClass implements Insertable<Message> {
           String? metadataJson,
           Value<String?> characterId = const Value.absent(),
           Value<String?> characterName = const Value.absent(),
-          String? attachmentsJson}) =>
+          String? attachmentsJson,
+          String? swipesDataJson}) =>
       Message(
         id: id ?? this.id,
         chatId: chatId ?? this.chatId,
@@ -1898,6 +1979,7 @@ class Message extends DataClass implements Insertable<Message> {
         characterName:
             characterName.present ? characterName.value : this.characterName,
         attachmentsJson: attachmentsJson ?? this.attachmentsJson,
+        swipesDataJson: swipesDataJson ?? this.swipesDataJson,
       );
   Message copyWithCompanion(MessagesCompanion data) {
     return Message(
@@ -1923,6 +2005,9 @@ class Message extends DataClass implements Insertable<Message> {
       attachmentsJson: data.attachmentsJson.present
           ? data.attachmentsJson.value
           : this.attachmentsJson,
+      swipesDataJson: data.swipesDataJson.present
+          ? data.swipesDataJson.value
+          : this.swipesDataJson,
     );
   }
 
@@ -1941,7 +2026,8 @@ class Message extends DataClass implements Insertable<Message> {
           ..write('metadataJson: $metadataJson, ')
           ..write('characterId: $characterId, ')
           ..write('characterName: $characterName, ')
-          ..write('attachmentsJson: $attachmentsJson')
+          ..write('attachmentsJson: $attachmentsJson, ')
+          ..write('swipesDataJson: $swipesDataJson')
           ..write(')'))
         .toString();
   }
@@ -1960,7 +2046,8 @@ class Message extends DataClass implements Insertable<Message> {
       metadataJson,
       characterId,
       characterName,
-      attachmentsJson);
+      attachmentsJson,
+      swipesDataJson);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1977,7 +2064,8 @@ class Message extends DataClass implements Insertable<Message> {
           other.metadataJson == this.metadataJson &&
           other.characterId == this.characterId &&
           other.characterName == this.characterName &&
-          other.attachmentsJson == this.attachmentsJson);
+          other.attachmentsJson == this.attachmentsJson &&
+          other.swipesDataJson == this.swipesDataJson);
 }
 
 class MessagesCompanion extends UpdateCompanion<Message> {
@@ -1994,6 +2082,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
   final Value<String?> characterId;
   final Value<String?> characterName;
   final Value<String> attachmentsJson;
+  final Value<String> swipesDataJson;
   final Value<int> rowid;
   const MessagesCompanion({
     this.id = const Value.absent(),
@@ -2009,6 +2098,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     this.characterId = const Value.absent(),
     this.characterName = const Value.absent(),
     this.attachmentsJson = const Value.absent(),
+    this.swipesDataJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MessagesCompanion.insert({
@@ -2025,6 +2115,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     this.characterId = const Value.absent(),
     this.characterName = const Value.absent(),
     this.attachmentsJson = const Value.absent(),
+    this.swipesDataJson = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         chatId = Value(chatId),
@@ -2045,6 +2136,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     Expression<String>? characterId,
     Expression<String>? characterName,
     Expression<String>? attachmentsJson,
+    Expression<String>? swipesDataJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2061,6 +2153,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       if (characterId != null) 'character_id': characterId,
       if (characterName != null) 'character_name': characterName,
       if (attachmentsJson != null) 'attachments_json': attachmentsJson,
+      if (swipesDataJson != null) 'swipes_data_json': swipesDataJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2079,6 +2172,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       Value<String?>? characterId,
       Value<String?>? characterName,
       Value<String>? attachmentsJson,
+      Value<String>? swipesDataJson,
       Value<int>? rowid}) {
     return MessagesCompanion(
       id: id ?? this.id,
@@ -2094,6 +2188,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       characterId: characterId ?? this.characterId,
       characterName: characterName ?? this.characterName,
       attachmentsJson: attachmentsJson ?? this.attachmentsJson,
+      swipesDataJson: swipesDataJson ?? this.swipesDataJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2140,6 +2235,9 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     if (attachmentsJson.present) {
       map['attachments_json'] = Variable<String>(attachmentsJson.value);
     }
+    if (swipesDataJson.present) {
+      map['swipes_data_json'] = Variable<String>(swipesDataJson.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2162,6 +2260,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
           ..write('characterId: $characterId, ')
           ..write('characterName: $characterName, ')
           ..write('attachmentsJson: $attachmentsJson, ')
+          ..write('swipesDataJson: $swipesDataJson, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6495,7 +6594,7 @@ class $VectorCollectionsTable extends VectorCollections
       'dimensions', aliasedName, false,
       type: DriftSqlType.int,
       requiredDuringInsert: false,
-      defaultValue: const Constant(512));
+      defaultValue: const Constant(384));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -7132,6 +7231,3528 @@ class VectorDocumentsCompanion extends UpdateCompanion<VectorDocument> {
   }
 }
 
+class $SummaryTasksTable extends SummaryTasks
+    with TableInfo<$SummaryTasksTable, SummaryTask> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SummaryTasksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _messageIdsMeta =
+      const VerificationMeta('messageIds');
+  @override
+  late final GeneratedColumn<String> messageIds = GeneratedColumn<String>(
+      'message_ids', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _fromTurnMeta =
+      const VerificationMeta('fromTurn');
+  @override
+  late final GeneratedColumn<int> fromTurn = GeneratedColumn<int>(
+      'from_turn', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _toTurnMeta = const VerificationMeta('toTurn');
+  @override
+  late final GeneratedColumn<int> toTurn = GeneratedColumn<int>(
+      'to_turn', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pending'));
+  static const VerificationMeta _resultJsonMeta =
+      const VerificationMeta('resultJson');
+  @override
+  late final GeneratedColumn<String> resultJson = GeneratedColumn<String>(
+      'result_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _errorMeta = const VerificationMeta('error');
+  @override
+  late final GeneratedColumn<String> error = GeneratedColumn<String>(
+      'error', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _finishedAtMeta =
+      const VerificationMeta('finishedAt');
+  @override
+  late final GeneratedColumn<DateTime> finishedAt = GeneratedColumn<DateTime>(
+      'finished_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        chatId,
+        messageIds,
+        fromTurn,
+        toTurn,
+        status,
+        resultJson,
+        error,
+        createdAt,
+        finishedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'summary_tasks';
+  @override
+  VerificationContext validateIntegrity(Insertable<SummaryTask> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('message_ids')) {
+      context.handle(
+          _messageIdsMeta,
+          messageIds.isAcceptableOrUnknown(
+              data['message_ids']!, _messageIdsMeta));
+    }
+    if (data.containsKey('from_turn')) {
+      context.handle(_fromTurnMeta,
+          fromTurn.isAcceptableOrUnknown(data['from_turn']!, _fromTurnMeta));
+    }
+    if (data.containsKey('to_turn')) {
+      context.handle(_toTurnMeta,
+          toTurn.isAcceptableOrUnknown(data['to_turn']!, _toTurnMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('result_json')) {
+      context.handle(
+          _resultJsonMeta,
+          resultJson.isAcceptableOrUnknown(
+              data['result_json']!, _resultJsonMeta));
+    }
+    if (data.containsKey('error')) {
+      context.handle(
+          _errorMeta, error.isAcceptableOrUnknown(data['error']!, _errorMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('finished_at')) {
+      context.handle(
+          _finishedAtMeta,
+          finishedAt.isAcceptableOrUnknown(
+              data['finished_at']!, _finishedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SummaryTask map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SummaryTask(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      messageIds: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}message_ids'])!,
+      fromTurn: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}from_turn'])!,
+      toTurn: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}to_turn'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      resultJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}result_json']),
+      error: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}error']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      finishedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}finished_at']),
+    );
+  }
+
+  @override
+  $SummaryTasksTable createAlias(String alias) {
+    return $SummaryTasksTable(attachedDatabase, alias);
+  }
+}
+
+class SummaryTask extends DataClass implements Insertable<SummaryTask> {
+  final String id;
+  final String chatId;
+
+  /// 待总结消息的 messageId 集合（调整A：不用index序号，删除/重排不漂移）
+  final String messageIds;
+  final int fromTurn;
+  final int toTurn;
+
+  /// pending / running / done / failed
+  final String status;
+  final String? resultJson;
+  final String? error;
+  final DateTime createdAt;
+  final DateTime? finishedAt;
+  const SummaryTask(
+      {required this.id,
+      required this.chatId,
+      required this.messageIds,
+      required this.fromTurn,
+      required this.toTurn,
+      required this.status,
+      this.resultJson,
+      this.error,
+      required this.createdAt,
+      this.finishedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['chat_id'] = Variable<String>(chatId);
+    map['message_ids'] = Variable<String>(messageIds);
+    map['from_turn'] = Variable<int>(fromTurn);
+    map['to_turn'] = Variable<int>(toTurn);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || resultJson != null) {
+      map['result_json'] = Variable<String>(resultJson);
+    }
+    if (!nullToAbsent || error != null) {
+      map['error'] = Variable<String>(error);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || finishedAt != null) {
+      map['finished_at'] = Variable<DateTime>(finishedAt);
+    }
+    return map;
+  }
+
+  SummaryTasksCompanion toCompanion(bool nullToAbsent) {
+    return SummaryTasksCompanion(
+      id: Value(id),
+      chatId: Value(chatId),
+      messageIds: Value(messageIds),
+      fromTurn: Value(fromTurn),
+      toTurn: Value(toTurn),
+      status: Value(status),
+      resultJson: resultJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resultJson),
+      error:
+          error == null && nullToAbsent ? const Value.absent() : Value(error),
+      createdAt: Value(createdAt),
+      finishedAt: finishedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(finishedAt),
+    );
+  }
+
+  factory SummaryTask.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SummaryTask(
+      id: serializer.fromJson<String>(json['id']),
+      chatId: serializer.fromJson<String>(json['chatId']),
+      messageIds: serializer.fromJson<String>(json['messageIds']),
+      fromTurn: serializer.fromJson<int>(json['fromTurn']),
+      toTurn: serializer.fromJson<int>(json['toTurn']),
+      status: serializer.fromJson<String>(json['status']),
+      resultJson: serializer.fromJson<String?>(json['resultJson']),
+      error: serializer.fromJson<String?>(json['error']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      finishedAt: serializer.fromJson<DateTime?>(json['finishedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'chatId': serializer.toJson<String>(chatId),
+      'messageIds': serializer.toJson<String>(messageIds),
+      'fromTurn': serializer.toJson<int>(fromTurn),
+      'toTurn': serializer.toJson<int>(toTurn),
+      'status': serializer.toJson<String>(status),
+      'resultJson': serializer.toJson<String?>(resultJson),
+      'error': serializer.toJson<String?>(error),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'finishedAt': serializer.toJson<DateTime?>(finishedAt),
+    };
+  }
+
+  SummaryTask copyWith(
+          {String? id,
+          String? chatId,
+          String? messageIds,
+          int? fromTurn,
+          int? toTurn,
+          String? status,
+          Value<String?> resultJson = const Value.absent(),
+          Value<String?> error = const Value.absent(),
+          DateTime? createdAt,
+          Value<DateTime?> finishedAt = const Value.absent()}) =>
+      SummaryTask(
+        id: id ?? this.id,
+        chatId: chatId ?? this.chatId,
+        messageIds: messageIds ?? this.messageIds,
+        fromTurn: fromTurn ?? this.fromTurn,
+        toTurn: toTurn ?? this.toTurn,
+        status: status ?? this.status,
+        resultJson: resultJson.present ? resultJson.value : this.resultJson,
+        error: error.present ? error.value : this.error,
+        createdAt: createdAt ?? this.createdAt,
+        finishedAt: finishedAt.present ? finishedAt.value : this.finishedAt,
+      );
+  SummaryTask copyWithCompanion(SummaryTasksCompanion data) {
+    return SummaryTask(
+      id: data.id.present ? data.id.value : this.id,
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      messageIds:
+          data.messageIds.present ? data.messageIds.value : this.messageIds,
+      fromTurn: data.fromTurn.present ? data.fromTurn.value : this.fromTurn,
+      toTurn: data.toTurn.present ? data.toTurn.value : this.toTurn,
+      status: data.status.present ? data.status.value : this.status,
+      resultJson:
+          data.resultJson.present ? data.resultJson.value : this.resultJson,
+      error: data.error.present ? data.error.value : this.error,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      finishedAt:
+          data.finishedAt.present ? data.finishedAt.value : this.finishedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SummaryTask(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('messageIds: $messageIds, ')
+          ..write('fromTurn: $fromTurn, ')
+          ..write('toTurn: $toTurn, ')
+          ..write('status: $status, ')
+          ..write('resultJson: $resultJson, ')
+          ..write('error: $error, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('finishedAt: $finishedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, chatId, messageIds, fromTurn, toTurn,
+      status, resultJson, error, createdAt, finishedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SummaryTask &&
+          other.id == this.id &&
+          other.chatId == this.chatId &&
+          other.messageIds == this.messageIds &&
+          other.fromTurn == this.fromTurn &&
+          other.toTurn == this.toTurn &&
+          other.status == this.status &&
+          other.resultJson == this.resultJson &&
+          other.error == this.error &&
+          other.createdAt == this.createdAt &&
+          other.finishedAt == this.finishedAt);
+}
+
+class SummaryTasksCompanion extends UpdateCompanion<SummaryTask> {
+  final Value<String> id;
+  final Value<String> chatId;
+  final Value<String> messageIds;
+  final Value<int> fromTurn;
+  final Value<int> toTurn;
+  final Value<String> status;
+  final Value<String?> resultJson;
+  final Value<String?> error;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> finishedAt;
+  final Value<int> rowid;
+  const SummaryTasksCompanion({
+    this.id = const Value.absent(),
+    this.chatId = const Value.absent(),
+    this.messageIds = const Value.absent(),
+    this.fromTurn = const Value.absent(),
+    this.toTurn = const Value.absent(),
+    this.status = const Value.absent(),
+    this.resultJson = const Value.absent(),
+    this.error = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.finishedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SummaryTasksCompanion.insert({
+    required String id,
+    required String chatId,
+    this.messageIds = const Value.absent(),
+    this.fromTurn = const Value.absent(),
+    this.toTurn = const Value.absent(),
+    this.status = const Value.absent(),
+    this.resultJson = const Value.absent(),
+    this.error = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.finishedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        chatId = Value(chatId);
+  static Insertable<SummaryTask> custom({
+    Expression<String>? id,
+    Expression<String>? chatId,
+    Expression<String>? messageIds,
+    Expression<int>? fromTurn,
+    Expression<int>? toTurn,
+    Expression<String>? status,
+    Expression<String>? resultJson,
+    Expression<String>? error,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? finishedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (chatId != null) 'chat_id': chatId,
+      if (messageIds != null) 'message_ids': messageIds,
+      if (fromTurn != null) 'from_turn': fromTurn,
+      if (toTurn != null) 'to_turn': toTurn,
+      if (status != null) 'status': status,
+      if (resultJson != null) 'result_json': resultJson,
+      if (error != null) 'error': error,
+      if (createdAt != null) 'created_at': createdAt,
+      if (finishedAt != null) 'finished_at': finishedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SummaryTasksCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? chatId,
+      Value<String>? messageIds,
+      Value<int>? fromTurn,
+      Value<int>? toTurn,
+      Value<String>? status,
+      Value<String?>? resultJson,
+      Value<String?>? error,
+      Value<DateTime>? createdAt,
+      Value<DateTime?>? finishedAt,
+      Value<int>? rowid}) {
+    return SummaryTasksCompanion(
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      messageIds: messageIds ?? this.messageIds,
+      fromTurn: fromTurn ?? this.fromTurn,
+      toTurn: toTurn ?? this.toTurn,
+      status: status ?? this.status,
+      resultJson: resultJson ?? this.resultJson,
+      error: error ?? this.error,
+      createdAt: createdAt ?? this.createdAt,
+      finishedAt: finishedAt ?? this.finishedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (messageIds.present) {
+      map['message_ids'] = Variable<String>(messageIds.value);
+    }
+    if (fromTurn.present) {
+      map['from_turn'] = Variable<int>(fromTurn.value);
+    }
+    if (toTurn.present) {
+      map['to_turn'] = Variable<int>(toTurn.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (resultJson.present) {
+      map['result_json'] = Variable<String>(resultJson.value);
+    }
+    if (error.present) {
+      map['error'] = Variable<String>(error.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (finishedAt.present) {
+      map['finished_at'] = Variable<DateTime>(finishedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SummaryTasksCompanion(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('messageIds: $messageIds, ')
+          ..write('fromTurn: $fromTurn, ')
+          ..write('toTurn: $toTurn, ')
+          ..write('status: $status, ')
+          ..write('resultJson: $resultJson, ')
+          ..write('error: $error, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('finishedAt: $finishedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MemoryEntriesTable extends MemoryEntries
+    with TableInfo<$MemoryEntriesTable, MemoryEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MemoryEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('event'));
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _contentMeta =
+      const VerificationMeta('content');
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+      'content', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _importanceMeta =
+      const VerificationMeta('importance');
+  @override
+  late final GeneratedColumn<int> importance = GeneratedColumn<int>(
+      'importance', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(5));
+  static const VerificationMeta _alwaysInjectMeta =
+      const VerificationMeta('alwaysInject');
+  @override
+  late final GeneratedColumn<bool> alwaysInject = GeneratedColumn<bool>(
+      'always_inject', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("always_inject" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _anchorMeta = const VerificationMeta('anchor');
+  @override
+  late final GeneratedColumn<bool> anchor = GeneratedColumn<bool>(
+      'anchor', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("anchor" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _neverEvictMeta =
+      const VerificationMeta('neverEvict');
+  @override
+  late final GeneratedColumn<bool> neverEvict = GeneratedColumn<bool>(
+      'never_evict', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("never_evict" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
+  @override
+  late final GeneratedColumn<String> tags = GeneratedColumn<String>(
+      'tags', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _entityIdsMeta =
+      const VerificationMeta('entityIds');
+  @override
+  late final GeneratedColumn<String> entityIds = GeneratedColumn<String>(
+      'entity_ids', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _sourceMessageIdsMeta =
+      const VerificationMeta('sourceMessageIds');
+  @override
+  late final GeneratedColumn<String> sourceMessageIds = GeneratedColumn<String>(
+      'source_message_ids', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _turnIndexMeta =
+      const VerificationMeta('turnIndex');
+  @override
+  late final GeneratedColumn<int> turnIndex = GeneratedColumn<int>(
+      'turn_index', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _deprecatedMeta =
+      const VerificationMeta('deprecated');
+  @override
+  late final GeneratedColumn<bool> deprecated = GeneratedColumn<bool>(
+      'deprecated', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("deprecated" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _vectorIdMeta =
+      const VerificationMeta('vectorId');
+  @override
+  late final GeneratedColumn<String> vectorId = GeneratedColumn<String>(
+      'vector_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        chatId,
+        type,
+        title,
+        content,
+        importance,
+        alwaysInject,
+        anchor,
+        neverEvict,
+        tags,
+        entityIds,
+        sourceMessageIds,
+        turnIndex,
+        deprecated,
+        vectorId,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'memory_entries';
+  @override
+  VerificationContext validateIntegrity(Insertable<MemoryEntry> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(_contentMeta,
+          content.isAcceptableOrUnknown(data['content']!, _contentMeta));
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('importance')) {
+      context.handle(
+          _importanceMeta,
+          importance.isAcceptableOrUnknown(
+              data['importance']!, _importanceMeta));
+    }
+    if (data.containsKey('always_inject')) {
+      context.handle(
+          _alwaysInjectMeta,
+          alwaysInject.isAcceptableOrUnknown(
+              data['always_inject']!, _alwaysInjectMeta));
+    }
+    if (data.containsKey('anchor')) {
+      context.handle(_anchorMeta,
+          anchor.isAcceptableOrUnknown(data['anchor']!, _anchorMeta));
+    }
+    if (data.containsKey('never_evict')) {
+      context.handle(
+          _neverEvictMeta,
+          neverEvict.isAcceptableOrUnknown(
+              data['never_evict']!, _neverEvictMeta));
+    }
+    if (data.containsKey('tags')) {
+      context.handle(
+          _tagsMeta, tags.isAcceptableOrUnknown(data['tags']!, _tagsMeta));
+    }
+    if (data.containsKey('entity_ids')) {
+      context.handle(_entityIdsMeta,
+          entityIds.isAcceptableOrUnknown(data['entity_ids']!, _entityIdsMeta));
+    }
+    if (data.containsKey('source_message_ids')) {
+      context.handle(
+          _sourceMessageIdsMeta,
+          sourceMessageIds.isAcceptableOrUnknown(
+              data['source_message_ids']!, _sourceMessageIdsMeta));
+    }
+    if (data.containsKey('turn_index')) {
+      context.handle(_turnIndexMeta,
+          turnIndex.isAcceptableOrUnknown(data['turn_index']!, _turnIndexMeta));
+    }
+    if (data.containsKey('deprecated')) {
+      context.handle(
+          _deprecatedMeta,
+          deprecated.isAcceptableOrUnknown(
+              data['deprecated']!, _deprecatedMeta));
+    }
+    if (data.containsKey('vector_id')) {
+      context.handle(_vectorIdMeta,
+          vectorId.isAcceptableOrUnknown(data['vector_id']!, _vectorIdMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MemoryEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MemoryEntry(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      content: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content'])!,
+      importance: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}importance'])!,
+      alwaysInject: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}always_inject'])!,
+      anchor: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}anchor'])!,
+      neverEvict: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}never_evict'])!,
+      tags: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tags'])!,
+      entityIds: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}entity_ids'])!,
+      sourceMessageIds: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}source_message_ids'])!,
+      turnIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}turn_index'])!,
+      deprecated: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}deprecated'])!,
+      vectorId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}vector_id']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $MemoryEntriesTable createAlias(String alias) {
+    return $MemoryEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class MemoryEntry extends DataClass implements Insertable<MemoryEntry> {
+  final String id;
+  final String chatId;
+
+  /// event / state / knowledge
+  final String type;
+  final String title;
+  final String content;
+  final int importance;
+  final bool alwaysInject;
+  final bool anchor;
+  final bool neverEvict;
+  final String tags;
+  final String entityIds;
+
+  /// 词条来源消息（调整A：messageId集合）
+  final String sourceMessageIds;
+  final int turnIndex;
+  final bool deprecated;
+
+  /// 对应 VectorDocument.id（'chronicle_<entryId>'）
+  final String? vectorId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const MemoryEntry(
+      {required this.id,
+      required this.chatId,
+      required this.type,
+      required this.title,
+      required this.content,
+      required this.importance,
+      required this.alwaysInject,
+      required this.anchor,
+      required this.neverEvict,
+      required this.tags,
+      required this.entityIds,
+      required this.sourceMessageIds,
+      required this.turnIndex,
+      required this.deprecated,
+      this.vectorId,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['chat_id'] = Variable<String>(chatId);
+    map['type'] = Variable<String>(type);
+    map['title'] = Variable<String>(title);
+    map['content'] = Variable<String>(content);
+    map['importance'] = Variable<int>(importance);
+    map['always_inject'] = Variable<bool>(alwaysInject);
+    map['anchor'] = Variable<bool>(anchor);
+    map['never_evict'] = Variable<bool>(neverEvict);
+    map['tags'] = Variable<String>(tags);
+    map['entity_ids'] = Variable<String>(entityIds);
+    map['source_message_ids'] = Variable<String>(sourceMessageIds);
+    map['turn_index'] = Variable<int>(turnIndex);
+    map['deprecated'] = Variable<bool>(deprecated);
+    if (!nullToAbsent || vectorId != null) {
+      map['vector_id'] = Variable<String>(vectorId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  MemoryEntriesCompanion toCompanion(bool nullToAbsent) {
+    return MemoryEntriesCompanion(
+      id: Value(id),
+      chatId: Value(chatId),
+      type: Value(type),
+      title: Value(title),
+      content: Value(content),
+      importance: Value(importance),
+      alwaysInject: Value(alwaysInject),
+      anchor: Value(anchor),
+      neverEvict: Value(neverEvict),
+      tags: Value(tags),
+      entityIds: Value(entityIds),
+      sourceMessageIds: Value(sourceMessageIds),
+      turnIndex: Value(turnIndex),
+      deprecated: Value(deprecated),
+      vectorId: vectorId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(vectorId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MemoryEntry.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MemoryEntry(
+      id: serializer.fromJson<String>(json['id']),
+      chatId: serializer.fromJson<String>(json['chatId']),
+      type: serializer.fromJson<String>(json['type']),
+      title: serializer.fromJson<String>(json['title']),
+      content: serializer.fromJson<String>(json['content']),
+      importance: serializer.fromJson<int>(json['importance']),
+      alwaysInject: serializer.fromJson<bool>(json['alwaysInject']),
+      anchor: serializer.fromJson<bool>(json['anchor']),
+      neverEvict: serializer.fromJson<bool>(json['neverEvict']),
+      tags: serializer.fromJson<String>(json['tags']),
+      entityIds: serializer.fromJson<String>(json['entityIds']),
+      sourceMessageIds: serializer.fromJson<String>(json['sourceMessageIds']),
+      turnIndex: serializer.fromJson<int>(json['turnIndex']),
+      deprecated: serializer.fromJson<bool>(json['deprecated']),
+      vectorId: serializer.fromJson<String?>(json['vectorId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'chatId': serializer.toJson<String>(chatId),
+      'type': serializer.toJson<String>(type),
+      'title': serializer.toJson<String>(title),
+      'content': serializer.toJson<String>(content),
+      'importance': serializer.toJson<int>(importance),
+      'alwaysInject': serializer.toJson<bool>(alwaysInject),
+      'anchor': serializer.toJson<bool>(anchor),
+      'neverEvict': serializer.toJson<bool>(neverEvict),
+      'tags': serializer.toJson<String>(tags),
+      'entityIds': serializer.toJson<String>(entityIds),
+      'sourceMessageIds': serializer.toJson<String>(sourceMessageIds),
+      'turnIndex': serializer.toJson<int>(turnIndex),
+      'deprecated': serializer.toJson<bool>(deprecated),
+      'vectorId': serializer.toJson<String?>(vectorId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  MemoryEntry copyWith(
+          {String? id,
+          String? chatId,
+          String? type,
+          String? title,
+          String? content,
+          int? importance,
+          bool? alwaysInject,
+          bool? anchor,
+          bool? neverEvict,
+          String? tags,
+          String? entityIds,
+          String? sourceMessageIds,
+          int? turnIndex,
+          bool? deprecated,
+          Value<String?> vectorId = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      MemoryEntry(
+        id: id ?? this.id,
+        chatId: chatId ?? this.chatId,
+        type: type ?? this.type,
+        title: title ?? this.title,
+        content: content ?? this.content,
+        importance: importance ?? this.importance,
+        alwaysInject: alwaysInject ?? this.alwaysInject,
+        anchor: anchor ?? this.anchor,
+        neverEvict: neverEvict ?? this.neverEvict,
+        tags: tags ?? this.tags,
+        entityIds: entityIds ?? this.entityIds,
+        sourceMessageIds: sourceMessageIds ?? this.sourceMessageIds,
+        turnIndex: turnIndex ?? this.turnIndex,
+        deprecated: deprecated ?? this.deprecated,
+        vectorId: vectorId.present ? vectorId.value : this.vectorId,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  MemoryEntry copyWithCompanion(MemoryEntriesCompanion data) {
+    return MemoryEntry(
+      id: data.id.present ? data.id.value : this.id,
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      type: data.type.present ? data.type.value : this.type,
+      title: data.title.present ? data.title.value : this.title,
+      content: data.content.present ? data.content.value : this.content,
+      importance:
+          data.importance.present ? data.importance.value : this.importance,
+      alwaysInject: data.alwaysInject.present
+          ? data.alwaysInject.value
+          : this.alwaysInject,
+      anchor: data.anchor.present ? data.anchor.value : this.anchor,
+      neverEvict:
+          data.neverEvict.present ? data.neverEvict.value : this.neverEvict,
+      tags: data.tags.present ? data.tags.value : this.tags,
+      entityIds: data.entityIds.present ? data.entityIds.value : this.entityIds,
+      sourceMessageIds: data.sourceMessageIds.present
+          ? data.sourceMessageIds.value
+          : this.sourceMessageIds,
+      turnIndex: data.turnIndex.present ? data.turnIndex.value : this.turnIndex,
+      deprecated:
+          data.deprecated.present ? data.deprecated.value : this.deprecated,
+      vectorId: data.vectorId.present ? data.vectorId.value : this.vectorId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryEntry(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('type: $type, ')
+          ..write('title: $title, ')
+          ..write('content: $content, ')
+          ..write('importance: $importance, ')
+          ..write('alwaysInject: $alwaysInject, ')
+          ..write('anchor: $anchor, ')
+          ..write('neverEvict: $neverEvict, ')
+          ..write('tags: $tags, ')
+          ..write('entityIds: $entityIds, ')
+          ..write('sourceMessageIds: $sourceMessageIds, ')
+          ..write('turnIndex: $turnIndex, ')
+          ..write('deprecated: $deprecated, ')
+          ..write('vectorId: $vectorId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      chatId,
+      type,
+      title,
+      content,
+      importance,
+      alwaysInject,
+      anchor,
+      neverEvict,
+      tags,
+      entityIds,
+      sourceMessageIds,
+      turnIndex,
+      deprecated,
+      vectorId,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MemoryEntry &&
+          other.id == this.id &&
+          other.chatId == this.chatId &&
+          other.type == this.type &&
+          other.title == this.title &&
+          other.content == this.content &&
+          other.importance == this.importance &&
+          other.alwaysInject == this.alwaysInject &&
+          other.anchor == this.anchor &&
+          other.neverEvict == this.neverEvict &&
+          other.tags == this.tags &&
+          other.entityIds == this.entityIds &&
+          other.sourceMessageIds == this.sourceMessageIds &&
+          other.turnIndex == this.turnIndex &&
+          other.deprecated == this.deprecated &&
+          other.vectorId == this.vectorId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MemoryEntriesCompanion extends UpdateCompanion<MemoryEntry> {
+  final Value<String> id;
+  final Value<String> chatId;
+  final Value<String> type;
+  final Value<String> title;
+  final Value<String> content;
+  final Value<int> importance;
+  final Value<bool> alwaysInject;
+  final Value<bool> anchor;
+  final Value<bool> neverEvict;
+  final Value<String> tags;
+  final Value<String> entityIds;
+  final Value<String> sourceMessageIds;
+  final Value<int> turnIndex;
+  final Value<bool> deprecated;
+  final Value<String?> vectorId;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const MemoryEntriesCompanion({
+    this.id = const Value.absent(),
+    this.chatId = const Value.absent(),
+    this.type = const Value.absent(),
+    this.title = const Value.absent(),
+    this.content = const Value.absent(),
+    this.importance = const Value.absent(),
+    this.alwaysInject = const Value.absent(),
+    this.anchor = const Value.absent(),
+    this.neverEvict = const Value.absent(),
+    this.tags = const Value.absent(),
+    this.entityIds = const Value.absent(),
+    this.sourceMessageIds = const Value.absent(),
+    this.turnIndex = const Value.absent(),
+    this.deprecated = const Value.absent(),
+    this.vectorId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MemoryEntriesCompanion.insert({
+    required String id,
+    required String chatId,
+    this.type = const Value.absent(),
+    required String title,
+    required String content,
+    this.importance = const Value.absent(),
+    this.alwaysInject = const Value.absent(),
+    this.anchor = const Value.absent(),
+    this.neverEvict = const Value.absent(),
+    this.tags = const Value.absent(),
+    this.entityIds = const Value.absent(),
+    this.sourceMessageIds = const Value.absent(),
+    this.turnIndex = const Value.absent(),
+    this.deprecated = const Value.absent(),
+    this.vectorId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        chatId = Value(chatId),
+        title = Value(title),
+        content = Value(content);
+  static Insertable<MemoryEntry> custom({
+    Expression<String>? id,
+    Expression<String>? chatId,
+    Expression<String>? type,
+    Expression<String>? title,
+    Expression<String>? content,
+    Expression<int>? importance,
+    Expression<bool>? alwaysInject,
+    Expression<bool>? anchor,
+    Expression<bool>? neverEvict,
+    Expression<String>? tags,
+    Expression<String>? entityIds,
+    Expression<String>? sourceMessageIds,
+    Expression<int>? turnIndex,
+    Expression<bool>? deprecated,
+    Expression<String>? vectorId,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (chatId != null) 'chat_id': chatId,
+      if (type != null) 'type': type,
+      if (title != null) 'title': title,
+      if (content != null) 'content': content,
+      if (importance != null) 'importance': importance,
+      if (alwaysInject != null) 'always_inject': alwaysInject,
+      if (anchor != null) 'anchor': anchor,
+      if (neverEvict != null) 'never_evict': neverEvict,
+      if (tags != null) 'tags': tags,
+      if (entityIds != null) 'entity_ids': entityIds,
+      if (sourceMessageIds != null) 'source_message_ids': sourceMessageIds,
+      if (turnIndex != null) 'turn_index': turnIndex,
+      if (deprecated != null) 'deprecated': deprecated,
+      if (vectorId != null) 'vector_id': vectorId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MemoryEntriesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? chatId,
+      Value<String>? type,
+      Value<String>? title,
+      Value<String>? content,
+      Value<int>? importance,
+      Value<bool>? alwaysInject,
+      Value<bool>? anchor,
+      Value<bool>? neverEvict,
+      Value<String>? tags,
+      Value<String>? entityIds,
+      Value<String>? sourceMessageIds,
+      Value<int>? turnIndex,
+      Value<bool>? deprecated,
+      Value<String?>? vectorId,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return MemoryEntriesCompanion(
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      content: content ?? this.content,
+      importance: importance ?? this.importance,
+      alwaysInject: alwaysInject ?? this.alwaysInject,
+      anchor: anchor ?? this.anchor,
+      neverEvict: neverEvict ?? this.neverEvict,
+      tags: tags ?? this.tags,
+      entityIds: entityIds ?? this.entityIds,
+      sourceMessageIds: sourceMessageIds ?? this.sourceMessageIds,
+      turnIndex: turnIndex ?? this.turnIndex,
+      deprecated: deprecated ?? this.deprecated,
+      vectorId: vectorId ?? this.vectorId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (importance.present) {
+      map['importance'] = Variable<int>(importance.value);
+    }
+    if (alwaysInject.present) {
+      map['always_inject'] = Variable<bool>(alwaysInject.value);
+    }
+    if (anchor.present) {
+      map['anchor'] = Variable<bool>(anchor.value);
+    }
+    if (neverEvict.present) {
+      map['never_evict'] = Variable<bool>(neverEvict.value);
+    }
+    if (tags.present) {
+      map['tags'] = Variable<String>(tags.value);
+    }
+    if (entityIds.present) {
+      map['entity_ids'] = Variable<String>(entityIds.value);
+    }
+    if (sourceMessageIds.present) {
+      map['source_message_ids'] = Variable<String>(sourceMessageIds.value);
+    }
+    if (turnIndex.present) {
+      map['turn_index'] = Variable<int>(turnIndex.value);
+    }
+    if (deprecated.present) {
+      map['deprecated'] = Variable<bool>(deprecated.value);
+    }
+    if (vectorId.present) {
+      map['vector_id'] = Variable<String>(vectorId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('type: $type, ')
+          ..write('title: $title, ')
+          ..write('content: $content, ')
+          ..write('importance: $importance, ')
+          ..write('alwaysInject: $alwaysInject, ')
+          ..write('anchor: $anchor, ')
+          ..write('neverEvict: $neverEvict, ')
+          ..write('tags: $tags, ')
+          ..write('entityIds: $entityIds, ')
+          ..write('sourceMessageIds: $sourceMessageIds, ')
+          ..write('turnIndex: $turnIndex, ')
+          ..write('deprecated: $deprecated, ')
+          ..write('vectorId: $vectorId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ChronicleStatesTable extends ChronicleStates
+    with TableInfo<$ChronicleStatesTable, ChronicleState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ChronicleStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _archivedMessageIdsMeta =
+      const VerificationMeta('archivedMessageIds');
+  @override
+  late final GeneratedColumn<String> archivedMessageIds =
+      GeneratedColumn<String>('archived_message_ids', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant('[]'));
+  static const VerificationMeta _settingsJsonMeta =
+      const VerificationMeta('settingsJson');
+  @override
+  late final GeneratedColumn<String> settingsJson = GeneratedColumn<String>(
+      'settings_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [chatId, archivedMessageIds, settingsJson, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'chronicle_states';
+  @override
+  VerificationContext validateIntegrity(Insertable<ChronicleState> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('archived_message_ids')) {
+      context.handle(
+          _archivedMessageIdsMeta,
+          archivedMessageIds.isAcceptableOrUnknown(
+              data['archived_message_ids']!, _archivedMessageIdsMeta));
+    }
+    if (data.containsKey('settings_json')) {
+      context.handle(
+          _settingsJsonMeta,
+          settingsJson.isAcceptableOrUnknown(
+              data['settings_json']!, _settingsJsonMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {chatId};
+  @override
+  ChronicleState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ChronicleState(
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      archivedMessageIds: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}archived_message_ids'])!,
+      settingsJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}settings_json'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $ChronicleStatesTable createAlias(String alias) {
+    return $ChronicleStatesTable(attachedDatabase, alias);
+  }
+}
+
+class ChronicleState extends DataClass implements Insertable<ChronicleState> {
+  final String chatId;
+
+  /// 已归档消息的 messageId 集合（JSON数组）
+  final String archivedMessageIds;
+
+  /// ChronicleSettings 序列化JSON
+  final String settingsJson;
+  final DateTime updatedAt;
+  const ChronicleState(
+      {required this.chatId,
+      required this.archivedMessageIds,
+      required this.settingsJson,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['chat_id'] = Variable<String>(chatId);
+    map['archived_message_ids'] = Variable<String>(archivedMessageIds);
+    map['settings_json'] = Variable<String>(settingsJson);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  ChronicleStatesCompanion toCompanion(bool nullToAbsent) {
+    return ChronicleStatesCompanion(
+      chatId: Value(chatId),
+      archivedMessageIds: Value(archivedMessageIds),
+      settingsJson: Value(settingsJson),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ChronicleState.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ChronicleState(
+      chatId: serializer.fromJson<String>(json['chatId']),
+      archivedMessageIds:
+          serializer.fromJson<String>(json['archivedMessageIds']),
+      settingsJson: serializer.fromJson<String>(json['settingsJson']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'chatId': serializer.toJson<String>(chatId),
+      'archivedMessageIds': serializer.toJson<String>(archivedMessageIds),
+      'settingsJson': serializer.toJson<String>(settingsJson),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  ChronicleState copyWith(
+          {String? chatId,
+          String? archivedMessageIds,
+          String? settingsJson,
+          DateTime? updatedAt}) =>
+      ChronicleState(
+        chatId: chatId ?? this.chatId,
+        archivedMessageIds: archivedMessageIds ?? this.archivedMessageIds,
+        settingsJson: settingsJson ?? this.settingsJson,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  ChronicleState copyWithCompanion(ChronicleStatesCompanion data) {
+    return ChronicleState(
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      archivedMessageIds: data.archivedMessageIds.present
+          ? data.archivedMessageIds.value
+          : this.archivedMessageIds,
+      settingsJson: data.settingsJson.present
+          ? data.settingsJson.value
+          : this.settingsJson,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChronicleState(')
+          ..write('chatId: $chatId, ')
+          ..write('archivedMessageIds: $archivedMessageIds, ')
+          ..write('settingsJson: $settingsJson, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(chatId, archivedMessageIds, settingsJson, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ChronicleState &&
+          other.chatId == this.chatId &&
+          other.archivedMessageIds == this.archivedMessageIds &&
+          other.settingsJson == this.settingsJson &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ChronicleStatesCompanion extends UpdateCompanion<ChronicleState> {
+  final Value<String> chatId;
+  final Value<String> archivedMessageIds;
+  final Value<String> settingsJson;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const ChronicleStatesCompanion({
+    this.chatId = const Value.absent(),
+    this.archivedMessageIds = const Value.absent(),
+    this.settingsJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ChronicleStatesCompanion.insert({
+    required String chatId,
+    this.archivedMessageIds = const Value.absent(),
+    this.settingsJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : chatId = Value(chatId);
+  static Insertable<ChronicleState> custom({
+    Expression<String>? chatId,
+    Expression<String>? archivedMessageIds,
+    Expression<String>? settingsJson,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (chatId != null) 'chat_id': chatId,
+      if (archivedMessageIds != null)
+        'archived_message_ids': archivedMessageIds,
+      if (settingsJson != null) 'settings_json': settingsJson,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ChronicleStatesCompanion copyWith(
+      {Value<String>? chatId,
+      Value<String>? archivedMessageIds,
+      Value<String>? settingsJson,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return ChronicleStatesCompanion(
+      chatId: chatId ?? this.chatId,
+      archivedMessageIds: archivedMessageIds ?? this.archivedMessageIds,
+      settingsJson: settingsJson ?? this.settingsJson,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (archivedMessageIds.present) {
+      map['archived_message_ids'] = Variable<String>(archivedMessageIds.value);
+    }
+    if (settingsJson.present) {
+      map['settings_json'] = Variable<String>(settingsJson.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ChronicleStatesCompanion(')
+          ..write('chatId: $chatId, ')
+          ..write('archivedMessageIds: $archivedMessageIds, ')
+          ..write('settingsJson: $settingsJson, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MemoryEntitiesTable extends MemoryEntities
+    with TableInfo<$MemoryEntitiesTable, MemoryEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MemoryEntitiesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('person'));
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _currentStateMeta =
+      const VerificationMeta('currentState');
+  @override
+  late final GeneratedColumn<String> currentState = GeneratedColumn<String>(
+      'current_state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _aliasesMeta =
+      const VerificationMeta('aliases');
+  @override
+  late final GeneratedColumn<String> aliases = GeneratedColumn<String>(
+      'aliases', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
+  static const VerificationMeta _attributesMeta =
+      const VerificationMeta('attributes');
+  @override
+  late final GeneratedColumn<String> attributes = GeneratedColumn<String>(
+      'attributes', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        chatId,
+        name,
+        type,
+        description,
+        currentState,
+        aliases,
+        attributes,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'memory_entities';
+  @override
+  VerificationContext validateIntegrity(Insertable<MemoryEntity> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('current_state')) {
+      context.handle(
+          _currentStateMeta,
+          currentState.isAcceptableOrUnknown(
+              data['current_state']!, _currentStateMeta));
+    }
+    if (data.containsKey('aliases')) {
+      context.handle(_aliasesMeta,
+          aliases.isAcceptableOrUnknown(data['aliases']!, _aliasesMeta));
+    }
+    if (data.containsKey('attributes')) {
+      context.handle(
+          _attributesMeta,
+          attributes.isAcceptableOrUnknown(
+              data['attributes']!, _attributesMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MemoryEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MemoryEntity(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
+      currentState: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}current_state'])!,
+      aliases: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}aliases'])!,
+      attributes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}attributes'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $MemoryEntitiesTable createAlias(String alias) {
+    return $MemoryEntitiesTable(attachedDatabase, alias);
+  }
+}
+
+class MemoryEntity extends DataClass implements Insertable<MemoryEntity> {
+  final String id;
+  final String chatId;
+  final String name;
+
+  /// person / place / item / concept
+  final String type;
+  final String description;
+  final String currentState;
+  final String aliases;
+  final String attributes;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const MemoryEntity(
+      {required this.id,
+      required this.chatId,
+      required this.name,
+      required this.type,
+      required this.description,
+      required this.currentState,
+      required this.aliases,
+      required this.attributes,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['chat_id'] = Variable<String>(chatId);
+    map['name'] = Variable<String>(name);
+    map['type'] = Variable<String>(type);
+    map['description'] = Variable<String>(description);
+    map['current_state'] = Variable<String>(currentState);
+    map['aliases'] = Variable<String>(aliases);
+    map['attributes'] = Variable<String>(attributes);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  MemoryEntitiesCompanion toCompanion(bool nullToAbsent) {
+    return MemoryEntitiesCompanion(
+      id: Value(id),
+      chatId: Value(chatId),
+      name: Value(name),
+      type: Value(type),
+      description: Value(description),
+      currentState: Value(currentState),
+      aliases: Value(aliases),
+      attributes: Value(attributes),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MemoryEntity.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MemoryEntity(
+      id: serializer.fromJson<String>(json['id']),
+      chatId: serializer.fromJson<String>(json['chatId']),
+      name: serializer.fromJson<String>(json['name']),
+      type: serializer.fromJson<String>(json['type']),
+      description: serializer.fromJson<String>(json['description']),
+      currentState: serializer.fromJson<String>(json['currentState']),
+      aliases: serializer.fromJson<String>(json['aliases']),
+      attributes: serializer.fromJson<String>(json['attributes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'chatId': serializer.toJson<String>(chatId),
+      'name': serializer.toJson<String>(name),
+      'type': serializer.toJson<String>(type),
+      'description': serializer.toJson<String>(description),
+      'currentState': serializer.toJson<String>(currentState),
+      'aliases': serializer.toJson<String>(aliases),
+      'attributes': serializer.toJson<String>(attributes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  MemoryEntity copyWith(
+          {String? id,
+          String? chatId,
+          String? name,
+          String? type,
+          String? description,
+          String? currentState,
+          String? aliases,
+          String? attributes,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      MemoryEntity(
+        id: id ?? this.id,
+        chatId: chatId ?? this.chatId,
+        name: name ?? this.name,
+        type: type ?? this.type,
+        description: description ?? this.description,
+        currentState: currentState ?? this.currentState,
+        aliases: aliases ?? this.aliases,
+        attributes: attributes ?? this.attributes,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  MemoryEntity copyWithCompanion(MemoryEntitiesCompanion data) {
+    return MemoryEntity(
+      id: data.id.present ? data.id.value : this.id,
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
+      description:
+          data.description.present ? data.description.value : this.description,
+      currentState: data.currentState.present
+          ? data.currentState.value
+          : this.currentState,
+      aliases: data.aliases.present ? data.aliases.value : this.aliases,
+      attributes:
+          data.attributes.present ? data.attributes.value : this.attributes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryEntity(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('description: $description, ')
+          ..write('currentState: $currentState, ')
+          ..write('aliases: $aliases, ')
+          ..write('attributes: $attributes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, chatId, name, type, description,
+      currentState, aliases, attributes, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MemoryEntity &&
+          other.id == this.id &&
+          other.chatId == this.chatId &&
+          other.name == this.name &&
+          other.type == this.type &&
+          other.description == this.description &&
+          other.currentState == this.currentState &&
+          other.aliases == this.aliases &&
+          other.attributes == this.attributes &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MemoryEntitiesCompanion extends UpdateCompanion<MemoryEntity> {
+  final Value<String> id;
+  final Value<String> chatId;
+  final Value<String> name;
+  final Value<String> type;
+  final Value<String> description;
+  final Value<String> currentState;
+  final Value<String> aliases;
+  final Value<String> attributes;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const MemoryEntitiesCompanion({
+    this.id = const Value.absent(),
+    this.chatId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.type = const Value.absent(),
+    this.description = const Value.absent(),
+    this.currentState = const Value.absent(),
+    this.aliases = const Value.absent(),
+    this.attributes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MemoryEntitiesCompanion.insert({
+    required String id,
+    required String chatId,
+    required String name,
+    this.type = const Value.absent(),
+    this.description = const Value.absent(),
+    this.currentState = const Value.absent(),
+    this.aliases = const Value.absent(),
+    this.attributes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        chatId = Value(chatId),
+        name = Value(name);
+  static Insertable<MemoryEntity> custom({
+    Expression<String>? id,
+    Expression<String>? chatId,
+    Expression<String>? name,
+    Expression<String>? type,
+    Expression<String>? description,
+    Expression<String>? currentState,
+    Expression<String>? aliases,
+    Expression<String>? attributes,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (chatId != null) 'chat_id': chatId,
+      if (name != null) 'name': name,
+      if (type != null) 'type': type,
+      if (description != null) 'description': description,
+      if (currentState != null) 'current_state': currentState,
+      if (aliases != null) 'aliases': aliases,
+      if (attributes != null) 'attributes': attributes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MemoryEntitiesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? chatId,
+      Value<String>? name,
+      Value<String>? type,
+      Value<String>? description,
+      Value<String>? currentState,
+      Value<String>? aliases,
+      Value<String>? attributes,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return MemoryEntitiesCompanion(
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      description: description ?? this.description,
+      currentState: currentState ?? this.currentState,
+      aliases: aliases ?? this.aliases,
+      attributes: attributes ?? this.attributes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (currentState.present) {
+      map['current_state'] = Variable<String>(currentState.value);
+    }
+    if (aliases.present) {
+      map['aliases'] = Variable<String>(aliases.value);
+    }
+    if (attributes.present) {
+      map['attributes'] = Variable<String>(attributes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryEntitiesCompanion(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('description: $description, ')
+          ..write('currentState: $currentState, ')
+          ..write('aliases: $aliases, ')
+          ..write('attributes: $attributes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MemoryRelationshipsTable extends MemoryRelationships
+    with TableInfo<$MemoryRelationshipsTable, MemoryRelationship> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MemoryRelationshipsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _fromEntityIdMeta =
+      const VerificationMeta('fromEntityId');
+  @override
+  late final GeneratedColumn<String> fromEntityId = GeneratedColumn<String>(
+      'from_entity_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _toEntityIdMeta =
+      const VerificationMeta('toEntityId');
+  @override
+  late final GeneratedColumn<String> toEntityId = GeneratedColumn<String>(
+      'to_entity_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _relationTypeMeta =
+      const VerificationMeta('relationType');
+  @override
+  late final GeneratedColumn<String> relationType = GeneratedColumn<String>(
+      'relation_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('trust'));
+  static const VerificationMeta _strengthMeta =
+      const VerificationMeta('strength');
+  @override
+  late final GeneratedColumn<int> strength = GeneratedColumn<int>(
+      'strength', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        chatId,
+        fromEntityId,
+        toEntityId,
+        relationType,
+        strength,
+        description,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'memory_relationships';
+  @override
+  VerificationContext validateIntegrity(Insertable<MemoryRelationship> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('from_entity_id')) {
+      context.handle(
+          _fromEntityIdMeta,
+          fromEntityId.isAcceptableOrUnknown(
+              data['from_entity_id']!, _fromEntityIdMeta));
+    } else if (isInserting) {
+      context.missing(_fromEntityIdMeta);
+    }
+    if (data.containsKey('to_entity_id')) {
+      context.handle(
+          _toEntityIdMeta,
+          toEntityId.isAcceptableOrUnknown(
+              data['to_entity_id']!, _toEntityIdMeta));
+    } else if (isInserting) {
+      context.missing(_toEntityIdMeta);
+    }
+    if (data.containsKey('relation_type')) {
+      context.handle(
+          _relationTypeMeta,
+          relationType.isAcceptableOrUnknown(
+              data['relation_type']!, _relationTypeMeta));
+    }
+    if (data.containsKey('strength')) {
+      context.handle(_strengthMeta,
+          strength.isAcceptableOrUnknown(data['strength']!, _strengthMeta));
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MemoryRelationship map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MemoryRelationship(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      fromEntityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}from_entity_id'])!,
+      toEntityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}to_entity_id'])!,
+      relationType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}relation_type'])!,
+      strength: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}strength'])!,
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $MemoryRelationshipsTable createAlias(String alias) {
+    return $MemoryRelationshipsTable(attachedDatabase, alias);
+  }
+}
+
+class MemoryRelationship extends DataClass
+    implements Insertable<MemoryRelationship> {
+  final String id;
+  final String chatId;
+  final String fromEntityId;
+  final String toEntityId;
+  final String relationType;
+  final int strength;
+  final String description;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const MemoryRelationship(
+      {required this.id,
+      required this.chatId,
+      required this.fromEntityId,
+      required this.toEntityId,
+      required this.relationType,
+      required this.strength,
+      required this.description,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['chat_id'] = Variable<String>(chatId);
+    map['from_entity_id'] = Variable<String>(fromEntityId);
+    map['to_entity_id'] = Variable<String>(toEntityId);
+    map['relation_type'] = Variable<String>(relationType);
+    map['strength'] = Variable<int>(strength);
+    map['description'] = Variable<String>(description);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  MemoryRelationshipsCompanion toCompanion(bool nullToAbsent) {
+    return MemoryRelationshipsCompanion(
+      id: Value(id),
+      chatId: Value(chatId),
+      fromEntityId: Value(fromEntityId),
+      toEntityId: Value(toEntityId),
+      relationType: Value(relationType),
+      strength: Value(strength),
+      description: Value(description),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory MemoryRelationship.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MemoryRelationship(
+      id: serializer.fromJson<String>(json['id']),
+      chatId: serializer.fromJson<String>(json['chatId']),
+      fromEntityId: serializer.fromJson<String>(json['fromEntityId']),
+      toEntityId: serializer.fromJson<String>(json['toEntityId']),
+      relationType: serializer.fromJson<String>(json['relationType']),
+      strength: serializer.fromJson<int>(json['strength']),
+      description: serializer.fromJson<String>(json['description']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'chatId': serializer.toJson<String>(chatId),
+      'fromEntityId': serializer.toJson<String>(fromEntityId),
+      'toEntityId': serializer.toJson<String>(toEntityId),
+      'relationType': serializer.toJson<String>(relationType),
+      'strength': serializer.toJson<int>(strength),
+      'description': serializer.toJson<String>(description),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  MemoryRelationship copyWith(
+          {String? id,
+          String? chatId,
+          String? fromEntityId,
+          String? toEntityId,
+          String? relationType,
+          int? strength,
+          String? description,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      MemoryRelationship(
+        id: id ?? this.id,
+        chatId: chatId ?? this.chatId,
+        fromEntityId: fromEntityId ?? this.fromEntityId,
+        toEntityId: toEntityId ?? this.toEntityId,
+        relationType: relationType ?? this.relationType,
+        strength: strength ?? this.strength,
+        description: description ?? this.description,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  MemoryRelationship copyWithCompanion(MemoryRelationshipsCompanion data) {
+    return MemoryRelationship(
+      id: data.id.present ? data.id.value : this.id,
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      fromEntityId: data.fromEntityId.present
+          ? data.fromEntityId.value
+          : this.fromEntityId,
+      toEntityId:
+          data.toEntityId.present ? data.toEntityId.value : this.toEntityId,
+      relationType: data.relationType.present
+          ? data.relationType.value
+          : this.relationType,
+      strength: data.strength.present ? data.strength.value : this.strength,
+      description:
+          data.description.present ? data.description.value : this.description,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryRelationship(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('fromEntityId: $fromEntityId, ')
+          ..write('toEntityId: $toEntityId, ')
+          ..write('relationType: $relationType, ')
+          ..write('strength: $strength, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, chatId, fromEntityId, toEntityId,
+      relationType, strength, description, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MemoryRelationship &&
+          other.id == this.id &&
+          other.chatId == this.chatId &&
+          other.fromEntityId == this.fromEntityId &&
+          other.toEntityId == this.toEntityId &&
+          other.relationType == this.relationType &&
+          other.strength == this.strength &&
+          other.description == this.description &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class MemoryRelationshipsCompanion extends UpdateCompanion<MemoryRelationship> {
+  final Value<String> id;
+  final Value<String> chatId;
+  final Value<String> fromEntityId;
+  final Value<String> toEntityId;
+  final Value<String> relationType;
+  final Value<int> strength;
+  final Value<String> description;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const MemoryRelationshipsCompanion({
+    this.id = const Value.absent(),
+    this.chatId = const Value.absent(),
+    this.fromEntityId = const Value.absent(),
+    this.toEntityId = const Value.absent(),
+    this.relationType = const Value.absent(),
+    this.strength = const Value.absent(),
+    this.description = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MemoryRelationshipsCompanion.insert({
+    required String id,
+    required String chatId,
+    required String fromEntityId,
+    required String toEntityId,
+    this.relationType = const Value.absent(),
+    this.strength = const Value.absent(),
+    this.description = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        chatId = Value(chatId),
+        fromEntityId = Value(fromEntityId),
+        toEntityId = Value(toEntityId);
+  static Insertable<MemoryRelationship> custom({
+    Expression<String>? id,
+    Expression<String>? chatId,
+    Expression<String>? fromEntityId,
+    Expression<String>? toEntityId,
+    Expression<String>? relationType,
+    Expression<int>? strength,
+    Expression<String>? description,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (chatId != null) 'chat_id': chatId,
+      if (fromEntityId != null) 'from_entity_id': fromEntityId,
+      if (toEntityId != null) 'to_entity_id': toEntityId,
+      if (relationType != null) 'relation_type': relationType,
+      if (strength != null) 'strength': strength,
+      if (description != null) 'description': description,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MemoryRelationshipsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? chatId,
+      Value<String>? fromEntityId,
+      Value<String>? toEntityId,
+      Value<String>? relationType,
+      Value<int>? strength,
+      Value<String>? description,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return MemoryRelationshipsCompanion(
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      fromEntityId: fromEntityId ?? this.fromEntityId,
+      toEntityId: toEntityId ?? this.toEntityId,
+      relationType: relationType ?? this.relationType,
+      strength: strength ?? this.strength,
+      description: description ?? this.description,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (fromEntityId.present) {
+      map['from_entity_id'] = Variable<String>(fromEntityId.value);
+    }
+    if (toEntityId.present) {
+      map['to_entity_id'] = Variable<String>(toEntityId.value);
+    }
+    if (relationType.present) {
+      map['relation_type'] = Variable<String>(relationType.value);
+    }
+    if (strength.present) {
+      map['strength'] = Variable<int>(strength.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryRelationshipsCompanion(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('fromEntityId: $fromEntityId, ')
+          ..write('toEntityId: $toEntityId, ')
+          ..write('relationType: $relationType, ')
+          ..write('strength: $strength, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $EmotionNodesTable extends EmotionNodes
+    with TableInfo<$EmotionNodesTable, EmotionNode> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EmotionNodesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _chatIdMeta = const VerificationMeta('chatId');
+  @override
+  late final GeneratedColumn<String> chatId = GeneratedColumn<String>(
+      'chat_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _entityIdMeta =
+      const VerificationMeta('entityId');
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+      'entity_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _emotionMeta =
+      const VerificationMeta('emotion');
+  @override
+  late final GeneratedColumn<String> emotion = GeneratedColumn<String>(
+      'emotion', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _intensityMeta =
+      const VerificationMeta('intensity');
+  @override
+  late final GeneratedColumn<int> intensity = GeneratedColumn<int>(
+      'intensity', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(5));
+  static const VerificationMeta _triggerMeta =
+      const VerificationMeta('trigger');
+  @override
+  late final GeneratedColumn<String> trigger = GeneratedColumn<String>(
+      'trigger', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _turnIndexMeta =
+      const VerificationMeta('turnIndex');
+  @override
+  late final GeneratedColumn<int> turnIndex = GeneratedColumn<int>(
+      'turn_index', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _isActiveMeta =
+      const VerificationMeta('isActive');
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+      'is_active', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_active" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        chatId,
+        entityId,
+        emotion,
+        intensity,
+        trigger,
+        turnIndex,
+        isActive,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'emotion_nodes';
+  @override
+  VerificationContext validateIntegrity(Insertable<EmotionNode> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('chat_id')) {
+      context.handle(_chatIdMeta,
+          chatId.isAcceptableOrUnknown(data['chat_id']!, _chatIdMeta));
+    } else if (isInserting) {
+      context.missing(_chatIdMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(_entityIdMeta,
+          entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta));
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('emotion')) {
+      context.handle(_emotionMeta,
+          emotion.isAcceptableOrUnknown(data['emotion']!, _emotionMeta));
+    }
+    if (data.containsKey('intensity')) {
+      context.handle(_intensityMeta,
+          intensity.isAcceptableOrUnknown(data['intensity']!, _intensityMeta));
+    }
+    if (data.containsKey('trigger')) {
+      context.handle(_triggerMeta,
+          trigger.isAcceptableOrUnknown(data['trigger']!, _triggerMeta));
+    }
+    if (data.containsKey('turn_index')) {
+      context.handle(_turnIndexMeta,
+          turnIndex.isAcceptableOrUnknown(data['turn_index']!, _turnIndexMeta));
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(_isActiveMeta,
+          isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  EmotionNode map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EmotionNode(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      chatId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}chat_id'])!,
+      entityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}entity_id'])!,
+      emotion: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}emotion'])!,
+      intensity: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}intensity'])!,
+      trigger: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}trigger'])!,
+      turnIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}turn_index'])!,
+      isActive: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_active'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $EmotionNodesTable createAlias(String alias) {
+    return $EmotionNodesTable(attachedDatabase, alias);
+  }
+}
+
+class EmotionNode extends DataClass implements Insertable<EmotionNode> {
+  final String id;
+  final String chatId;
+  final String entityId;
+  final String emotion;
+  final int intensity;
+  final String trigger;
+  final int turnIndex;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const EmotionNode(
+      {required this.id,
+      required this.chatId,
+      required this.entityId,
+      required this.emotion,
+      required this.intensity,
+      required this.trigger,
+      required this.turnIndex,
+      required this.isActive,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['chat_id'] = Variable<String>(chatId);
+    map['entity_id'] = Variable<String>(entityId);
+    map['emotion'] = Variable<String>(emotion);
+    map['intensity'] = Variable<int>(intensity);
+    map['trigger'] = Variable<String>(trigger);
+    map['turn_index'] = Variable<int>(turnIndex);
+    map['is_active'] = Variable<bool>(isActive);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  EmotionNodesCompanion toCompanion(bool nullToAbsent) {
+    return EmotionNodesCompanion(
+      id: Value(id),
+      chatId: Value(chatId),
+      entityId: Value(entityId),
+      emotion: Value(emotion),
+      intensity: Value(intensity),
+      trigger: Value(trigger),
+      turnIndex: Value(turnIndex),
+      isActive: Value(isActive),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory EmotionNode.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EmotionNode(
+      id: serializer.fromJson<String>(json['id']),
+      chatId: serializer.fromJson<String>(json['chatId']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      emotion: serializer.fromJson<String>(json['emotion']),
+      intensity: serializer.fromJson<int>(json['intensity']),
+      trigger: serializer.fromJson<String>(json['trigger']),
+      turnIndex: serializer.fromJson<int>(json['turnIndex']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'chatId': serializer.toJson<String>(chatId),
+      'entityId': serializer.toJson<String>(entityId),
+      'emotion': serializer.toJson<String>(emotion),
+      'intensity': serializer.toJson<int>(intensity),
+      'trigger': serializer.toJson<String>(trigger),
+      'turnIndex': serializer.toJson<int>(turnIndex),
+      'isActive': serializer.toJson<bool>(isActive),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  EmotionNode copyWith(
+          {String? id,
+          String? chatId,
+          String? entityId,
+          String? emotion,
+          int? intensity,
+          String? trigger,
+          int? turnIndex,
+          bool? isActive,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      EmotionNode(
+        id: id ?? this.id,
+        chatId: chatId ?? this.chatId,
+        entityId: entityId ?? this.entityId,
+        emotion: emotion ?? this.emotion,
+        intensity: intensity ?? this.intensity,
+        trigger: trigger ?? this.trigger,
+        turnIndex: turnIndex ?? this.turnIndex,
+        isActive: isActive ?? this.isActive,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  EmotionNode copyWithCompanion(EmotionNodesCompanion data) {
+    return EmotionNode(
+      id: data.id.present ? data.id.value : this.id,
+      chatId: data.chatId.present ? data.chatId.value : this.chatId,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      emotion: data.emotion.present ? data.emotion.value : this.emotion,
+      intensity: data.intensity.present ? data.intensity.value : this.intensity,
+      trigger: data.trigger.present ? data.trigger.value : this.trigger,
+      turnIndex: data.turnIndex.present ? data.turnIndex.value : this.turnIndex,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EmotionNode(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('entityId: $entityId, ')
+          ..write('emotion: $emotion, ')
+          ..write('intensity: $intensity, ')
+          ..write('trigger: $trigger, ')
+          ..write('turnIndex: $turnIndex, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, chatId, entityId, emotion, intensity,
+      trigger, turnIndex, isActive, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EmotionNode &&
+          other.id == this.id &&
+          other.chatId == this.chatId &&
+          other.entityId == this.entityId &&
+          other.emotion == this.emotion &&
+          other.intensity == this.intensity &&
+          other.trigger == this.trigger &&
+          other.turnIndex == this.turnIndex &&
+          other.isActive == this.isActive &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class EmotionNodesCompanion extends UpdateCompanion<EmotionNode> {
+  final Value<String> id;
+  final Value<String> chatId;
+  final Value<String> entityId;
+  final Value<String> emotion;
+  final Value<int> intensity;
+  final Value<String> trigger;
+  final Value<int> turnIndex;
+  final Value<bool> isActive;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const EmotionNodesCompanion({
+    this.id = const Value.absent(),
+    this.chatId = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.emotion = const Value.absent(),
+    this.intensity = const Value.absent(),
+    this.trigger = const Value.absent(),
+    this.turnIndex = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  EmotionNodesCompanion.insert({
+    required String id,
+    required String chatId,
+    required String entityId,
+    this.emotion = const Value.absent(),
+    this.intensity = const Value.absent(),
+    this.trigger = const Value.absent(),
+    this.turnIndex = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        chatId = Value(chatId),
+        entityId = Value(entityId);
+  static Insertable<EmotionNode> custom({
+    Expression<String>? id,
+    Expression<String>? chatId,
+    Expression<String>? entityId,
+    Expression<String>? emotion,
+    Expression<int>? intensity,
+    Expression<String>? trigger,
+    Expression<int>? turnIndex,
+    Expression<bool>? isActive,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (chatId != null) 'chat_id': chatId,
+      if (entityId != null) 'entity_id': entityId,
+      if (emotion != null) 'emotion': emotion,
+      if (intensity != null) 'intensity': intensity,
+      if (trigger != null) 'trigger': trigger,
+      if (turnIndex != null) 'turn_index': turnIndex,
+      if (isActive != null) 'is_active': isActive,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  EmotionNodesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? chatId,
+      Value<String>? entityId,
+      Value<String>? emotion,
+      Value<int>? intensity,
+      Value<String>? trigger,
+      Value<int>? turnIndex,
+      Value<bool>? isActive,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return EmotionNodesCompanion(
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      entityId: entityId ?? this.entityId,
+      emotion: emotion ?? this.emotion,
+      intensity: intensity ?? this.intensity,
+      trigger: trigger ?? this.trigger,
+      turnIndex: turnIndex ?? this.turnIndex,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (chatId.present) {
+      map['chat_id'] = Variable<String>(chatId.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (emotion.present) {
+      map['emotion'] = Variable<String>(emotion.value);
+    }
+    if (intensity.present) {
+      map['intensity'] = Variable<int>(intensity.value);
+    }
+    if (trigger.present) {
+      map['trigger'] = Variable<String>(trigger.value);
+    }
+    if (turnIndex.present) {
+      map['turn_index'] = Variable<int>(turnIndex.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EmotionNodesCompanion(')
+          ..write('id: $id, ')
+          ..write('chatId: $chatId, ')
+          ..write('entityId: $entityId, ')
+          ..write('emotion: $emotion, ')
+          ..write('intensity: $intensity, ')
+          ..write('trigger: $trigger, ')
+          ..write('turnIndex: $turnIndex, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RegexScriptsTable extends RegexScripts
+    with TableInfo<$RegexScriptsTable, RegexScriptRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RegexScriptsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
+  @override
+  late final GeneratedColumn<String> scope = GeneratedColumn<String>(
+      'scope', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('global'));
+  static const VerificationMeta _characterIdMeta =
+      const VerificationMeta('characterId');
+  @override
+  late final GeneratedColumn<String> characterId = GeneratedColumn<String>(
+      'character_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _scriptJsonMeta =
+      const VerificationMeta('scriptJson');
+  @override
+  late final GeneratedColumn<String> scriptJson = GeneratedColumn<String>(
+      'script_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _orderMeta = const VerificationMeta('order');
+  @override
+  late final GeneratedColumn<int> order = GeneratedColumn<int>(
+      'order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _disabledMeta =
+      const VerificationMeta('disabled');
+  @override
+  late final GeneratedColumn<bool> disabled = GeneratedColumn<bool>(
+      'disabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("disabled" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        scope,
+        characterId,
+        scriptJson,
+        order,
+        disabled,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'regex_scripts';
+  @override
+  VerificationContext validateIntegrity(Insertable<RegexScriptRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('scope')) {
+      context.handle(
+          _scopeMeta, scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta));
+    }
+    if (data.containsKey('character_id')) {
+      context.handle(
+          _characterIdMeta,
+          characterId.isAcceptableOrUnknown(
+              data['character_id']!, _characterIdMeta));
+    }
+    if (data.containsKey('script_json')) {
+      context.handle(
+          _scriptJsonMeta,
+          scriptJson.isAcceptableOrUnknown(
+              data['script_json']!, _scriptJsonMeta));
+    }
+    if (data.containsKey('order')) {
+      context.handle(
+          _orderMeta, order.isAcceptableOrUnknown(data['order']!, _orderMeta));
+    }
+    if (data.containsKey('disabled')) {
+      context.handle(_disabledMeta,
+          disabled.isAcceptableOrUnknown(data['disabled']!, _disabledMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RegexScriptRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RegexScriptRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      scope: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}scope'])!,
+      characterId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}character_id']),
+      scriptJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}script_json'])!,
+      order: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}order'])!,
+      disabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}disabled'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $RegexScriptsTable createAlias(String alias) {
+    return $RegexScriptsTable(attachedDatabase, alias);
+  }
+}
+
+class RegexScriptRow extends DataClass implements Insertable<RegexScriptRow> {
+  final String id;
+
+  /// 'global' 或 'character'
+  final String scope;
+
+  /// 角色 ID（scope='character' 时）
+  final String? characterId;
+
+  /// RegexScript 序列化 JSON
+  final String scriptJson;
+
+  /// 排序（lower = earlier）
+  final int order;
+
+  /// 是否禁用
+  final bool disabled;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const RegexScriptRow(
+      {required this.id,
+      required this.scope,
+      this.characterId,
+      required this.scriptJson,
+      required this.order,
+      required this.disabled,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['scope'] = Variable<String>(scope);
+    if (!nullToAbsent || characterId != null) {
+      map['character_id'] = Variable<String>(characterId);
+    }
+    map['script_json'] = Variable<String>(scriptJson);
+    map['order'] = Variable<int>(order);
+    map['disabled'] = Variable<bool>(disabled);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  RegexScriptsCompanion toCompanion(bool nullToAbsent) {
+    return RegexScriptsCompanion(
+      id: Value(id),
+      scope: Value(scope),
+      characterId: characterId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(characterId),
+      scriptJson: Value(scriptJson),
+      order: Value(order),
+      disabled: Value(disabled),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory RegexScriptRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RegexScriptRow(
+      id: serializer.fromJson<String>(json['id']),
+      scope: serializer.fromJson<String>(json['scope']),
+      characterId: serializer.fromJson<String?>(json['characterId']),
+      scriptJson: serializer.fromJson<String>(json['scriptJson']),
+      order: serializer.fromJson<int>(json['order']),
+      disabled: serializer.fromJson<bool>(json['disabled']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'scope': serializer.toJson<String>(scope),
+      'characterId': serializer.toJson<String?>(characterId),
+      'scriptJson': serializer.toJson<String>(scriptJson),
+      'order': serializer.toJson<int>(order),
+      'disabled': serializer.toJson<bool>(disabled),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  RegexScriptRow copyWith(
+          {String? id,
+          String? scope,
+          Value<String?> characterId = const Value.absent(),
+          String? scriptJson,
+          int? order,
+          bool? disabled,
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      RegexScriptRow(
+        id: id ?? this.id,
+        scope: scope ?? this.scope,
+        characterId: characterId.present ? characterId.value : this.characterId,
+        scriptJson: scriptJson ?? this.scriptJson,
+        order: order ?? this.order,
+        disabled: disabled ?? this.disabled,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  RegexScriptRow copyWithCompanion(RegexScriptsCompanion data) {
+    return RegexScriptRow(
+      id: data.id.present ? data.id.value : this.id,
+      scope: data.scope.present ? data.scope.value : this.scope,
+      characterId:
+          data.characterId.present ? data.characterId.value : this.characterId,
+      scriptJson:
+          data.scriptJson.present ? data.scriptJson.value : this.scriptJson,
+      order: data.order.present ? data.order.value : this.order,
+      disabled: data.disabled.present ? data.disabled.value : this.disabled,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RegexScriptRow(')
+          ..write('id: $id, ')
+          ..write('scope: $scope, ')
+          ..write('characterId: $characterId, ')
+          ..write('scriptJson: $scriptJson, ')
+          ..write('order: $order, ')
+          ..write('disabled: $disabled, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, scope, characterId, scriptJson, order,
+      disabled, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RegexScriptRow &&
+          other.id == this.id &&
+          other.scope == this.scope &&
+          other.characterId == this.characterId &&
+          other.scriptJson == this.scriptJson &&
+          other.order == this.order &&
+          other.disabled == this.disabled &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class RegexScriptsCompanion extends UpdateCompanion<RegexScriptRow> {
+  final Value<String> id;
+  final Value<String> scope;
+  final Value<String?> characterId;
+  final Value<String> scriptJson;
+  final Value<int> order;
+  final Value<bool> disabled;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const RegexScriptsCompanion({
+    this.id = const Value.absent(),
+    this.scope = const Value.absent(),
+    this.characterId = const Value.absent(),
+    this.scriptJson = const Value.absent(),
+    this.order = const Value.absent(),
+    this.disabled = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RegexScriptsCompanion.insert({
+    required String id,
+    this.scope = const Value.absent(),
+    this.characterId = const Value.absent(),
+    this.scriptJson = const Value.absent(),
+    this.order = const Value.absent(),
+    this.disabled = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<RegexScriptRow> custom({
+    Expression<String>? id,
+    Expression<String>? scope,
+    Expression<String>? characterId,
+    Expression<String>? scriptJson,
+    Expression<int>? order,
+    Expression<bool>? disabled,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (scope != null) 'scope': scope,
+      if (characterId != null) 'character_id': characterId,
+      if (scriptJson != null) 'script_json': scriptJson,
+      if (order != null) 'order': order,
+      if (disabled != null) 'disabled': disabled,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RegexScriptsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? scope,
+      Value<String?>? characterId,
+      Value<String>? scriptJson,
+      Value<int>? order,
+      Value<bool>? disabled,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return RegexScriptsCompanion(
+      id: id ?? this.id,
+      scope: scope ?? this.scope,
+      characterId: characterId ?? this.characterId,
+      scriptJson: scriptJson ?? this.scriptJson,
+      order: order ?? this.order,
+      disabled: disabled ?? this.disabled,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (scope.present) {
+      map['scope'] = Variable<String>(scope.value);
+    }
+    if (characterId.present) {
+      map['character_id'] = Variable<String>(characterId.value);
+    }
+    if (scriptJson.present) {
+      map['script_json'] = Variable<String>(scriptJson.value);
+    }
+    if (order.present) {
+      map['order'] = Variable<int>(order.value);
+    }
+    if (disabled.present) {
+      map['disabled'] = Variable<bool>(disabled.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RegexScriptsCompanion(')
+          ..write('id: $id, ')
+          ..write('scope: $scope, ')
+          ..write('characterId: $characterId, ')
+          ..write('scriptJson: $scriptJson, ')
+          ..write('order: $order, ')
+          ..write('disabled: $disabled, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7152,6 +10773,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $VectorCollectionsTable(this);
   late final $VectorDocumentsTable vectorDocuments =
       $VectorDocumentsTable(this);
+  late final $SummaryTasksTable summaryTasks = $SummaryTasksTable(this);
+  late final $MemoryEntriesTable memoryEntries = $MemoryEntriesTable(this);
+  late final $ChronicleStatesTable chronicleStates =
+      $ChronicleStatesTable(this);
+  late final $MemoryEntitiesTable memoryEntities = $MemoryEntitiesTable(this);
+  late final $MemoryRelationshipsTable memoryRelationships =
+      $MemoryRelationshipsTable(this);
+  late final $EmotionNodesTable emotionNodes = $EmotionNodesTable(this);
+  late final $RegexScriptsTable regexScripts = $RegexScriptsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7170,7 +10800,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         characterTags,
         globalStates,
         vectorCollections,
-        vectorDocuments
+        vectorDocuments,
+        summaryTasks,
+        memoryEntries,
+        chronicleStates,
+        memoryEntities,
+        memoryRelationships,
+        emotionNodes,
+        regexScripts
       ];
 }
 
@@ -7840,6 +11477,7 @@ typedef $$ChatsTableCreateCompanionBuilder = ChatsCompanion Function({
   Value<String> authorNote,
   Value<int> authorNoteDepth,
   Value<bool> authorNoteEnabled,
+  Value<bool> hasUserMessage,
   required DateTime createdAt,
   required DateTime updatedAt,
   Value<int> rowid,
@@ -7853,6 +11491,7 @@ typedef $$ChatsTableUpdateCompanionBuilder = ChatsCompanion Function({
   Value<String> authorNote,
   Value<int> authorNoteDepth,
   Value<bool> authorNoteEnabled,
+  Value<bool> hasUserMessage,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> rowid,
@@ -7935,6 +11574,10 @@ class $$ChatsTableFilterComposer extends Composer<_$AppDatabase, $ChatsTable> {
 
   ColumnFilters<bool> get authorNoteEnabled => $composableBuilder(
       column: $table.authorNoteEnabled,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get hasUserMessage => $composableBuilder(
+      column: $table.hasUserMessage,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
@@ -8039,6 +11682,10 @@ class $$ChatsTableOrderingComposer
       column: $table.authorNoteEnabled,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get hasUserMessage => $composableBuilder(
+      column: $table.hasUserMessage,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -8095,6 +11742,9 @@ class $$ChatsTableAnnotationComposer
 
   GeneratedColumn<bool> get authorNoteEnabled => $composableBuilder(
       column: $table.authorNoteEnabled, builder: (column) => column);
+
+  GeneratedColumn<bool> get hasUserMessage => $composableBuilder(
+      column: $table.hasUserMessage, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -8197,6 +11847,7 @@ class $$ChatsTableTableManager extends RootTableManager<
             Value<String> authorNote = const Value.absent(),
             Value<int> authorNoteDepth = const Value.absent(),
             Value<bool> authorNoteEnabled = const Value.absent(),
+            Value<bool> hasUserMessage = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -8210,6 +11861,7 @@ class $$ChatsTableTableManager extends RootTableManager<
             authorNote: authorNote,
             authorNoteDepth: authorNoteDepth,
             authorNoteEnabled: authorNoteEnabled,
+            hasUserMessage: hasUserMessage,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -8223,6 +11875,7 @@ class $$ChatsTableTableManager extends RootTableManager<
             Value<String> authorNote = const Value.absent(),
             Value<int> authorNoteDepth = const Value.absent(),
             Value<bool> authorNoteEnabled = const Value.absent(),
+            Value<bool> hasUserMessage = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -8236,6 +11889,7 @@ class $$ChatsTableTableManager extends RootTableManager<
             authorNote: authorNote,
             authorNoteDepth: authorNoteDepth,
             authorNoteEnabled: authorNoteEnabled,
+            hasUserMessage: hasUserMessage,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -8338,6 +11992,7 @@ typedef $$MessagesTableCreateCompanionBuilder = MessagesCompanion Function({
   Value<String?> characterId,
   Value<String?> characterName,
   Value<String> attachmentsJson,
+  Value<String> swipesDataJson,
   Value<int> rowid,
 });
 typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
@@ -8354,6 +12009,7 @@ typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
   Value<String?> characterId,
   Value<String?> characterName,
   Value<String> attachmentsJson,
+  Value<String> swipesDataJson,
   Value<int> rowid,
 });
 
@@ -8421,6 +12077,10 @@ class $$MessagesTableFilterComposer
 
   ColumnFilters<String> get attachmentsJson => $composableBuilder(
       column: $table.attachmentsJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get swipesDataJson => $composableBuilder(
+      column: $table.swipesDataJson,
       builder: (column) => ColumnFilters(column));
 
   $$ChatsTableFilterComposer get chatId {
@@ -8493,6 +12153,10 @@ class $$MessagesTableOrderingComposer
       column: $table.attachmentsJson,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get swipesDataJson => $composableBuilder(
+      column: $table.swipesDataJson,
+      builder: (column) => ColumnOrderings(column));
+
   $$ChatsTableOrderingComposer get chatId {
     final $$ChatsTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -8559,6 +12223,9 @@ class $$MessagesTableAnnotationComposer
   GeneratedColumn<String> get attachmentsJson => $composableBuilder(
       column: $table.attachmentsJson, builder: (column) => column);
 
+  GeneratedColumn<String> get swipesDataJson => $composableBuilder(
+      column: $table.swipesDataJson, builder: (column) => column);
+
   $$ChatsTableAnnotationComposer get chatId {
     final $$ChatsTableAnnotationComposer composer = $composerBuilder(
         composer: this,
@@ -8616,6 +12283,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             Value<String?> characterId = const Value.absent(),
             Value<String?> characterName = const Value.absent(),
             Value<String> attachmentsJson = const Value.absent(),
+            Value<String> swipesDataJson = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MessagesCompanion(
@@ -8632,6 +12300,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             characterId: characterId,
             characterName: characterName,
             attachmentsJson: attachmentsJson,
+            swipesDataJson: swipesDataJson,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -8648,6 +12317,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             Value<String?> characterId = const Value.absent(),
             Value<String?> characterName = const Value.absent(),
             Value<String> attachmentsJson = const Value.absent(),
+            Value<String> swipesDataJson = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MessagesCompanion.insert(
@@ -8664,6 +12334,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             characterId: characterId,
             characterName: characterName,
             attachmentsJson: attachmentsJson,
+            swipesDataJson: swipesDataJson,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -11806,6 +15477,1728 @@ typedef $$VectorDocumentsTableProcessedTableManager = ProcessedTableManager<
     ),
     VectorDocument,
     PrefetchHooks Function()>;
+typedef $$SummaryTasksTableCreateCompanionBuilder = SummaryTasksCompanion
+    Function({
+  required String id,
+  required String chatId,
+  Value<String> messageIds,
+  Value<int> fromTurn,
+  Value<int> toTurn,
+  Value<String> status,
+  Value<String?> resultJson,
+  Value<String?> error,
+  Value<DateTime> createdAt,
+  Value<DateTime?> finishedAt,
+  Value<int> rowid,
+});
+typedef $$SummaryTasksTableUpdateCompanionBuilder = SummaryTasksCompanion
+    Function({
+  Value<String> id,
+  Value<String> chatId,
+  Value<String> messageIds,
+  Value<int> fromTurn,
+  Value<int> toTurn,
+  Value<String> status,
+  Value<String?> resultJson,
+  Value<String?> error,
+  Value<DateTime> createdAt,
+  Value<DateTime?> finishedAt,
+  Value<int> rowid,
+});
+
+class $$SummaryTasksTableFilterComposer
+    extends Composer<_$AppDatabase, $SummaryTasksTable> {
+  $$SummaryTasksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get messageIds => $composableBuilder(
+      column: $table.messageIds, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get fromTurn => $composableBuilder(
+      column: $table.fromTurn, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get toTurn => $composableBuilder(
+      column: $table.toTurn, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get resultJson => $composableBuilder(
+      column: $table.resultJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get error => $composableBuilder(
+      column: $table.error, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get finishedAt => $composableBuilder(
+      column: $table.finishedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$SummaryTasksTableOrderingComposer
+    extends Composer<_$AppDatabase, $SummaryTasksTable> {
+  $$SummaryTasksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get messageIds => $composableBuilder(
+      column: $table.messageIds, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get fromTurn => $composableBuilder(
+      column: $table.fromTurn, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get toTurn => $composableBuilder(
+      column: $table.toTurn, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get resultJson => $composableBuilder(
+      column: $table.resultJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get error => $composableBuilder(
+      column: $table.error, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get finishedAt => $composableBuilder(
+      column: $table.finishedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SummaryTasksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SummaryTasksTable> {
+  $$SummaryTasksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get messageIds => $composableBuilder(
+      column: $table.messageIds, builder: (column) => column);
+
+  GeneratedColumn<int> get fromTurn =>
+      $composableBuilder(column: $table.fromTurn, builder: (column) => column);
+
+  GeneratedColumn<int> get toTurn =>
+      $composableBuilder(column: $table.toTurn, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get resultJson => $composableBuilder(
+      column: $table.resultJson, builder: (column) => column);
+
+  GeneratedColumn<String> get error =>
+      $composableBuilder(column: $table.error, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get finishedAt => $composableBuilder(
+      column: $table.finishedAt, builder: (column) => column);
+}
+
+class $$SummaryTasksTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SummaryTasksTable,
+    SummaryTask,
+    $$SummaryTasksTableFilterComposer,
+    $$SummaryTasksTableOrderingComposer,
+    $$SummaryTasksTableAnnotationComposer,
+    $$SummaryTasksTableCreateCompanionBuilder,
+    $$SummaryTasksTableUpdateCompanionBuilder,
+    (
+      SummaryTask,
+      BaseReferences<_$AppDatabase, $SummaryTasksTable, SummaryTask>
+    ),
+    SummaryTask,
+    PrefetchHooks Function()> {
+  $$SummaryTasksTableTableManager(_$AppDatabase db, $SummaryTasksTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SummaryTasksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SummaryTasksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SummaryTasksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> chatId = const Value.absent(),
+            Value<String> messageIds = const Value.absent(),
+            Value<int> fromTurn = const Value.absent(),
+            Value<int> toTurn = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<String?> resultJson = const Value.absent(),
+            Value<String?> error = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> finishedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SummaryTasksCompanion(
+            id: id,
+            chatId: chatId,
+            messageIds: messageIds,
+            fromTurn: fromTurn,
+            toTurn: toTurn,
+            status: status,
+            resultJson: resultJson,
+            error: error,
+            createdAt: createdAt,
+            finishedAt: finishedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String chatId,
+            Value<String> messageIds = const Value.absent(),
+            Value<int> fromTurn = const Value.absent(),
+            Value<int> toTurn = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<String?> resultJson = const Value.absent(),
+            Value<String?> error = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> finishedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SummaryTasksCompanion.insert(
+            id: id,
+            chatId: chatId,
+            messageIds: messageIds,
+            fromTurn: fromTurn,
+            toTurn: toTurn,
+            status: status,
+            resultJson: resultJson,
+            error: error,
+            createdAt: createdAt,
+            finishedAt: finishedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SummaryTasksTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SummaryTasksTable,
+    SummaryTask,
+    $$SummaryTasksTableFilterComposer,
+    $$SummaryTasksTableOrderingComposer,
+    $$SummaryTasksTableAnnotationComposer,
+    $$SummaryTasksTableCreateCompanionBuilder,
+    $$SummaryTasksTableUpdateCompanionBuilder,
+    (
+      SummaryTask,
+      BaseReferences<_$AppDatabase, $SummaryTasksTable, SummaryTask>
+    ),
+    SummaryTask,
+    PrefetchHooks Function()>;
+typedef $$MemoryEntriesTableCreateCompanionBuilder = MemoryEntriesCompanion
+    Function({
+  required String id,
+  required String chatId,
+  Value<String> type,
+  required String title,
+  required String content,
+  Value<int> importance,
+  Value<bool> alwaysInject,
+  Value<bool> anchor,
+  Value<bool> neverEvict,
+  Value<String> tags,
+  Value<String> entityIds,
+  Value<String> sourceMessageIds,
+  Value<int> turnIndex,
+  Value<bool> deprecated,
+  Value<String?> vectorId,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$MemoryEntriesTableUpdateCompanionBuilder = MemoryEntriesCompanion
+    Function({
+  Value<String> id,
+  Value<String> chatId,
+  Value<String> type,
+  Value<String> title,
+  Value<String> content,
+  Value<int> importance,
+  Value<bool> alwaysInject,
+  Value<bool> anchor,
+  Value<bool> neverEvict,
+  Value<String> tags,
+  Value<String> entityIds,
+  Value<String> sourceMessageIds,
+  Value<int> turnIndex,
+  Value<bool> deprecated,
+  Value<String?> vectorId,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$MemoryEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $MemoryEntriesTable> {
+  $$MemoryEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get importance => $composableBuilder(
+      column: $table.importance, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get alwaysInject => $composableBuilder(
+      column: $table.alwaysInject, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get anchor => $composableBuilder(
+      column: $table.anchor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get neverEvict => $composableBuilder(
+      column: $table.neverEvict, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tags => $composableBuilder(
+      column: $table.tags, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get entityIds => $composableBuilder(
+      column: $table.entityIds, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceMessageIds => $composableBuilder(
+      column: $table.sourceMessageIds,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get turnIndex => $composableBuilder(
+      column: $table.turnIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get deprecated => $composableBuilder(
+      column: $table.deprecated, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get vectorId => $composableBuilder(
+      column: $table.vectorId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$MemoryEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $MemoryEntriesTable> {
+  $$MemoryEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get content => $composableBuilder(
+      column: $table.content, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get importance => $composableBuilder(
+      column: $table.importance, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get alwaysInject => $composableBuilder(
+      column: $table.alwaysInject,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get anchor => $composableBuilder(
+      column: $table.anchor, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get neverEvict => $composableBuilder(
+      column: $table.neverEvict, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tags => $composableBuilder(
+      column: $table.tags, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get entityIds => $composableBuilder(
+      column: $table.entityIds, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceMessageIds => $composableBuilder(
+      column: $table.sourceMessageIds,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get turnIndex => $composableBuilder(
+      column: $table.turnIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get deprecated => $composableBuilder(
+      column: $table.deprecated, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get vectorId => $composableBuilder(
+      column: $table.vectorId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$MemoryEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MemoryEntriesTable> {
+  $$MemoryEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<int> get importance => $composableBuilder(
+      column: $table.importance, builder: (column) => column);
+
+  GeneratedColumn<bool> get alwaysInject => $composableBuilder(
+      column: $table.alwaysInject, builder: (column) => column);
+
+  GeneratedColumn<bool> get anchor =>
+      $composableBuilder(column: $table.anchor, builder: (column) => column);
+
+  GeneratedColumn<bool> get neverEvict => $composableBuilder(
+      column: $table.neverEvict, builder: (column) => column);
+
+  GeneratedColumn<String> get tags =>
+      $composableBuilder(column: $table.tags, builder: (column) => column);
+
+  GeneratedColumn<String> get entityIds =>
+      $composableBuilder(column: $table.entityIds, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceMessageIds => $composableBuilder(
+      column: $table.sourceMessageIds, builder: (column) => column);
+
+  GeneratedColumn<int> get turnIndex =>
+      $composableBuilder(column: $table.turnIndex, builder: (column) => column);
+
+  GeneratedColumn<bool> get deprecated => $composableBuilder(
+      column: $table.deprecated, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorId =>
+      $composableBuilder(column: $table.vectorId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MemoryEntriesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MemoryEntriesTable,
+    MemoryEntry,
+    $$MemoryEntriesTableFilterComposer,
+    $$MemoryEntriesTableOrderingComposer,
+    $$MemoryEntriesTableAnnotationComposer,
+    $$MemoryEntriesTableCreateCompanionBuilder,
+    $$MemoryEntriesTableUpdateCompanionBuilder,
+    (
+      MemoryEntry,
+      BaseReferences<_$AppDatabase, $MemoryEntriesTable, MemoryEntry>
+    ),
+    MemoryEntry,
+    PrefetchHooks Function()> {
+  $$MemoryEntriesTableTableManager(_$AppDatabase db, $MemoryEntriesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MemoryEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MemoryEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MemoryEntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> chatId = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String> content = const Value.absent(),
+            Value<int> importance = const Value.absent(),
+            Value<bool> alwaysInject = const Value.absent(),
+            Value<bool> anchor = const Value.absent(),
+            Value<bool> neverEvict = const Value.absent(),
+            Value<String> tags = const Value.absent(),
+            Value<String> entityIds = const Value.absent(),
+            Value<String> sourceMessageIds = const Value.absent(),
+            Value<int> turnIndex = const Value.absent(),
+            Value<bool> deprecated = const Value.absent(),
+            Value<String?> vectorId = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemoryEntriesCompanion(
+            id: id,
+            chatId: chatId,
+            type: type,
+            title: title,
+            content: content,
+            importance: importance,
+            alwaysInject: alwaysInject,
+            anchor: anchor,
+            neverEvict: neverEvict,
+            tags: tags,
+            entityIds: entityIds,
+            sourceMessageIds: sourceMessageIds,
+            turnIndex: turnIndex,
+            deprecated: deprecated,
+            vectorId: vectorId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String chatId,
+            Value<String> type = const Value.absent(),
+            required String title,
+            required String content,
+            Value<int> importance = const Value.absent(),
+            Value<bool> alwaysInject = const Value.absent(),
+            Value<bool> anchor = const Value.absent(),
+            Value<bool> neverEvict = const Value.absent(),
+            Value<String> tags = const Value.absent(),
+            Value<String> entityIds = const Value.absent(),
+            Value<String> sourceMessageIds = const Value.absent(),
+            Value<int> turnIndex = const Value.absent(),
+            Value<bool> deprecated = const Value.absent(),
+            Value<String?> vectorId = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemoryEntriesCompanion.insert(
+            id: id,
+            chatId: chatId,
+            type: type,
+            title: title,
+            content: content,
+            importance: importance,
+            alwaysInject: alwaysInject,
+            anchor: anchor,
+            neverEvict: neverEvict,
+            tags: tags,
+            entityIds: entityIds,
+            sourceMessageIds: sourceMessageIds,
+            turnIndex: turnIndex,
+            deprecated: deprecated,
+            vectorId: vectorId,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MemoryEntriesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $MemoryEntriesTable,
+    MemoryEntry,
+    $$MemoryEntriesTableFilterComposer,
+    $$MemoryEntriesTableOrderingComposer,
+    $$MemoryEntriesTableAnnotationComposer,
+    $$MemoryEntriesTableCreateCompanionBuilder,
+    $$MemoryEntriesTableUpdateCompanionBuilder,
+    (
+      MemoryEntry,
+      BaseReferences<_$AppDatabase, $MemoryEntriesTable, MemoryEntry>
+    ),
+    MemoryEntry,
+    PrefetchHooks Function()>;
+typedef $$ChronicleStatesTableCreateCompanionBuilder = ChronicleStatesCompanion
+    Function({
+  required String chatId,
+  Value<String> archivedMessageIds,
+  Value<String> settingsJson,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$ChronicleStatesTableUpdateCompanionBuilder = ChronicleStatesCompanion
+    Function({
+  Value<String> chatId,
+  Value<String> archivedMessageIds,
+  Value<String> settingsJson,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$ChronicleStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $ChronicleStatesTable> {
+  $$ChronicleStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get archivedMessageIds => $composableBuilder(
+      column: $table.archivedMessageIds,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get settingsJson => $composableBuilder(
+      column: $table.settingsJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$ChronicleStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ChronicleStatesTable> {
+  $$ChronicleStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get archivedMessageIds => $composableBuilder(
+      column: $table.archivedMessageIds,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get settingsJson => $composableBuilder(
+      column: $table.settingsJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ChronicleStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ChronicleStatesTable> {
+  $$ChronicleStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get archivedMessageIds => $composableBuilder(
+      column: $table.archivedMessageIds, builder: (column) => column);
+
+  GeneratedColumn<String> get settingsJson => $composableBuilder(
+      column: $table.settingsJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ChronicleStatesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ChronicleStatesTable,
+    ChronicleState,
+    $$ChronicleStatesTableFilterComposer,
+    $$ChronicleStatesTableOrderingComposer,
+    $$ChronicleStatesTableAnnotationComposer,
+    $$ChronicleStatesTableCreateCompanionBuilder,
+    $$ChronicleStatesTableUpdateCompanionBuilder,
+    (
+      ChronicleState,
+      BaseReferences<_$AppDatabase, $ChronicleStatesTable, ChronicleState>
+    ),
+    ChronicleState,
+    PrefetchHooks Function()> {
+  $$ChronicleStatesTableTableManager(
+      _$AppDatabase db, $ChronicleStatesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ChronicleStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ChronicleStatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ChronicleStatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> chatId = const Value.absent(),
+            Value<String> archivedMessageIds = const Value.absent(),
+            Value<String> settingsJson = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ChronicleStatesCompanion(
+            chatId: chatId,
+            archivedMessageIds: archivedMessageIds,
+            settingsJson: settingsJson,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String chatId,
+            Value<String> archivedMessageIds = const Value.absent(),
+            Value<String> settingsJson = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ChronicleStatesCompanion.insert(
+            chatId: chatId,
+            archivedMessageIds: archivedMessageIds,
+            settingsJson: settingsJson,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ChronicleStatesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ChronicleStatesTable,
+    ChronicleState,
+    $$ChronicleStatesTableFilterComposer,
+    $$ChronicleStatesTableOrderingComposer,
+    $$ChronicleStatesTableAnnotationComposer,
+    $$ChronicleStatesTableCreateCompanionBuilder,
+    $$ChronicleStatesTableUpdateCompanionBuilder,
+    (
+      ChronicleState,
+      BaseReferences<_$AppDatabase, $ChronicleStatesTable, ChronicleState>
+    ),
+    ChronicleState,
+    PrefetchHooks Function()>;
+typedef $$MemoryEntitiesTableCreateCompanionBuilder = MemoryEntitiesCompanion
+    Function({
+  required String id,
+  required String chatId,
+  required String name,
+  Value<String> type,
+  Value<String> description,
+  Value<String> currentState,
+  Value<String> aliases,
+  Value<String> attributes,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$MemoryEntitiesTableUpdateCompanionBuilder = MemoryEntitiesCompanion
+    Function({
+  Value<String> id,
+  Value<String> chatId,
+  Value<String> name,
+  Value<String> type,
+  Value<String> description,
+  Value<String> currentState,
+  Value<String> aliases,
+  Value<String> attributes,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$MemoryEntitiesTableFilterComposer
+    extends Composer<_$AppDatabase, $MemoryEntitiesTable> {
+  $$MemoryEntitiesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get currentState => $composableBuilder(
+      column: $table.currentState, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get aliases => $composableBuilder(
+      column: $table.aliases, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get attributes => $composableBuilder(
+      column: $table.attributes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$MemoryEntitiesTableOrderingComposer
+    extends Composer<_$AppDatabase, $MemoryEntitiesTable> {
+  $$MemoryEntitiesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get currentState => $composableBuilder(
+      column: $table.currentState,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get aliases => $composableBuilder(
+      column: $table.aliases, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get attributes => $composableBuilder(
+      column: $table.attributes, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$MemoryEntitiesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MemoryEntitiesTable> {
+  $$MemoryEntitiesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<String> get currentState => $composableBuilder(
+      column: $table.currentState, builder: (column) => column);
+
+  GeneratedColumn<String> get aliases =>
+      $composableBuilder(column: $table.aliases, builder: (column) => column);
+
+  GeneratedColumn<String> get attributes => $composableBuilder(
+      column: $table.attributes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MemoryEntitiesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MemoryEntitiesTable,
+    MemoryEntity,
+    $$MemoryEntitiesTableFilterComposer,
+    $$MemoryEntitiesTableOrderingComposer,
+    $$MemoryEntitiesTableAnnotationComposer,
+    $$MemoryEntitiesTableCreateCompanionBuilder,
+    $$MemoryEntitiesTableUpdateCompanionBuilder,
+    (
+      MemoryEntity,
+      BaseReferences<_$AppDatabase, $MemoryEntitiesTable, MemoryEntity>
+    ),
+    MemoryEntity,
+    PrefetchHooks Function()> {
+  $$MemoryEntitiesTableTableManager(
+      _$AppDatabase db, $MemoryEntitiesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MemoryEntitiesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MemoryEntitiesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MemoryEntitiesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> chatId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<String> description = const Value.absent(),
+            Value<String> currentState = const Value.absent(),
+            Value<String> aliases = const Value.absent(),
+            Value<String> attributes = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemoryEntitiesCompanion(
+            id: id,
+            chatId: chatId,
+            name: name,
+            type: type,
+            description: description,
+            currentState: currentState,
+            aliases: aliases,
+            attributes: attributes,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String chatId,
+            required String name,
+            Value<String> type = const Value.absent(),
+            Value<String> description = const Value.absent(),
+            Value<String> currentState = const Value.absent(),
+            Value<String> aliases = const Value.absent(),
+            Value<String> attributes = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemoryEntitiesCompanion.insert(
+            id: id,
+            chatId: chatId,
+            name: name,
+            type: type,
+            description: description,
+            currentState: currentState,
+            aliases: aliases,
+            attributes: attributes,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MemoryEntitiesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $MemoryEntitiesTable,
+    MemoryEntity,
+    $$MemoryEntitiesTableFilterComposer,
+    $$MemoryEntitiesTableOrderingComposer,
+    $$MemoryEntitiesTableAnnotationComposer,
+    $$MemoryEntitiesTableCreateCompanionBuilder,
+    $$MemoryEntitiesTableUpdateCompanionBuilder,
+    (
+      MemoryEntity,
+      BaseReferences<_$AppDatabase, $MemoryEntitiesTable, MemoryEntity>
+    ),
+    MemoryEntity,
+    PrefetchHooks Function()>;
+typedef $$MemoryRelationshipsTableCreateCompanionBuilder
+    = MemoryRelationshipsCompanion Function({
+  required String id,
+  required String chatId,
+  required String fromEntityId,
+  required String toEntityId,
+  Value<String> relationType,
+  Value<int> strength,
+  Value<String> description,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$MemoryRelationshipsTableUpdateCompanionBuilder
+    = MemoryRelationshipsCompanion Function({
+  Value<String> id,
+  Value<String> chatId,
+  Value<String> fromEntityId,
+  Value<String> toEntityId,
+  Value<String> relationType,
+  Value<int> strength,
+  Value<String> description,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$MemoryRelationshipsTableFilterComposer
+    extends Composer<_$AppDatabase, $MemoryRelationshipsTable> {
+  $$MemoryRelationshipsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get fromEntityId => $composableBuilder(
+      column: $table.fromEntityId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get toEntityId => $composableBuilder(
+      column: $table.toEntityId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get relationType => $composableBuilder(
+      column: $table.relationType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get strength => $composableBuilder(
+      column: $table.strength, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$MemoryRelationshipsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MemoryRelationshipsTable> {
+  $$MemoryRelationshipsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get fromEntityId => $composableBuilder(
+      column: $table.fromEntityId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get toEntityId => $composableBuilder(
+      column: $table.toEntityId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get relationType => $composableBuilder(
+      column: $table.relationType,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get strength => $composableBuilder(
+      column: $table.strength, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$MemoryRelationshipsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MemoryRelationshipsTable> {
+  $$MemoryRelationshipsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get fromEntityId => $composableBuilder(
+      column: $table.fromEntityId, builder: (column) => column);
+
+  GeneratedColumn<String> get toEntityId => $composableBuilder(
+      column: $table.toEntityId, builder: (column) => column);
+
+  GeneratedColumn<String> get relationType => $composableBuilder(
+      column: $table.relationType, builder: (column) => column);
+
+  GeneratedColumn<int> get strength =>
+      $composableBuilder(column: $table.strength, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$MemoryRelationshipsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MemoryRelationshipsTable,
+    MemoryRelationship,
+    $$MemoryRelationshipsTableFilterComposer,
+    $$MemoryRelationshipsTableOrderingComposer,
+    $$MemoryRelationshipsTableAnnotationComposer,
+    $$MemoryRelationshipsTableCreateCompanionBuilder,
+    $$MemoryRelationshipsTableUpdateCompanionBuilder,
+    (
+      MemoryRelationship,
+      BaseReferences<_$AppDatabase, $MemoryRelationshipsTable,
+          MemoryRelationship>
+    ),
+    MemoryRelationship,
+    PrefetchHooks Function()> {
+  $$MemoryRelationshipsTableTableManager(
+      _$AppDatabase db, $MemoryRelationshipsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MemoryRelationshipsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MemoryRelationshipsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MemoryRelationshipsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> chatId = const Value.absent(),
+            Value<String> fromEntityId = const Value.absent(),
+            Value<String> toEntityId = const Value.absent(),
+            Value<String> relationType = const Value.absent(),
+            Value<int> strength = const Value.absent(),
+            Value<String> description = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemoryRelationshipsCompanion(
+            id: id,
+            chatId: chatId,
+            fromEntityId: fromEntityId,
+            toEntityId: toEntityId,
+            relationType: relationType,
+            strength: strength,
+            description: description,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String chatId,
+            required String fromEntityId,
+            required String toEntityId,
+            Value<String> relationType = const Value.absent(),
+            Value<int> strength = const Value.absent(),
+            Value<String> description = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MemoryRelationshipsCompanion.insert(
+            id: id,
+            chatId: chatId,
+            fromEntityId: fromEntityId,
+            toEntityId: toEntityId,
+            relationType: relationType,
+            strength: strength,
+            description: description,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MemoryRelationshipsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $MemoryRelationshipsTable,
+    MemoryRelationship,
+    $$MemoryRelationshipsTableFilterComposer,
+    $$MemoryRelationshipsTableOrderingComposer,
+    $$MemoryRelationshipsTableAnnotationComposer,
+    $$MemoryRelationshipsTableCreateCompanionBuilder,
+    $$MemoryRelationshipsTableUpdateCompanionBuilder,
+    (
+      MemoryRelationship,
+      BaseReferences<_$AppDatabase, $MemoryRelationshipsTable,
+          MemoryRelationship>
+    ),
+    MemoryRelationship,
+    PrefetchHooks Function()>;
+typedef $$EmotionNodesTableCreateCompanionBuilder = EmotionNodesCompanion
+    Function({
+  required String id,
+  required String chatId,
+  required String entityId,
+  Value<String> emotion,
+  Value<int> intensity,
+  Value<String> trigger,
+  Value<int> turnIndex,
+  Value<bool> isActive,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$EmotionNodesTableUpdateCompanionBuilder = EmotionNodesCompanion
+    Function({
+  Value<String> id,
+  Value<String> chatId,
+  Value<String> entityId,
+  Value<String> emotion,
+  Value<int> intensity,
+  Value<String> trigger,
+  Value<int> turnIndex,
+  Value<bool> isActive,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$EmotionNodesTableFilterComposer
+    extends Composer<_$AppDatabase, $EmotionNodesTable> {
+  $$EmotionNodesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+      column: $table.entityId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get emotion => $composableBuilder(
+      column: $table.emotion, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get intensity => $composableBuilder(
+      column: $table.intensity, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get trigger => $composableBuilder(
+      column: $table.trigger, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get turnIndex => $composableBuilder(
+      column: $table.turnIndex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+      column: $table.isActive, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$EmotionNodesTableOrderingComposer
+    extends Composer<_$AppDatabase, $EmotionNodesTable> {
+  $$EmotionNodesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chatId => $composableBuilder(
+      column: $table.chatId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+      column: $table.entityId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get emotion => $composableBuilder(
+      column: $table.emotion, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get intensity => $composableBuilder(
+      column: $table.intensity, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get trigger => $composableBuilder(
+      column: $table.trigger, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get turnIndex => $composableBuilder(
+      column: $table.turnIndex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+      column: $table.isActive, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$EmotionNodesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EmotionNodesTable> {
+  $$EmotionNodesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get chatId =>
+      $composableBuilder(column: $table.chatId, builder: (column) => column);
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get emotion =>
+      $composableBuilder(column: $table.emotion, builder: (column) => column);
+
+  GeneratedColumn<int> get intensity =>
+      $composableBuilder(column: $table.intensity, builder: (column) => column);
+
+  GeneratedColumn<String> get trigger =>
+      $composableBuilder(column: $table.trigger, builder: (column) => column);
+
+  GeneratedColumn<int> get turnIndex =>
+      $composableBuilder(column: $table.turnIndex, builder: (column) => column);
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$EmotionNodesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $EmotionNodesTable,
+    EmotionNode,
+    $$EmotionNodesTableFilterComposer,
+    $$EmotionNodesTableOrderingComposer,
+    $$EmotionNodesTableAnnotationComposer,
+    $$EmotionNodesTableCreateCompanionBuilder,
+    $$EmotionNodesTableUpdateCompanionBuilder,
+    (
+      EmotionNode,
+      BaseReferences<_$AppDatabase, $EmotionNodesTable, EmotionNode>
+    ),
+    EmotionNode,
+    PrefetchHooks Function()> {
+  $$EmotionNodesTableTableManager(_$AppDatabase db, $EmotionNodesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EmotionNodesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EmotionNodesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EmotionNodesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> chatId = const Value.absent(),
+            Value<String> entityId = const Value.absent(),
+            Value<String> emotion = const Value.absent(),
+            Value<int> intensity = const Value.absent(),
+            Value<String> trigger = const Value.absent(),
+            Value<int> turnIndex = const Value.absent(),
+            Value<bool> isActive = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              EmotionNodesCompanion(
+            id: id,
+            chatId: chatId,
+            entityId: entityId,
+            emotion: emotion,
+            intensity: intensity,
+            trigger: trigger,
+            turnIndex: turnIndex,
+            isActive: isActive,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String chatId,
+            required String entityId,
+            Value<String> emotion = const Value.absent(),
+            Value<int> intensity = const Value.absent(),
+            Value<String> trigger = const Value.absent(),
+            Value<int> turnIndex = const Value.absent(),
+            Value<bool> isActive = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              EmotionNodesCompanion.insert(
+            id: id,
+            chatId: chatId,
+            entityId: entityId,
+            emotion: emotion,
+            intensity: intensity,
+            trigger: trigger,
+            turnIndex: turnIndex,
+            isActive: isActive,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$EmotionNodesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $EmotionNodesTable,
+    EmotionNode,
+    $$EmotionNodesTableFilterComposer,
+    $$EmotionNodesTableOrderingComposer,
+    $$EmotionNodesTableAnnotationComposer,
+    $$EmotionNodesTableCreateCompanionBuilder,
+    $$EmotionNodesTableUpdateCompanionBuilder,
+    (
+      EmotionNode,
+      BaseReferences<_$AppDatabase, $EmotionNodesTable, EmotionNode>
+    ),
+    EmotionNode,
+    PrefetchHooks Function()>;
+typedef $$RegexScriptsTableCreateCompanionBuilder = RegexScriptsCompanion
+    Function({
+  required String id,
+  Value<String> scope,
+  Value<String?> characterId,
+  Value<String> scriptJson,
+  Value<int> order,
+  Value<bool> disabled,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$RegexScriptsTableUpdateCompanionBuilder = RegexScriptsCompanion
+    Function({
+  Value<String> id,
+  Value<String> scope,
+  Value<String?> characterId,
+  Value<String> scriptJson,
+  Value<int> order,
+  Value<bool> disabled,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$RegexScriptsTableFilterComposer
+    extends Composer<_$AppDatabase, $RegexScriptsTable> {
+  $$RegexScriptsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get scope => $composableBuilder(
+      column: $table.scope, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get characterId => $composableBuilder(
+      column: $table.characterId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get scriptJson => $composableBuilder(
+      column: $table.scriptJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get order => $composableBuilder(
+      column: $table.order, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get disabled => $composableBuilder(
+      column: $table.disabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$RegexScriptsTableOrderingComposer
+    extends Composer<_$AppDatabase, $RegexScriptsTable> {
+  $$RegexScriptsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get scope => $composableBuilder(
+      column: $table.scope, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get characterId => $composableBuilder(
+      column: $table.characterId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get scriptJson => $composableBuilder(
+      column: $table.scriptJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get order => $composableBuilder(
+      column: $table.order, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get disabled => $composableBuilder(
+      column: $table.disabled, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$RegexScriptsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RegexScriptsTable> {
+  $$RegexScriptsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get scope =>
+      $composableBuilder(column: $table.scope, builder: (column) => column);
+
+  GeneratedColumn<String> get characterId => $composableBuilder(
+      column: $table.characterId, builder: (column) => column);
+
+  GeneratedColumn<String> get scriptJson => $composableBuilder(
+      column: $table.scriptJson, builder: (column) => column);
+
+  GeneratedColumn<int> get order =>
+      $composableBuilder(column: $table.order, builder: (column) => column);
+
+  GeneratedColumn<bool> get disabled =>
+      $composableBuilder(column: $table.disabled, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$RegexScriptsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $RegexScriptsTable,
+    RegexScriptRow,
+    $$RegexScriptsTableFilterComposer,
+    $$RegexScriptsTableOrderingComposer,
+    $$RegexScriptsTableAnnotationComposer,
+    $$RegexScriptsTableCreateCompanionBuilder,
+    $$RegexScriptsTableUpdateCompanionBuilder,
+    (
+      RegexScriptRow,
+      BaseReferences<_$AppDatabase, $RegexScriptsTable, RegexScriptRow>
+    ),
+    RegexScriptRow,
+    PrefetchHooks Function()> {
+  $$RegexScriptsTableTableManager(_$AppDatabase db, $RegexScriptsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RegexScriptsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RegexScriptsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RegexScriptsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> scope = const Value.absent(),
+            Value<String?> characterId = const Value.absent(),
+            Value<String> scriptJson = const Value.absent(),
+            Value<int> order = const Value.absent(),
+            Value<bool> disabled = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RegexScriptsCompanion(
+            id: id,
+            scope: scope,
+            characterId: characterId,
+            scriptJson: scriptJson,
+            order: order,
+            disabled: disabled,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            Value<String> scope = const Value.absent(),
+            Value<String?> characterId = const Value.absent(),
+            Value<String> scriptJson = const Value.absent(),
+            Value<int> order = const Value.absent(),
+            Value<bool> disabled = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RegexScriptsCompanion.insert(
+            id: id,
+            scope: scope,
+            characterId: characterId,
+            scriptJson: scriptJson,
+            order: order,
+            disabled: disabled,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$RegexScriptsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $RegexScriptsTable,
+    RegexScriptRow,
+    $$RegexScriptsTableFilterComposer,
+    $$RegexScriptsTableOrderingComposer,
+    $$RegexScriptsTableAnnotationComposer,
+    $$RegexScriptsTableCreateCompanionBuilder,
+    $$RegexScriptsTableUpdateCompanionBuilder,
+    (
+      RegexScriptRow,
+      BaseReferences<_$AppDatabase, $RegexScriptsTable, RegexScriptRow>
+    ),
+    RegexScriptRow,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -11837,4 +17230,18 @@ class $AppDatabaseManager {
       $$VectorCollectionsTableTableManager(_db, _db.vectorCollections);
   $$VectorDocumentsTableTableManager get vectorDocuments =>
       $$VectorDocumentsTableTableManager(_db, _db.vectorDocuments);
+  $$SummaryTasksTableTableManager get summaryTasks =>
+      $$SummaryTasksTableTableManager(_db, _db.summaryTasks);
+  $$MemoryEntriesTableTableManager get memoryEntries =>
+      $$MemoryEntriesTableTableManager(_db, _db.memoryEntries);
+  $$ChronicleStatesTableTableManager get chronicleStates =>
+      $$ChronicleStatesTableTableManager(_db, _db.chronicleStates);
+  $$MemoryEntitiesTableTableManager get memoryEntities =>
+      $$MemoryEntitiesTableTableManager(_db, _db.memoryEntities);
+  $$MemoryRelationshipsTableTableManager get memoryRelationships =>
+      $$MemoryRelationshipsTableTableManager(_db, _db.memoryRelationships);
+  $$EmotionNodesTableTableManager get emotionNodes =>
+      $$EmotionNodesTableTableManager(_db, _db.emotionNodes);
+  $$RegexScriptsTableTableManager get regexScripts =>
+      $$RegexScriptsTableTableManager(_db, _db.regexScripts);
 }

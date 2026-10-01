@@ -32,6 +32,8 @@ class AIPreset {
   // Binding: linked global regex script IDs
   final List<String> boundRegexScriptIds;
 
+  final List<Map<String, dynamic>> tavernHelperScripts;
+
   const AIPreset({
     required this.id,
     required this.name,
@@ -46,6 +48,7 @@ class AIPreset {
     this.providerSettings,
     this.boundPromptPresetId,
     this.boundRegexScriptIds = const [],
+    this.tavernHelperScripts = const [],
   });
 
   AIPreset copyWith({
@@ -62,6 +65,7 @@ class AIPreset {
     Map<String, Map<String, dynamic>>? providerSettings,
     String? boundPromptPresetId,
     List<String>? boundRegexScriptIds,
+    List<Map<String, dynamic>>? tavernHelperScripts,
   }) {
     return AIPreset(
       id: id ?? this.id,
@@ -77,6 +81,7 @@ class AIPreset {
       providerSettings: providerSettings ?? this.providerSettings,
       boundPromptPresetId: boundPromptPresetId ?? this.boundPromptPresetId,
       boundRegexScriptIds: boundRegexScriptIds ?? this.boundRegexScriptIds,
+      tavernHelperScripts: tavernHelperScripts ?? this.tavernHelperScripts,
     );
   }
 
@@ -87,14 +92,14 @@ class AIPreset {
       // Metadata
       'preset_name': name,
       'description': description,
-      
+
       // Generation settings at root level (SillyTavern format)
       ...generationSettings.toJson(),
-      
+
       // Prompt ordering
       if (promptManagerConfig != null)
         'prompt_order': _promptConfigToSillyTavernFormat(promptManagerConfig!),
-      
+
       // KiraKira-specific fields
       '_kirakira': {
         'version': 1,
@@ -151,6 +156,8 @@ class AIPreset {
         'providerSettings': providerSettings,
         'boundPromptPresetId': boundPromptPresetId,
         'boundRegexScriptIds': boundRegexScriptIds,
+        'tavernHelperScripts': tavernHelperScripts,
+        'extensions': {'tavern_helper': {'scripts': tavernHelperScripts}},
       };
 
   factory AIPreset.fromJson(Map<String, dynamic> json) {
@@ -171,7 +178,8 @@ class AIPreset {
           : null,
       instructTemplateId: json['instructTemplateId'] as String?,
       provider: json['provider'] as String?,
-      providerSettings: (json['providerSettings'] as Map<String, dynamic>?)?.map(
+      providerSettings:
+          (json['providerSettings'] as Map<String, dynamic>?)?.map(
         (key, value) => MapEntry(
           key,
           (value as Map<String, dynamic>).map(
@@ -180,10 +188,25 @@ class AIPreset {
         ),
       ),
       boundPromptPresetId: json['boundPromptPresetId'] as String?,
-      boundRegexScriptIds: (json['boundRegexScriptIds'] as List<dynamic>?)?.map((e) => e as String)
+      boundRegexScriptIds: (json['boundRegexScriptIds'] as List<dynamic>?)
+              ?.map((e) => e as String)
               .toList() ??
           [],
+      tavernHelperScripts: _scriptList(json['tavernHelperScripts'] ??
+          (json['extensions'] is Map
+              ? (json['extensions'] as Map)['tavern_helper'] is Map
+                  ? ((json['extensions'] as Map)['tavern_helper'] as Map)['scripts']
+                  : null
+              : null)),
     );
+  }
+
+  static List<Map<String, dynamic>> _scriptList(dynamic value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
   }
 
   /// Import from export format - supports both SillyTavern and legacy KiraKira formats
@@ -209,7 +232,8 @@ class AIPreset {
             : null,
         instructTemplateId: json['instructTemplateId'] as String?,
         provider: json['provider'] as String?,
-        providerSettings: (json['providerSettings'] as Map<String, dynamic>?)?.map(
+        providerSettings:
+            (json['providerSettings'] as Map<String, dynamic>?)?.map(
           (key, value) => MapEntry(
             key,
             (value as Map<String, dynamic>).map(
@@ -231,7 +255,7 @@ class AIPreset {
     final name = json['preset_name'] as String? ??
         json['name'] as String? ??
         'Imported Preset';
-    
+
     // Extract description
     final description = json['description'] as String?;
 
@@ -239,7 +263,7 @@ class AIPreset {
     final KiraKiraMeta = json['_kirakira'] as Map<String, dynamic>?;
     DateTime createdAt = DateTime.now();
     String? instructTemplateId;
-    
+
     if (KiraKiraMeta != null) {
       if (KiraKiraMeta['createdAt'] != null) {
         createdAt = DateTime.parse(KiraKiraMeta['createdAt'] as String);
@@ -249,10 +273,11 @@ class AIPreset {
 
     // Extract connection settings from _kirakira if available
     final provider = KiraKiraMeta?['provider'] as String?;
-    
+
     Map<String, Map<String, dynamic>>? providerSettings;
     if (KiraKiraMeta?['providerSettings'] != null) {
-      providerSettings = (KiraKiraMeta!['providerSettings'] as Map<String, dynamic>).map(
+      providerSettings =
+          (KiraKiraMeta!['providerSettings'] as Map<String, dynamic>).map(
         (key, value) => MapEntry(
           key,
           (value as Map<String, dynamic>).map(
@@ -263,15 +288,15 @@ class AIPreset {
     } else if (KiraKiraMeta?['model'] != null) {
       // Legacy support: migrate single provider settings to map if present
       // Assume it belongs to the active 'provider' if set, or just skip
-       if (provider != null) {
-         providerSettings = {
-           provider: {
-             'model': KiraKiraMeta!['model'],
-             'apiKey': KiraKiraMeta['apiKey'],
-             'apiUrl': KiraKiraMeta['apiUrl'],
-           }
-         };
-       }
+      if (provider != null) {
+        providerSettings = {
+          provider: {
+            'model': KiraKiraMeta!['model'],
+            'apiKey': KiraKiraMeta['apiKey'],
+            'apiUrl': KiraKiraMeta['apiUrl'],
+          }
+        };
+      }
     }
 
     // Parse generation settings from root level
@@ -295,6 +320,12 @@ class AIPreset {
       instructTemplateId: instructTemplateId,
       provider: provider,
       providerSettings: providerSettings,
+      tavernHelperScripts: _scriptList(json['tavernHelperScripts'] ??
+          (json['extensions'] is Map
+              ? (json['extensions'] as Map)['tavern_helper'] is Map
+                  ? ((json['extensions'] as Map)['tavern_helper'] as Map)['scripts']
+                  : null
+              : null)),
     );
   }
 
@@ -327,8 +358,8 @@ class GenerationPreset {
   final int mirostatMode;
   final double mirostatTau;
   final double mirostatEta;
-  final int maxTokens;      // Maximum OUTPUT tokens to generate
-  final int contextLength;  // Maximum INPUT context window size
+  final int maxTokens; // Maximum OUTPUT tokens to generate
+  final int contextLength; // Maximum INPUT context window size
   final List<String> stopSequences;
   final int seed;
   final bool streamEnabled;
@@ -348,8 +379,8 @@ class GenerationPreset {
     this.mirostatMode = 0,
     this.mirostatTau = 5.0,
     this.mirostatEta = 0.1,
-    this.maxTokens = 8192,        // Default max output tokens
-    this.contextLength = 1000000,   // Default context window (1M)
+    this.maxTokens = 8192, // Default max output tokens
+    this.contextLength = 1000000, // Default context window (1M)
     this.stopSequences = const [],
     this.seed = -1,
     this.streamEnabled = true,
@@ -383,7 +414,8 @@ class GenerationPreset {
       minP: minP ?? this.minP,
       typicalP: typicalP ?? this.typicalP,
       repetitionPenalty: repetitionPenalty ?? this.repetitionPenalty,
-      repetitionPenaltyRange: repetitionPenaltyRange ?? this.repetitionPenaltyRange,
+      repetitionPenaltyRange:
+          repetitionPenaltyRange ?? this.repetitionPenaltyRange,
       frequencyPenalty: frequencyPenalty ?? this.frequencyPenalty,
       presencePenalty: presencePenalty ?? this.presencePenalty,
       tailFreeSampling: tailFreeSampling ?? this.tailFreeSampling,
@@ -428,37 +460,53 @@ class GenerationPreset {
       temperature: (json['temperature'] as num?)?.toDouble() ?? 1.0,
       // Support both snake_case (SillyTavern) and camelCase (legacy)
       topP: (json['top_p'] as num?)?.toDouble() ??
-            (json['topP'] as num?)?.toDouble() ?? 1.0,
+          (json['topP'] as num?)?.toDouble() ??
+          1.0,
       topK: (json['top_k'] as num?)?.toInt() ??
-            (json['topK'] as num?)?.toInt() ?? 0,
+          (json['topK'] as num?)?.toInt() ??
+          0,
       minP: (json['min_p'] as num?)?.toDouble() ??
-            (json['minP'] as num?)?.toDouble() ?? 0.0,
+          (json['minP'] as num?)?.toDouble() ??
+          0.0,
       typicalP: (json['typical_p'] as num?)?.toDouble() ??
-                (json['typicalP'] as num?)?.toDouble() ?? 1.0,
+          (json['typicalP'] as num?)?.toDouble() ??
+          1.0,
       repetitionPenalty: (json['repetition_penalty'] as num?)?.toDouble() ??
-                         (json['repetitionPenalty'] as num?)?.toDouble() ?? 1.0,
-      repetitionPenaltyRange: (json['repetition_penalty_range'] as num?)?.toInt() ??
-                              (json['repetitionPenaltyRange'] as num?)?.toInt() ?? 0,
+          (json['repetitionPenalty'] as num?)?.toDouble() ??
+          1.0,
+      repetitionPenaltyRange:
+          (json['repetition_penalty_range'] as num?)?.toInt() ??
+              (json['repetitionPenaltyRange'] as num?)?.toInt() ??
+              0,
       frequencyPenalty: (json['frequency_penalty'] as num?)?.toDouble() ??
-                        (json['frequencyPenalty'] as num?)?.toDouble() ?? 0.0,
+          (json['frequencyPenalty'] as num?)?.toDouble() ??
+          0.0,
       presencePenalty: (json['presence_penalty'] as num?)?.toDouble() ??
-                       (json['presencePenalty'] as num?)?.toDouble() ?? 0.0,
+          (json['presencePenalty'] as num?)?.toDouble() ??
+          0.0,
       tailFreeSampling: (json['tfs'] as num?)?.toDouble() ??
-                        (json['tailFreeSampling'] as num?)?.toDouble() ?? 1.0,
+          (json['tailFreeSampling'] as num?)?.toDouble() ??
+          1.0,
       topA: (json['top_a'] as num?)?.toDouble() ??
-            (json['topA'] as num?)?.toDouble() ?? 0.0,
+          (json['topA'] as num?)?.toDouble() ??
+          0.0,
       mirostatMode: (json['mirostat_mode'] as num?)?.toInt() ??
-                    (json['mirostatMode'] as num?)?.toInt() ?? 0,
+          (json['mirostatMode'] as num?)?.toInt() ??
+          0,
       mirostatTau: (json['mirostat_tau'] as num?)?.toDouble() ??
-                   (json['mirostatTau'] as num?)?.toDouble() ?? 5.0,
+          (json['mirostatTau'] as num?)?.toDouble() ??
+          5.0,
       mirostatEta: (json['mirostat_eta'] as num?)?.toDouble() ??
-                   (json['mirostatEta'] as num?)?.toDouble() ?? 0.1,
+          (json['mirostatEta'] as num?)?.toDouble() ??
+          0.1,
       maxTokens: (json['openai_max_tokens'] as num?)?.toInt() ??
-                 (json['max_tokens'] as num?)?.toInt() ??
-                 (json['maxTokens'] as num?)?.toInt() ?? 8192,
+          (json['max_tokens'] as num?)?.toInt() ??
+          (json['maxTokens'] as num?)?.toInt() ??
+          8192,
       contextLength: (json['openai_max_context'] as num?)?.toInt() ??
-                     (json['max_context'] as num?)?.toInt() ??
-                     (json['contextLength'] as num?)?.toInt() ?? 1000000,
+          (json['max_context'] as num?)?.toInt() ??
+          (json['contextLength'] as num?)?.toInt() ??
+          1000000,
       stopSequences: (json['stop_sequences'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
@@ -468,7 +516,8 @@ class GenerationPreset {
           [],
       seed: (json['seed'] as num?)?.toInt() ?? -1,
       streamEnabled: json['stream_openai'] as bool? ??
-                     json['streamEnabled'] as bool? ?? true,
+          json['streamEnabled'] as bool? ??
+          true,
     );
   }
 
@@ -491,8 +540,8 @@ class BuiltInAIPresets {
       temperature: 0.8,
       topP: 0.95,
       topK: 40,
-      maxTokens: 8192,        // Max output tokens
-      contextLength: 1000000,   // Context window size
+      maxTokens: 8192, // Max output tokens
+      contextLength: 1000000, // Context window size
     ),
   );
 
@@ -508,7 +557,7 @@ class BuiltInAIPresets {
       topP: 0.98,
       topK: 60,
       minP: 0.05,
-      maxTokens: 8192,       // Allow longer creative outputs
+      maxTokens: 8192, // Allow longer creative outputs
       contextLength: 1000000,
     ),
   );
@@ -557,8 +606,8 @@ class BuiltInAIPresets {
       temperature: 0.85,
       topP: 0.95,
       topK: 40,
-      maxTokens: 16384,      // 更大的输出空间，配合长文提示词
-      contextLength: 1000000,  // Larger context for long form
+      maxTokens: 16384, // Larger output budget to pair with long-form prompts
+      contextLength: 1000000, // Larger context for long form
       repetitionPenalty: 1.15,
     ),
   );

@@ -1,4 +1,5 @@
-import 'dart:convert';
+﻿import 'dart:convert';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 
 /// Custom theme configuration
@@ -119,7 +120,7 @@ class AppThemeConfig {
         filled: true,
         fillColor: surface,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
           borderSide: BorderSide.none,
         ),
       ),
@@ -216,18 +217,22 @@ class AppThemeConfig {
 
 /// Built-in themes
 class BuiltInThemes {
+  /// Dark theme "default_dark": previously a deep blue palette, now replaced
+  /// with a neutral gray-black palette matching the API service panel
+  /// (#0A0A0A background / #1C1C1C card / #2C2C2C divider, aligned with DesignTokens);
+  /// dark/light switch logic unchanged, only color values swapped; brand pink (#F5AEB2) kept.
   static const defaultDark = AppThemeConfig(
     id: 'default_dark',
     name: '星河入梦',
     isDark: true,
     primaryColor: '#F5AEB2',
     accentColor: '#FECBB6',
-    backgroundColor: '#0B0E1A',
-    surfaceColor: '#12162A',
-    cardColor: '#1A1F38',
-    textPrimaryColor: '#E8E6F0',
-    textSecondaryColor: '#8B90AB',
-    dividerColor: '#252A45',
+    backgroundColor: '#0A0A0A',
+    surfaceColor: '#1C1C1C',
+    cardColor: '#1C1C1C',
+    textPrimaryColor: '#F0F0F0',
+    textSecondaryColor: '#8C8C8C',
+    dividerColor: '#2C2C2C',
     isBuiltIn: true,
   );
 
@@ -336,9 +341,7 @@ class BuiltInThemes {
     isBuiltIn: true,
   );
 
-  // ============================================
   // LIGHT THEMES
-  // ============================================
 
   /// Clean white theme with blue accents
   static const cleanWhite = AppThemeConfig(

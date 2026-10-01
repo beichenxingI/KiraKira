@@ -73,7 +73,7 @@ class _DraggableBackgroundButtonState extends ConsumerState<DraggableBackgroundB
     final safe = media.padding;
     final sw = media.size.width;
     final sh = media.size.height;
-    final bs = 48.0;
+    const bs = 48.0;
     final minX = safe.left + bs / 2;
     final maxX = sw - safe.right - bs / 2;
     final minY = safe.top + bs / 2;

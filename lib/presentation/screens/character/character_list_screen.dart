@@ -1,26 +1,30 @@
-﻿import 'dart:io';
+import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/providers/character_grid_provider.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
-import 'package:kirakira/presentation/providers/chat_providers.dart';
 import 'package:kirakira/presentation/router/app_router.dart';
-import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
-import 'character_view_mode.dart';
-import '../../widgets/common/greeting_picker.dart';
-import 'dart:typed_data';
+import 'package:kirakira/presentation/widgets/common/kira_search_bar.dart';
+import 'package:kirakira/presentation/dialogs/character_preview_dialog.dart';
+import 'package:kirakira/presentation/dialogs/character_edit_dialog.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:kirakira/presentation/screens/import/import_screen.dart' show importServiceProvider;
+import 'package:kirakira/presentation/utils/export_delivery.dart';
+import 'package:kirakira/presentation/screens/import/import_screen.dart'
+    show importServiceProvider;
 import 'dart:convert';
-import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/data/repositories/regex_script_repository.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
 
@@ -34,9 +38,13 @@ class CharacterListScreen extends ConsumerStatefulWidget {
 
 class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   String _searchQuery = '';
-  CharacterViewMode _viewMode = CharacterViewMode.grid;
+  final TextEditingController _searchController = TextEditingController();
 
-  // ── 多选状态（仅标准网格支持）──
+  /// Top segmented control: 0 = My Characters, 1 = Character Market
+  /// (not persisted; resets to default on page entry)
+  int _tab = 0;
+
+  // Multi-select state (standard grid only)
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
 
@@ -65,7 +73,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     });
   }
 
-  /// 批量删除：确认后循环删除，刷新列表
+  /// Batch delete: confirm, then delete each selected character and refresh the list
   Future<void> _deleteSelected(List<Character> all) async {
     final l10n = AppLocalizations.of(context);
     final count = _selectedIds.length;
@@ -93,21 +101,22 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('已删除 $count 个角色')),
-      );
-    }
+    );
   }
-
-  /// 批量打包为 ZIP：选格式 → 循环导出 → 打包 → 分享
+}
+  /// Batch export as ZIP: choose format, export each character, package, then share
   Future<void> _exportSelectedAsZip(List<Character> all) async {
     final selected = all.where((c) => _selectedIds.contains(c.id)).toList();
     if (selected.isEmpty) return;
 
-    // 选格式（默认 PNG）
+    // Choose format (default PNG)
     final format = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
+        ),
       ),
       builder: (ctx) => SafeArea(
         child: Column(
@@ -124,7 +133,8 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     );
     if (format == null) return;
 
-    // 打包 loading —— 保存 navigator 引用，避免异步后 context 失效关不掉
+    // Show packaging loading dialog; capture the navigator reference so it can
+    // still be closed after async gaps invalidate the context
     final navigator = Navigator.of(context, rootNavigator: true);
     final messenger = ScaffoldMessenger.of(context);
     bool loadingShown = true;
@@ -138,64 +148,71 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     void closeLoading() {
       if (loadingShown) {
         loadingShown = false;
-        navigator.pop(); // 关的一定是这个 loading
+        navigator.pop(); // Always closes this loading dialog
       }
     }
 
     try {
       final importService = ref.read(importServiceProvider);
+      // Active-track worldbook: assembled from the world_infos table before export
+      // (replaces the import snapshot)
+      final worldInfoRepo = ref.read(worldInfoRepositoryProvider);
+      final regexRepo = ref.read(regexScriptRepositoryProvider);
       final archive = Archive();
       final usedNames = <String>{};
 
-      for (final c in selected) {
-        // 读头像：avatarPath 存的是相对路径，导出前需转绝对路径（与 UI 显示一致）
-        Uint8List? avatarData;
-        final rawAvatarPath = c.assets?.avatarPath;
-        if (rawAvatarPath != null) {
-          final absPath = await PathUtils.toAbsolutePath(rawAvatarPath);
-          final f = File(absPath);
-          if (await f.exists()) avatarData = await f.readAsBytes();
-        }
+for (final c in selected) {
+  final repo = ref.read(characterRepositoryProvider);
+  final latestChar = await repo.getCharacter(c.id);
+  final exportChar = latestChar ?? c;
 
-        // 文件名安全化 + 去重
-        var safeName = c.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-        if (safeName.isEmpty) safeName = c.id;
-        var fileName = safeName;
-        var dup = 1;
-        final ext = format == 'json' ? 'json' : (format == 'charx' ? 'charx' : 'png');
-        while (usedNames.contains('$fileName.$ext')) {
-          fileName = '${safeName}_${dup++}';
-        }
-        usedNames.add('$fileName.$ext');
+  Uint8List? avatarData;
+  final rawAvatarPath = exportChar.assets?.avatarPath;
+  if (rawAvatarPath != null) {
+    final absPath = await PathUtils.toAbsolutePath(rawAvatarPath);
+    final f = File(absPath);
+    if (await f.exists()) avatarData = await f.readAsBytes();
+  }
 
-        // 按格式生成字节
-        final List<int> bytes;
-        switch (format) {
-          case 'json':
-            bytes = utf8.encode(importService.exportToJson(c));
-            break;
-          case 'charx':
-            bytes = await importService.exportToCharX(c, avatarData);
-            break;
-          default:
-            bytes = await importService.exportToPng(c, avatarData);
-        }
-        archive.addFile(ArchiveFile('$fileName.$ext', bytes.length, bytes));
-      }
+  var safeName = exportChar.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+  if (safeName.isEmpty) safeName = exportChar.id;
+  var fileName = safeName;
+  var dup = 1;
+  final ext = format == 'json' ? 'json' : (format == 'charx' ? 'charx' : 'png');
+  while (usedNames.contains('$fileName.$ext')) {
+    fileName = '${safeName}_${dup++}';
+  }
+  usedNames.add('$fileName.$ext');
+
+  final List<int> bytes;
+  switch (format) {
+    case 'json':
+      bytes = utf8.encode(await importService.exportToJson(exportChar, worldInfoRepo: worldInfoRepo, regexRepo: regexRepo));
+      break;
+    case 'charx':
+      bytes = await importService.exportToCharX(exportChar, avatarData, worldInfoRepo: worldInfoRepo, regexRepo: regexRepo);
+      break;
+    default:
+      bytes = await importService.exportToPng(exportChar, avatarData, worldInfoRepo: worldInfoRepo, regexRepo: regexRepo);
+  }
+  archive.addFile(ArchiveFile('$fileName.$ext', bytes.length, bytes));
+}
 
       final zipBytes = ZipEncoder().encode(archive)!;
       final ts = DateTime.now();
       final stamp = '${ts.year}${_two(ts.month)}${_two(ts.day)}_'
           '${_two(ts.hour)}${_two(ts.minute)}${_two(ts.second)}';
-      final dir = await getTemporaryDirectory();
-      final zipFile = File('${dir.path}/KiraKira_$stamp.zip');
-      await zipFile.writeAsBytes(zipBytes);
 
-      closeLoading(); // 先关 loading
+      closeLoading(); // Close loading first
       _exitSelection();
 
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(zipFile.path)], subject: 'KiraKira_$stamp'),
+      // Unified export delivery: share or save to file
+      await deliverExportFile(
+        context: context,
+        fileName: 'KiraKira_$stamp.zip',
+        bytes: Uint8List.fromList(zipBytes),
+        subject: 'KiraKira_$stamp',
+        ext: 'zip',
       );
     } catch (e, st) {
       debugPrint('❌ 批量导出ZIP失败: $e\n$st');
@@ -205,11 +222,11 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
         );
       }
     } finally {
-      closeLoading(); // 无论成败，loading 一定被关掉，杜绝黑屏
+      closeLoading(); // Always closed on exit, success or failure, to avoid a stuck screen
     }
   }
 
-  /// 导入 ZIP：选压缩包 → 解包 → 按扩展名逐个还原角色
+  /// Import ZIP: pick archive, unpack, and restore each character by file extension
   Future<void> _importFromZip() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -218,7 +235,7 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
     if (result == null || result.files.isEmpty) return;
     final zipFile = result.files.first;
 
-    // 拿字节：优先 bytes，否则从 path 读（兼容 content:// 场景）
+    // Get bytes: prefer in-memory bytes, otherwise read from path (handles content:// URIs)
     Uint8List? zipBytes = zipFile.bytes;
     if (zipBytes == null && zipFile.path != null) {
       zipBytes = await File(zipFile.path!).readAsBytes();
@@ -272,11 +289,23 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
               c = await importService.importFromCharX(f.path);
               break;
             default:
-              continue; // 非角色卡文件跳过
+              continue; // Skip non-character-card files
           }
-          // 入库（正则随 extensions 一起进库）
+          // Persist to database (regex scripts stored with the extensions)
           final created = await repo.createCharacter(c);
-          // 提取内嵌世界书为独立 WorldInfo（复用单个导入逻辑）
+          // On import, regex scripts are written to a dedicated table (same as the
+          // import_screen main path)
+          try {
+            final rawList = c.extensions['regex_scripts'];
+            if (rawList is List && rawList.isNotEmpty) {
+              await ref
+                  .read(regexScriptRepositoryProvider)
+                  .importCharacterScriptsFromRaw(created.id, rawList);
+            }
+          } catch (e) {
+            debugPrint('[Phase2] ZIP导入正则写表失败(extensions 保留): $e');
+          }
+          // Extract the embedded worldbook as a standalone WorldInfo (reuses single-import logic)
           if (c.characterBook != null && c.characterBook!.entries.isNotEmpty) {
             await importEmbeddedLorebook(
                 worldInfoRepo, created.id, c.characterBook!, created.name);
@@ -306,347 +335,537 @@ class _CharacterListScreenState extends ConsumerState<CharacterListScreen> {
   }
   static String _two(int n) => n.toString().padLeft(2, '0');
 
+  // Pagination via PageView: PageController replaces _loadedPages/_scrollController
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  /// Reset to page 1 when the page size changes
+  void _resetPage() {
+    _currentPage = 0;
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(0);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final charactersAsync = ref.watch(characterListProvider);
+    final pageSize = ref.watch(characterGridPageSizeProvider);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 不透明底，避免透出 shell 的聊天壁纸
-      appBar: _selectionMode
-          ? AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: _exitSelection,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // Opaque so the shell's chat wallpaper doesn't show through
+      body: RefreshIndicator(
+        // iOS-style pull-to-refresh (replaces the AppBar refresh button)
+        onRefresh: () async {
+          ref.read(characterListProvider.notifier).refresh();
+        },
+        child: CustomScrollView(
+          slivers: [
+            // Normal state: no Large Title; selection mode shows a compact title in the same CustomScrollView
+            if (_selectionMode)
+              SliverAppBar(
+                pinned: true,
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: _exitSelection,
+                ),
+                title: Text('已选 ${_selectedIds.length} 个'),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.archive_outlined),
+                    tooltip: '打包为ZIP',
+                    onPressed: () {
+                      final all = ref.read(characterListProvider).valueOrNull ?? [];
+                      _exportSelectedAsZip(all);
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    tooltip: l10n.delete,
+                    onPressed: () {
+                      final all = ref.read(characterListProvider).valueOrNull ?? [];
+                      _deleteSelected(all);
+                    },
+                  ),
+                ],
               ),
-              title: Text('已选 ${_selectedIds.length} 个'),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.archive_outlined),
-                  tooltip: '打包为ZIP',
-                  onPressed: () {
-                    final all = ref.read(characterListProvider).valueOrNull ?? [];
-                    _exportSelectedAsZip(all);
-                  },
+            // Search bar pinned to top via SafeArea (hidden in selection mode)
+            if (!_selectionMode && _tab == 0)
+              SliverToBoxAdapter(
+                child: SafeArea(
+                  bottom: false,
+                  child: KiraSearchBar(
+                    controller: _searchController,
+                    hintText: l10n.searchCharacters,
+                    onChanged: (value) => setState(() {
+                      _searchQuery = value;
+                      _resetPage(); // Return to page 1 when the search query changes
+                    }),
+                    onClear: () => setState(() {
+                      _searchQuery = '';
+                      _resetPage();
+                    }),
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: l10n.delete,
-                  onPressed: () {
-                    final all = ref.read(characterListProvider).valueOrNull ?? [];
-                    _deleteSelected(all);
-                  },
+              ),
+            // Segmented control: page-level navigation, pinned to top; hidden in selection
+            // mode; trailing hosts the former AppBar action buttons
+            if (!_selectionMode)
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _SegmentedHeaderDelegate(
+                  tab: _tab,
+                  onChanged: (v) => setState(() => _tab = v),
+                  trailing: _tab == 0
+                      ? [
+                          IconButton(
+                            icon: const Icon(CupertinoIcons.add, size: 22),
+                            tooltip: l10n.createCharacter,
+                            onPressed: () => _showAddActionSheet(context),
+                          ),
+                          IconButton(
+                            icon: const Icon(CupertinoIcons.checkmark_circle, size: 22),
+                            tooltip: '选择',
+                            onPressed: () {
+                              final all = ref.read(characterListProvider).valueOrNull ?? [];
+                              if (all.isNotEmpty) {
+                                setState(() => _selectionMode = true);
+                              }
+                            },
+                          ),
+                          // Page-size options (4/8/12/16)
+                          IconButton(
+                            icon: const Icon(CupertinoIcons.square_grid_2x2, size: 22),
+                            tooltip: '每页数量',
+                            onPressed: () => _showPageSizeSheet(context),
+                          ),
+                          const SizedBox(width: DesignTokens.spaceXs),
+                        ]
+                      : [
+                          IconButton(
+                            icon: const Icon(CupertinoIcons.add, size: 22),
+                            tooltip: l10n.createCharacter,
+                            onPressed: () => _showAddActionSheet(context),
+                          ),
+                          const SizedBox(width: DesignTokens.spaceXs),
+                        ],
                 ),
-              ],
-            )
-          : AppBar(
-              title: Text(l10n.characters),
-              actions: [
-                // TODO(UI大修): 视图切换按钮已隐藏，当前锁定标准网格（唯一支持多选）
-                // 大修时按需恢复或彻底移除，连同 CharacterViewMode、_getViewModeIcon 一并清理
-                // IconButton(
-                //   icon: _getViewModeIcon(),
-                //   onPressed: () => setState(() => _viewMode = _viewMode.next),
-                //   tooltip: _viewMode.getDisplayName(l10n),
-                // ),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip: l10n.retry,
-                  onPressed: () => ref.read(characterListProvider.notifier).refresh(),
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceSm)),
+            // Content area: tab 0 = My Characters grid; tab 1 = Character Market
+            if (_tab == 1)
+              SliverFillRemaining(
+                child: _CharacterMarketView(
+                  onSwitchToMyCharacters: () => setState(() => _tab = 0),
                 ),
-              ],
-            ),
-      body: Column(
-        children: [
-          _SearchBar(
-            onChanged: (value) => setState(() => _searchQuery = value),
-          ),
-          Expanded(
-            child: charactersAsync.when(
+              )
+            else
+            ...charactersAsync.when(
               data: (characters) {
                 final filtered = _searchQuery.isEmpty
                     ? characters
-                    : characters.where((c) => 
+                    : characters.where((c) =>
                         c.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
                         c.description.toLowerCase().contains(_searchQuery.toLowerCase())
                       ).toList();
 
                 if (filtered.isEmpty) {
-                  return const _EmptyState();
+                  return const [
+                    SliverFillRemaining(child: _EmptyState()),
+                  ];
                 }
 
-                switch (_viewMode) {
-                  case CharacterViewMode.list:
-                    return _CharacterListView(characters: filtered);
-                  case CharacterViewMode.grid:
-                    return _CharacterGridView(
-                      characters: filtered,
-                      selectionMode: _selectionMode,
-                      selectedIds: _selectedIds,
-                      onTap: (id) {
-                        if (_selectionMode) {
-                          _toggleSelect(id);
-                        } else {
-                          context.push('/characters/$id');
-                        }
-                      },
-                      onLongPress: (id) {
-                        if (!_selectionMode) _enterSelection(id);
-                        else _toggleSelect(id);
-                      },
-                    );
-                  case CharacterViewMode.compactGrid:
-                    return _CharacterCompactGridView(characters: filtered);
+                // Split into pages by pageSize; swipe horizontally in PageView to flip
+                final pageCount =
+                    (filtered.length + pageSize - 1) ~/ pageSize;
+                if (_currentPage > pageCount - 1) {
+                  _currentPage = pageCount - 1; // Clamp after the list shrinks (persisted on next setState)
                 }
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stack) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text('${l10n.error}: $error'),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => ref.read(characterListProvider.notifier).refresh(),
-                      child: Text(l10n.retry),
+
+                return [
+                  // Page indicator "2/4" below the search bar
+                  if (pageCount > 1)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: DesignTokens.spaceXs),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              CupertinoIcons.chevron_left,
+                              size: 12,
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.color,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${_currentPage + 1}/$pageCount',
+                              style: TextStyle(
+                                fontSize: DesignTokens.fontSizeSm,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.color,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              CupertinoIcons.chevron_right,
+                              size: 12,
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.color,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
+                  SliverFillRemaining(
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: pageCount,
+                      onPageChanged: (i) =>
+                          setState(() => _currentPage = i),
+                      itemBuilder: (context, pageIndex) {
+                        final start = pageIndex * pageSize;
+                        final pageItems =
+                            filtered.skip(start).take(pageSize).toList();
+                        return GridView.builder(
+                          padding: const EdgeInsets.fromLTRB(
+                            DesignTokens.spaceMd,
+                            DesignTokens.spaceSm,
+                            DesignTokens.spaceMd,
+                            0,
+                          ),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.80, // Shorter card aspect ratio
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                          itemCount: pageItems.length,
+                          itemBuilder: (context, index) {
+                            final c = pageItems[index];
+                            return _StaggeredEntrance(
+                              index: index,
+                              child: _CharacterGridCard(
+                                character: c,
+                                selectionMode: _selectionMode,
+                                isSelected: _selectedIds.contains(c.id),
+                                onTap: () {
+                                  if (_selectionMode) {
+                                    _toggleSelect(c.id);
+                                  } else {
+                                    // Tapping a card opens a lightweight preview dialog
+                                    showCharacterPreviewDialog(context, ref, c);
+                                  }
+                                },
+                                onLongPress: () {
+                                  if (!_selectionMode) {
+                                    _enterSelection(c.id);
+                                  } else {
+                                    _toggleSelect(c.id);
+                                  }
+                                },
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ];
+              },
+              loading: () => const [
+                SliverFillRemaining(child: _SkeletonGrid()),
+              ],
+              error: (error, stack) => [
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 48, color: DesignTokens.statusError),
+                        const SizedBox(height: 16),
+                        Text('${l10n.error}: $error'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => ref.read(characterListProvider.notifier).refresh(),
+                          child: Text(l10n.retry),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 80),
-        child: FloatingActionButton(
-          onPressed: () => _showFabMenu(context),
-          child: const Icon(Icons.add_rounded, size: 28),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-    );
-  }
-
-  void _showFabMenu(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 100),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: Icon(Icons.file_download_outlined, color: Theme.of(context).colorScheme.primary),
-              title: Text(l10n.importCharacter),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push(AppRoutes.import_);
-              },
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              leading: Icon(Icons.folder_zip_outlined, color: Theme.of(context).colorScheme.primary),
-              title: const Text('从ZIP批量导入'),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              onTap: () {
-                Navigator.pop(ctx);
-                _importFromZip();
-              },
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              leading: Icon(Icons.add, color: Theme.of(context).colorScheme.primary),
-              title: Text(l10n.createCharacter),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push(AppRoutes.characterCreate);
-              },
-            ),
+            // Bottom clearance for the tab bar (capsule height 62 + 12 margin + breathing room)
+            const SliverToBoxAdapter(child: SizedBox(height: 96)),
           ],
         ),
       ),
     );
   }
 
-  Icon _getViewModeIcon() {
-    switch (_viewMode) {
-      case CharacterViewMode.list:
-        return const Icon(Icons.list);
-      case CharacterViewMode.grid:
-        return const Icon(Icons.grid_view);
-      case CharacterViewMode.compactGrid:
-        return const Icon(Icons.view_compact);
-    }
+  /// iOS-style add menu (the three former FAB entries moved to the top-right "+" ActionSheet)
+  void _showAddActionSheet(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetCtx) => CupertinoTheme(
+        // Fallback under MaterialApp: forces dark text on CupertinoActionSheet in dark mode
+        data: CupertinoThemeData(
+          brightness: isDark ? Brightness.dark : Brightness.light,
+        ),
+        child: CupertinoActionSheet(
+          actions: [
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(sheetCtx);
+                context.push(AppRoutes.import_);
+              },
+              child: Text(l10n.importCharacter),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(sheetCtx);
+                _importFromZip();
+              },
+              child: const Text('从ZIP批量导入'),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(sheetCtx);
+                showCharacterEditDialog(context, ref);
+              },
+              child: Text(l10n.createCharacter),
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(sheetCtx),
+            child: Text(l10n.cancel),
+          ),
+        ),
+      ),
+    );
   }
+
+  /// Page-size selector (4/8/12/16, persisted as character_grid_page_size)
+  void _showPageSizeSheet(BuildContext context) {
+    final current = ref.read(characterGridPageSizeProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetCtx) => CupertinoTheme(
+        data: CupertinoThemeData(
+          brightness: isDark ? Brightness.dark : Brightness.light,
+        ),
+        child: CupertinoActionSheet(
+          title: const Text('每页显示'),
+          actions: [
+            for (final n in CharacterGridPageSizeNotifier.kChoices)
+              CupertinoActionSheetAction(
+                onPressed: () {
+    ref.read(characterGridPageSizeProvider.notifier).set(n);
+    _resetPage(); // Return to page 1 when the page size changes
+                  Navigator.pop(sheetCtx);
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('$n 个'),
+                    if (n == current) ...[
+                      const SizedBox(width: 6),
+                      const Icon(CupertinoIcons.checkmark, size: 16),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(sheetCtx),
+            child: Text(AppLocalizations.of(context).cancel),
+          ),
+        ),
+      ),
+    );
+  }
+
 }
 
-class _SearchBar extends StatelessWidget {
-  final ValueChanged<String> onChanged;
+class _StaggeredEntrance extends StatelessWidget {
+  final int index;
+  final Widget child;
 
-  const _SearchBar({required this.onChanged});
+  const _StaggeredEntrance({required this.index, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: TextField(
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          hintText: l10n.searchCharacters,
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              // TODO: Show filter options
-            },
+    const duration = DesignTokens.durationMd;
+    // Stagger delay capped at 12 items so long lists don't wait too long at the tail
+    final delay = index.clamp(0, 12) * 50;
+    final total = duration + delay;
+    final intervalBegin = delay / total;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: total),
+      curve: Interval(
+        intervalBegin,
+        1,
+        curve: DesignTokens.curveDecelerate,
+      ),
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - t)),
+          child: child,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+// TODO(token): shimmer sweep using skeletonBase/skeletonHighlight awaits approval
+// (see master plan §4); until then the solid darkCard breathing animation is the fallback.
+
+/// Loading skeleton: solid fill with a 400ms breathing pulse (0.5 to 1.0)
+class _SkeletonGrid extends StatelessWidget {
+  const _SkeletonGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(
+        DesignTokens.spaceMd,
+        DesignTokens.spaceMd,
+        DesignTokens.spaceMd,
+        0,
+      ),
+      sliver: SliverGrid(
+        delegate: SliverChildBuilderDelegate(
+          (_, __) => const _BreathingBox(
+            borderRadius: DesignTokens.radiusCard,
           ),
+          childCount: 6,
+        ),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.80, // Same card aspect ratio as the real grid
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
         ),
       ),
     );
   }
 }
 
-class _CharacterGridView extends StatelessWidget {
-  final List<Character> characters;
-  final bool selectionMode;
-  final Set<String> selectedIds;
-  final void Function(String id) onTap;
-  final void Function(String id) onLongPress;
+/// Breathing skeleton block: solid fill with opacity pulsing
+class _BreathingBox extends StatefulWidget {
+  final double borderRadius;
 
-  const _CharacterGridView({
-    required this.characters,
-    required this.selectionMode,
-    required this.selectedIds,
-    required this.onTap,
-    required this.onLongPress,
-  });
+  const _BreathingBox({required this.borderRadius});
+
+  @override
+  State<_BreathingBox> createState() => _BreathingBoxState();
+}
+
+class _BreathingBoxState extends State<_BreathingBox>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: DesignTokens.durationLg),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      cacheExtent: 1200,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.72,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return FadeTransition(
+      opacity: Tween(begin: 0.5, end: 1.0).animate(
+        CurvedAnimation(parent: _controller, curve: DesignTokens.curveEmphasized),
       ),
-      itemCount: characters.length,
-      itemBuilder: (context, index) {
-        final c = characters[index];
-        return _CharacterGridCard(
-          character: c,
-          selectionMode: selectionMode,
-          isSelected: selectedIds.contains(c.id),
-          onTap: () => onTap(c.id),
-          onLongPress: () => onLongPress(c.id),
-        );
-      },
-    );
-  }
-}
-
-// TODO(UI大修): 此视图已弃用，当前锁定标准网格（_CharacterGridView，唯一支持多选）。
-// 大修时应删除此类及 _CharacterCompactGridCard，连同 CharacterViewMode 枚举、切换逻辑一并清理。
-class _CharacterListView extends StatelessWidget {
-  final List<Character> characters;
-
-  const _CharacterListView({required this.characters});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: characters.length,
-      itemBuilder: (context, index) {
-        return _CharacterListTile(character: characters[index]);
-      },
-    );
-  }
-}
-
-// TODO(UI大修): 此视图已弃用，当前锁定标准网格（_CharacterGridView，唯一支持多选）。
-// 大修时应删除此类及 _CharacterCompactGridCard，连同 CharacterViewMode 枚举、切换逻辑一并清理。
-class _CharacterCompactGridView extends StatelessWidget {
-  final List<Character> characters;
-
-  const _CharacterCompactGridView({required this.characters});
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.82,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? DesignTokens.darkCard : DesignTokens.lightSeparator,
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+        ),
       ),
-      itemCount: characters.length,
-      itemBuilder: (context, index) {
-        return _CharacterCompactGridCard(character: characters[index]);
-      },
     );
   }
 }
 
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends ConsumerWidget {
   const _EmptyState();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.people_outline,
-            size: 80,
-            color: Theme.of(context).colorScheme.onSurfaceVariant
+          // Empty-state icon container: pill radius in a muted color (visual noise reduction)
+          Container(
+            width: 96,
+            height: 96,
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? DesignTokens.darkCard
+                  : DesignTokens.lightSurface,
+              borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+            ),
+            child: const Icon(
+              Icons.people_outline,
+              size: 40,
+              color: DesignTokens.darkTextTertiary,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: DesignTokens.spaceMd),
           Text(
             l10n.noCharactersYet,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontSize: DesignTokens.fontSizeBodyLarge,
+                  fontWeight: DesignTokens.weightMedium,
                 ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: DesignTokens.spaceSm),
           Text(
             l10n.importCharacter,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant
-                ),
+            style: const TextStyle(
+              fontSize: DesignTokens.fontSizeXs,
+              color: DesignTokens.darkTextSecondary,
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: DesignTokens.spaceLg),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ElevatedButton.icon(
-                onPressed: () => context.push(AppRoutes.characterCreate),
+                onPressed: () => showCharacterEditDialog(context, ref),
                 icon: const Icon(Icons.add),
                 label: Text(l10n.createCharacter),
               ),
@@ -681,35 +900,23 @@ class _CharacterGridCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: Theme.of(context).brightness == Brightness.dark
-            ? const []
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  spreadRadius: -2,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      clipBehavior: Clip.antiAlias,
+      color: Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(
+        // Card radius follows the card level; zero shadow in dark mode, 0.5 separator in light mode
+        borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
+        side: isSelected
+            ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2.5)
+            : BorderSide(
+                color: isDark
+                    ? Colors.transparent
+                    : Theme.of(context).dividerColor.withValues(alpha: 0.5),
+                width: 0.5,
+              ),
       ),
-      child: Material(
-        clipBehavior: Clip.antiAlias,
-        color: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: isSelected
-              ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2.5)
-              : BorderSide(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withValues(alpha: 0.06)
-                      : Theme.of(context).dividerColor.withValues(alpha: 0.5),
-                  width: 0.8,
-                ),
-        ),
-        child: InkWell(
+      child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
           child: Stack(
@@ -717,29 +924,36 @@ class _CharacterGridCard extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(flex: 4, child: _buildAvatar()),
+                  // Avatar area flex cut from 4 to 3 so the shorter card feels more focused
+                  Expanded(flex: 3, child: _buildAvatar()),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: DesignTokens.spaceSm,
+                      vertical: DesignTokens.spaceXs,
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      // Center name/author (iOS photo-grid look)
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           character.name,
+                          textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                                fontSize: DesignTokens.fontSizeBodyMedium,
                               ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (character.creator.isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(top: 2),
+                            padding: const EdgeInsets.only(top: DesignTokens.spaceXxs),
                             child: Text(
                               'by ${character.creator}',
+                              textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    fontSize: 11,
+                                    fontSize: DesignTokens.fontSizeCaption,
                                     color: Theme.of(context)
                                         .textTheme
                                         .bodySmall
@@ -755,6 +969,24 @@ class _CharacterGridCard extends ConsumerWidget {
                   ),
                 ],
               ),
+              // Pinned indicator (top-left pin icon)
+              if (character.isPinned)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.pin_fill,
+                      size: 16,
+                      color: Color(0xFFFFA726),
+                    ),
+                  ),
+                ),
               if (selectionMode)
                 Positioned(
                   top: 8,
@@ -770,12 +1002,11 @@ class _CharacterGridCard extends ConsumerWidget {
             ],
           ),
         ),
-      ),
     );
   }
 
   Widget _buildAvatar() {
-    return RepaintBoundary(
+    final avatar = RepaintBoundary(
       child: character.assets?.avatarPath != null
           ? CharacterAvatarImage(
               imagePath: character.assets!.avatarPath!,
@@ -784,6 +1015,9 @@ class _CharacterGridCard extends ConsumerWidget {
             )
           : _defaultAvatar(),
     );
+    // Hero animation removed: cover and content reveal together with the circular
+    // expansion transition instead of flying separately
+    return avatar;
   }
 
   Widget _defaultAvatar() {
@@ -835,287 +1069,264 @@ class _CharacterGridCard extends ConsumerWidget {
       case 'builtin_xiaohongshu_copywriter':
         return const Color(0xFFFF5722); // Orange/Red for social media
       default:
-        return const Color(0xFFF5AEB2); // KiraKira 粉,替代死蓝占位
+        return const Color(0xFFF5AEB2); // KiraKira pink instead of the dead-blue placeholder
     }
   }
 }
+// Sticky top segmented control
 
-class _CharacterCompactGridCard extends ConsumerWidget {
-  final Character character;
+/// Pinned header delegate for the segmented control (SliverPersistentHeader)
+class _SegmentedHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _SegmentedHeaderDelegate({
+    required this.tab,
+    required this.onChanged,
+    this.trailing = const [],
+  });
 
-  const _CharacterCompactGridCard({required this.character});
+  final int tab;
+  final ValueChanged<int> onChanged;
+  /// Large Title removed; former actions (+, select, page size) sit at the right end of the segmented row
+  final List<Widget> trailing;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/characters/${character.id}'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              flex: 4,
-              child: _buildCompactAvatar(),
-            ),
-            Expanded(
-              flex: 1,
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      character.name,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  double get minExtent => 48;
+  @override
+  double get maxExtent => 48;
 
-  Widget _buildCompactAvatar() {
-    if (character.assets?.avatarPath != null) {
-      return CharacterAvatarImage(
-        imagePath: character.assets!.avatarPath!,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _defaultCompactAvatar(),
-      );
-    }
-    return _defaultCompactAvatar();
-  }
-
-  Widget _defaultCompactAvatar() {
-    final icon = _getCharacterIcon(character);
-    final color = _getCharacterColor(character);
-    
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color,
-            color.withValues(alpha: 0.7),
-          ],
-        ),
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesignTokens.spaceMd,
+        vertical: 6,
       ),
-      child: Center(
-        child: Icon(
-          icon,
-          size: 40,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
-
-  IconData _getCharacterIcon(Character character) {
-    switch (character.id) {
-      case 'builtin_coding_assistant':
-        return Icons.code;
-      case 'builtin_image_gen_assistant':
-        return Icons.image;
-      case 'builtin_xiaohongshu_copywriter':
-        return Icons.edit_note;
-      default:
-        return Icons.person;
-    }
-  }
-
-  Color _getCharacterColor(Character character) {
-    switch (character.id) {
-      case 'builtin_coding_assistant':
-        return const Color(0xFF2196F3);
-      case 'builtin_image_gen_assistant':
-        return const Color(0xFFE91E63);
-      case 'builtin_xiaohongshu_copywriter':
-        return const Color(0xFFFF5722);
-      default:
-        return AppTheme.darkDivider;
-    }
-  }
-}
-
-class _CharacterListTile extends ConsumerWidget {
-  final Character character;
-
-  const _CharacterListTile({required this.character});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: _buildListAvatar(),
-        title: Text(character.name),
-        subtitle: Text(
-          character.description.isNotEmpty
-              ? character.description
-              : l10n.description,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: PopupMenuButton(
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'chat',
-              child: ListTile(
-                leading: const Icon(Icons.chat),
-                title: Text(l10n.startChat),
-                contentPadding: EdgeInsets.zero,
-              ),
-              onTap: () => _startChat(context, ref),
-            ),
-            PopupMenuItem(
-              value: 'edit',
-              child: ListTile(
-                leading: const Icon(Icons.edit),
-                title: Text(l10n.edit),
-                contentPadding: EdgeInsets.zero,
-              ),
-              onTap: () => context.push('/characters/${character.id}'),
-            ),
-            PopupMenuItem(
-              value: 'export',
-              child: ListTile(
-                leading: const Icon(Icons.file_upload),
-                title: Text(l10n.exportChat),
-                contentPadding: EdgeInsets.zero,
-              ),
-              onTap: () {
-                // TODO: Export character
+      child: Row(
+        children: [
+          Flexible(
+            child: CupertinoSlidingSegmentedControl<int>(
+              groupValue: tab,
+              // Track background per spec: dark = darkCard, light = lightFillTertiary;
+              // thumbColor is left unset so the Cupertino SDK applies native light/dark semantics
+              backgroundColor: isDark
+                  ? DesignTokens.darkCard
+                  : DesignTokens.lightFillTertiary,
+              children: const {
+                0: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                  child: Text('我的角色'),
+                ),
+                1: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                  child: Text('角色市场'),
+                ),
+              },
+              onValueChanged: (v) {
+                if (v != null) onChanged(v);
               },
             ),
-            PopupMenuItem(
-              value: 'delete',
-              onTap: () => _confirmDelete(context, ref),
-              child: ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: Text(l10n.delete, style: const TextStyle(color: Colors.red)),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          ],
-        ),
-        onTap: () => context.push('/characters/${character.id}'),
-      ),
-    );
-  }
-
-  Future<void> _startChat(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context);
-    
-    try {
-      String? selectedGreeting;
-      if (character.alternateGreetings.any((g) => g.trim().isNotEmpty)) {
-        selectedGreeting = await showGreetingPicker(context, character);
-        if (selectedGreeting == null || !context.mounted) return;
-      }
-      final chatId = await ref
-          .read(activeChatProvider.notifier)
-          .createChat(character.id, selectedGreeting: selectedGreeting);
-      if (chatId != null && context.mounted) {
-        context.push('/chat/$chatId');
-      } else if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.error)),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${l10n.error}: $e')),
-        );
-      }
-    }
-  }
-
-  void _confirmDelete(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.deleteCharacter),
-        content: Text(l10n.deleteCharacterConfirmation(character.name)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ref.read(characterListProvider.notifier).deleteCharacter(character.id);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.characterDeleted)),
-              );
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(l10n.delete),
-          ),
+          ...trailing,
         ],
       ),
     );
   }
 
-  Widget _buildListAvatar() {
-    if (character.assets?.avatarPath != null) {
-      return CharacterAvatarCircle(
-        imagePath: character.assets!.avatarPath!,
-        radius: 28,
-      );
-    }
+  @override
+  bool shouldRebuild(covariant _SegmentedHeaderDelegate oldDelegate) =>
+      oldDelegate.tab != tab || oldDelegate.trailing != trailing;
+}
 
-    final icon = _getCharacterIcon(character);
-    final color = _getCharacterColor(character);
+// Character market disabled as of 2026-09.
+//
+// Reasons:
+// 1. ACC international site: unstable (high blob URL import failure rate)
+// 2. Chub.ai: NSFW content carries legal risk under domestic regulations
+// 3. Official site: no suitable hosting solution yet
+//
+// Code retained for a possible future restore. Users can still import
+// character cards through the local import feature.
 
-    return CircleAvatar(
-      radius: 28,
-      backgroundColor: color,
-      child: Icon(
-        icon,
-        color: Colors.white,
-        size: 28,
-      ),
+/// Character market (two sites: Kira official + ACC international)
+class _CharacterMarketView extends ConsumerStatefulWidget {
+  final VoidCallback onSwitchToMyCharacters;
+
+  const _CharacterMarketView({required this.onSwitchToMyCharacters});
+
+  @override
+  ConsumerState<_CharacterMarketView> createState() =>
+      _CharacterMarketViewState();
+}
+
+class _CharacterMarketViewState extends ConsumerState<_CharacterMarketView>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 1, vsync: this);  // International site closed; only Kira official remains
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Column(
+      children: [
+        // Site switch tabs
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? DesignTokens.darkSurface : theme.cardColor,
+            border: Border(
+              bottom: BorderSide(
+                color: isDark
+                    ? DesignTokens.darkSeparator
+                    : DesignTokens.lightSeparator,
+              ),
+            ),
+          ),
+          child: TabBar(
+            controller: _tabController,
+            indicatorColor: DesignTokens.primary,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelColor: DesignTokens.primary,
+            unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+            labelStyle: const TextStyle(
+              fontSize: DesignTokens.fontSizeBodyMedium,
+              fontWeight: DesignTokens.weightSemibold,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: DesignTokens.fontSizeBodyMedium,
+              fontWeight: DesignTokens.weightRegular,
+            ),
+            tabs: const [
+              Tab(
+                icon: Icon(Icons.home_outlined, size: 18),
+                text: 'Kira官方',
+              ),
+              // ACC international site closed (unstable + legal risk)
+              // Tab(
+              //   icon: Icon(Icons.public, size: 18),
+              //   text: 'ACC国际',
+              // ),
+            ],
+          ),
+        ),
+        // Site content
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: const [
+              _KiraMarketTab(),
+              // ACC international site closed
+              // _AccMarketTab(
+              //   onSwitchToMyCharacters: widget.onSwitchToMyCharacters,
+              // ),
+            ],
+          ),
+        ),
+      ],
     );
   }
+}
 
-  IconData _getCharacterIcon(Character character) {
-    switch (character.id) {
-      case 'builtin_coding_assistant':
-        return Icons.code;
-      case 'builtin_image_gen_assistant':
-        return Icons.image;
-      case 'builtin_xiaohongshu_copywriter':
-        return Icons.edit_note;
-      default:
-        return Icons.person;
-    }
-  }
+/// Kira official site (placeholder for now; self-hosted/community resources planned)
+class _KiraMarketTab extends StatelessWidget {
+  const _KiraMarketTab();
 
-  Color _getCharacterColor(Character character) {
-    switch (character.id) {
-      case 'builtin_coding_assistant':
-        return const Color(0xFF2196F3);
-      case 'builtin_image_gen_assistant':
-        return const Color(0xFFE91E63);
-      case 'builtin_xiaohongshu_copywriter':
-        return const Color(0xFFFF5722);
-      default:
-        return AppTheme.primaryColor;
-    }
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(DesignTokens.spaceXl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.storefront,
+              size: 64,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: DesignTokens.spaceLg),
+            Text(
+              'Kira官方市场',
+              style: theme.textTheme.titleLarge,
+            ),
+            const SizedBox(height: DesignTokens.spaceXs),
+            Text(
+              '正在建设中',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: DesignTokens.spaceLg),
+            Container(
+              padding: DesignTokens.paddingCard,
+              decoration: BoxDecoration(
+                color: DesignTokens.primary.withValues(alpha: 0.08),
+                borderRadius:
+                    BorderRadius.circular(DesignTokens.radiusMd),
+                border: Border.all(
+                  color: DesignTokens.primary.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.info_outline,
+                          size: 18, color: DesignTokens.primary),
+                      SizedBox(width: DesignTokens.spaceXs),
+                      Text(
+                        '即将推出',
+                        style: TextStyle(
+                          fontSize: DesignTokens.fontSizeSm,
+                          fontWeight: DesignTokens.weightSemibold,
+                          color: DesignTokens.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: DesignTokens.spaceSm),
+                  Text(
+                    '• 精选高质量角色卡\n'
+                    '• 社区审核，内容可控\n'
+                    '• 国内直连，无需VPN\n'
+                    '• 支持社区投稿',
+                    style: TextStyle(
+                      fontSize: DesignTokens.fontSizeSm,
+                      height: 1.6,
+                      color: isDark
+                          ? DesignTokens.darkTextSecondary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: DesignTokens.spaceLg),
+            Text(
+              'ACC国际站 因技术不稳定与法律风险已关闭入口，代码暂未删除。',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

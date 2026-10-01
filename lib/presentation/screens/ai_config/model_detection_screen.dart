@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/services/model_fingerprint_service.dart';
 import '../../providers/fingerprint_providers.dart';
 import '../../providers/llm_configs_provider.dart';
 import 'fingerprint_result_widget.dart';
+import 'package:kirakira/presentation/widgets/common/kira_button.dart';
 
-/// 极客Probe - 模型深度检测页面
+/// GeekProbe - model deep detection screen
 class ModelDetectionScreen extends ConsumerStatefulWidget {
   const ModelDetectionScreen({super.key});
 
@@ -14,26 +16,29 @@ class ModelDetectionScreen extends ConsumerStatefulWidget {
       _ModelDetectionScreenState();
 }
 
+/// Level gradient colors: quick = accent teal / normal = primary purple / deep = AF52DE.
+/// Gradient endpoints come in pairs; exempt from the palette rules (brand gradients, not theme colors).
+List<Color> _gradientFor(DetectionLevel level) {
+  switch (level) {
+    case DetectionLevel.quick:
+      return const [DesignTokens.accent, Color(0xFF7FE0D8)];
+    case DetectionLevel.normal:
+      return const [DesignTokens.primary, Color(0xFF9F9DF8)];
+    case DetectionLevel.deep:
+      return const [Color(0xFFAF52DE), Color(0xFFC97BEB)];
+  }
+}
+
 class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
   DetectionLevel _selectedLevel = DetectionLevel.normal;
-
-  List<Color> _gradientFor(DetectionLevel level) {
-    switch (level) {
-      case DetectionLevel.quick:
-        return const [Color(0xFF0A84FF), Color(0xFF5AC8FA)];
-      case DetectionLevel.normal:
-        return const [Color(0xFF007AFF), Color(0xFF5856D6)];
-      case DetectionLevel.deep:
-        return const [Color(0xFF5856D6), Color(0xFFAF52DE)];
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(fingerprintProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF000000),
+      // Uses the shared background token (pure black to near-black)
+      backgroundColor: DesignTokens.darkBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -51,9 +56,9 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
             Text(
               '模型深度检测',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: DesignTokens.fontSizeSm,
                 fontWeight: FontWeight.w400,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
               ),
             ),
           ],
@@ -74,7 +79,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── idle：配置 + 三档选择 + 开始 ──────────────────────────────
+  // Idle: judge config + level selection + start button
   Widget _buildIdleView() {
     return SingleChildScrollView(
       key: const ValueKey('idle'),
@@ -94,24 +99,24 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── 折叠说明区 ──────────────────────────────────────────────
+  // Collapsible info section
   Widget _buildInfoSection() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E).withOpacity(0.4),
-        borderRadius: BorderRadius.circular(16),
+        color: DesignTokens.darkCard.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          iconColor: Colors.white.withOpacity(0.5),
-          collapsedIconColor: Colors.white.withOpacity(0.5),
+          iconColor: Colors.white.withValues(alpha: 0.5),
+          collapsedIconColor: Colors.white.withValues(alpha: 0.5),
           title: Text(
             '检测原理与声明',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
             ),
           ),
           childrenPadding:
@@ -125,7 +130,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
               style: TextStyle(
                 fontSize: 12,
                 height: 1.6,
-                color: Colors.white.withOpacity(0.55),
+                color: Colors.white.withValues(alpha: 0.55),
               ),
             ),
           ],
@@ -134,7 +139,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── running：流光进度 ────────────────────────────────────────
+  // Running: progress view
   Widget _buildRunningView(FingerprintState state) {
     final gradient = _gradientFor(_selectedLevel);
     final progress = state.total > 0 ? state.current / state.total : 0.0;
@@ -147,7 +152,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.science_rounded,
-                size: 48, color: gradient[1].withOpacity(0.9)),
+                size: 48, color: gradient[1].withValues(alpha: 0.9)),
             const SizedBox(height: 24),
             _ScanningProgressBar(progress: progress, gradient: gradient),
             const SizedBox(height: 20),
@@ -159,7 +164,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                     : '正在准备…',
                 key: ValueKey(state.current),
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: DesignTokens.fontSizeBodyLarge,
                   fontWeight: FontWeight.w500,
                   color: Colors.white,
                 ),
@@ -171,7 +176,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── 裁判入口 ─────────────────────────────────────────────────
+  // Judge model entry
   Widget _buildJudgeSelector() {
     final judgeId = ref.watch(judgeConfigIdProvider);
     final judgeModel = ref.watch(judgeModelProvider);
@@ -187,25 +192,25 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E).withOpacity(0.6),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        color: DesignTokens.darkCard.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: ListTile(
         leading:
-            Icon(Icons.gavel_rounded, color: Colors.white.withOpacity(0.6)),
+            Icon(Icons.gavel_rounded, color: Colors.white.withValues(alpha: 0.6)),
         title: const Text(
           '裁判模型',
           style: TextStyle(
-              color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+              color: Colors.white, fontSize: DesignTokens.fontSizeBodyLarge, fontWeight: FontWeight.w500),
         ),
         subtitle: Text(
           judgeName ?? '未设置（自评模式，可信度低）',
           style: TextStyle(
-              color: Colors.white.withOpacity(0.5), fontSize: 13),
+              color: Colors.white.withValues(alpha: 0.5), fontSize: DesignTokens.fontSizeSm),
         ),
         trailing:
-            Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.3)),
+            Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.3)),
         onTap: _pickJudge,
       ),
     );
@@ -215,7 +220,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     final configs = ref.read(llmConfigsProvider).configs;
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: DesignTokens.darkSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -229,7 +234,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                 width: 36,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -237,12 +242,12 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
               const Text('选择裁判模型',
                   style: TextStyle(
                       color: Colors.white,
-                      fontSize: 17,
+                      fontSize: DesignTokens.fontSizeXl,
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               ListTile(
                 leading: Icon(Icons.person_off_rounded,
-                    color: Colors.white.withOpacity(0.6)),
+                    color: Colors.white.withValues(alpha: 0.6)),
                 title: const Text('不使用裁判（自评）',
                     style: TextStyle(color: Colors.white)),
                 onTap: () {
@@ -258,13 +263,13 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                   children: configs
                       .map((c) => ListTile(
                             leading: Icon(Icons.smart_toy_rounded,
-                                color: Colors.white.withOpacity(0.6)),
+                                color: Colors.white.withValues(alpha: 0.6)),
                             title: Text(c.name,
                                 style:
                                     const TextStyle(color: Colors.white)),
                             subtitle: Text(c.model ?? '',
                                 style: TextStyle(
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: Colors.white.withValues(alpha: 0.5),
                                     fontSize: 12)),
                             onTap: () {
                               ref
@@ -288,11 +293,11 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── 裁判模型二级选择 ─────────────────────────────────────────
+  // Second-level judge model picker
   Future<void> _pickJudgeModel(String configId) async {
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: DesignTokens.darkSurface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -310,7 +315,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                     width: 36,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -318,7 +323,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                   const Text('选择裁判使用的模型',
                       style: TextStyle(
                           color: Colors.white,
-                          fontSize: 17,
+                          fontSize: DesignTokens.fontSizeXl,
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Flexible(
@@ -331,7 +336,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                         padding: const EdgeInsets.all(24),
                         child: Text('拉取模型失败：$e',
                             style: TextStyle(
-                                color: Colors.white.withOpacity(0.6))),
+                                color: Colors.white.withValues(alpha: 0.6))),
                       ),
                       data: (models) {
                         if (models.isEmpty) {
@@ -339,7 +344,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                             padding: const EdgeInsets.all(24),
                             child: Text('该配置未返回任何模型',
                                 style: TextStyle(
-                                    color: Colors.white.withOpacity(0.6))),
+                                    color: Colors.white.withValues(alpha: 0.6))),
                           );
                         }
                         return ListView(
@@ -347,7 +352,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                           children: models
                               .map((m) => ListTile(
                                     leading: Icon(Icons.memory_rounded,
-                                        color: Colors.white.withOpacity(0.6)),
+                                        color: Colors.white.withValues(alpha: 0.6)),
                                     title: Text(m,
                                         style: const TextStyle(
                                             color: Colors.white)),
@@ -373,7 +378,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── 三档选择 ─────────────────────────────────────────────────
+  // Three-level selection
   Widget _buildLevelSelector() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,9 +386,9 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
         Text(
           '检测档位',
           style: TextStyle(
-            fontSize: 15,
+            fontSize: DesignTokens.fontSizeBodyLarge,
             fontWeight: FontWeight.w600,
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
           ),
         ),
         const SizedBox(height: 12),
@@ -435,30 +440,30 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
       child: AnimatedScale(
         scale: isSelected ? 1.02 : 1.0,
         duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOutCubic,
+        curve: DesignTokens.curveStandard,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
+          curve: DesignTokens.curveStandard,
           decoration: BoxDecoration(
             gradient: isSelected
                 ? LinearGradient(
-                    colors: gradient.map((c) => c.withOpacity(0.85)).toList(),
+                    colors: gradient.map((c) => c.withValues(alpha: 0.85)).toList(),
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
                 : null,
-            color: isSelected ? null : const Color(0xFF2C2C2E).withOpacity(0.6),
-            borderRadius: BorderRadius.circular(20),
+            color: isSelected ? null : DesignTokens.darkCard.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusCard),
             border: Border.all(
               color: isSelected
-                  ? Colors.white.withOpacity(0.4)
-                  : Colors.white.withOpacity(0.1),
+                  ? Colors.white.withValues(alpha: 0.4)
+                  : Colors.white.withValues(alpha: 0.1),
               width: isSelected ? 2 : 1,
             ),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: gradient[0].withOpacity(0.25),
+                      color: gradient[0].withValues(alpha: 0.25),
                       blurRadius: 12,
                       offset: const Offset(0, 8),
                     ),
@@ -470,14 +475,14 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
             children: [
               Icon(icon,
                   size: 32,
-                  color: Colors.white.withOpacity(isSelected ? 1.0 : 0.6)),
+                  color: Colors.white.withValues(alpha: isSelected ? 1.0 : 0.6)),
               const SizedBox(height: 12),
               Text(
                 title,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white.withOpacity(isSelected ? 1.0 : 0.8),
+                  color: Colors.white.withValues(alpha: isSelected ? 1.0 : 0.8),
                 ),
               ),
               const SizedBox(height: 4),
@@ -487,12 +492,12 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
-                  color: Colors.white.withOpacity(isSelected ? 0.85 : 0.5),
+                  color: Colors.white.withValues(alpha: isSelected ? 0.85 : 0.5),
                 ),
               ),
               AnimatedSize(
                 duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
+                curve: DesignTokens.curveStandard,
                 child: isSelected
                     ? Padding(
                         padding: const EdgeInsets.only(top: 12),
@@ -500,9 +505,9 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                           _getLevelDescription(level),
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: DesignTokens.fontSizeCaption,
                             height: 1.4,
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                       )
@@ -527,28 +532,21 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
   }
 
   Widget _buildStartButton() {
-    return ElevatedButton(
+    // Replaced the default ElevatedButton (iOS blue) with KiraButton (filled, primary purple)
+    return KiraButton(
       onPressed: () {
         ref
             .read(fingerprintProvider.notifier)
             .start(level: _selectedLevel);
       },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF007AFF),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 0,
-      ),
       child: const Text(
         '开始检测',
-        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+        style: TextStyle(fontSize: DesignTokens.fontSizeXl, fontWeight: FontWeight.w600),
       ),
     );
   }
 
-  // ── 完成态：报告揭晓 ────────────────────────────────────────
+  // Result state: report reveal
   Widget _buildResultView(FingerprintState state) {
     return _RevealWrapper(
       key: const ValueKey('result'),
@@ -568,14 +566,14 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                   ref.read(fingerprintProvider.notifier).reset(),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
-                side: BorderSide(color: Colors.white.withOpacity(0.25)),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.25)),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
               ),
               child: const Text(
                 '重新检测',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: DesignTokens.fontSizeXl, fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -584,7 +582,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
     );
   }
 
-  // ── 错误态 ───────────────────────────────────────────────────
+  // Error state
   Widget _buildErrorView(String error) {
     return Center(
       key: const ValueKey('error'),
@@ -594,12 +592,12 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline_rounded,
-                size: 48, color: Colors.redAccent.withOpacity(0.8)),
+                size: 48, color: Colors.redAccent.withValues(alpha: 0.8)),
             const SizedBox(height: 20),
             const Text(
               '检测失败',
               style: TextStyle(
-                  fontSize: 17,
+                  fontSize: DesignTokens.fontSizeXl,
                   fontWeight: FontWeight.w600,
                   color: Colors.white),
             ),
@@ -608,9 +606,9 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
               error,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: DesignTokens.fontSizeSm,
                 height: 1.5,
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(height: 24),
@@ -619,11 +617,11 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
                   ref.read(fingerprintProvider.notifier).reset(),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
-                side: BorderSide(color: Colors.white.withOpacity(0.25)),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.25)),
                 padding: const EdgeInsets.symmetric(
                     horizontal: 32, vertical: 14),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
               ),
               child: const Text('返回重试'),
             ),
@@ -634,7 +632,7 @@ class _ModelDetectionScreenState extends ConsumerState<ModelDetectionScreen> {
   }
 }
 
-/// 报告揭晓动画：scale 0.96→1.0 + 淡入
+/// Report reveal animation: scale 0.96 to 1.0 plus fade-in
 class _RevealWrapper extends StatefulWidget {
   final Widget child;
   const _RevealWrapper({super.key, required this.child});
@@ -656,9 +654,9 @@ class _RevealWrapperState extends State<_RevealWrapper>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _fade = CurvedAnimation(parent: _controller, curve: DesignTokens.curveFade);
     _scale = Tween<double>(begin: 0.96, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+      CurvedAnimation(parent: _controller, curve: DesignTokens.curveStandard),
     );
     _controller.forward();
   }
@@ -678,7 +676,7 @@ class _RevealWrapperState extends State<_RevealWrapper>
   }
 }
 
-/// 流光扫描进度条（克制版：3秒缓慢呼吸，不闪烁）
+/// Scanning progress bar (restrained version: 3-second slow breathing, no flicker)
 class _ScanningProgressBar extends StatefulWidget {
   final double progress;
   final List<Color> gradient;
@@ -714,7 +712,7 @@ class _ScanningProgressBarState extends State<_ScanningProgressBar>
       child: Container(
         height: 8,
         decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
+          color: DesignTokens.darkSurface,
           borderRadius: BorderRadius.circular(4),
         ),
         child: LayoutBuilder(
@@ -722,17 +720,17 @@ class _ScanningProgressBarState extends State<_ScanningProgressBar>
             final fullWidth = constraints.maxWidth;
             return Stack(
               children: [
-                // 填充
+                // Fill
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeOut,
+                  curve: DesignTokens.curveFade,
                   width: fullWidth * widget.progress.clamp(0.0, 1.0),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: widget.gradient),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                // 呼吸流光
+                // Breathing shimmer
                 AnimatedBuilder(
                   animation: _controller,
                   builder: (context, _) {
@@ -749,9 +747,9 @@ class _ScanningProgressBarState extends State<_ScanningProgressBar>
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              Colors.white.withOpacity(0.0),
-                              Colors.white.withOpacity(0.45),
-                              Colors.white.withOpacity(0.0),
+                              Colors.white.withValues(alpha: 0.0),
+                              Colors.white.withValues(alpha: 0.45),
+                              Colors.white.withValues(alpha: 0.0),
                             ],
                           ),
                         ),

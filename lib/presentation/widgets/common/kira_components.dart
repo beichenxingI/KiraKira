@@ -1,9 +1,13 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/widgets/common/kira_grouped_tile.dart';
+import 'package:kirakira/presentation/widgets/common/kira_pressable.dart';
 
-/// KiraKira 通用设计组件 · 实色层次方案
-/// 全部读 Theme，明暗主题自动适配；只负责外观，不绑定页面布局。
+/// KiraKira shared design widgets, iOS-style Constitution v2
+/// Zero shadows in dark mode, 0.5 separator hairlines, Cupertino controls, press = scale + darken.
+/// Everything reads Theme and adapts automatically to dark/light.
 
-/// 实色卡片:大圆角 + 双层柔阴影(日间)/ 表面层级+高光边(夜间),做出"浮起"。
+/// Solid card: radius 12, zero shadows, a 0.5 separator hairline only in light mode.
 class KiraCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -23,107 +27,141 @@ class KiraCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // 夜间:表面提亮 + 高光边,不靠阴影;日间:纯卡片色 + 双层柔阴影
-    final List<BoxShadow> shadows = isDark
-        ? const []
-        : [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 24,
-              spreadRadius: -4,
-              offset: const Offset(0, 8),
-            ),
-          ];
+    final cardRadius = BorderRadius.circular(DesignTokens.radiusCard);
 
     return Container(
-      margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      margin: margin ?? DesignTokens.marginCard,
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.06)
-              : theme.dividerColor.withValues(alpha: 0.5),
-          width: 0.8,
-        ),
-        boxShadow: shadows,
+        borderRadius: cardRadius,
+        // Constitution v2: no border at all in dark mode; 0.5 separator hairline in light mode
+        border: isDark
+            ? null
+            : Border.all(color: theme.dividerColor, width: 0.5),
       ),
-      // 去掉 clipBehavior: Clip.antiAlias — child不会超出圆角,无需裁剪,省saveLayer
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-        child: onTap != null
-            ? InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: onTap,
-                child: Padding(
-                  padding: padding ?? const EdgeInsets.all(16),
-                  child: child,
-                ),
-              )
-            : Padding(
-                padding: padding ?? const EdgeInsets.all(16),
+      // clipBehavior omitted (saves a saveLayer); KiraPressable already clips on demand
+      child: onTap != null
+          ? KiraPressable(
+              onTap: onTap,
+              borderRadius: cardRadius,
+              child: Padding(
+                padding: padding ?? DesignTokens.paddingCard,
                 child: child,
               ),
-      ),
+            )
+          : Padding(
+              padding: padding ?? DesignTokens.paddingCard,
+              child: child,
+            ),
     );
   }
 }
 
-/// 分组容器:强调色小标题 + 一张卡片包裹一组内容,分组间敢留白。
+/// Inset-grouped section (A-T4b): one card per group.
+/// Group header = 13pt secondary-color small text; the children stack vertically inside one radius-10 card,
+/// with a 0.5px separator (indent 16) inserted between rows automatically.
+///
+/// Use [KiraSection.plain] (no separators) when the group must stay as one block, e.g. forms and slider groups.
 class KiraSection extends StatelessWidget {
   final String title;
   final List<Widget> children;
   final IconData? icon;
+  /// An action can hang at the top-right of the group header (e.g. an "import preset" icon)
+  final Widget? headerTrailing;
+  final bool _plain;
 
   const KiraSection({
     super.key,
     required this.title,
     required this.children,
     this.icon,
-  });
+    this.headerTrailing,
+  }) : _plain = false;
+
+  /// plain form: the group is a single block (slider group/form), so no separators are inserted
+  KiraSection.plain({
+    super.key,
+    required this.title,
+    required Widget child,
+    this.icon,
+    this.headerTrailing,
+  })  : children = [child],
+        _plain = true;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final labelColor = theme.textTheme.bodySmall?.color ?? theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+    final labelColor = theme.textTheme.bodyMedium?.color;
+
+    final cardRadius = BorderRadius.circular(DesignTokens.radiusMd);
+
+    // Group items: plain form places the child directly; default form inserts a 0.5 separator between rows
+    final items = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      if (!_plain && i > 0) {
+        items.add(Divider(
+          height: 0.5,
+          thickness: 0.5,
+          indent: DesignTokens.spaceMd,
+          color: theme.dividerColor,
+        ));
+      }
+      items.add(children[i]);
+    }
+
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: EdgeInsets.only(
+          top: title.isEmpty ? DesignTokens.spaceSm : DesignTokens.spaceLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(28, 8, 28, 10),
-            child: Row(
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 16, color: labelColor),
-                  const SizedBox(width: 6),
-                ],
-                Text(
-                  title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: labelColor,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            children: children.map((child) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: KiraCard(
-                padding: EdgeInsets.zero,
-                child: child,
+          // Group header: 13pt, secondary color, w600, letterSpacing 0.5 (left offset = margin 16 + 12)
+          // Empty title = pinned high-frequency group with no header (C-T4)
+          if (title.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: DesignTokens.spaceMd + 12,
+                right: DesignTokens.spaceMd,
+                bottom: DesignTokens.spaceSm,
               ),
-            )).toList(),
+              child: Row(
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: 14, color: labelColor),
+                    const SizedBox(width: DesignTokens.spaceXs),
+                  ],
+                  Expanded(
+                    child: Text(
+                      title.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: DesignTokens.fontSizeSm,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                        color: labelColor,
+                      ),
+                    ),
+                  ),
+                  if (headerTrailing != null) headerTrailing!,
+                ],
+              ),
+            ),
+          // One card per group
+          Container(
+            margin: DesignTokens.paddingScreen,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: theme.cardColor, // darkSurface / lightSurface (white)
+              borderRadius: cardRadius,
+              border: isDark
+                  ? null
+                  : Border.all(color: theme.dividerColor, width: 0.5),
+              boxShadow: isDark ? null : DesignTokens.shadowSoft,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: items,
+            ),
           ),
         ],
       ),
@@ -131,7 +169,8 @@ class KiraSection extends StatelessWidget {
   }
 }
 
-/// 微渐变卡片：同色系、小跨度、有光影方向，营造质感而不喧宾夺主。
+/// Subtly gradient card: only allowed in home-page welcome/marketing slots (gradient cards are banned in the settings family).
+/// Radius radiusCard (12), zero shadows; dark mode keeps only a single highlight edge at the top.
 class KiraGradientCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -143,7 +182,7 @@ class KiraGradientCard extends StatelessWidget {
     required this.child,
     this.padding,
     this.margin,
-    this.radius = 16,
+    this.radius = DesignTokens.radiusCard,
   });
 
   @override
@@ -151,39 +190,55 @@ class KiraGradientCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final base = theme.cardColor;
-    // 微渐变：从左上"受光面"稍亮，到右下"背光面"稍暗，跨度极小(约6%明度)
+    // Subtle gradient: slightly lighter at the top-left "lit face", slightly darker at the bottom-right "shaded face", with a very small range
     final lighter = Color.lerp(base, Colors.white, isDark ? 0.06 : 0.5)!;
     final darker = Color.lerp(base, Colors.black, isDark ? 0.12 : 0.03)!;
     return Container(
       margin: margin,
-      padding: padding ?? const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [lighter, base, darker],
-          stops: const [0.0, 0.5, 1.0],
-        ),
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(
-          // 顶部高光边：模拟光线打在上缘，是"高级感"的关键细节
-          color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.5),
-          width: 0.8,
+        child: Stack(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: padding ?? DesignTokens.paddingCard,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [lighter, base, darker],
+                  stops: const [0.0, 0.5, 1.0],
+                ),
+                border: isDark
+                    ? null
+                    : Border.all(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        width: 0.5,
+                      ),
+              ),
+              child: child,
+            ),
+            // Dark mode keeps only the top highlight edge (Constitution A-T4e)
+            if (isDark)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 0.8,
+                  color: Colors.white.withValues(alpha: 0.10),
+                ),
+              ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
-      child: child,
     );
   }
 }
 
-/// 列表项：图标 + 标题 + 副标题 + 尾部控件，统一内边距与圆角高亮。
+/// List item: icon + title + subtitle + trailing control.
+/// Icon color is no longer forced to the primary color; primary is reserved for tappable primary-action buttons (A-T4d).
+/// Prefer KiraGroupedTile inside grouped cards.
 class KiraListTile extends StatelessWidget {
   final IconData? icon;
   final String title;
@@ -205,7 +260,7 @@ class KiraListTile extends StatelessWidget {
     final theme = Theme.of(context);
     return ListTile(
       leading: icon != null
-          ? Icon(icon, color: theme.colorScheme.primary)
+          ? Icon(icon, color: theme.textTheme.bodySmall?.color)
           : null,
       title: Text(
         title,
@@ -213,19 +268,16 @@ class KiraListTile extends StatelessWidget {
           fontWeight: FontWeight.w500,
         ),
       ),
-      subtitle: subtitle != null
-          ? Text(subtitle!,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.textTheme.bodySmall?.color))
-          : null,
+      subtitle: subtitle != null ? Text(subtitle!) : null,
       trailing: trailing,
       onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+      ),
     );
   }
 }
 
-/// 圆润胶囊开关：柔和轨道 + 圆形滑块,替代方形系统开关。
 class KiraSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -234,41 +286,49 @@ class KiraSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final active = theme.colorScheme.primary;
-    final track = value
-        ? active
-        : (isDark
-            ? Colors.white.withValues(alpha: 0.12)
-            : Colors.black.withValues(alpha: 0.10));
+    final isEnabled = onChanged != null;
+
     return GestureDetector(
-      onTap: onChanged == null ? null : () => onChanged!(!value),
+      onTap: isEnabled ? () => onChanged!(!value) : null,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
-        width: 50,
-        height: 30,
-        padding: const EdgeInsets.all(3),
+        duration: DesignTokens.durationQuick,
+        curve: Curves.ease,
+        width: 52,
+        height: 32,
         decoration: BoxDecoration(
-          color: track,
+          color: value
+              ? (isEnabled
+                  ? DesignTokens.primary
+                  : DesignTokens.primary.withValues(alpha: 0.5))
+              : const Color(0xFFE5E5EA),
           borderRadius: BorderRadius.circular(999),
+          boxShadow: value && isEnabled
+              ? [
+                  BoxShadow(
+                    color: DesignTokens.primary.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: AnimatedAlign(
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOut,
-          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          duration: DesignTokens.durationSmooth,
+          curve: DesignTokens.curveBackEase,
+          alignment:
+              value ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
-            width: 24,
-            height: 24,
+            width: 26,
+            height: 26,
+            margin: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 4,
-                  offset: const Offset(0, 1),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -279,9 +339,10 @@ class KiraSwitch extends StatelessWidget {
   }
 }
 
-/// 带圆润开关的列表项:复用 KiraListTile 的排版,整行可点切换。
 class KiraSwitchTile extends StatelessWidget {
   final IconData? icon;
+  final Color? iconBg;
+  final Color? iconColor;
   final String title;
   final String? subtitle;
   final bool value;
@@ -290,6 +351,8 @@ class KiraSwitchTile extends StatelessWidget {
   const KiraSwitchTile({
     super.key,
     this.icon,
+    this.iconBg,
+    this.iconColor,
     required this.title,
     this.subtitle,
     required this.value,
@@ -298,8 +361,10 @@ class KiraSwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return KiraListTile(
+    return KiraGroupedTile(
       icon: icon,
+      iconBg: iconBg,
+      iconColor: iconColor,
       title: title,
       subtitle: subtitle,
       trailing: KiraSwitch(value: value, onChanged: onChanged),

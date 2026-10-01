@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:kirakira/data/models/chat.dart';
 import 'package:kirakira/data/models/character.dart';
+import 'package:kirakira/data/models/chronicle.dart' as models;
+import 'package:kirakira/data/repositories/chronicle_repository.dart';
+import 'package:kirakira/domain/services/vector_storage_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -10,6 +13,12 @@ import 'package:file_picker/file_picker.dart';
 /// Compatible with SillyTavern JSONL format
 class ChatExportService {
   static const List<String> _supportedImportExtensions = ['jsonl', 'json'];
+
+  /// Optional injection: embed kira_chronicle inside the chat file when set
+  final ChronicleRepository? chronicleRepo;
+  final VectorStorageService? vectorStorage;
+
+  ChatExportService({this.chronicleRepo, this.vectorStorage});
 
   /// Export chat to SillyTavern-compatible JSONL format
   ///
@@ -36,6 +45,11 @@ class ChatExportService {
         'note_position': 1,
       },
     };
+    // Embed super memory data (only in KiraKira's own export; SillyTavern import ignores unknown fields)
+    final chronicleData = await _buildChronicleBundle(chat.id);
+    if (chronicleData != null) {
+      metadata['kira_chronicle'] = chronicleData;
+    }
     buffer.writeln(jsonEncode(metadata));
 
     // Message lines
@@ -145,16 +159,22 @@ class ChatExportService {
     final fileName = '${character.name}_${chat.id}.$extension';
 
     // Let user choose save location
+    // file_picker 8.3.7: on mobile, saveFile requires bytes (otherwise it
+    // throws "Bytes are required"); on desktop it only returns the path
+    // without writing the file, so the file must be written manually.
+    final isMobile = Platform.isAndroid || Platform.isIOS;
     final result = await FilePicker.platform.saveFile(
       dialogTitle: 'Save Chat Export',
       fileName: fileName,
+      bytes: isMobile ? utf8.encode(content) : null,
       type: FileType.custom,
       allowedExtensions: [extension],
     );
 
     if (result != null) {
-      final file = File(result);
-      await file.writeAsString(content);
+      if (!isMobile) {
+        await File(result).writeAsString(content);
+      }
       return result;
     }
 
@@ -225,6 +245,10 @@ class ChatExportService {
         authorNote: chatMetadata?['note_prompt'] as String?,
         authorNoteDepth: chatMetadata?['note_depth'] as int?,
         messages: messages,
+        // Carry the memory bundle (null when absent; SillyTavern standard files are unaffected)
+        chronicleData: metadata['kira_chronicle'] is Map
+            ? Map<String, dynamic>.from(metadata['kira_chronicle'] as Map)
+            : null,
       );
     } catch (e) {
       return null;
@@ -278,9 +302,179 @@ class ChatExportService {
     }
   }
 
+  // Chat file embedding (kira_chronicle)
+
+  /// Build the kira_chronicle bundle (entries/entities/relationships/emotions
+  /// + gzip-compressed vectors + window state). Only wiki entry vectors are
+  /// stored, not message original-text vectors (keeps chat export size down).
+  /// Returns null when there is no Chronicle data or no repo was injected.
+  Future<Map<String, dynamic>?> _buildChronicleBundle(String chatId) async {
+    final repo = chronicleRepo;
+    if (repo == null) return null;
+    try {
+      final entries = await repo.getAllEntries(chatId);
+      final entities = await repo.getAllEntities(chatId);
+      final relationships = await repo.getAllRelationships(chatId);
+      final emotions = await repo.getAllEmotions(chatId);
+      if (entries.isEmpty &&
+          entities.isEmpty &&
+          relationships.isEmpty &&
+          emotions.isEmpty) {
+        return null;
+      }
+
+      // Vectors: only chronicle_* documents (coexist with RAG original-text vectors; export only carries wiki vectors)
+      final vectors = <Map<String, dynamic>>[];
+      if (vectorStorage != null) {
+        final collection = vectorStorage!.getCollection(chatId);
+        if (collection != null) {
+          for (final doc in collection.documents) {
+            if (doc.id.startsWith('chronicle_') && doc.embedding != null) {
+              vectors.add({
+                'id': doc.id,
+                'content': doc.content,
+                'embedding': doc.embedding,
+                'metadata': doc.metadata,
+              });
+            }
+          }
+        }
+      }
+
+      final archivedIds = await repo.getArchivedMessageIds(chatId);
+
+      return {
+        'version': 1,
+        'entries': entries.map((e) => e.toJson()).toList(),
+        'entities': entities.map((e) => e.toJson()).toList(),
+        'relationships': relationships.map((r) => r.toJson()).toList(),
+        'emotions': emotions.map((e) => e.toJson()).toList(),
+        // gzip-compressed then base64 (384 dims, ~150 entries is about 80KB)
+        'vectors': _gzipBase64(jsonEncode(vectors)),
+        'window_state': {
+          'archived_message_ids': archivedIds.toList(),
+        },
+      };
+    } catch (e) {
+      // Chronicle bundling failure does not affect chat export
+      return null;
+    }
+  }
+
+  /// Restore Chronicle data to the target chat after import. Imported
+  /// messages get newly generated messageIds, so the archived ids in
+  /// window_state are stale: only entries/entities/relationships/emotions/
+  /// vectors are restored, and window state is naturally rebuilt by the new
+  /// conversation.
+  Future<void> restoreChronicleToChat(
+      String chatId, Map<String, dynamic> bundle) async {
+    final repo = chronicleRepo;
+    if (repo == null) return;
+    try {
+      for (final e in (bundle['entries'] as List? ?? const [])) {
+        if (e is! Map) continue;
+        final entry = models.MemoryEntry.fromJson(
+            Map<String, dynamic>.from(e));
+        // Rebind to the target chat
+        await repo.upsertMemoryEntry(entry.copyWith(
+          chatId: chatId,
+          updatedAt: DateTime.now(),
+        ));
+      }
+      for (final e in (bundle['entities'] as List? ?? const [])) {
+        if (e is! Map) continue;
+        final entity = models.MemoryEntity.fromJson(
+            Map<String, dynamic>.from(e));
+        await repo.upsertEntity(entity.copyWith(
+          chatId: chatId,
+          updatedAt: DateTime.now(),
+        ));
+      }
+      for (final r in (bundle['relationships'] as List? ?? const [])) {
+        if (r is! Map) continue;
+        final rel = models.MemoryRelationship.fromJson(
+            Map<String, dynamic>.from(r));
+        await repo.upsertRelationship(
+          chatId,
+          models.UpsertRelationshipInstruction(
+            fromName: '',
+            toName: '',
+            relationType: rel.relationType,
+            strength: rel.strength,
+            description: rel.description,
+          ),
+          fromEntityId: rel.fromEntityId,
+          toEntityId: rel.toEntityId,
+        );
+      }
+      for (final e in (bundle['emotions'] as List? ?? const [])) {
+        if (e is! Map) continue;
+        final emo = models.EmotionNode.fromJson(
+            Map<String, dynamic>.from(e));
+        await repo.upsertEmotion(
+          chatId,
+          models.UpsertEmotionInstruction(
+            entityName: '',
+            emotion: emo.emotion,
+            intensity: emo.intensity,
+            trigger: emo.trigger,
+            active: emo.isActive,
+          ),
+          entityId: emo.entityId,
+          turnIndex: emo.turnIndex,
+        );
+      }
+
+      // Vector restore (skipped when the target chat's collection does not
+      // exist; the collection is auto-created by loadChat/message sending)
+      final vectorsRaw = bundle['vectors'] as String?;
+      if (vectorsRaw != null && vectorsRaw.isNotEmpty && vectorStorage != null) {
+        try {
+          final vectorsJson = _gunzipBase64(vectorsRaw);
+          final vectors = jsonDecode(vectorsJson) as List;
+          final collection = vectorStorage!.getCollection(chatId);
+          if (collection != null) {
+            for (final v in vectors) {
+              if (v is! Map) continue;
+              final id = v['id'] as String?;
+              final embedding = (v['embedding'] as List?)
+                  ?.map((e) => (e as num).toDouble())
+                  .toList();
+              if (id == null || embedding == null) continue;
+              vectorStorage!.addDocumentWithId(
+                collectionId: chatId,
+                documentId: id,
+                content: v['content'] as String? ?? '',
+                embedding: embedding,
+                metadata: v['metadata'] is Map
+                    ? Map<String, dynamic>.from(v['metadata'] as Map)
+                    : const {},
+              );
+            }
+          }
+        } catch (_) {
+          // Vector restore failure does not block entry restore
+        }
+      }
+    } catch (_) {
+      // Chronicle restore failure does not affect message import
+    }
+  }
+
+  static String _gzipBase64(String json) {
+    final bytes = utf8.encode(json);
+    final compressed = GZipCodec().encode(bytes);
+    return base64Encode(compressed);
+  }
+
+  static String _gunzipBase64(String b64) {
+    final bytes = base64Decode(b64);
+    final decompressed = GZipCodec().decode(bytes);
+    return utf8.decode(decompressed);
+  }
+
   /// Import chat from file
-  Future<ChatImportResult?> importFromFile() async {
-    final result = await FilePicker.platform.pickFiles(
+  Future<ChatImportResult?> importFromFile() async {    final result = await FilePicker.platform.pickFiles(
       type: FileType.any,
       allowMultiple: false,
     );
@@ -298,7 +492,7 @@ class ChatExportService {
     }
 
     final trimmed = content.trimLeft();
-    // JSON 数组开头 → 第三方平台格式
+    // A JSON array means a third-party platform format
     if (trimmed.startsWith('[')) {
       return importFromThirdPartyArray(content);
     }
@@ -319,14 +513,14 @@ class ChatExportService {
     // Try JSON
     return importFromJson(content);
   }
-  /// 导入第三方平台的聊天记录（JSON 数组格式）
-  /// 格式：[{id, role, content, timestamp, image(base64可选), embedding(丢弃)}]
+  /// Import chat history from a third-party platform (JSON array format).
+  /// Format: [{id, role, content, timestamp, image (optional base64), embedding (discarded)}]
   Future<ChatImportResult?> importFromThirdPartyArray(String content) async {
     try {
       final data = jsonDecode(content) as List<dynamic>;
       final messages = <ImportedMessage>[];
 
-      // 图片落地目录
+      // Directory for saving imported images
       final dir = await getApplicationDocumentsDirectory();
       final imgDir = Directory('${dir.path}/imported_images');
       if (!await imgDir.exists()) await imgDir.create(recursive: true);
@@ -334,24 +528,23 @@ class ChatExportService {
       for (final item in data) {
         if (item is! Map<String, dynamic>) continue;
 
-        // role 映射
+        // Role mapping
         final roleStr = item['role'] as String? ?? 'assistant';
         final role = roleStr == 'user'
             ? MessageRole.user
             : (roleStr == 'system' ? MessageRole.system : MessageRole.assistant);
 
-        // timestamp
         final ts = item['timestamp'];
         final timestamp = ts is int
             ? DateTime.fromMillisecondsSinceEpoch(ts)
             : DateTime.now();
 
-        // Base64 图片落地（embedding 直接忽略，不解析）
+        // Save base64 image to disk (embedding is ignored, not parsed)
         final attachments = <ChatAttachment>[];
         final imageData = item['image'] as String?;
         if (imageData != null && imageData.isNotEmpty) {
           try {
-            // 去掉可能的 data:image/xxx;base64, 前缀
+            // Strip a possible data:image/xxx;base64, prefix
             var b64 = imageData;
             var mime = 'image/png';
             if (b64.startsWith('data:')) {
@@ -376,7 +569,7 @@ class ChatExportService {
               sizeBytes: bytes.length,
             ));
           } catch (_) {
-            // 图片解码失败就跳过图片，保留文字
+            // Skip the image on decode failure, keep the text
           }
         }
 
@@ -413,6 +606,8 @@ class ChatImportResult {
   final int? authorNoteDepth;
   final bool? authorNoteEnabled;
   final List<ImportedMessage> messages;
+  /// Raw kira_chronicle bundle (restored by the caller after import)
+  final Map<String, dynamic>? chronicleData;
 
   ChatImportResult({
     required this.userName,
@@ -422,6 +617,7 @@ class ChatImportResult {
     this.authorNoteDepth,
     this.authorNoteEnabled,
     required this.messages,
+    this.chronicleData,
   });
 }
 

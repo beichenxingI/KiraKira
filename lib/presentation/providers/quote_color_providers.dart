@@ -3,29 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'settings_providers.dart';
 
-/// 引号/括号染色配置
-/// 台面主色两个：双引号("")= 主色A，圆括号（()）= 主色B。
-/// 其余符号默认跟随主色A，用户可单独覆盖。
+/// Quote and bracket tint configuration.
+/// Two primary colors: double quotes (") use primary A, parentheses () use primary B.
+/// All other symbols follow primary A by default and can be overridden individually.
 
-// ── 默认颜色 ──
-const int _defaultPrimaryA = 0xFFFFA726; // 双引号：暖橙
-const int _defaultPrimaryB = 0xFF29B6F6; // 圆括号：碧蓝
+// Default colors
+const int _defaultPrimaryA = 0xFFFFA726; // Double quotes: warm orange
+const int _defaultPrimaryB = 0xFF29B6F6; // Parentheses: azure blue
 
-// ── 符号类型 ──
+// Symbol types
 enum QuoteSymbol {
-  doubleQuote, // "" ""  双引号（主色A）
-  parenthesis, // （） () 圆括号（主色B）
-  cornerBracket, // 「」 直角引号
-  doubleCorner, // 『』 双直角引号
-  blackLenticular, // 【】 方头括号
-  bookTitle, // 《》 书名号
-  squareBracket, // [] 英文方括号（默认关）
+  doubleQuote, // "" double quotes (primary A)
+  parenthesis, // () parentheses (primary B)
+  cornerBracket, // 「」 corner brackets
+  doubleCorner, // 『』 double corner brackets
+  blackLenticular, // 【】 black lenticular brackets
+  bookTitle, // 《》 book title marks
+  squareBracket, // [] square brackets (disabled by default)
 }
 
-/// 单个符号的配置
+/// Configuration for a single symbol
 class QuoteSymbolConfig {
   final bool enabled;
-  final int? customColorValue; // null = 跟随主色A
+  final int? customColorValue; // null = follow primary A
 
   const QuoteSymbolConfig({this.enabled = true, this.customColorValue});
 
@@ -37,10 +37,10 @@ class QuoteSymbolConfig {
   }
 }
 
-/// 整体染色状态
+/// Overall tint state
 class QuoteColorState {
-  final int primaryAValue; // 双引号主色
-  final int primaryBValue; // 圆括号主色
+  final int primaryAValue; // Primary color for double quotes
+  final int primaryBValue; // Primary color for parentheses
   final Map<QuoteSymbol, QuoteSymbolConfig> configs;
 
   const QuoteColorState({
@@ -52,13 +52,13 @@ class QuoteColorState {
   Color get primaryA => Color(primaryAValue);
   Color get primaryB => Color(primaryBValue);
 
-  /// 取某符号的实际渲染颜色
+  /// Resolved render color for a symbol
   Color colorFor(QuoteSymbol s) {
     if (s == QuoteSymbol.doubleQuote) return Color(primaryAValue);
     if (s == QuoteSymbol.parenthesis) return Color(primaryBValue);
     final cfg = configs[s];
     if (cfg?.customColorValue != null) return Color(cfg!.customColorValue!);
-    return Color(primaryAValue); // 默认跟随主色A
+    return Color(primaryAValue); // Falls back to primary A
   }
 
   bool enabledFor(QuoteSymbol s) => configs[s]?.enabled ?? true;
@@ -82,7 +82,7 @@ final quoteColorStateProvider =
   return QuoteColorNotifier(prefs);
 });
 
-/// 兼容旧代码（WebView 用）：返回主色A
+/// Backward-compatibility shim for legacy code (WebView): returns primary A
 final quoteColorProvider = Provider<Color>((ref) {
   return ref.watch(quoteColorStateProvider).primaryA;
 });
@@ -101,7 +101,7 @@ class QuoteColorNotifier extends StateNotifier<QuoteColorState> {
     final configs = <QuoteSymbol, QuoteSymbolConfig>{};
     for (final s in QuoteSymbol.values) {
       if (s == QuoteSymbol.doubleQuote || s == QuoteSymbol.parenthesis) continue;
-      final defaultEnabled = s != QuoteSymbol.squareBracket; // []默认关
+      final defaultEnabled = s != QuoteSymbol.squareBracket; // [] disabled by default
       configs[s] = QuoteSymbolConfig(
         enabled: p.getBool(_kEnabled(s)) ?? defaultEnabled,
         customColorValue: p.getInt(_kColor(s)),

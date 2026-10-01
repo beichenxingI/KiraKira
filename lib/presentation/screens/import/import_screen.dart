@@ -1,21 +1,19 @@
-﻿import 'dart:io';
+import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kirakira/data/models/character.dart';
-import 'package:kirakira/data/models/world_info.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/domain/services/import_service.dart';
 import 'package:kirakira/domain/services/url_import_service.dart';
 import 'package:kirakira/presentation/providers/character_providers.dart';
+import 'package:kirakira/presentation/screens/chat/image_picker_sheet.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 /// Import service provider
 final importServiceProvider = Provider<ImportService>((ref) {
@@ -104,7 +102,6 @@ class ImportState {
 class ImportNotifier extends StateNotifier<ImportState> {
   final ImportService _importService;
   final UrlImportService _urlImportService;
-  final ImagePicker _imagePicker = ImagePicker();
 
   ImportNotifier(this._importService, this._urlImportService) : super(const ImportState());
 
@@ -125,26 +122,47 @@ class ImportNotifier extends StateNotifier<ImportState> {
   }
 
       /// Pick character card image from photo gallery (for mobile)
-  Future<void> pickFromGallery() async {
-    try {
-      // 不用 Photo Picker（Android 13+ 会剥离 PNG 元数据）
-      // 改走 FilePicker 文件管理器，拿原始字节
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['png'],
-        allowMultiple: true,
+  /// Uses the in-app photo gallery (photo_manager) and reads originBytes to preserve the
+  /// PNG tEXt chunk holding the embedded character card data (Android 13+ Photo Picker
+  /// strips metadata, so image_picker/system gallery is not used).
+  Future<void> loadPickedImages(List<PickedImage> images) async {
+    if (images.isEmpty) return;
+    state = state.copyWith(isLoading: true, error: null);
+    final results = images.map((img) {
+      return ImportResult(
+        fileName: img.name,
+        filePath: img.name,
+        isProcessing: true,
       );
-      if (result != null && result.files.isNotEmpty) {
-        await loadFiles(
-          result.files.where((f) => f.path != null).map((f) => f.path!).toList(),
+    }).toList();
+
+    state = state.copyWith(
+      results: results,
+      totalFiles: images.length,
+      processedFiles: 0,
+    );
+
+    for (int i = 0; i < images.length; i++) {
+      try {
+        final character =
+            await _importService.importFromPngBytes(images[i].bytes);
+        final updatedResults = List<ImportResult>.from(state.results);
+        updatedResults[i] = updatedResults[i].copyWith(
+          character: character,
+          isProcessing: false,
         );
+        state = state.copyWith(results: updatedResults, processedFiles: i + 1);
+      } catch (e) {
+        final updatedResults = List<ImportResult>.from(state.results);
+        updatedResults[i] = updatedResults[i].copyWith(
+          error: e.toString(),
+          isProcessing: false,
+        );
+        state = state.copyWith(results: updatedResults, processedFiles: i + 1);
       }
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Failed to pick from gallery: $e',
-      );
     }
+
+    state = state.copyWith(isLoading: false);
   }
 
   Future<void> loadFiles(List<String> paths) async {
@@ -309,7 +327,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   @override
   Widget build(BuildContext context) {
     final importState = ref.watch(importStateProvider);
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -335,7 +353,16 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
               isLoading: importState.isLoading,
               error: importState.error,
               onPickFile: () => ref.read(importStateProvider.notifier).pickFile(),
-              onPickFromGallery: () => ref.read(importStateProvider.notifier).pickFromGallery(),
+              onPickFromGallery: () async {
+                // In-app photo gallery (photo_manager); originBytes preserves the
+                // PNG tEXt chunk holding embedded character card data
+                final picked = await showImagePickerSheet(context);
+                if (picked == null || picked.isEmpty) return;
+                if (!context.mounted) return;
+                await ref
+                    .read(importStateProvider.notifier)
+                    .loadPickedImages(picked);
+              },
               onImportUrl: (url) => ref.read(importStateProvider.notifier).importFromUrl(url),
             ),
     );
@@ -345,7 +372,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     final importState = ref.read(importStateProvider);
     if (!importState.hasResults) return;
 
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     int successCount = 0;
     int errorCount = 0;
 
@@ -361,12 +388,17 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         // If the character has an embedded lorebook, create a WorldInfo for it
         if (result.character!.characterBook != null &&
             result.character!.characterBook!.entries.isNotEmpty) {
+          print('[IMP-5] lorebook import FIRED book="${result.character!.characterBook!.name}" entries=${result.character!.characterBook!.entries.length}');
           await _importEmbeddedLorebook(
             ref,
             character.id,
             result.character!.characterBook!,
             result.character!.name,
           );
+        } else {
+          // Not triggered because the book is null (not parsed) or has 0 entries (schema/field issue)
+          print('[IMP-5] lorebook import SKIPPED bookNull=${result.character!.characterBook == null} '
+              'entries=${result.character!.characterBook?.entries.length ?? 'n/a'}');
         }
 
         successCount++;
@@ -394,8 +426,8 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       if (successCount > 0) {
       // Clear and go back if any successful
       if (successCount > 0) {
-        // 导入直接写库,但 characterWorldInfosProvider 有缓存,
-        // 不失效编辑页要重启才看得到新世界书,这里强制整个 family 失效。
+        // Import writes straight to the DB, but characterWorldInfosProvider is cached;
+        // without invalidation the edit screen needs a restart to see the new worldbook, so the whole family is invalidated here.
         ref.invalidate(characterWorldInfosProvider);
         ref.read(importStateProvider.notifier).clear();
         context.pop();
@@ -483,7 +515,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                 padding: const EdgeInsets.all(48),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                   border: Border.all(
                     color: Theme.of(context).dividerColor,
                     width: 2,
@@ -516,7 +548,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                         ElevatedButton.icon(
                           onPressed: widget.onPickFile,
                           icon: const Icon(Icons.folder_open),
-                          label: Text(AppLocalizations.of(context)!.browseFiles),
+                          label: Text(AppLocalizations.of(context).browseFiles),
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(200, 48),
                           ),
@@ -525,7 +557,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                         OutlinedButton.icon(
                           onPressed: widget.onPickFromGallery,
                           icon: const Icon(Icons.photo_library),
-                          label: Text(AppLocalizations.of(context)!.chooseFromGallery),
+                          label: Text(AppLocalizations.of(context).chooseFromGallery),
                           style: OutlinedButton.styleFrom(
                             minimumSize: const Size(200, 48),
                           ),
@@ -534,7 +566,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                         ElevatedButton.icon(
                           onPressed: widget.onPickFile,
                           icon: const Icon(Icons.folder_open),
-                          label: Text(AppLocalizations.of(context)!.browseFiles),
+                          label: Text(AppLocalizations.of(context).browseFiles),
                         ),
                     ],
                   ],
@@ -549,7 +581,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                   border: Border.all(
                     color: Theme.of(context).dividerColor,
                     width: 2,
@@ -600,7 +632,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                             ],
                           ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                           ),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
@@ -615,17 +647,16 @@ class _FilePickerViewState extends State<_FilePickerView> {
                             ),
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
+                      const Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         alignment: WrapAlignment.center,
-                        children: const [
+                        children: [
                           _CommunityChip(name: 'KiraKira', url: 'https://KiraKira.com', isPrimary: true),
-                          _CommunityChip(name: 'Chub.ai', url: 'https://chub.ai/characters'),
+                          _CommunityChip(name: 'AICharacterCards', url: 'https://aicharactercards.com'),
                           _CommunityChip(name: 'JanitorAI', url: 'https://janitorai.com'),
                           _CommunityChip(name: 'Pygmalion', url: 'https://pygmalion.chat'),
                           _CommunityChip(name: 'RisuRealm', url: 'https://realm.risuai.net'),
-                          _CommunityChip(name: 'AICharacterCards', url: 'https://aicharactercards.com'),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -646,7 +677,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                   ),
                   child: Row(
                     children: [
@@ -676,7 +707,7 @@ class _FilePickerViewState extends State<_FilePickerView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          AppLocalizations.of(context)!.supportedFormats,
+          AppLocalizations.of(context).supportedFormats,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: Theme.of(context).colorScheme.tertiary,
               ),
@@ -684,26 +715,26 @@ class _FilePickerViewState extends State<_FilePickerView> {
         const SizedBox(height: 12),
         _FormatTile(
           icon: Icons.image,
-          title: AppLocalizations.of(context)!.pngCharacterCard,
-          description: AppLocalizations.of(context)!.characterDataEmbeddedInImage,
+          title: AppLocalizations.of(context).pngCharacterCard,
+          description: AppLocalizations.of(context).characterDataEmbeddedInImage,
         ),
         const SizedBox(height: 8),
         _FormatTile(
           icon: Icons.archive,
-          title: AppLocalizations.of(context)!.charxArchive,
-          description: AppLocalizations.of(context)!.zipArchiveWithCharacterData,
+          title: AppLocalizations.of(context).charxArchive,
+          description: AppLocalizations.of(context).zipArchiveWithCharacterData,
         ),
         const SizedBox(height: 8),
         _FormatTile(
           icon: Icons.code,
-          title: AppLocalizations.of(context)!.json,
-          description: AppLocalizations.of(context)!.plainCharacterCardJson,
+          title: AppLocalizations.of(context).json,
+          description: AppLocalizations.of(context).plainCharacterCardJson,
         ),
         const SizedBox(height: 8),
         const _FormatTile(
           icon: Icons.link,
           title: '社区链接',
-          description: 'KiraKira, Chub.ai, JanitorAI, Pygmalion, RisuRealm, AICharacterCards',
+          description: 'KiraKira, AICharacterCards, JanitorAI, Pygmalion, RisuRealm',
         ),
       ],
     );
@@ -806,7 +837,7 @@ class _BatchImportResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final successCount = results.where((r) => r.character != null).length;
     final errorCount = results.where((r) => r.error != null).length;
     final processingCount = results.where((r) => r.isProcessing).length;
@@ -1058,11 +1089,11 @@ class _CharacterPreview extends StatelessWidget {
                     height: 100,
                     decoration: BoxDecoration(
                       color: Theme.of(context).dividerColor,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                     ),
                     child: character.assets?.avatarPath != null
                         ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                             child: Image.file(
                               File(character.assets!.avatarPath!),
                               fit: BoxFit.cover,
@@ -1123,7 +1154,7 @@ class _CharacterPreview extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      AppLocalizations.of(context)!.tags,
+                      AppLocalizations.of(context).tags,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             color: Theme.of(context).colorScheme.tertiary,
                           ),
@@ -1188,7 +1219,7 @@ class _CharacterPreview extends StatelessWidget {
                         Icon(Icons.format_list_bulleted, size: 20, color: Theme.of(context).colorScheme.tertiary),
                         const SizedBox(width: 8),
                         Text(
-                          AppLocalizations.of(context)!.alternateGreetingsCount(character.alternateGreetings.length),
+                          AppLocalizations.of(context).alternateGreetingsCount(character.alternateGreetings.length),
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 color: Theme.of(context).colorScheme.tertiary,
                               ),
@@ -1224,7 +1255,7 @@ class _CharacterPreview extends StatelessWidget {
                         Icon(Icons.auto_stories, size: 20, color: Theme.of(context).colorScheme.tertiary),
                         const SizedBox(width: 8),
                         Text(
-                          AppLocalizations.of(context)!.embeddedLorebookEntries(character.characterBook!.entries.length),
+                          AppLocalizations.of(context).embeddedLorebookEntries(character.characterBook!.entries.length),
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 color: Theme.of(context).colorScheme.tertiary,
                               ),
@@ -1266,7 +1297,7 @@ class _CharacterPreview extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: onImport,
             icon: const Icon(Icons.download),
-            label: Text(AppLocalizations.of(context)!.importCharacter),
+            label: Text(AppLocalizations.of(context).importCharacter),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.all(16),
             ),

@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:kirakira/presentation/theme/app_theme.dart';
+import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:kirakira/presentation/widgets/snackbar_utils.dart';
+
+/// Shared "copy to clipboard and notify" implementation (DRY): used by all three components.
+void _copyAndNotify(BuildContext context, String text, {String? message}) {
+  if (text.isEmpty) return;
+  Clipboard.setData(ClipboardData(text: text));
+  showSuccessSnackBar(
+    context,
+    message ?? AppLocalizations.of(context).copiedToClipboard,
+  );
+}
 
 /// A widget that displays text with long-press to copy functionality.
 /// Shows a snackbar when text is copied to clipboard.
@@ -34,26 +46,12 @@ class CopyableText extends StatelessWidget {
     }
 
     return GestureDetector(
-      onLongPress: () => _copyToClipboard(context),
+      onLongPress: () => _copyAndNotify(context, text, message: copyMessage),
       child: Text(
         text,
         style: style,
         maxLines: maxLines,
         overflow: overflow,
-      ),
-    );
-  }
-
-  void _copyToClipboard(BuildContext context) {
-    if (text.isEmpty) return;
-    
-    Clipboard.setData(ClipboardData(text: text));
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(copyMessage ?? 'Copied to clipboard'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -83,6 +81,7 @@ class CopyableListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return ListTile(
       leading: leading,
       title: title,
@@ -90,7 +89,8 @@ class CopyableListTile extends StatelessWidget {
           ? Text(
               subtitle!,
               style: TextStyle(
-                color: AppTheme.textSecondary,
+                color: theme.textTheme.bodySmall?.color ??
+                    DesignTokens.darkTextSecondary,
               ),
             )
           : null,
@@ -98,22 +98,8 @@ class CopyableListTile extends StatelessWidget {
       onTap: onTap,
       enabled: enabled,
       onLongPress: subtitle != null && subtitle!.isNotEmpty
-          ? () => _copyToClipboard(context)
+          ? () => _copyAndNotify(context, subtitle!, message: copyMessage)
           : null,
-    );
-  }
-
-  void _copyToClipboard(BuildContext context) {
-    if (subtitle == null || subtitle!.isEmpty) return;
-    
-    Clipboard.setData(ClipboardData(text: subtitle!));
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(copyMessage ?? 'Copied: $subtitle'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
     );
   }
 }
@@ -142,28 +128,16 @@ class CopyableSwitchListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onLongPress: () => _copyToClipboard(context),
+      onLongPress: () {
+        final textToCopy = subtitle ?? titleText ?? '';
+        _copyAndNotify(context, textToCopy, message: copyMessage);
+      },
       child: SwitchListTile(
         secondary: secondary,
         title: title ?? (titleText != null ? Text(titleText!) : null),
         subtitle: subtitle != null ? Text(subtitle!) : null,
         value: value,
         onChanged: onChanged,
-      ),
-    );
-  }
-
-  void _copyToClipboard(BuildContext context) {
-    final textToCopy = subtitle ?? titleText ?? '';
-    if (textToCopy.isEmpty) return;
-    
-    Clipboard.setData(ClipboardData(text: textToCopy));
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(copyMessage ?? 'Copied: $textToCopy'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
       ),
     );
   }

@@ -6,15 +6,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kirakira/core/logger/logger.dart';
 import 'package:kirakira/domain/services/announcement_service.dart';
 import 'package:kirakira/presentation/providers/announcement_provider.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 
-/// 已读公告版本的存储键
-const String _kSeenKey = 'seen_announcement_version';
+/// Storage key for the read-announcement hash (written after the dialog is closed)
+const String _kSeenHashKey = 'seen_announcement_hash';
 
-/// 启动转圈页
+/// Temporarily stores the hash fetched during startup; written as read after the dialog closes
+const String _kPendingHashKey = '_pending_announcement_hash';
+
+/// Legacy version-number key (deprecated; removed on first launch to avoid confusion)
+const String _kLegacyVersionKey = 'seen_announcement_version';
+
+/// Splash screen.
 ///
-/// 作为初始路由。后台并行拉取公告 + 最短停留 1.5 秒（覆盖初始化时间），
-/// 完成后跳主界面。拉到的未读公告写入 pendingAnnouncementProvider，
-/// 由主界面读取弹窗。任何失败都静默，绝不阻塞进入 app。
+/// Initial route. Fetches announcements in the background while staying at
+/// least 1.5s (covers initialization), then navigates to the main screen.
+/// Unread announcements are written to pendingAnnouncementProvider and shown
+/// by the main screen. Every failure is silent and never blocks app entry.
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -43,9 +51,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _bootstrap() async {
-    // 先并行等最短停留，再单独取公告结果，避免类型混用
+    // Start the announcement fetch in parallel with the minimum stay, then await its result separately to keep the two futures distinct
     final announcementFuture = _resolveAnnouncement();
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
     final announcement = await announcementFuture;
 
     if (!mounted) return;
@@ -55,22 +63,36 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     context.go('/');
   }
 
-  /// 拉取并判断是否需要展示，返回待弹公告或 null
+  /// Fetches the announcement and decides whether to show it; returns it or null.
+  ///
+  /// Hash comparison: shown only when the content changed. The read marker is
+  /// not written here but after the dialog closes (handled by the main_page caller).
+  /// Also migrates away the legacy seen_announcement_version key.
   Future<Announcement?> _resolveAnnouncement() async {
     try {
-      final a = await AnnouncementService().fetch();
-      if (a == null || !a.hasContent) {
+      final (a, hash) = await AnnouncementService().fetchUpdate();
+
+      if (a == null || hash == null || !a.hasContent) {
         KiraLogger().info('公告', '无可展示内容，跳过');
         return null;
       }
+
       final prefs = await SharedPreferences.getInstance();
-      final seen = prefs.getString(_kSeenKey);
-      if (seen == a.version) {
-        KiraLogger().info('公告', '版本 ${a.version} 已读过，跳过');
+
+      // Migration: remove the legacy version key (first run only)
+      if (prefs.containsKey(_kLegacyVersionKey)) {
+        await prefs.remove(_kLegacyVersionKey);
+      }
+
+      final seenHash = prefs.getString(_kSeenHashKey);
+      if (seenHash == hash) {
+        KiraLogger().info('公告', '哈希 ${hash.substring(0, 8)} 已读，跳过');
         return null;
       }
-      await prefs.setString(_kSeenKey, a.version);
-      KiraLogger().info('公告', '待展示 版本 ${a.version}');
+
+      // Do not write the read marker here; store the hash temporarily for use after the dialog closes
+      await prefs.setString(_kPendingHashKey, hash);
+      KiraLogger().info('公告', '待展示 哈希 ${hash.substring(0, 8)}');
       return a;
     } catch (e) {
       KiraLogger().error('公告', '处理异常: $e');
@@ -81,7 +103,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0d0d1a),
+      backgroundColor: DesignTokens.darkBackground,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -92,29 +114,31 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 scale: _breathe.drive(Tween(begin: 0.9, end: 1.1)),
                 child: const Icon(
                   Icons.auto_awesome,
-                  color: Color(0xFFa78bfa),
+                  // TODO(token, pending approval): brandPurple(0xFFa78bfa) is the brand bright purple;
+                  // use primary until the token is approved
+                  color: DesignTokens.primary,
                   size: 56,
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: DesignTokens.spaceLg),
             const Text(
               'KiraKira',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 22,
+                fontSize: DesignTokens.fontSize2xl,
                 fontWeight: FontWeight.w300,
                 letterSpacing: 4,
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: DesignTokens.spaceXl),
             SizedBox(
               width: 24,
               height: 24,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation(
-                  const Color(0xFFa78bfa).withValues(alpha: 0.7),
+                  DesignTokens.primary.withValues(alpha: 0.7),
                 ),
               ),
             ),

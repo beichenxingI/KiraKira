@@ -1,4 +1,5 @@
-import 'dart:convert';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:kirakira/domain/services/vector_storage_service.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
+import 'package:kirakira/presentation/widgets/common/kira_components.dart';
 
 /// Settings screen for Vector Storage / RAG
 class VectorStorageSettingsScreen extends ConsumerWidget {
@@ -19,30 +21,39 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
     final service = ref.watch(vectorStorageServiceProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.vectorStorageRag),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: () => _showHelpDialog(context, service),
-            tooltip: '帮助',
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(
+              AppLocalizations.of(context).vectorStorageRag,
+              style: Theme.of(context).textTheme.displayLarge,
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(CupertinoIcons.question_circle),
+                onPressed: () => _showHelpDialog(context, service),
+                tooltip: '帮助',
+              ),
+            ],
           ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Enable toggle
-          SwitchListTile(
-            title: const Text('启用 RAG'),
-            subtitle: const Text('检索增强生成'),
-            value: settings.enabled,
-            onChanged: (value) {
-              ref.read(vectorStorageSettingsProvider.notifier).setEnabled(value);
-            },
-          ),
-          const Divider(height: 32),
-
+          SliverList(
+            delegate: SliverChildListDelegate([
+              // Enable toggle
+              KiraSection(
+                title: '',
+                children: [
+                  KiraSwitchTile(
+                    title: '启用 RAG',
+                    subtitle: '检索增强生成',
+                    value: settings.enabled,
+                    onChanged: (value) {
+                      ref
+                          .read(vectorStorageSettingsProvider.notifier)
+                          .setEnabled(value);
+                    },
+                  ),
+                ],
+              ),
           // Collections section
           _buildSectionHeader(context, 'Collections'),
           const SizedBox(height: 8),
@@ -145,7 +156,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
             },
           ),
 
-          // Embedding API 配置（local 模式用本地模型，无需填）
+          // Embedding API config (local mode uses an on-device model, no config needed)
           if (settings.embeddingProvider != EmbeddingProvider.local) ...[
             const SizedBox(height: 12),
             TextFormField(
@@ -178,10 +189,10 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
           ] else ...[
             const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(DesignTokens.spaceMd),
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                 border: Border.all(
                   color: AppTheme.primaryColor.withValues(alpha: 0.3),
                 ),
@@ -209,7 +220,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
                   const Text(
                     '使用设备本地的 bge-small-zh 模型生成向量，无需 API、'
                     '不花费任何 token、聊天内容不出设备。首次使用会加载模型（约24MB），稍有延迟。',
-                    style: TextStyle(fontSize: 13, height: 1.5),
+                    style: TextStyle(fontSize: DesignTokens.fontSizeSm, height: 1.5),
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -219,7 +230,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
                     '· 三星 Exynos 2200 及以上\n'
                     '配置较低的设备仍可使用，但速度较慢、发热较明显。',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: DesignTokens.fontSizeXs,
                       height: 1.5,
                       color: Theme.of(context)
                           .textTheme
@@ -232,7 +243,7 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
                   Text(
                     'KiraKira 致力于让每个人都能用上安全、免费的 AI 聊天体验。',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: DesignTokens.fontSizeCaption,
                       fontStyle: FontStyle.italic,
                       color: Theme.of(context)
                           .textTheme
@@ -251,9 +262,9 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
           // Prompt settings
           _buildSectionHeader(context, 'Prompt Integration'),
           const SizedBox(height: 8),
-          SwitchListTile(
-            title: const Text('包含在提示词中'),
-            subtitle: const Text('自动向 AI 提示词添加上下文'),
+          KiraSwitchTile(
+            title: '包含在提示词中',
+            subtitle: '自动向 AI 提示词添加上下文',
             value: settings.includeInPrompt,
             onChanged: settings.enabled
                 ? (value) {
@@ -263,20 +274,22 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           TextFormField(
-            initialValue: settings.promptTemplate,
-            decoration: const InputDecoration(
-              labelText: '提示词模板',
-              hintText: '使用 {{context}} 表示检索内容',
-              border: OutlineInputBorder(),
+              initialValue: settings.promptTemplate,
+              decoration: const InputDecoration(
+                labelText: '提示词模板',
+                hintText: '使用 {{context}} 表示检索内容',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 5,
+              enabled: settings.enabled && settings.includeInPrompt,
+              onChanged: (value) {
+                ref.read(vectorStorageSettingsProvider.notifier).setPromptTemplate(value);
+              },
             ),
-            maxLines: 5,
-            enabled: settings.enabled && settings.includeInPrompt,
-            onChanged: (value) {
-              ref.read(vectorStorageSettingsProvider.notifier).setPromptTemplate(value);
-            },
-          ),
 
           const SizedBox(height: 32),
+        ]),
+          ),
         ],
       ),
     );
@@ -293,19 +306,70 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
   }
 
   void _showHelpDialog(BuildContext context, VectorStorageService service) {
-    showDialog(
+    // Help presented as a scrollable bottom sheet
+    showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('\u5411\u91cf\u68c0\u7d22\u5e2e\u52a9'),
-        content: SingleChildScrollView(
-          child: Text(service.getHelpText()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (dialogCtx) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: MediaQuery.of(dialogCtx).size.width - 64 < 400 ? MediaQuery.of(dialogCtx).size.width - 64 : 400.0,
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            decoration: BoxDecoration(
+              color: Theme.of(dialogCtx).colorScheme.surface,
+              borderRadius: BorderRadius.circular(DesignTokens.radiusBottomSheet),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SafeArea(
+              child: DraggableScrollableSheet(
+                initialChildSize: 0.6,
+                minChildSize: 0.4,
+                maxChildSize: 0.9,
+                expand: false,
+                builder: (ctx, scrollCtrl) => Column(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(DesignTokens.spaceMd),
+                      child: Text(
+                        '向量检索帮助',
+                        style: TextStyle(
+                          fontSize: DesignTokens.fontSizeHeadline,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 0.5),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: scrollCtrl,
+                        padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                        child: Text(service.getHelpText()),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: () => Navigator.pop(dialogCtx),
+                          child: Text(AppLocalizations.of(context).close),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -315,75 +379,113 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
     final descController = TextEditingController();
     final settings = ref.read(vectorStorageSettingsProvider);
 
-    showDialog(
+    // Two-field form in a bottom sheet (keyboard-aware)
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('创建集合'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                hintText: '输入集合名称',
-              ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descController,
-              decoration: const InputDecoration(
-                labelText: 'Description (optional)',
-              ),
-            ),
-          ],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '创建集合',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: nameController,
+                autofocus: true,
+                placeholder: '集合名称',
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 12),
+              CupertinoTextField(
+                controller: descController,
+                placeholder: '描述(可选)',
+                maxLines: 2,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    if (nameController.text.trim().isNotEmpty) {
+                      final collection = ref
+                          .read(vectorCollectionsProvider.notifier)
+                          .createCollection(
+                            name: nameController.text.trim(),
+                            description:
+                                descController.text.trim().isEmpty
+                                    ? null
+                                    : descController.text.trim(),
+                            dimensions: settings
+                                .embeddingProvider.defaultDimensions,
+                          );
+                      ref
+                          .read(vectorStorageSettingsProvider.notifier)
+                          .setActiveCollection(collection.id);
+                      Navigator.pop(sheetCtx);
+                    }
+                  },
+                  child: const Text('创建'),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              if (nameController.text.trim().isNotEmpty) {
-                final collection = ref.read(vectorCollectionsProvider.notifier).createCollection(
-                  name: nameController.text.trim(),
-                  description: descController.text.trim().isEmpty ? null : descController.text.trim(),
-                  dimensions: settings.embeddingProvider.defaultDimensions,
-                );
-                ref.read(vectorStorageSettingsProvider.notifier).setActiveCollection(collection.id);
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('创建'),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   void _confirmDeleteCollection(BuildContext context, WidgetRef ref, String id) {
-    showDialog(
+    // Destructive confirmation uses a CupertinoAlertDialog
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => CupertinoAlertDialog(
         title: const Text('删除集合'),
         content: const Text('确定要删除此集合吗？此操作不可撤销。'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('取消'),
           ),
-          TextButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () {
               ref.read(vectorCollectionsProvider.notifier).deleteCollection(id);
               final settings = ref.read(vectorStorageSettingsProvider);
               if (settings.activeCollectionId == id) {
                 ref.read(vectorStorageSettingsProvider.notifier).setActiveCollection(null);
               }
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('删除'),
           ),
         ],
@@ -407,40 +509,70 @@ class VectorStorageSettingsScreen extends ConsumerWidget {
 
   void _importCollection(BuildContext context, WidgetRef ref) {
     final controller = TextEditingController();
-    showDialog(
+    // Multi-line JSON import in a bottom sheet
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('导入集合'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'JSON',
-            hintText: '在此粘贴集合 JSON',
-          ),
-          maxLines: 5,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '导入集合',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: controller,
+                placeholder: '粘贴集合 JSON',
+                maxLines: 6,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    try {
+                      ref
+                          .read(vectorCollectionsProvider.notifier)
+                          .importCollection(controller.text);
+                      Navigator.pop(sheetCtx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('集合导入成功')),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Import failed: $e')),
+                      );
+                    }
+                  },
+                  child: const Text('导入'),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              try {
-                ref.read(vectorCollectionsProvider.notifier).importCollection(controller.text);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('集合导入成功')),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Import failed: $e')),
-                );
-              }
-            },
-            child: const Text('导入'),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -563,7 +695,7 @@ class _CollectionDetails extends ConsumerWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(DesignTokens.spaceMd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -585,7 +717,7 @@ class _CollectionDetails extends ConsumerWidget {
                       icon: const Icon(Icons.delete, size: 20),
                       onPressed: onDelete,
                       tooltip: 'Delete',
-                      color: Colors.red,
+                      color: DesignTokens.statusError,
                     ),
                   ],
                 ),
@@ -647,99 +779,171 @@ class _CollectionDetails extends ConsumerWidget {
 
   void _showAddDocumentDialog(BuildContext context, WidgetRef ref) {
     final controller = TextEditingController();
-    showDialog(
+    // Multi-line document input in a bottom sheet
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('添加文档'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: '内容',
-            hintText: '输入文档内容',
-          ),
-          maxLines: 5,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '添加文档',
+                style: TextStyle(
+                  fontSize: DesignTokens.fontSizeHeadline,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: controller,
+                placeholder: '输入文档内容',
+                maxLines: 6,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(sheetCtx).colorScheme.surfaceContainerHighest,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusGroupedCard),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () async {
+                    if (controller.text.trim().isEmpty) return;
+                    final messenger = ScaffoldMessenger.of(context);
+                    final navigator = Navigator.of(sheetCtx);
+                    try {
+                      await ref
+                          .read(vectorCollectionsProvider.notifier)
+                          .addDocument(
+                            collectionId: collectionId,
+                            content: controller.text.trim(),
+                          );
+                      navigator.pop();
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('文档已添加')),
+                      );
+                    } catch (e) {
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('添加失败(检查Embedding配置): $e')),
+                      );
+                    }
+                  },
+                  child: const Text('添加'),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () async {
-              if (controller.text.trim().isEmpty) return;
-              final messenger = ScaffoldMessenger.of(context);
-              final navigator = Navigator.of(context);
-              try {
-                await ref.read(vectorCollectionsProvider.notifier).addDocument(
-                      collectionId: collectionId,
-                      content: controller.text.trim(),
-                    );
-                navigator.pop();
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('文档已添加')),
-                );
-              } catch (e) {
-                messenger.showSnackBar(
-                  SnackBar(content: Text('添加失败（检查Embedding配置）: $e')),
-                );
-              }
-            },
-            child: const Text('添加'),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   void _showDocumentsDialog(BuildContext context, WidgetRef ref, VectorCollection collection) {
-    showDialog(
+    // Document list in a scrollable bottom sheet
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('文档 (${collection.documentCount})'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: collection.documents.isEmpty
-              ? const Center(child: Text('没有文档'))
-              : ListView.builder(
-                  itemCount: collection.documents.length,
-                  itemBuilder: (context, index) {
-                    final doc = collection.documents[index];
-                    return Card(
-                      child: ListTile(
-                        title: Text(
-                          doc.content.length > 100
-                              ? '${doc.content.substring(0, 100)}...'
-                              : doc.content,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          '${doc.content.length} chars • ${doc.embedding != null ? "Embedded" : "Not embedded"}',
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete, size: 20),
-                          onPressed: () {
-                            ref.read(vectorCollectionsProvider.notifier).removeDocument(
-                              collectionId,
-                              doc.id,
-                            );
-                            Navigator.pop(context);
-                            _showDocumentsDialog(context, ref, 
-                              ref.read(vectorCollectionsProvider).firstWhere((c) => c.id == collectionId));
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                ),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DesignTokens.radiusBottomSheet),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(sheetCtx).height * 0.7,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                child: Text(
+                  '文档 (${collection.documentCount})',
+                  style: const TextStyle(
+                    fontSize: DesignTokens.fontSizeHeadline,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Divider(height: 0.5),
+              Expanded(
+                child: collection.documents.isEmpty
+                    ? const Center(child: Text('没有文档'))
+                    : ListView.builder(
+                        itemCount: collection.documents.length,
+                        itemBuilder: (context, index) {
+                          final doc = collection.documents[index];
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: DesignTokens.spaceMd,
+                              vertical: DesignTokens.spaceXs,
+                            ),
+                            child: Card(
+                              child: ListTile(
+                                title: Text(
+                                  doc.content.length > 100
+                                      ? '${doc.content.substring(0, 100)}...'
+                                      : doc.content,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Text(
+                                  '${doc.content.length} chars • ${doc.embedding != null ? "Embedded" : "Not embedded"}',
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete,
+                                      size: 20,
+                                      color: DesignTokens.statusError),
+                                  onPressed: () {
+                                    ref
+                                        .read(vectorCollectionsProvider
+                                            .notifier)
+                                        .removeDocument(
+                                          collectionId,
+                                          doc.id,
+                                        );
+                                    Navigator.pop(sheetCtx);
+                                    _showDocumentsDialog(
+                                        context,
+                                        ref,
+                                        ref
+                                            .read(vectorCollectionsProvider)
+                                            .firstWhere(
+                                                (c) => c.id == collectionId));
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(DesignTokens.spaceMd),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(sheetCtx),
+                    child: const Text('关闭'),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -758,10 +962,10 @@ class _StatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceSm, vertical: DesignTokens.spaceXs),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

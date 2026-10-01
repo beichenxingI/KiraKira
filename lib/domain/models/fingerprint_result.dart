@@ -7,9 +7,9 @@ class FingerprintResult {
   final List<QuestionScore> questionScores;
   final int totalTokens;
   final String disclaimer;
-  final double? consistencyScore; // 掺假检测：多次同问的一致性 0~1，null=未检测
-  final bool suspectedMixedPool; // 疑似多模型混池（掺假）
-  final String? downgradeNote; // 缩水判定：实测明显低于家族基准时的说明，null=正常
+  final double? consistencyScore; // Adulteration detection: consistency across repeated identical questions, 0-1; null = not tested
+  final bool suspectedMixedPool; // Suspected multi-model mixed pool (adulteration)
+  final String? downgradeNote; // Downgrade detection: note when measured performance is clearly below the family baseline; null = normal
 
   const FingerprintResult({
     required this.dimensionScores,
@@ -32,7 +32,7 @@ class ModelFamilyMatch {
   final int totalFeatures;
   final ConfidenceLevel confidence;
   final String? sizeEstimate;
-  final List<String> evidence; // 判定依据(命中的行为特征),支撑保守措辞
+  final List<String> evidence; // Evidence for the verdict (matched behavior features), supporting conservative wording
 
   const ModelFamilyMatch({
     required this.familyName,

@@ -21,19 +21,19 @@ class InstructTemplate with _$InstructTemplate {
     required String name,
     @Default('') String description,
     
-    // === System prompt wrapping ===
+    // System prompt wrapping
     @Default('') String systemPrefix,
     @Default('') String systemSuffix,
     
-    // === User message wrapping ===
+    // User message wrapping
     @Default('') String userPrefix,
     @Default('') String userSuffix,
     
-    // === Assistant message wrapping ===
+    // Assistant message wrapping
     @Default('') String assistantPrefix,
     @Default('') String assistantSuffix,
     
-    // === First message handling ===
+    // First message handling
     /// Different format for first user message
     String? firstUserPrefix,
     String? firstUserSuffix,
@@ -42,7 +42,7 @@ class InstructTemplate with _$InstructTemplate {
     String? firstAssistantPrefix,
     String? firstAssistantSuffix,
     
-    // === Last message handling ===
+    // Last message handling
     /// Different format for last user message (before generation)
     String? lastUserPrefix,
     String? lastUserSuffix,
@@ -51,7 +51,7 @@ class InstructTemplate with _$InstructTemplate {
     String? lastAssistantPrefix,
     String? lastAssistantSuffix,
     
-    // === Input/Output sequences (SillyTavern compatibility) ===
+    // Input/Output sequences (SillyTavern compatibility)
     /// Input sequence (alternative to userPrefix)
     @Default('') String inputSequence,
     /// Output sequence (alternative to assistantPrefix)
@@ -65,26 +65,26 @@ class InstructTemplate with _$InstructTemplate {
     /// Last output sequence
     @Default('') String lastOutputSequence,
     
-    // === Story string formatting ===
+    // Story string formatting
     /// Prefix for story string (character description, scenario, etc.)
     @Default('') String storyStringPrefix,
     /// Suffix for story string
     @Default('') String storyStringSuffix,
     
-    // === Chat formatting ===
+    // Chat formatting
     /// Separator between chat messages
     @Default('') String chatSeparator,
     /// String to mark start of chat
     @Default('') String chatStart,
     
-    // === User alignment message ===
+    // User alignment message
     /// Message to align user expectations (inserted before first user message)
     @Default('') String userAlignmentMessage,
     
-    // === Stop sequences ===
+    // Stop sequences
     @Default([]) List<String> stopSequences,
     
-    // === Behavior options ===
+    // Behavior options
     /// Whether this is a built-in template
     @Default(false) bool isBuiltIn,
     
@@ -124,7 +124,7 @@ class InstructTemplate with _$InstructTemplate {
     /// Whether to force names for all messages
     @Default(false) bool forceNames,
     
-    // === Timestamps ===
+    // Timestamps
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _InstructTemplate;

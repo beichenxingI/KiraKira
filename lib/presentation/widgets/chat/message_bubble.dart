@@ -1,30 +1,19 @@
 import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/presentation/widgets/chat/typing_indicator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:kirakira/data/models/chat.dart';
-import 'package:kirakira/data/models/chat_background.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
-import 'package:kirakira/presentation/providers/background_providers.dart';
-import 'package:kirakira/presentation/providers/bookmark_providers.dart';
-import 'package:kirakira/presentation/providers/chat_providers.dart';
-import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/domain/services/regex_service.dart';
 import 'package:kirakira/presentation/providers/regex_providers.dart';
 import 'package:kirakira/data/models/regex_script.dart';
-import 'package:kirakira/presentation/screens/chat/chat_layout_mode.dart';
 import 'package:kirakira/presentation/widgets/chat/message_content_widget.dart';
 import 'package:kirakira/presentation/widgets/chat/reasoning_widget.dart';
-import 'package:kirakira/presentation/widgets/chat/visual_novel_message_view.dart';
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
-import 'package:image/image.dart' as img;
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
-import 'package:url_launcher/url_launcher.dart';
 
 class MessageBubble extends ConsumerStatefulWidget {
   final ChatMessage message;
@@ -98,7 +87,7 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
     final isUser = widget.message.role == MessageRole.user;
     final hasSwipes = widget.message.swipes.length > 1;
 
-    // 正则处理：拿到所有生效脚本，应用到显示内容
+    // Regex processing: fetch all active scripts and apply them to the displayed content
     final isSimplified = widget.simplified && !_forceFullRender;
     final displayContent = isSimplified ? widget.message.content : _getCachedProcessedContent();
     return Padding(
@@ -215,7 +204,7 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
         color: isUser
             ? AppTheme.accentColor.withValues(alpha: 0.35)
             : Colors.black.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
         border: Border.all(
           color: isUser
               ? AppTheme.accentColor.withValues(alpha: 0.5)
@@ -241,7 +230,7 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
             : (widget.hasBackground
                 ? Colors.transparent.withValues(alpha: widget.bubbleOpacity)
                 : Colors.transparent),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
       );
     }
   }
@@ -300,7 +289,7 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
         child: GestureDetector(
           onTap: () => _showImagePreview(attachments[0]),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 maxWidth: 250,
@@ -333,7 +322,7 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
           return GestureDetector(
             onTap: () => _showImagePreview(attachment),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
               child: Image.file(
                 File(attachment.path),
                 width: 80,
@@ -366,7 +355,7 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
             Center(
               child: InteractiveViewer(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                   child: Image.file(
                     File(attachment.path),
                     errorBuilder: (context, error, stackTrace) => Container(
@@ -574,26 +563,26 @@ class MessageBubbleState extends ConsumerState<MessageBubble> {
     _cachedProcessed = _getProcessedContent();
     return _cachedProcessed!;
   }
-  /// 应用正则脚本到消息内容（只影响显示，不修改原始数据）
+  /// Applies regex scripts to message content (display only; original data is not modified)
   String _getProcessedContent() {
     final originalContent = widget.message.content;
     if (originalContent.isEmpty) return originalContent;
 
-    // 拿到合并后的正则脚本（全局+角色）
+    // Merged regex scripts (global + character)
     final scripts = ref.watch(combinedRegexScriptsProvider(widget.character?.id));
     if (scripts.isEmpty) return originalContent;
 
-    // 确定应用范围
+    // Determine the application scope
     final isUser = widget.message.role == MessageRole.user;
     final placement = isUser ? RegexPlacement.userInput : RegexPlacement.aiOutput;
 
-    // 应用正则（纯渲染层处理，不写回数据库）
+    // Apply regex (render layer only; never written back to the database)
     final processed = RegexService.instance.getRegexedString(
       originalContent,
       placement,
       scripts,
       characterName: widget.character?.name,
-      userName: null, // 如果有用户名配置可以传进来
+      userName: null, // pass a configured user name here if available
       isMarkdown: false,
       isPrompt: false,
       isEdit: false,

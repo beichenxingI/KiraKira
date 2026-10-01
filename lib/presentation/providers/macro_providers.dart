@@ -106,8 +106,8 @@ mixin MacroProcessingMixin {
     final service = MacroService(context);
     return messages.map((msg) {
       return {
-        'role': msg['role']!,
-        'content': service.process(msg['content']!),
+        'role': msg['role'] ?? 'user',
+        'content': service.process(msg['content'] ?? ''),
       };
     }).toList();
   }

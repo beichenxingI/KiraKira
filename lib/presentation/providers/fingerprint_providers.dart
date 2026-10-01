@@ -6,12 +6,12 @@ import '../../domain/services/model_fingerprint_service.dart';
 import 'settings_providers.dart';
 import 'llm_configs_provider.dart';
 
-/// 极客Probe 服务实例
-/// 裁判模型配置id：从配置列表里选中的那个。null = 被测模型自评（可信度低）。
+/// GeekProbe service instance
+/// Judge model config id: the entry selected from the config list; null = self-evaluation by the tested model (low confidence).
 final judgeConfigIdProvider = StateProvider<String?>((ref) => null);
 final judgeModelProvider = StateProvider<String?>((ref) => null);
 
-/// 按存储配置 id 拉取该配置下可用的模型列表（供裁判二级选择）
+/// Lists the models available under the stored config id (for the judge model selector)
 final judgeModelsProvider =
     FutureProvider.family<List<String>, String>((ref, configId) async {
   final baseConfig = ref.read(llmConfigProvider);
@@ -31,7 +31,7 @@ final fingerprintServiceProvider = Provider<ModelFingerprintService>((ref) {
   return ModelFingerprintService();
 });
 
-/// 检测状态：管理 idle → running → done/error 的整个流程
+/// Detection state covering the idle, running, and done/error phases
 class FingerprintState {
   final bool isRunning;
   final int current;
@@ -71,12 +71,12 @@ class FingerprintNotifier extends StateNotifier<FingerprintState> {
 
   FingerprintNotifier(this._ref) : super(const FingerprintState());
 
-  /// 开始检测。checkConsistency 为 true 时额外做掺假检测（费额度）。
+  /// Starts detection. With checkConsistency = true, additionally runs the consistency check (costs extra quota).
   Future<void> start({
     DetectionLevel level = DetectionLevel.deep,
     bool checkConsistency = false,
   }) async {
-    if (state.isRunning) return; // 防止重复触发
+    if (state.isRunning) return; // Guard against duplicate runs
 
     state = const FingerprintState(isRunning: true);
 
@@ -85,14 +85,14 @@ class FingerprintNotifier extends StateNotifier<FingerprintState> {
       final config = _ref.read(llmConfigProvider);
       final llmService = _ref.read(llmServiceProvider);
 
-      // 被测模型
+      // Model under test
       final provider = LlmServiceAdapter(llmService, config);
       final credential = ApiCredential(
         baseUrl: config.apiUrl,
         apiKey: config.apiKey,
       );
 
-      // 裁判模型（可选）：从配置列表里选中的那个当"尺子"
+      // Judge model (optional): the selected config acts as the reference baseline
       LlmProvider? judgeProvider;
       ApiCredential? judgeCredential;
       final judgeId = _ref.read(judgeConfigIdProvider);
@@ -101,7 +101,7 @@ class FingerprintNotifier extends StateNotifier<FingerprintState> {
             _ref.read(llmConfigsProvider).configs.where((c) => c.id == judgeId);
         if (matches.isNotEmpty) {
           final judgeStored = matches.first;
-          // 裁判专属模型优先，其次配置自带模型，最后回退被测模型
+          // Priority: judge-specific model, then the config's own model, finally the model under test
           final judgeModelOverride = _ref.read(judgeModelProvider);
           final resolvedJudgeModel = (judgeModelOverride != null &&
                   judgeModelOverride.isNotEmpty)
@@ -109,7 +109,7 @@ class FingerprintNotifier extends StateNotifier<FingerprintState> {
               : (judgeStored.model == null || judgeStored.model!.isEmpty)
                   ? config.model
                   : judgeStored.model!;
-          // 以当前运行时配置为底，只覆盖裁判的连接信息（url/key/model）
+          // Base on the current runtime config; override only the judge's connection details (URL/key/model)
           final judgeConfig = config.copyWith(
             apiUrl: judgeStored.endpoint,
             apiKey: judgeStored.apiKey ?? '',
@@ -141,7 +141,7 @@ class FingerprintNotifier extends StateNotifier<FingerprintState> {
     }
   }
 
-  /// 清空结果，回到初始状态
+  /// Clears the result and returns to the initial state
   void reset() {
     state = const FingerprintState();
   }

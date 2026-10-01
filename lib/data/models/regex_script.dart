@@ -1,5 +1,6 @@
 /// Regex script model for find/replace patterns in messages
 /// Based on SillyTavern's regex extension
+library;
 
 /// Where the regex script should be applied
 enum RegexPlacement {
@@ -212,7 +213,7 @@ class RegexScript {
                   orElse: () => RegexPlacement.aiOutput,
                 ))
             .toList();
-        // 空(null 或空数组)时默认：用户消息 + 角色消息
+        // Default to user + AI messages when placement is null or empty
         return (parsed == null || parsed.isEmpty)
             ? const [RegexPlacement.userInput, RegexPlacement.aiOutput]
             : parsed;
@@ -246,7 +247,7 @@ class RegexScript {
   factory RegexScript.fromSillyTavernJson(Map<String, dynamic> json, {String? newId}) {
     // Map SillyTavern placement values to our enum
     List<RegexPlacement> parsePlacement(dynamic raw) {
-      // 默认：没有有效 placement 时，对用户消息 + 角色消息生效
+      // Fallback to user + AI messages when no valid placement exists
       const fallback = [RegexPlacement.userInput, RegexPlacement.aiOutput];
       if (raw == null) return fallback;
       final list = raw is List ? raw : [raw];
@@ -260,7 +261,7 @@ class RegexScript {
           default:  return RegexPlacement.aiOutput;
         }
       }).toList();
-      // 空数组也走默认
+      // Empty list also falls back to the default
       return parsed.isEmpty ? fallback : parsed;
     }
 

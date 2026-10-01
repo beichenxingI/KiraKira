@@ -104,9 +104,16 @@ class ChatRepository {
   Future<void> deleteChat(String id) async {
     // Delete all messages first
     await (_db.delete(_db.messages)..where((t) => t.chatId.equals(id))).go();
-    // RAG：级联删除本聊天的向量集合与所有文档（集合 id == chatId）
+    // Cascade-delete the RAG vector collection and all documents for this chat (collection id == chatId)
     await (_db.delete(_db.vectorDocuments)..where((t) => t.collectionId.equals(id))).go();
     await (_db.delete(_db.vectorCollections)..where((t) => t.id.equals(id))).go();
+    // Cascade-delete Chronicle super-memory data (tasks/entries/window state/entities/relationships/emotions)
+    await (_db.delete(_db.summaryTasks)..where((t) => t.chatId.equals(id))).go();
+    await (_db.delete(_db.memoryEntries)..where((t) => t.chatId.equals(id))).go();
+    await (_db.delete(_db.chronicleStates)..where((t) => t.chatId.equals(id))).go();
+    await (_db.delete(_db.memoryEntities)..where((t) => t.chatId.equals(id))).go();
+    await (_db.delete(_db.memoryRelationships)..where((t) => t.chatId.equals(id))).go();
+    await (_db.delete(_db.emotionNodes)..where((t) => t.chatId.equals(id))).go();
     // Delete the chat
     await (_db.delete(_db.chats)..where((t) => t.id.equals(id))).go();
   }
@@ -137,13 +144,45 @@ class ChatRepository {
       characterId: Value(newMessage.characterId),
       characterName: Value(newMessage.characterName),
       attachmentsJson: Value(jsonEncode(newMessage.attachments.map((a) => a.toJson()).toList())),
+      swipesDataJson: Value(jsonEncode(newMessage.swipesData)),
     ));
     
-    // Update chat's updatedAt
+    // Update updatedAt; a user message also sets hasUserMessage (never unset).
+    // This flag drives "discard on exit / startup cleanup": chats that ever had
+    // a message are kept even if all messages are later deleted.
     await (_db.update(_db.chats)..where((t) => t.id.equals(message.chatId)))
-        .write(ChatsCompanion(updatedAt: Value(DateTime.now())));
-    
+        .write(ChatsCompanion(
+      updatedAt: Value(DateTime.now()),
+      hasUserMessage: message.role.name == 'user'
+          ? const Value(true)
+          : const Value.absent(),
+    ));
+
     return newMessage;
+  }
+
+  /// Whether this chat has ever had a user message (reads the persisted flag,
+  /// does not count rows in the messages table)
+  Future<bool> hasUserMessaged(String chatId) async {
+    final row = await (_db.select(_db.chats)
+          ..where((t) => t.id.equals(chatId)))
+        .getSingleOrNull();
+    return row?.hasUserMessage ?? false;
+  }
+
+  /// Startup cleanup: delete all chats that never had a user message
+  /// (cascades to messages/vector data). Covers empty chats left by older
+  /// versions and temporary chats killed before the discard-on-exit path ran.
+  /// Returns the number of deleted chats.
+  Future<int> purgeEmptyChats() async {
+    final emptyIds = await (_db.select(_db.chats)
+          ..where((t) => t.hasUserMessage.equals(false)))
+        .map((row) => row.id)
+        .get();
+    for (final id in emptyIds) {
+      await deleteChat(id);
+    }
+    return emptyIds.length;
   }
 
   /// Update a message
@@ -156,6 +195,8 @@ class ChatRepository {
           characterId: Value(message.characterId),
           characterName: Value(message.characterName),
           attachmentsJson: Value(jsonEncode(message.attachments.map((a) => a.toJson()).toList())),
+          swipesDataJson: Value(jsonEncode(message.swipesData)),
+          isHidden: Value(message.isHidden),
         ));
     
     // Update chat's updatedAt
@@ -165,14 +206,14 @@ class ChatRepository {
     return message;
   }
 
-  /// 清空指定对话的所有消息（导入覆盖时使用）
+  /// Clear all messages of a chat (used when importing over an existing chat)
   Future<void> clearMessages(String chatId) async {
     await (_db.delete(_db.messages)..where((t) => t.chatId.equals(chatId))).go();
   }
   /// Delete a message
   Future<void> deleteMessage(String id) async {
     await (_db.delete(_db.messages)..where((t) => t.id.equals(id))).go();
-    // RAG：级联删除该消息对应的向量（document.id == messageId）
+    // Cascade-delete the vector document for this message (document.id == messageId)
     await (_db.delete(_db.vectorDocuments)..where((t) => t.id.equals(id))).go();
   }
 
@@ -234,6 +275,8 @@ class ChatRepository {
       characterId: row.characterId,
       characterName: row.characterName,
       attachments: _parseAttachments(row.attachmentsJson),
+      swipesData: _parseSwipesData(row.swipesDataJson),
+      isHidden: row.isHidden,
     );
   }
 
@@ -241,6 +284,14 @@ class ChatRepository {
     try {
       final list = jsonDecode(json) as List;
       return list.cast<String>();
+    } catch (_) {
+      return [];
+    }
+  }
+  List<Map<String, dynamic>> _parseSwipesData(String json) {
+    try {
+      final list = jsonDecode(json) as List;
+      return list.map((e) => (e as Map).cast<String, dynamic>()).toList();
     } catch (_) {
       return [];
     }

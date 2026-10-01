@@ -1,8 +1,7 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/database/database.dart';
-import 'package:kirakira/data/models/character.dart' as models;
-import 'package:kirakira/data/repositories/character_repository.dart';
+import 'package:kirakira/data/repositories/chat_repository.dart';
 import 'package:kirakira/data/repositories/world_info_repository.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -55,7 +54,19 @@ class InitializationService {
     
     // Load built-in world infos
     await _loadBuiltInWorldInfos(database);
-    
+
+    // Startup sweep: delete chats that never had a user message
+    // (leftovers from old versions plus temp chats whose process was killed
+    // before the exit discard ran); failures must not block startup
+    try {
+      final purged = await ChatRepository(database).purgeEmptyChats();
+      if (purged > 0) {
+        debugPrint('[空会话] 启动清扫:已删除 $purged 个无用户消息的会话');
+      }
+    } catch (e) {
+      debugPrint('[空会话] 启动清扫失败(跳过): $e');
+    }
+
     _initialized = true;
     debugPrint('✅ KiraKira initialized successfully');
     debugPrint('📁 Data path: $dataPath');

@@ -1,1 +1,1 @@
-String formatChatTime(DateTime dt){var h=dt.hour;var m=dt.minute;return ':';}
+String formatChatTime(DateTime dt){final h=dt.hour;final m=dt.minute;return ':';}

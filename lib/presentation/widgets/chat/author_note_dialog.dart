@@ -75,7 +75,7 @@ class _AuthorNoteDialogState extends ConsumerState<AuthorNoteDialog> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    AppLocalizations.of(context)!.authorsNote,
+                    AppLocalizations.of(context).authorsNote,
                     style: theme.textTheme.titleLarge,
                   ),
                   const Spacer(),
@@ -87,7 +87,7 @@ class _AuthorNoteDialogState extends ConsumerState<AuthorNoteDialog> {
               ),
               const SizedBox(height: 8),
               Text(
-                AppLocalizations.of(context)!.authorsNoteDescription,
+                AppLocalizations.of(context).authorsNoteDescription,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -96,8 +96,8 @@ class _AuthorNoteDialogState extends ConsumerState<AuthorNoteDialog> {
 
               // Enable toggle
               SwitchListTile(
-                title: Text(AppLocalizations.of(context)!.enableAuthorsNote),
-                subtitle: Text(AppLocalizations.of(context)!.injectNoteIntoContext),
+                title: Text(AppLocalizations.of(context).enableAuthorsNote),
+                subtitle: Text(AppLocalizations.of(context).injectNoteIntoContext),
                 value: _enabled,
                 onChanged: (value) {
                   setState(() {
@@ -117,12 +117,12 @@ class _AuthorNoteDialogState extends ConsumerState<AuthorNoteDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          AppLocalizations.of(context)!.injectionDepth,
+                          AppLocalizations.of(context).injectionDepth,
                           style: theme.textTheme.titleSmall,
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          AppLocalizations.of(context)!.messagesFromEndWhereInserted,
+                          AppLocalizations.of(context).messagesFromEndWhereInserted,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -164,7 +164,7 @@ class _AuthorNoteDialogState extends ConsumerState<AuthorNoteDialog> {
 
               // Content field
               Text(
-                AppLocalizations.of(context)!.noteContent,
+                AppLocalizations.of(context).noteContent,
                 style: theme.textTheme.titleSmall,
               ),
               const SizedBox(height: 8),
@@ -175,7 +175,7 @@ class _AuthorNoteDialogState extends ConsumerState<AuthorNoteDialog> {
                   expands: true,
                   textAlignVertical: TextAlignVertical.top,
                   decoration: InputDecoration(
-                    hintText: AppLocalizations.of(context)!.authorsNoteHint,
+                    hintText: AppLocalizations.of(context).authorsNoteHint,
                     border: const OutlineInputBorder(),
                     filled: true,
                     fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
@@ -198,13 +198,13 @@ class _AuthorNoteDialogState extends ConsumerState<AuthorNoteDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: Text(AppLocalizations.of(context)!.cancel),
+                    child: Text(AppLocalizations.of(context).cancel),
                   ),
                   const SizedBox(width: 12),
                   FilledButton.icon(
                     onPressed: _save,
                     icon: const Icon(Icons.save),
-                    label: Text(AppLocalizations.of(context)!.save),
+                    label: Text(AppLocalizations.of(context).save),
                   ),
                 ],
               ),

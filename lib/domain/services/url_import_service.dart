@@ -168,36 +168,83 @@ class UrlImportService {
     }
   }
 
-  /// Chub.ai: GET metadata to find avatar PNG URL, then download the PNG
-  /// which contains embedded character card data.
+  /// Chub.ai: Download character card PNG directly from CDN (avatars.charhub.io),
+  /// which is not geo-blocked. Falls back to API approach for VPN users.
   /// URL format: https://chub.ai/characters/{author}/{name}
   Future<UrlImportResult> _importFromChub(String url) async {
     final uri = Uri.parse(url.trim());
     final pathSegments = uri.pathSegments;
 
-    String? fullPath;
+    String? author;
+    String? name;
     for (int i = 0; i < pathSegments.length - 1; i++) {
       if (pathSegments[i] == 'characters' && i + 2 < pathSegments.length) {
-        fullPath = '${pathSegments[i + 1]}/${pathSegments[i + 2]}';
+        author = pathSegments[i + 1];
+        name = pathSegments[i + 2];
         break;
       }
     }
 
-    if (fullPath == null) {
+    if (author == null || name == null) {
       throw Exception('Invalid Chub.ai URL. Expected: https://chub.ai/characters/{author}/{name}');
     }
 
+    // Step 1: Try CDN direct download (avatars.charhub.io is not geo-blocked)
     try {
-      // Step 1: Get character metadata to find avatar PNG URL
+      final cdnUrl =
+          'https://avatars.charhub.io/avatars/$author/$name/chara_card_v2.png?nocache=${DateTime.now().millisecondsSinceEpoch}';
+
+      final pngResponse = await _dio.get<List<int>>(
+        cdnUrl,
+        options: Options(
+          responseType: ResponseType.bytes,
+          followRedirects: true,
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+
+      if (pngResponse.statusCode == 200 && pngResponse.data != null) {
+        final bytes = Uint8List.fromList(pngResponse.data!);
+        if (_isPngBytes(bytes)) {
+          try {
+            final character = await _importService.importFromPngBytes(bytes);
+            return UrlImportResult(
+              character: character,
+              source: UrlSource.chub,
+              sourceUrl: url,
+            );
+          } catch (_) {
+            // PNG didn't have embedded data, fall through to API
+          }
+        }
+      }
+    } catch (e) {
+      // CDN failed, try API fallback
+    }
+
+    // Step 2: Fallback to API (requires VPN in geo-blocked regions)
+    return _importFromChubApi(url, '$author/$name');
+  }
+
+  /// Fallback: Use chub.ai API to get metadata, then download avatar PNG.
+  /// This requires VPN in geo-blocked regions (China).
+  Future<UrlImportResult> _importFromChubApi(String url, String fullPath) async {
+    try {
       final metaResponse = await _dio.get(
         'https://api.chub.ai/api/characters/$fullPath',
         queryParameters: {'full': 'true'},
         options: Options(
-          headers: {
-            'Accept': 'application/json',
-          },
+          headers: {'Accept': 'application/json'},
+          validateStatus: (status) => status != null && status < 500,
         ),
       );
+
+      if (metaResponse.statusCode == 403) {
+        throw Exception(
+          'Chub.ai API is not available in your region. '
+          'Please enable VPN to access Chub.ai, or check the character URL is correct.',
+        );
+      }
 
       if (metaResponse.statusCode != 200) {
         throw Exception('Chub.ai API returned status ${metaResponse.statusCode}');
@@ -212,7 +259,7 @@ class UrlImportService {
         throw Exception('Invalid Chub.ai response: missing character data');
       }
 
-      // Step 2: Download the avatar PNG which has embedded character card data
+      // Download the avatar PNG which has embedded character card data
       final avatarUrl = node['max_res_url']?.toString();
       if (avatarUrl != null && avatarUrl.isNotEmpty) {
         final pngResponse = await _dio.get<List<int>>(
@@ -250,6 +297,12 @@ class UrlImportService {
 
       throw Exception('Could not extract character data from Chub.ai response');
     } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        throw Exception(
+          'Chub.ai API is not available in your region. '
+          'Please enable VPN to access Chub.ai, or check the character URL is correct.',
+        );
+      }
       if (e.response?.statusCode == 404) {
         throw Exception('Character not found on Chub.ai');
       }

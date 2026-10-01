@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
+import 'package:kirakira/data/models/regex_script.dart' as models;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
@@ -44,6 +47,12 @@ class Chats extends Table {
   TextColumn get authorNote => text().withDefault(const Constant(''))(); // Author's Note content
   IntColumn get authorNoteDepth => integer().withDefault(const Constant(4))(); // Depth for injection
   BoolColumn get authorNoteEnabled => boolean().withDefault(const Constant(false))(); // Whether enabled
+  /// Whether the user has ever sent a message: once set, never unset.
+  /// No flag when leaving the chat page → cascade discard; leftover no-flag
+  /// chats are handled by startup cleanup. A persisted flag is used instead
+  /// of counting messages(user) in real time to cover the "sent then deleted"
+  /// boundary (having ever sent counts).
+  BoolColumn get hasUserMessage => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -66,6 +75,7 @@ class Messages extends Table {
   TextColumn get characterId => text().nullable()(); // For group chats - which character sent this
   TextColumn get characterName => text().nullable()(); // Cached character name
   TextColumn get attachmentsJson => text().withDefault(const Constant('[]'))(); // JSON array of attachments
+  TextColumn get swipesDataJson => text().withDefault(const Constant('[]'))(); // JSON: per-swipe MvuData
 
   @override
   Set<Column> get primaryKey => {id};
@@ -214,26 +224,165 @@ class GlobalStates extends Table {
   @override
   Set<Column> get primaryKey => {key};
 }
-/// 向量文档表 · RAG 持久化
+/// Vector documents table - RAG persistence
 class VectorDocuments extends Table {
   TextColumn get id => text()();
-  TextColumn get collectionId => text()(); // 归属集合，用 chatId 绑定
-  TextColumn get content => text()(); // 原文楼层内容
-  TextColumn get embedding => text().withDefault(const Constant('[]'))(); // JSON 数组，float 向量
-  TextColumn get metadataJson => text().withDefault(const Constant('{}'))(); // JSON，存 role/messageId 等
+  TextColumn get collectionId => text()(); // Owning collection, bound by chatId
+  TextColumn get content => text()(); // Original message (floor) text content
+  TextColumn get embedding => text().withDefault(const Constant('[]'))(); // JSON array of floats (vector)
+  TextColumn get metadataJson => text().withDefault(const Constant('{}'))(); // JSON, stores role/messageId etc.
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column> get primaryKey => {id};
 }
 
-/// 向量集合表 · 每个 chat 一个
+/// Vector collections table - one per chat
 class VectorCollections extends Table {
-  TextColumn get id => text()(); // 用 chatId
+  TextColumn get id => text()(); // Uses chatId
   TextColumn get name => text()();
   TextColumn get description => text().nullable()();
-  IntColumn get dimensions => integer().withDefault(const Constant(512))(); // bge-small-zh 512维
+  IntColumn get dimensions => integer().withDefault(const Constant(384))(); // bge-small-zh, 384 dimensions
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Chronicle summary task queue for asynchronous processing, polled by a foreground timer
+class SummaryTasks extends Table {
+  TextColumn get id => text()();
+  TextColumn get chatId => text()();
+  /// Set of messageIds to summarize (uses messageIds instead of index
+  /// numbers, so deletion/reordering does not shift them)
+  TextColumn get messageIds => text().withDefault(const Constant('[]'))(); // JSON array
+  IntColumn get fromTurn => integer().withDefault(const Constant(0))();
+  IntColumn get toTurn => integer().withDefault(const Constant(0))();
+  /// pending / running / done / failed
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+  TextColumn get resultJson => text().nullable()(); // Raw LLM output (before parsing)
+  TextColumn get error => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get finishedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Wiki entries table - core of the warm zone (filled by the Phase 2 pipeline;
+/// handled legacy summary migration)
+class MemoryEntries extends Table {
+  TextColumn get id => text()();
+  TextColumn get chatId => text()();
+  /// event / state / knowledge
+  TextColumn get type => text().withDefault(const Constant('event'))();
+  TextColumn get title => text()();
+  TextColumn get content => text()();
+  IntColumn get importance => integer().withDefault(const Constant(5))(); // 1-10
+  BoolColumn get alwaysInject => boolean().withDefault(const Constant(false))();
+  BoolColumn get anchor => boolean().withDefault(const Constant(false))(); // Anchor: kept permanently
+  BoolColumn get neverEvict => boolean().withDefault(const Constant(false))();
+  TextColumn get tags => text().withDefault(const Constant('[]'))(); // JSON array
+  TextColumn get entityIds => text().withDefault(const Constant('[]'))(); // JSON array
+  /// Source messages of the entry (set of messageIds)
+  TextColumn get sourceMessageIds => text().withDefault(const Constant('[]'))(); // JSON array
+  IntColumn get turnIndex => integer().withDefault(const Constant(0))();
+  BoolColumn get deprecated => boolean().withDefault(const Constant(false))(); // Deprecated but not deleted (keeps history)
+  /// Corresponds to VectorDocument.id ('chronicle_<entryId>')
+  TextColumn get vectorId => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Per-chat window archive state.
+/// Window state lives in this dedicated Drift table (not embedded in
+/// Chat.settingsJson); the Chat model field is not persisted through the repo.
+class ChronicleStates extends Table {
+  TextColumn get chatId => text()();
+  /// Set of archived messageIds (JSON array)
+  TextColumn get archivedMessageIds => text().withDefault(const Constant('[]'))();
+  /// Serialized ChronicleSettings JSON
+  TextColumn get settingsJson => text().withDefault(const Constant('{}'))();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {chatId};
+}
+
+/// Wiki entities table (persons/places/items/concepts)
+class MemoryEntities extends Table {
+  TextColumn get id => text()();
+  TextColumn get chatId => text()();
+  TextColumn get name => text()();
+  /// person / place / item / concept
+  TextColumn get type => text().withDefault(const Constant('person'))();
+  TextColumn get description => text().withDefault(const Constant(''))();
+  TextColumn get currentState => text().withDefault(const Constant(''))();
+  TextColumn get aliases => text().withDefault(const Constant('[]'))(); // JSON array
+  TextColumn get attributes => text().withDefault(const Constant('{}'))(); // JSON
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Wiki relationships table (between entities)
+class MemoryRelationships extends Table {
+  TextColumn get id => text()();
+  TextColumn get chatId => text()();
+  TextColumn get fromEntityId => text()();
+  TextColumn get toEntityId => text()();
+  TextColumn get relationType => text().withDefault(const Constant('trust'))();
+  IntColumn get strength => integer().withDefault(const Constant(0))(); // -100~100
+  TextColumn get description => text().withDefault(const Constant(''))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Emotion nodes table (roleplay-specific)
+class EmotionNodes extends Table {
+  TextColumn get id => text()();
+  TextColumn get chatId => text()();
+  TextColumn get entityId => text()();
+  TextColumn get emotion => text().withDefault(const Constant(''))();
+  IntColumn get intensity => integer().withDefault(const Constant(5))(); // 1-10
+  TextColumn get trigger => text().withDefault(const Constant(''))();
+  IntColumn get turnIndex => integer().withDefault(const Constant(0))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Dedicated regex scripts table (regex no longer stored in extensions JSON,
+/// eliminating lost-update races).
+/// DataClassName rename: Drift's default singularization of the table name
+/// would generate `RegexScript`, which conflicts with the model class in
+/// data/models/regex_script.dart, hence RegexScriptRow.
+@DataClassName('RegexScriptRow')
+class RegexScripts extends Table {
+  TextColumn get id => text()();
+  /// 'global' or 'character'
+  TextColumn get scope => text().withDefault(const Constant('global'))();
+  /// Character ID (when scope='character')
+  TextColumn get characterId => text().nullable()();
+  /// Serialized RegexScript JSON
+  TextColumn get scriptJson => text().withDefault(const Constant('{}'))();
+  /// Sort order (lower = earlier)
+  IntColumn get order => integer().withDefault(const Constant(0))();
+  /// Whether disabled
+  BoolColumn get disabled => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -255,12 +404,19 @@ class VectorCollections extends Table {
   GlobalStates,
   VectorCollections,
   VectorDocuments,
+  SummaryTasks,
+  MemoryEntries,
+  ChronicleStates,
+  MemoryEntities,
+  MemoryRelationships,
+  EmotionNodes,
+  RegexScripts,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-    int get schemaVersion => 14;
+   int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration {
@@ -338,8 +494,161 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(vectorCollections);
           await m.createTable(vectorDocuments);
         }
+        if (from < 15) {
+          // per-swipe MVU variable data
+          await m.addColumn(messages, messages.swipesDataJson);
+        }
+       if (from < 16) {
+         // Persisted flag for whether a chat ever had a user message; used for
+         // discard-on-exit and startup cleanup.
+         // Fault tolerance: addColumn throws SqliteException(1) if the column
+         // already exists; caught and continued (prevents duplicate migration)
+         try {
+           await m.addColumn(chats, chats.hasUserMessage);
+         } catch (e) {
+           // Silently ignore if the column already exists (duplicate column name)
+           if (!e.toString().toLowerCase().contains('duplicate')) rethrow;
+         }
+         // Backfill: existing chats that already have user messages are flagged
+         // immediately, otherwise valid legacy chats would be misjudged as empty
+         // and purged (backfill is safe even if the column already exists - idempotent)
+         await customStatement(
+           'UPDATE chats SET has_user_message = 1 WHERE id IN '
+           '(SELECT DISTINCT chat_id FROM messages WHERE role = \'user\')',
+         );
+       }
+        if (from < 17) {
+          // Super memory: summary task queue + wiki entries + per-chat window state
+          await m.createTable(summaryTasks);
+          await m.createTable(memoryEntries);
+          await m.createTable(chronicleStates);
+        }
+        if (from < 18) {
+          // Wiki system: entities + relationships + emotion nodes
+          await m.createTable(memoryEntities);
+          await m.createTable(memoryRelationships);
+          await m.createTable(emotionNodes);
+        }
+        if (from < 19) {
+          // Create regex_scripts table (dedicated regex table, schema v18→v19)
+          await m.createTable(regexScripts);
+          debugPrint('[Migration] v18→v19: 创建 regex_scripts 表');
+
+          // Migrate existing character-scoped regex scripts (extensions['regex_scripts'] → table)
+          // Legacy data is kept (dual-read fallback); failures do not block startup.
+          debugPrint('[Migration] ═══ 开始迁移角色级正则 ═══');
+          try {
+            final chars = await select(characters).get();
+            var migratedCharCount = 0;
+            var migratedScriptCount = 0;
+            debugPrint('[Migration] 共 ${chars.length} 个角色待检查');
+            for (final char in chars) {
+              debugPrint('[Migration] 处理角色: ${char.name} (${char.id})');
+              try {
+                final extensions =
+                    jsonDecode(char.extensionsJson) as Map<String, dynamic>;
+                final rawList = extensions['regex_scripts'];
+                if (rawList is! List || rawList.isEmpty) {
+                  debugPrint('[Migration]   无 regex_scripts 字段或为空');
+                  continue;
+                }
+                debugPrint('[Migration]   找到 ${rawList.length} 条正则');
+                // Per-entry independent try-catch + ID deduplication:
+                // a single PK conflict/parse failure no longer aborts the rest
+                // of this character's migration (old code would migrate partially)
+                final seenRowIds = <String>{};
+                for (var i = 0; i < rawList.length; i++) {
+                  final raw = rawList[i];
+                  if (raw is! Map) {
+                    debugPrint('[Migration]   ⚠️ 第 $i 条非 Map，跳过');
+                    continue;
+                  }
+                  try {
+                    final script = _migrateRegexScript(
+                      Map<String, dynamic>.from(raw),
+                      char.id,
+                      i,
+                    );
+                    if (script == null) {
+                      debugPrint('[Migration]   ⚠️ 第 $i 条无法解析，跳过');
+                      debugPrint('[Migration]   原始数据: $raw');
+                      continue;
+                    }
+                    var rowId = script.id;
+                    if (!seenRowIds.add(rowId)) {
+                      rowId =
+                          '${char.id}_migrated_dup_${DateTime.now().microsecondsSinceEpoch}_$i';
+                      debugPrint('[Migration]   ⚠️ 第 $i 条 id 重复，改用 $rowId');
+                    }
+                    await into(regexScripts).insert(RegexScriptsCompanion(
+                      id: Value(rowId),
+                      scope: const Value('character'),
+                      characterId: Value(char.id),
+                      scriptJson: Value(jsonEncode(script.toJson())),
+                      order: Value(i),
+                      disabled: Value(script.disabled),
+                      createdAt: Value(script.createdAt),
+                      updatedAt: Value(script.updatedAt),
+                    ));
+                    migratedScriptCount++;
+                    debugPrint('[Migration]   ✅ 第 $i 条迁移成功 id=$rowId');
+                  } catch (scriptError) {
+                    debugPrint('[Migration]   ❌ 第 $i 条迁移失败: $scriptError');
+                    debugPrint('[Migration]   原始数据: $raw');
+                  }
+                }
+                migratedCharCount++;
+              } catch (charError) {
+                debugPrint('[Migration]   ❌ 角色 ${char.name} 处理失败: $charError');
+                // Continue migrating other characters
+              }
+            }
+            debugPrint(
+                '[Migration] ═══ 角色级正则迁移完成: $migratedCharCount/${chars.length} 个角色, $migratedScriptCount 条脚本 ═══');
+            debugPrint(
+                '[Migration] 全局正则迁移由首启逻辑处理（SharedPreferences → 表）');
+          } catch (migrationError, migrationStack) {
+            debugPrint('[Migration] ❌ 正则迁移失败: $migrationError');
+            debugPrint('[Migration] StackTrace: $migrationStack');
+            // Migration failure does not block app startup (legacy extensions
+            // data remains, dual-read fallback)
+          }
+        }
       },
     );
+  }
+}
+
+/// Single regex script migration: native format first, SillyTavern format as
+/// fallback (hard cast to prevent crashes).
+/// Returns null when parsing fails (that entry is skipped without blocking
+/// the rest of the migration).
+models.RegexScript? _migrateRegexScript(
+  Map<String, dynamic> raw,
+  String characterId,
+  int index,
+) {
+  try {
+    final s = models.RegexScript.fromJson(raw);
+    // Row ID gets a character prefix (prevents PK conflicts for the same ID
+    // across characters, idempotent to avoid prefix stacking);
+    // empty IDs fall back to the index
+    final resolvedId = s.id.isEmpty
+        ? '${characterId}_migrated_$index'
+        : (s.id.startsWith('${characterId}_') ? s.id : '${characterId}_${s.id}');
+    return s.copyWith(id: resolvedId, characterId: s.characterId ?? characterId);
+  } catch (_) {}
+  try {
+    final s = models.RegexScript.fromSillyTavernJson(
+      raw,
+      newId: '${characterId}_migrated_$index',
+    );
+    return s.copyWith(
+      scriptType: models.RegexScriptType.character,
+      characterId: characterId,
+    );
+  } catch (_) {
+    return null;
   }
 }
 

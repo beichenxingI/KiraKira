@@ -1,2 +1,4 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+assets/chat/*.html text eol=lf
+assets/chat/*.js text eol=lf

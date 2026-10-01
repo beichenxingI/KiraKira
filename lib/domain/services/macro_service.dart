@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:intl/intl.dart';
+import 'package:kirakira/domain/services/variables_service.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/data/models/chat.dart';
 import 'package:kirakira/data/models/persona.dart';
@@ -28,6 +30,7 @@ class MacroService {
     result = _processUserMacros(result);
     result = _processChatMacros(result);
     result = _processSpecialMacros(result);
+    result = _processVariableMacros(result);
     
     return result;
   }
@@ -432,6 +435,197 @@ class MacroService {
     
     return result;
   }
+  /// Process variable macros: {{getvar}}, {{setvar}}, {{getglobalvar}}, {{setglobalvar}}
+  /// Aligned with SillyTavern variable macros; reads/writes local (per-chat) and global variables.
+  String _processVariableMacros(String text) {
+    String result = text;
+    final vars = VariablesService.instance;
+    final chatId = context.chatId;
+    bool localChanged = false;
+
+    // {{setvar::name::value}} - Set local variable (set before get, ensuring correct order within the same text)
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{setvar::([^:]+?)::([^}]*)\}\}', caseSensitive: false),
+      (match) {
+        final name = match.group(1)!.trim();
+        final value = match.group(2)!;
+        if (chatId.isNotEmpty && name.isNotEmpty) {
+          vars.setLocalVariable(chatId, name, value);
+          localChanged = true;
+        }
+        return '';
+      },
+    );
+    if (localChanged && chatId.isNotEmpty) {
+      vars.saveLocalVariablesToPrefs(chatId); // Persist once after the whole text is processed
+    }
+
+    // {{setglobalvar::name::value}} - Set global variable
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{setglobalvar::([^:]+?)::([^}]*)\}\}', caseSensitive: false),
+      (match) {
+        final name = match.group(1)!.trim();
+        final value = match.group(2)!;
+        if (name.isNotEmpty) {
+          vars.setGlobalVariable(name, value); // Persistence is async; memory takes effect synchronously
+        }
+        return '';
+      },
+    );
+
+    // {{getvar::name}} - Read local variable
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{getvar::([^}]+?)\}\}', caseSensitive: false),
+      (match) {
+        final name = match.group(1)!.trim();
+        if (chatId.isEmpty || name.isEmpty) return '';
+        final value = vars.getLocalVariable(chatId, name);
+        return value?.toString() ?? '';
+      },
+    );
+
+    // {{getglobalvar::name}} - Read global variable
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{getglobalvar::([^}]+?)\}\}', caseSensitive: false),
+      (match) {
+        final name = match.group(1)!.trim();
+        if (name.isEmpty) return '';
+        final value = vars.getGlobalVariable(name);
+        return value?.toString() ?? '';
+      },
+    );
+
+    // Path variable macros (support JSON Pointer /a/b, dot a.b, and bracket a[0] paths)
+
+    // {{get_message_variable::path}} - Read nested path from current message stat_data
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{get_message_variable::([^}]+?)\}\}', caseSensitive: false),
+      (match) {
+        final path = match.group(1)!.trim();
+        final val = _getNestedValue(context.currentStatData, path);
+        return _valueToString(val);
+      },
+    );
+
+    // {{get_chat_variable::path}} - Read chat-scoped variable (supports paths)
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{get_chat_variable::([^}]+?)\}\}', caseSensitive: false),
+      (match) {
+        final path = match.group(1)!.trim();
+        if (chatId.isEmpty) return '';
+        final val = _getNestedValue(vars.getAllLocalVariables(chatId), path);
+        return _valueToString(val);
+      },
+    );
+
+    // {{get_global_variable::path}} - Read global variable (supports paths)
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{get_global_variable::([^}]+?)\}\}', caseSensitive: false),
+      (match) {
+        final path = match.group(1)!.trim();
+        final val = _getNestedValue(vars.getAllGlobalVariables(), path);
+        return _valueToString(val);
+      },
+    );
+
+    // {{format_message_variable::path}} / {{format_variable::path}} - YAML formatted output
+    result = _replaceAllWithCallback(
+      result,
+      RegExp(r'\{\{format_(?:message_)?variable::([^}]+?)\}\}', caseSensitive: false),
+      (match) {
+        final path = match.group(1)!.trim();
+        final source = path == '*'
+            ? context.currentStatData
+            : _getNestedValue(context.currentStatData, path);
+        return _formatAsYaml(source);
+      },
+    );
+
+    return result;
+  }
+
+  /// Path engine: supports JSON Pointer (/a/b), dot (a.b), and bracket (a[0]/a["k"]) paths
+  /// Prototype-chain paths are rejected (__proto__/constructor/prototype)
+  dynamic _getNestedValue(dynamic obj, String path) {
+    if (obj == null) return null;
+    if (path == '*') return obj;
+
+    if (path.contains('__proto__') ||
+        path.contains('constructor') ||
+        path.contains('prototype')) {
+      return null;
+    }
+
+    List<String> keys;
+    if (path.startsWith('/')) {
+      keys = path.substring(1).split('/').map((k) =>
+        k.replaceAll('~1', '/').replaceAll('~0', '~')).toList();
+    } else {
+      keys = path
+          .replaceAllMapped(RegExp(r'\[([^\]]+)\]'), (m) => '.${m.group(1)}')
+          .split('.')
+          .where((k) => k.isNotEmpty)
+          .toList();
+    }
+
+    dynamic cur = obj;
+    for (final key in keys) {
+      if (cur is Map) {
+        cur = cur[key];
+      } else if (cur is List) {
+        final idx = int.tryParse(key);
+        if (idx == null || idx < 0 || idx >= cur.length) return null;
+        cur = cur[idx];
+      } else {
+        return null;
+      }
+      if (cur == null) return null;
+    }
+    return cur;
+  }
+
+  /// Value to string: objects encode to JSON, others use toString
+  String _valueToString(dynamic val) {
+    if (val == null) return '';
+    if (val is String) return val;
+    if (val is num || val is bool) return val.toString();
+    try {
+      return jsonEncode(val);
+    } catch (_) {
+      return val.toString();
+    }
+  }
+
+  /// YAML formatted output (multi-line with indent alignment)
+  String _formatAsYaml(dynamic obj, {int indent = 0}) {
+    if (obj == null) return '';
+    final pad = '  ' * indent;
+    if (obj is Map) {
+      return obj.entries.map((e) {
+        final v = e.value;
+        if (v is Map || v is List) {
+          return '$pad${e.key}:\n${_formatAsYaml(v, indent: indent + 1)}';
+        }
+        return '$pad${e.key}: $v';
+      }).join('\n');
+    }
+    if (obj is List) {
+      return obj.map((v) {
+        if (v is Map || v is List) {
+          return '$pad- ${_formatAsYaml(v, indent: indent + 1)}';
+        }
+        return '$pad- $v';
+      }).join('\n');
+    }
+    return '$pad$obj';
+  }
   
   /// Evaluate a simple condition
   bool _evaluateCondition(String condition) {
@@ -526,6 +720,9 @@ class MacroContext {
   // Group chat data (optional)
   final List<String> groupCharacterNames;
   
+  // MVU variable state (latest stat_data from swipesData)
+  final Map<String, dynamic>? currentStatData;
+  
   const MacroContext({
     this.userName = 'User',
     this.userDescription = '',
@@ -549,6 +746,7 @@ class MacroContext {
     this.providerName = '',
     this.idleDuration = 0,
     this.groupCharacterNames = const [],
+    this.currentStatData,
   });
   
   /// Create MacroContext from character, persona, and chat data
@@ -591,6 +789,25 @@ class MacroContext {
       idleDuration = DateTime.now().difference(lastMsgTime).inMinutes;
     }
     
+    // Extract latest stat_data from assistant messages' swipesData (MVU variable state)
+    Map<String, dynamic>? currentStatData;
+    if (messages != null) {
+      for (int i = messages.length - 1; i >= 0; i--) {
+        final msg = messages[i];
+        if (msg.role != MessageRole.assistant) continue;
+        final swipesData = msg.swipesData;
+        if (swipesData.isEmpty) continue;
+        final swIdx = msg.currentSwipeIndex >= 0 && msg.currentSwipeIndex < swipesData.length
+            ? msg.currentSwipeIndex : 0;
+        final data = swipesData[swIdx];
+        final stat = data['stat_data'];
+        if (stat is Map && stat.isNotEmpty) {
+          currentStatData = Map<String, dynamic>.from(stat);
+          break;
+        }
+      }
+    }
+    
     return MacroContext(
       userName: persona?.name ?? 'User',
       userDescription: persona?.description ?? '',
@@ -614,6 +831,7 @@ class MacroContext {
       providerName: providerName ?? '',
       idleDuration: idleDuration,
       groupCharacterNames: groupCharacters?.map((c) => c.name).toList() ?? [],
+      currentStatData: currentStatData,
     );
   }
   
@@ -640,6 +858,7 @@ class MacroContext {
     String? providerName,
     int? idleDuration,
     List<String>? groupCharacterNames,
+    Map<String, dynamic>? currentStatData,
   }) {
     return MacroContext(
       userName: userName ?? this.userName,
@@ -664,6 +883,7 @@ class MacroContext {
       providerName: providerName ?? this.providerName,
       idleDuration: idleDuration ?? this.idleDuration,
       groupCharacterNames: groupCharacterNames ?? this.groupCharacterNames,
+      currentStatData: currentStatData ?? this.currentStatData,
     );
   }
 }

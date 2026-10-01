@@ -1,79 +1,37 @@
 import 'package:flutter/foundation.dart';
 import 'package:kirakira/data/models/chat.dart';
+import 'package:kirakira/data/models/chronicle.dart';
 import 'package:kirakira/domain/services/llm_service.dart';
-import 'package:kirakira/domain/services/tokenizer_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Service for automatic chat history summarization
+///
+/// The legacy automatic summarization is disabled (shouldSummarize always
+/// returns false). This service still provides generateSummary (reused by the
+/// Chronicle fallback path) and getRecentMessages/createSummaryMessage (kept
+/// for backward-compatible reads).
 class ChatSummarizationService {
   final LLMService _llmService;
-  final TokenizerService _tokenizerService;
-  
-  ChatSummarizationService(this._llmService, this._tokenizerService);
+
+  ChatSummarizationService(this._llmService);
+
+  /// Absolute token limit (a pure proportional threshold almost never triggers with 1M context)
+  static const int absoluteTokenLimit = 50000;
 
   /// Check if summarization should be triggered based on current context usage
+  ///
+  /// Forcefully disabled: Chronicle super memory takes over all summarization
+  /// (three-window sliding + async SummaryTask pipeline + wiki entries).
+  /// Legacy automatic summarization (in-memory ChatSummary, lost on restart)
+  /// no longer triggers. TODO: delete this service once Chronicle is stable.
   Future<bool> shouldSummarize({
     required List<ChatMessage> messages,
     required List<ChatSummary> existingSummaries,
     required LLMConfig config,
   }) async {
-    if (!config.autoSummarizeEnabled) {
-      return false;
-    }
-
-    // Calculate token usage based on what will actually be in context
-    int contextTokens;
-    
-    if (existingSummaries.isEmpty) {
-      // No summaries yet - count all messages
-      contextTokens = await _estimateTokenCount(messages, []);
-      debugPrint('📊 No summaries yet, counting all ${messages.length} messages');
-    } else {
-      // Have summaries - only count the latest summary + recent messages
-      final latestSummary = existingSummaries.last;
-      final recentMessages = getRecentMessages(
-        allMessages: messages,
-        latestSummary: latestSummary,
-      );
-      
-      // Count: 1 summary + recent messages
-      contextTokens = await _estimateTokenCount(recentMessages, [latestSummary]);
-      debugPrint('📊 Have ${existingSummaries.length} summaries, counting 1 summary + ${recentMessages.length} recent messages');
-    }
-    
-    final maxContext = config.contextLength;
-    final threshold = config.autoSummarizeThreshold;
-    
-    final currentUsage = contextTokens / maxContext;
-    
-    debugPrint('📊 Context usage: $contextTokens / $maxContext tokens (${(currentUsage * 100).toStringAsFixed(1)}%)');
-    debugPrint('📊 Threshold: ${(threshold * 100).toStringAsFixed(1)}%');
-    
-    return currentUsage >= threshold;
-  }
-
-  /// Estimate total token count for messages and summaries
-  Future<int> _estimateTokenCount(
-    List<ChatMessage> messages,
-    List<ChatSummary> summaries,
-  ) async {
-    int totalTokens = 0;
-    
-    // Count summary tokens
-    for (final summary in summaries) {
-      totalTokens += _tokenizerService.estimateTokenCount(summary.content);
-    }
-    
-    // Count message tokens
-    for (final message in messages) {
-      totalTokens += _tokenizerService.estimateTokenCount(message.content);
-      // Also count reasoning if present
-      if (message.reasoning != null) {
-        totalTokens += _tokenizerService.estimateTokenCount(message.reasoning!);
-      }
-    }
-    
-    return totalTokens;
+    // Chronicle has taken over summarization; legacy automatic summarization is disabled.
+    // TODO: delete this service once Chronicle is stable.
+    return false;
   }
 
   /// Generate a summary of chat history
@@ -182,9 +140,9 @@ class ChatSummarizationService {
     
     // Create a config with modified settings for summarization
     final summaryConfig = config.copyWith(
-      temperature: 0.3, // 降低温度让总结更稳定聚焦
-      maxTokens: 9216, // 给总结足够空间保留细节
-      model: config.summaryModel.isNotEmpty ? config.summaryModel : config.model, // 有自定义总结模型就用它，否则沿用主模型
+      temperature: 0.3, // Lower temperature for more stable, focused summaries
+      maxTokens: 9216, // Enough room to preserve details
+      model: config.summaryModel.isNotEmpty ? config.summaryModel : config.model, // Use the custom summary model if set, otherwise the main model
     );
     
     // Build messages for summarization
@@ -214,6 +172,62 @@ class ChatSummarizationService {
       return [];
     }
     return allMessages.sublist(startIndex);
+  }
+
+  /// Four-window split (unarchived zone + hot + warm + cold zones);
+  /// [windowSize] is measured in turns (1 turn = user + AI, about 2 messages;
+  /// internally multiplied by 2 to convert to messages).
+  ///
+  /// - Unarchived zone: all unarchived messages (highest attention, injected
+  ///   at the end)
+  /// - Hot zone: the most recent [windowSize] turns of archived messages
+  ///   (original text + entries)
+  /// - Warm zone: the [windowSize] turns of archived messages before the hot
+  ///   zone (original text + entries)
+  /// - Cold zone: the [windowSize] turns of archived messages before the warm
+  ///   zone (original text + entries)
+  /// - Older archived: fully faded out, original text not injected (content
+  ///   is still reachable via entries through F-6/F-7)
+  ///
+  /// Injection order is cold, warm, hot, then unarchived, exploiting
+  /// Lost in the Middle: the newer the content, the closer to the end.
+  WindowedMessages getWindowedMessages({
+    required Set<String> archivedMessageIds,
+    required List<ChatMessage> allMessages,
+    int windowSize = 20, // in turns (1 turn = user + AI, about 2 messages)
+  }) {
+    final nonArchived =
+        allMessages.where((m) => !archivedMessageIds.contains(m.id)).toList();
+    final archived =
+        allMessages.where((m) => archivedMessageIds.contains(m.id)).toList();
+
+    // windowSize is in turns; multiply by 2 to convert to messages
+    final windowInMessages = windowSize * 2;
+
+    // Unarchived zone: all unarchived messages (injected at the end, highest attention)
+    final unarchived = nonArchived;
+
+    // Hot zone: the most recent windowInMessages archived messages
+    final hotStart =
+        (archived.length - windowInMessages).clamp(0, archived.length);
+    final hot = archived.sublist(hotStart, archived.length);
+
+    // Warm zone: windowInMessages archived messages before the hot zone
+    final warmStart = (hotStart - windowInMessages).clamp(0, hotStart);
+    final warm = archived.sublist(warmStart, hotStart);
+
+    // Cold zone: windowInMessages archived messages before the warm zone
+    final coldStart = (warmStart - windowInMessages).clamp(0, warmStart);
+    final cold = archived.sublist(coldStart, warmStart);
+
+    // Older archived: original text not injected (only reachable via entries through F-6/F-7)
+
+    return WindowedMessages(
+      unarchived: unarchived,
+      hot: hot,
+      warm: warm,
+      cold: cold,
+    );
   }
 
   /// Create a pseudo-message from summary for context building

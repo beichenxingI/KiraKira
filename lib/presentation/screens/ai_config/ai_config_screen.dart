@@ -1,1410 +1,1945 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:figma_squircle/figma_squircle.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../data/models/instruct_template.dart';
 import '../../../domain/services/llm_service.dart';
 import '../../../domain/services/region_service.dart';
 import '../../providers/ai_preset_providers.dart';
-import '../../providers/instruct_providers.dart';
+import '../../providers/image_gen_providers.dart';
 import '../../providers/settings_providers.dart';
-import '../../providers/fingerprint_providers.dart';
-import 'fingerprint_result_widget.dart';
 import '../../router/app_router.dart';
-import '../../theme/app_theme.dart';
-import 'package:kirakira/l10n/generated/app_localizations.dart';
 import '../../providers/llm_configs_provider.dart';
+import '../../dialogs/image_gen_config_dialog.dart';
+import '../../dialogs/advanced_sampling_dialog.dart';
+import '../../dialogs/logit_bias_dialog.dart';
+import '../../dialogs/ai_preset_dialog.dart';
+import '../../dialogs/regex_system_dialog.dart';
+import '../../dialogs/prompt_manager_dialog.dart';
+import '../../dialogs/global_worldbook_dialog.dart';
+import '../../dialogs/chronicle_settings_dialog.dart';
+import 'package:kirakira/presentation/providers/chronicle_providers.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../../data/database/database.dart';
-import 'package:kirakira/presentation/widgets/common/kira_components.dart';
 
 /// Provider for China region detection
 final isChinaRegionProvider = FutureProvider<bool>((ref) async {
   return await RegionService.isChinaRegion();
 });
 
+/// API connection status for overview cards
+enum ApiStatus { connected, notConfigured, error, testing }
+
 /// AI Configuration screen - top-level entry for all AI-related settings
-class AIConfigScreen extends ConsumerWidget {
+class AIConfigScreen extends ConsumerStatefulWidget {
   const AIConfigScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final activePreset = ref.watch(activeAIPresetProvider);
+  ConsumerState<AIConfigScreen> createState() => _AIConfigScreenState();
+}
+
+class _AIConfigScreenState extends ConsumerState<AIConfigScreen> {
+  /// LLM card sampling-parameter expansion section (collapsed by default; sliders
+  /// render only when expanded to save memory)
+  bool _samplingExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.aiConfiguration),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.file_download),
-            tooltip: AppLocalizations.of(context)!.importPreset,
-            onPressed: () => context.push(AppRoutes.aiPresets),
-          ),
-        ],
-      ),
-      body: ListView(
-        children: [
-          const QuickSetupCard(),
-          // Active Preset Banner
-          if (activePreset != null)
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                    Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.08),
-                  ],
+      body: Container(
+        decoration: isDark
+            ? const BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(-0.3, -0.5),
+                  radius: 1.0,
+                  colors: [Color(0xFF1A1A1A), Color(0xFF0D0D0D)],
+                  stops: [0.0, 0.7],
                 ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+              )
+            : const BoxDecoration(color: Color(0xFFF7F8FA)),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 12),
+                  child: _buildStatusCards(context, ref, isDark),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.auto_awesome,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          AppLocalizations.of(context)!.activePreset,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).textTheme.bodySmall?.color,
-                          ),
-                        ),
-                        Text(
-                          activePreset.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => context.push(AppRoutes.aiPresets),
-                    child: Text(AppLocalizations.of(context)!.change),
-                  ),
-                ],
               ),
             ),
-
-          // 三个分组卡片平铺（去掉外层大卡，恢复懒加载 + 减嵌套）
-          KiraSection(
-            title: AppLocalizations.of(context)!.presetsAndTemplates,
-            children: [
-              KiraListTile(
-                icon: Icons.auto_awesome,
-                title: AppLocalizations.of(context)!.aiPresets,
-                subtitle: activePreset?.name ?? AppLocalizations.of(context)!.noPresetSelected,
-                onTap: () => context.push(AppRoutes.aiPresets),
-              ),
-              const _InstructTemplateTile(),
-              KiraListTile(
-                icon: Icons.reorder,
-                title: AppLocalizations.of(context)!.promptManager,
-                subtitle: AppLocalizations.of(context)!.orderAndTogglePromptSections,
-                onTap: () => context.push(AppRoutes.promptManager),
-              ),
-            ],
-          ),
-          KiraSection(
-            title: AppLocalizations.of(context)!.llmConnection,
-            children: [
-              const _ConnectionTestTile(),
-              KiraListTile(
-                icon: Icons.fingerprint_rounded,
-                title: '极客Probe',
-                subtitle: '模型深度检测',
-                onTap: () => context.push(AppRoutes.modelDetection),
-              ),
-              KiraListTile(
-                icon: Icons.public,
-                title: '全局世界书',
-                subtitle: '对所有角色生效的世界书',
-                onTap: () => context.push('/world-info?isGlobal=true'),
-              ),
-            ],
-          ),
-          KiraSection(
-            title: AppLocalizations.of(context)!.generationSettings,
-            children: [
-              const _ContextLengthTile(),
-              const _MaxTokensTile(),
-              const _TemperatureTile(),
-              const _TopPTile(),
-              const _StreamingTile(),
-              KiraListTile(
-                icon: Icons.tune,
-                title: AppLocalizations.of(context)!.advancedSamplerSettings,
-                subtitle: AppLocalizations.of(context)!.fullControlOverSampling,
-                onTap: () => context.push(AppRoutes.advancedSettings),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppTheme.accentColor,
-              fontWeight: FontWeight.bold,
-            ),
-      ),
-    );
-  }
-}
-
-class _InstructTemplateTile extends ConsumerWidget {
-  const _InstructTemplateTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final activeTemplate = ref.watch(activeInstructTemplateProvider);
-    final allTemplates = ref.watch(allInstructTemplatesProvider);
-
-    return ListTile(
-      leading: const Icon(Icons.code),
-      title: Text(AppLocalizations.of(context)!.instructTemplate),
-      subtitle: Text(activeTemplate.name),
-      onTap: () => _showTemplatePicker(context, ref, activeTemplate, allTemplates),
-    );
-  }
-
-  void _showTemplatePicker(
-    BuildContext context,
-    WidgetRef ref,
-    InstructTemplate activeTemplate,
-    List<InstructTemplate> allTemplates,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.3,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  AppLocalizations.of(context)!.selectInstructTemplate,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  AppLocalizations.of(context)!.instructTemplateDescription,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textMuted,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  itemCount: allTemplates.length,
-                  itemBuilder: (context, index) {
-                    final template = allTemplates[index];
-                    final isSelected = template.id == activeTemplate.id;
-
-                    return ListTile(
-                      leading: Icon(
-                        isSelected ? Icons.check_circle : Icons.circle_outlined,
-                        color: isSelected ? AppTheme.primaryColor : AppTheme.textMuted,
-                      ),
-                      title: Text(
-                        template.name,
-                        style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                      subtitle: Text(
-                        template.description,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      onTap: () {
-                        ref.read(activeInstructTemplateIdProvider.notifier).state =
-                            template.id;
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LLMProviderTile extends ConsumerWidget {
-  const _LLMProviderTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-    final providerName = _providerName(config.provider);
-
-    return ListTile(
-      leading: const Icon(Icons.cloud),
-      title: Text(AppLocalizations.of(context)!.provider),
-      subtitle: Text(providerName),
-      onTap: () => _showProviderPicker(context, ref, config),
-      onLongPress: () => _copyToClipboard(context, providerName),
-    );
-  }
-
-  void _copyToClipboard(BuildContext context, String text) {
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${AppLocalizations.of(context)!.copiedToClipboard}: $text'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  String _providerName(LLMProvider provider) {
-    switch (provider) {
-      case LLMProvider.openai:
-        return 'OpenAI';
-      case LLMProvider.claude:
-        return 'Claude (Anthropic)';
-      case LLMProvider.openRouter:
-        return 'OpenRouter';
-      case LLMProvider.gemini:
-        return 'Gemini (Google)';
-      case LLMProvider.ollama:
-        return 'Ollama (Local)';
-      case LLMProvider.koboldCpp:
-        return 'KoboldCpp (Local)';
-      case LLMProvider.deepSeek:
-        return 'DeepSeek';
-      case LLMProvider.qwen:
-        return 'Qwen (Alibaba)';
-      case LLMProvider.openAICompatible:
-        return 'OAI Compatible';
-    }
-  }
-
-  /// Check if OpenAI should be hidden based on region or language setting
-  bool _shouldHideOpenAI(BuildContext context, bool isChinaRegion) {
-    // Hide if in China region (detected via App Store/SIM)
-    if (isChinaRegion) {
-      return true;
-    }
-    
-    // Also hide if app language is set to Chinese (zh)
-    final locale = Localizations.localeOf(context);
-    if (locale.languageCode == 'zh') {
-      return true;
-    }
-    
-    return false;
-  }
-
-  /// Get filtered list of providers based on region and language
-  List<LLMProvider> _getAvailableProviders(BuildContext context, bool isChinaRegion) {
-    final hideOpenAI = _shouldHideOpenAI(context, isChinaRegion);
-    return LLMProvider.values.where((provider) {
-      // Hide OpenAI in China region or when language is Chinese
-      if (hideOpenAI && provider == LLMProvider.openai) {
-        return false;
-      }
-      return true;
-    }).toList();
-  }
-
-  void _showProviderPicker(BuildContext context, WidgetRef ref, LLMConfig config) {
-    // Get the China region status from provider
-    final isChinaAsync = ref.read(isChinaRegionProvider);
-    final isChinaRegion = isChinaAsync.valueOrNull ?? false;
-    final availableProviders = _getAvailableProviders(context, isChinaRegion);
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.3,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  AppLocalizations.of(context)!.selectLlmProvider,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  controller: scrollController,
-                  children: availableProviders.map((provider) => RadioListTile<LLMProvider>(
-                    title: Text(_providerName(provider)),
-                    subtitle: Text(_providerDescription(provider)),
-                    value: provider,
-                    groupValue: config.provider,
-                    onChanged: (value) {
-                      if (value != null) {
-                        ref.read(llmConfigProvider.notifier).updateProvider(value);
-                        Navigator.pop(context);
-                      }
-                    },
-                  )).toList(),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _providerDescription(LLMProvider provider) {
-    switch (provider) {
-      case LLMProvider.openai:
-        return '5.2';
-      case LLMProvider.claude:
-        return 'Claude 4.5';
-      case LLMProvider.openRouter:
-        return 'Multiple providers';
-      case LLMProvider.gemini:
-        return 'Gemini 3 Pro, Flash';
-      case LLMProvider.ollama:
-        return 'Local models';
-      case LLMProvider.koboldCpp:
-        return 'GGUF models';
-      case LLMProvider.deepSeek:
-        return 'DeepSeek V3.2, DeepSeek R1';
-      case LLMProvider.qwen:
-        return 'Qwen Plus, Qwen Max';
-      case LLMProvider.openAICompatible:
-        return 'Custom OAI-compatible API';
-    }
-  }
-}
-
-class _ApiKeyTile extends ConsumerStatefulWidget {
-  const _ApiKeyTile();
-
-  @override
-  ConsumerState<_ApiKeyTile> createState() => _ApiKeyTileState();
-}
-
-
-class _ApiKeyTileState extends ConsumerState<_ApiKeyTile> {
-  bool _obscureText = true;
-
-  @override
-  Widget build(BuildContext context) {
-    final config = ref.watch(llmConfigProvider);
-    final isLocal =
-        config.provider == LLMProvider.ollama || config.provider == LLMProvider.koboldCpp;
-
-    if (isLocal) return const SizedBox.shrink();
-
-    return ListTile(
-      leading: const Icon(Icons.key),
-      title: Text(AppLocalizations.of(context)!.apiKey),
-      subtitle: Text(
-        config.apiKey.isEmpty
-            ? AppLocalizations.of(context)!.notSet
-            : _obscureText
-                ? '••••••••${config.apiKey.length > 8 ? config.apiKey.substring(config.apiKey.length - 4) : ''}'
-                : config.apiKey,
-      ),
-      trailing: IconButton(
-        icon: Icon(_obscureText ? Icons.visibility : Icons.visibility_off),
-        onPressed: () => setState(() => _obscureText = !_obscureText),
-      ),
-      onTap: () => _showApiKeyDialog(context, ref, config),
-      onLongPress: config.apiKey.isNotEmpty ? () => _copyToClipboard(context, config.apiKey) : null,
-    );
-  }
-
-  void _copyToClipboard(BuildContext context, String text) {
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context)!.copiedToClipboard),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showApiKeyDialog(BuildContext context, WidgetRef ref, LLMConfig config) {
-    final controller = TextEditingController(text: config.apiKey);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.apiKey),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.enterApiKey,
-            hintText: 'sk-...',
-          ),
-          obscureText: true,
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(llmConfigProvider.notifier).updateApiKey(controller.text);
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ApiUrlTile extends ConsumerWidget {
-  const _ApiUrlTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-
-    return ListTile(
-      leading: const Icon(Icons.link),
-      title: Text(AppLocalizations.of(context)!.apiUrl),
-      subtitle: Text(config.apiUrl),
-      onTap: () => _showApiUrlDialog(context, ref, config),
-      onLongPress: config.apiUrl.isNotEmpty ? () => _copyToClipboard(context, config.apiUrl) : null,
-    );
-  }
-
-  void _copyToClipboard(BuildContext context, String text) {
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${AppLocalizations.of(context)!.copiedToClipboard}: $text'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showApiUrlDialog(BuildContext context, WidgetRef ref, LLMConfig config) {
-    final controller = TextEditingController(text: config.apiUrl);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.apiUrl),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.apiEndpointUrl,
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(llmConfigProvider.notifier).updateApiUrl(controller.text);
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ModelTile extends ConsumerStatefulWidget {
-  const _ModelTile();
-
-  @override
-  ConsumerState<_ModelTile> createState() => _ModelTileState();
-}
-
-class _ModelTileState extends ConsumerState<_ModelTile> {
-  @override
-  Widget build(BuildContext context) {
-    final config = ref.watch(llmConfigProvider);
-    final modelFetchState = ref.watch(modelFetchProvider);
-
-    ref.listen<ModelFetchState>(modelFetchProvider, (previous, next) {
-      if (next.status == ModelFetchStatus.success && next.models.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _showModelListSheet(context, ref, config, next.models);
-          }
-        });
-      } else if (next.status == ModelFetchStatus.error) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(next.errorMessage ?? AppLocalizations.of(context)!.failedToFetchModels),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        });
-      }
-    });
-
-    return ListTile(
-      leading: const Icon(Icons.memory),
-      title: Text(AppLocalizations.of(context)!.model),
-      subtitle: _buildSubtitle(config, modelFetchState),
-      trailing: modelFetchState.status == ModelFetchStatus.loading
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.arrow_drop_down),
-      onTap: modelFetchState.status == ModelFetchStatus.loading
-          ? null
-          : () => _showModelPicker(context, ref, config, modelFetchState),
-    );
-  }
-
-  Widget _buildSubtitle(LLMConfig config, ModelFetchState modelFetchState) {
-    if (modelFetchState.status == ModelFetchStatus.loading) {
-      return Text(AppLocalizations.of(context)!.fetchingModels);
-    }
-    return Text(config.model.isEmpty ? AppLocalizations.of(context)!.notSet : config.model);
-  }
-
-  void _showModelPicker(BuildContext context, WidgetRef ref, LLMConfig config,
-      ModelFetchState modelFetchState) {
-    if (modelFetchState.status == ModelFetchStatus.success &&
-        modelFetchState.models.isNotEmpty) {
-      _showModelListSheet(context, ref, config, modelFetchState.models);
-    } else {
-      _showModelInputDialog(context, ref, config);
-    }
-  }
-
-  void _showModelListSheet(
-      BuildContext context, WidgetRef ref, LLMConfig config, List<String> models) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => _ModelSelectionSheet(
-        models: models,
-        selectedModel: config.model,
-        onModelSelected: (model) {
-          ref.read(llmConfigProvider.notifier).updateModel(model);
-          Navigator.pop(sheetContext);
-        },
-        onRefresh: () {
-          Navigator.pop(sheetContext);
-          final currentConfig = ref.read(llmConfigProvider);
-          ref.read(modelFetchProvider.notifier).fetchModels(currentConfig);
-        },
-        onManualEntry: () {
-          Navigator.pop(sheetContext);
-          final currentConfig = ref.read(llmConfigProvider);
-          _showManualInputDialog(context, ref, currentConfig);
-        },
-      ),
-    );
-  }
-
-  void _showModelInputDialog(BuildContext context, WidgetRef ref, LLMConfig config) {
-    final controller = TextEditingController(text: config.model);
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.model),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.modelName,
-                hintText: 'e.g., deepseek-3.2',
-              ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.cloud_download),
-                label: Text(AppLocalizations.of(context)!.fetchAvailableModels),
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  final currentConfig = ref.read(llmConfigProvider);
-                  ref.read(modelFetchProvider.notifier).fetchModels(currentConfig);
-                },
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildLlmConfigCard(context, ref, isDark),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              AppLocalizations.of(context)!.fetchModelsDescription,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textMuted,
-                  ),
-              textAlign: TextAlign.center,
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildImageGenConfigCard(context, ref, isDark),
+              ),
             ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: _buildQuickActionsCard(context, ref, isDark),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 96)),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(llmConfigProvider.notifier).updateModel(controller.text);
-              Navigator.pop(dialogContext);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
       ),
     );
   }
 
-  void _showManualInputDialog(BuildContext context, WidgetRef ref, LLMConfig config) {
-    final controller = TextEditingController(text: config.model);
+  // Overview card methods
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.enterModelName),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.modelName,
-            hintText: 'e.g., deepseek-3.2',
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(llmConfigProvider.notifier).updateModel(controller.text);
-              Navigator.pop(dialogContext);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConnectionTestTile extends ConsumerWidget {
-  const _ConnectionTestTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget _buildStatusCards(BuildContext context, WidgetRef ref, bool isDark) {
+    final llmConfig = ref.watch(llmConfigProvider);
+    final imageGenSettings = ref.watch(imageGenSettingsProvider);
     final testState = ref.watch(connectionTestProvider);
-    final config = ref.watch(llmConfigProvider);
+    final chronicleEnabled = ref.watch(chronicleSettingsProvider).enabled;
 
-    return ListTile(
-      leading: Icon(
-        _getStatusIcon(testState.status),
-        color: _getStatusColor(testState.status),
-      ),
-      title: Text(AppLocalizations.of(context)!.testConnection),
-      subtitle: Text(_getStatusText(context, testState)),
-      trailing: testState.status == ConnectionStatus.testing
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : null,
-      onTap: testState.status == ConnectionStatus.testing
-          ? null
-          : () => ref.read(connectionTestProvider.notifier).testConnection(config),
-    );
-  }
+    final llmStatus = llmConfig.apiUrl.isEmpty
+        ? ApiStatus.notConfigured
+        : (testState.status == ConnectionStatus.success
+            ? ApiStatus.connected
+            : testState.status == ConnectionStatus.error
+                ? ApiStatus.error
+                : ApiStatus.notConfigured);
 
-  IconData _getStatusIcon(ConnectionStatus status) {
-    switch (status) {
-      case ConnectionStatus.idle:
-        return Icons.help_outline;
-      case ConnectionStatus.testing:
-        return Icons.sync;
-      case ConnectionStatus.success:
-        return Icons.check_circle;
-      case ConnectionStatus.error:
-        return Icons.error;
-    }
-  }
+    final imageStatus = imageGenSettings.enabled
+        ? ApiStatus.connected
+        : ApiStatus.notConfigured;
 
-  Color _getStatusColor(ConnectionStatus status) {
-    switch (status) {
-      case ConnectionStatus.idle:
-        return AppTheme.textMuted;
-      case ConnectionStatus.testing:
-        return AppTheme.accentColor;
-      case ConnectionStatus.success:
-        return Colors.green;
-      case ConnectionStatus.error:
-        return Colors.red;
-    }
-  }
+    // Third top status card: the old "global book" entry was removed (the worldbook
+    // tile in the quick-actions row remains), replaced by the Chronicle super-memory
+    // entry that opens the global settings dialog directly, independent of chat state.
+    final chronicleStatus =
+        chronicleEnabled ? ApiStatus.connected : ApiStatus.notConfigured;
 
-  String _getStatusText(BuildContext context, ConnectionTestState state) {
-    final l10n = AppLocalizations.of(context)!;
-    switch (state.status) {
-      case ConnectionStatus.idle:
-        return l10n.tapToTestConnection;
-      case ConnectionStatus.testing:
-        return l10n.testing;
-      case ConnectionStatus.success:
-        return state.message ?? l10n.connected;
-      case ConnectionStatus.error:
-        return state.message ?? l10n.connectionFailedSimple;
-    }
-  }
-}
-
-/// Context Length tile - shows the context window size (input tokens)
-class _ContextLengthTile extends ConsumerWidget {
-  const _ContextLengthTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-    final contextValue = '${config.contextLength}';
-
-    return ListTile(
-      leading: const Icon(Icons.memory),
-      title: Text(AppLocalizations.of(context)!.contextLength),
-      subtitle: Text('$contextValue tokens'),
-      onTap: () => _showContextLengthDialog(context, ref, config),
-      onLongPress: () => _copyToClipboard(context, contextValue),
-    );
-  }
-
-  void _copyToClipboard(BuildContext context, String text) {
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${AppLocalizations.of(context)!.copiedToClipboard}: $text'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showContextLengthDialog(BuildContext context, WidgetRef ref, LLMConfig config) {
-    final controller = TextEditingController(text: config.contextLength.toString());
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.contextLength),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.contextWindowSize,
-                hintText: '1000000',
-              ),
-              autofocus: true,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildStatusCard(
+              icon: CupertinoIcons.chat_bubble_2_fill,
+              iconColor: const Color(0xFF42A5F5),
+              label: '对话模型',
+              status: llmStatus,
+              isDark: isDark,
             ),
-            const SizedBox(height: 8),
-            Text(
-              AppLocalizations.of(context)!.contextLengthDescription,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textMuted,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
           ),
-          TextButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text);
-              if (value != null && value > 0) {
-                ref.read(llmConfigProvider.notifier).updateContextLength(value);
-              }
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatusCard(
+              icon: CupertinoIcons.photo_fill,
+              iconColor: const Color(0xFFEC407A),
+              label: '图像生成',
+              status: imageStatus,
+              isDark: isDark,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatusCard(
+              icon: Icons.auto_stories,
+              iconColor: const Color(0xFF9C6ADE),
+              label: chronicleEnabled ? '记忆已开启' : '记忆已关闭',
+              status: chronicleStatus,
+              isDark: isDark,
+              onTap: () => showChronicleSettingsDialog(context, ref),
+            ),
           ),
         ],
       ),
     );
   }
-}
 
-/// Max Tokens tile - shows the maximum output tokens
-class _MaxTokensTile extends ConsumerWidget {
-  const _MaxTokensTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-    final tokenValue = '${config.maxTokens}';
-
-    return ListTile(
-      leading: const Icon(Icons.format_list_numbered),
-      title: Text(AppLocalizations.of(context)!.maxTokens),
-      subtitle: Text('$tokenValue tokens'),
-      onTap: () => _showMaxTokensDialog(context, ref, config),
-      onLongPress: () => _copyToClipboard(context, tokenValue),
-    );
-  }
-
-  void _copyToClipboard(BuildContext context, String text) {
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${AppLocalizations.of(context)!.copiedToClipboard}: $text'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showMaxTokensDialog(BuildContext context, WidgetRef ref, LLMConfig config) {
-    final controller = TextEditingController(text: config.maxTokens.toString());
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.maxTokens),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.maximumTokensToGenerate,
-                hintText: '512',
+  Widget _buildStatusCard({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    ApiStatus? status,
+    bool isDark = false,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1C1C1C) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: isDark
+                ? null
+                : Border.all(color: Colors.black.withValues(alpha: 0.05), width: 0.5),
+            boxShadow: isDark
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: iconColor, size: 28),
+              const SizedBox(height: 8),
+              if (status != null) _buildStatusIcon(status),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93),
+                ),
+                textAlign: TextAlign.center,
               ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              AppLocalizations.of(context)!.maxTokensDescription,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textMuted,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text);
-              if (value != null && value > 0) {
-                ref.read(llmConfigProvider.notifier).updateMaxTokens(value);
-              }
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
       ),
     );
   }
-}
 
-class _TemperatureTile extends ConsumerWidget {
-  const _TemperatureTile();
+  Widget _buildStatusIcon(ApiStatus status) {
+    switch (status) {
+      case ApiStatus.connected:
+        return const Icon(Icons.check_circle, size: 20, color: Color(0xFF4CAF50));
+      case ApiStatus.notConfigured:
+        return const Icon(Icons.circle_outlined, size: 20, color: Color(0xFF9E9E9E));
+      case ApiStatus.error:
+        return const Icon(Icons.error, size: 20, color: Color(0xFFF44336));
+      case ApiStatus.testing:
+        return const SizedBox(
+          width: 20, height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+    }
+  }
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
+  Widget _buildLlmConfigCard(BuildContext context, WidgetRef ref, bool isDark) {
+    final llmConfig = ref.watch(llmConfigProvider);
+    final testState = ref.watch(connectionTestProvider);
+    final llmConfigs = ref.watch(llmConfigsProvider);
+    final activePreset = ref.watch(activeAIPresetProvider);
 
-    return ListTile(
-      leading: const Icon(Icons.thermostat),
-      title: Text(AppLocalizations.of(context)!.temperature),
-      subtitle: Slider(
-        value: config.temperature,
-        min: 0.0,
-        max: 2.0,
-        divisions: 40,
-        label: config.temperature.toStringAsFixed(2),
-        onChanged: (value) {
-          ref.read(llmConfigProvider.notifier).updateTemperature(value);
-        },
+    final status = llmConfig.apiUrl.isEmpty
+        ? ApiStatus.notConfigured
+        : (testState.status == ConnectionStatus.success
+            ? ApiStatus.connected
+            : testState.status == ConnectionStatus.error
+                ? ApiStatus.error
+                : ApiStatus.notConfigured);
+
+    final schemeName = llmConfigs.active?.name ?? activePreset?.name ?? '默认';
+    final urlDisplay = llmConfig.apiUrl.isEmpty
+        ? '未配置'
+        : llmConfig.apiUrl.replaceAll('https://', '').replaceAll('http://', '');
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1C) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: isDark
+            ? null
+            : Border.all(color: Colors.black.withValues(alpha: 0.05), width: 0.5),
+        boxShadow: isDark
+            ? null
+            : [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))],
       ),
-    );
-  }
-}
-
-class _TopPTile extends ConsumerWidget {
-  const _TopPTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-
-    return ListTile(
-      leading: const Icon(Icons.pie_chart),
-      title: Text(AppLocalizations.of(context)!.topP),
-      subtitle: Slider(
-        value: config.topP,
-        min: 0.0,
-        max: 1.0,
-        divisions: 20,
-        label: config.topP.toStringAsFixed(2),
-        onChanged: (value) {
-          ref.read(llmConfigProvider.notifier).updateTopP(value);
-        },
-      ),
-    );
-  }
-}
-
-class _StreamingTile extends ConsumerWidget {
-  const _StreamingTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-
-    return SwitchListTile(
-      secondary: const Icon(Icons.stream),
-      title: Text(AppLocalizations.of(context)!.streaming),
-      subtitle: Text(AppLocalizations.of(context)!.showResponseAsItGenerates),
-      value: config.streamEnabled,
-      onChanged: (value) {
-        ref.read(llmConfigProvider.notifier).updateStreamEnabled(value);
-      },
-    );
-  }
-}
-
-/// Model selection sheet with search functionality
-class _ModelSelectionSheet extends StatefulWidget {
-  final List<String> models;
-  final String selectedModel;
-  final void Function(String model) onModelSelected;
-  final VoidCallback onRefresh;
-  final VoidCallback onManualEntry;
-
-  const _ModelSelectionSheet({
-    required this.models,
-    required this.selectedModel,
-    required this.onModelSelected,
-    required this.onRefresh,
-    required this.onManualEntry,
-  });
-
-  @override
-  State<_ModelSelectionSheet> createState() => _ModelSelectionSheetState();
-}
-
-class _ModelSelectionSheetState extends State<_ModelSelectionSheet> {
-  final TextEditingController _searchController = TextEditingController();
-  List<String> _filteredModels = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredModels = widget.models;
-    _searchController.addListener(_onSearchChanged);
-  }
-
-  @override
-  void dispose() {
-    _searchController.removeListener(_onSearchChanged);
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _onSearchChanged() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      if (query.isEmpty) {
-        _filteredModels = widget.models;
-      } else {
-        _filteredModels =
-            widget.models.where((model) => model.toLowerCase().contains(query)).toList();
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (_, scrollController) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+            Row(
+              children: [
+                const Icon(CupertinoIcons.chat_bubble_2_fill, size: 20, color: Color(0xFF42A5F5)),
+                const SizedBox(width: 8),
+                const Text('对话模型', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                CupertinoButton(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  minSize: 0,
+                  onPressed: () => _showLlmConfigSwitcher(context, ref),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(schemeName, style: const TextStyle(fontSize: 13, color: DesignTokens.primary)),
+                      const SizedBox(width: 4),
+                      const Icon(CupertinoIcons.chevron_down, size: 14, color: DesignTokens.primary),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildCompactInfoRow('方案', schemeName, isDark),
+            const SizedBox(height: 6),
+            _buildCompactInfoRow('URL', urlDisplay, isDark),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(child: _buildCompactInfoRow('模型', llmConfig.model.isNotEmpty ? llmConfig.model : '未配置', isDark)),
+                const SizedBox(width: 8),
+                _buildCompactStatusIcon(status),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: CupertinoButton(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(8),
+                    minSize: 0,
+                    onPressed: () => ref.read(connectionTestProvider.notifier).testConnection(llmConfig),
+                    child: Text('测试连接', style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C))),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: CupertinoButton(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    color: DesignTokens.primary,
+                    borderRadius: BorderRadius.circular(8),
+                    minSize: 0,
+                    onPressed: () => _showLlmConfigDialog(context, ref),
+                    child: const Text('完整配置', style: TextStyle(fontSize: 13, color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Sampling-parameter collapse section (collapsed by default; sliders render only when expanded)
+            _buildSamplingExpansion(context, ref, isDark),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Sampling-parameter collapse section: title row (temperature/TopP/topK/token
+  /// count/context summary), expanded sliders, and two dialog entries at the
+  /// bottom (More params, Logit bias)
+  Widget _buildSamplingExpansion(BuildContext context, WidgetRef ref, bool isDark) {
+    final config = ref.watch(llmConfigProvider);
+    final dividerColor = isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Divider(height: 0.5, thickness: 0.5, color: dividerColor),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => setState(() => _samplingExpanded = !_samplingExpanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
               child: Row(
                 children: [
-                  Expanded(
-                    child: Text(
-                      AppLocalizations.of(context)!.selectModelCount(widget.models.length),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: AppLocalizations.of(context)!.refreshModels,
-                    onPressed: widget.onRefresh,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    tooltip: AppLocalizations.of(context)!.enterManually,
-                    onPressed: widget.onManualEntry,
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: AppLocalizations.of(context)!.searchModels,
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                          },
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-            ),
-            if (_searchController.text.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '${_filteredModels.length} of ${widget.models.length} models',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.textMuted,
-                        ),
-                  ),
-                ),
-              ),
-            const Divider(height: 1),
-            Expanded(
-              child: _filteredModels.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.search_off, size: 48, color: AppTheme.textMuted),
-                          const SizedBox(height: 16),
-                          Text(
-                            AppLocalizations.of(context)!.noModelsFound,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: AppTheme.textMuted,
-                                ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            AppLocalizations.of(context)!.tryDifferentSearchTerm,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.textMuted,
-                                ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: scrollController,
-                      itemCount: _filteredModels.length,
-                      itemBuilder: (_, index) {
-                        final model = _filteredModels[index];
-                        final isSelected = model == widget.selectedModel;
-                        return ListTile(
-                          title: Text(
-                            model,
-                            style: TextStyle(
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              color: isSelected ? AppTheme.accentColor : null,
-                            ),
-                          ),
-                          trailing: isSelected
-                              ? const Icon(Icons.check, color: AppTheme.accentColor)
-                              : null,
-                          onTap: () => widget.onModelSelected(model),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-class _ConnectionStatusCard extends ConsumerWidget {
-  const _ConnectionStatusCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(llmConfigProvider);
-    final metrics = ref.watch(connectionMetricsProvider);
-
-    final Color dotColor;
-    final String statusText;
-    switch (metrics.status) {
-      case MetricsStatus.success:
-        dotColor = const Color(0xFF34C759);
-        statusText = '已连接';
-        break;
-      case MetricsStatus.measuring:
-        dotColor = const Color(0xFFFF9F0A);
-        statusText = '测试中';
-        break;
-      case MetricsStatus.error:
-        dotColor = const Color(0xFFFF453A);
-        statusText = '连接失败';
-        break;
-      case MetricsStatus.idle:
-        dotColor = const Color(0xFF8E8E93);
-        statusText = '未测试';
-        break;
-    }
-
-    final modelText = (config.model == null || config.model!.isEmpty)
-        ? '未选择模型'
-        : config.model!;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: GestureDetector(
-        onTap: () => context.push(AppRoutes.llmConfigList),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: dotColor,
-                      shape: BoxShape.circle,
-                    ),
+                  const Icon(
+                    CupertinoIcons.slider_horizontal_3,
+                    size: 18,
+                    color: DesignTokens.primary,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    statusText,
+                    '采样参数',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
                     ),
                   ),
-                  const Spacer(),
-                  Flexible(
+                  const SizedBox(width: 8),
+                  Expanded(
                     child: Text(
-                      config.provider.name,
+                      _samplingExpanded
+                          ? ''
+                          : '温度 ${config.temperature.toStringAsFixed(2)} · '
+                            'T${config.topP.toStringAsFixed(2)} · '
+                            'K${config.topK} · '
+                            '${config.maxTokens} · '
+                            '上下文 ${_fmtContext(config.contextLength)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).textTheme.bodySmall?.color,
+                        fontSize: 12,
+                        color: isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.chevron_right,
-                      size: 20,
-                      color: Theme.of(context).textTheme.bodySmall?.color),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '$modelText  ${config.apiUrl}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.color
-                        ?.withValues(alpha: 0.7)),
-              ),
-              const SizedBox(height: 14),
-              Divider(
-                  height: 1,
-                  color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  _MetricCell(
-                    label: '首Token',
-                    value: metrics.ttftMs != null ? '${metrics.ttftMs}ms' : '—',
-                  ),
-                  _MetricCell(
-                    label: '速率',
-                    value: metrics.charsPerSec != null
-                        ? '${metrics.charsPerSec!.toStringAsFixed(1)}字/s'
-                        : '—',
-                  ),
-                  _MetricCell(
-                    label: '稳定性',
-                    value: metrics.stabilityStatus == MetricsStatus.measuring
-                        ? '检测中'
-                        : (metrics.stabilityRating ?? '—'),
+                  AnimatedRotation(
+                    turns: _samplingExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      CupertinoIcons.chevron_down,
+                      size: 14,
+                      color: isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              GestureDetector(
-                onTap: metrics.status == MetricsStatus.measuring
-                    ? null
-                    : () => ref
-                        .read(connectionMetricsProvider.notifier)
-                        .measure(config),
-                child: Container(
-                  width: double.infinity,
+            ),
+          ),
+        ),
+        // Sliders render only when expanded (saves memory)
+        if (_samplingExpanded) ...[
+          const SizedBox(height: 4),
+          _MiniSlider(
+            label: '温度',
+            value: config.temperature,
+            min: 0.0, max: 2.0, divisions: 40,
+            display: config.temperature.toStringAsFixed(2),
+            onChanged: (v) =>
+                ref.read(llmConfigProvider.notifier).updateTemperature(v),
+          ),
+          _MiniSlider(
+            label: 'Top P',
+            value: config.topP,
+            min: 0.0, max: 1.0, divisions: 20,
+            display: config.topP.toStringAsFixed(2),
+            onChanged: (v) => ref.read(llmConfigProvider.notifier).updateTopP(v),
+          ),
+          _MiniSlider(
+            label: 'Top K',
+            value: config.topK.toDouble(),
+            min: 0, max: 200, divisions: 200,
+            display: '${config.topK}',
+            onChanged: (v) =>
+                ref.read(llmConfigProvider.notifier).updateTopK(v.round()),
+          ),
+          _MiniSlider(
+            label: '最大令牌数',
+            value: config.maxTokens.toDouble(),
+            min: 64, max: 4096, divisions: 63,
+            display: '${config.maxTokens}',
+            onChanged: (v) =>
+                ref.read(llmConfigProvider.notifier).updateMaxTokens(v.round()),
+          ),
+          _MiniSlider(
+            label: '上下文长度',
+            value: config.contextLength.toDouble(),
+            min: 512, max: 131072, divisions: 32,
+            display: '${config.contextLength}',
+            onChanged: (v) => ref
+                .read(llmConfigProvider.notifier)
+                .updateContextLength(v.round()),
+          ),
+        ],
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: CupertinoButton(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(8),
+                minSize: 0,
+                onPressed: () => showAdvancedSamplingDialog(context, ref),
+                child: Text(
+                  '更多参数 →',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: CupertinoButton(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(8),
+                minSize: 0,
+                onPressed: () => showLogitBiasDialog(context, ref),
+                child: Text(
+                  'Logit偏置 →',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _fmtContext(int v) => v >= 1024 ? '${(v / 1024).toStringAsFixed(0)}K' : '$v';
+
+  void _showLlmConfigSwitcher(BuildContext context, WidgetRef ref) {
+    final llmConfigs = ref.read(llmConfigsProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    _showConfigSwitcherDialog(
+      ctx: context,
+      ref: ref,
+      allConfigs: llmConfigs.configs,
+      currentConfigName: llmConfigs.active?.name ?? '',
+      onSwitchConfig: (config) => ref.read(llmConfigsProvider.notifier).setActive(config.id),
+      onNewConfig: () => _showLlmConfigDialog(context, ref),
+      isDark: isDark,
+    );
+  }
+
+  // Chat model config dialog — built from scratch, no longer reuses QuickSetupCard
+  // - Wrap the whole dialog in Material to avoid "No Material widget found" errors
+  // - Neutral gray/black palette (#1C1C1C / #FFFFFF), no blue tint
+  // - StatefulBuilder manages form state; TextEditingControllers are method-scoped
+  void _showLlmConfigDialog(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final currentConfig = ref.read(llmConfigProvider);
+    final llmConfigs = ref.read(llmConfigsProvider);
+    final rootContext = context;
+
+    // Form controllers (created in method scope, disposed when the dialog closes)
+    final nameController = TextEditingController(text: llmConfigs.active?.name ?? '');
+    final urlController = TextEditingController(text: currentConfig.apiUrl);
+    final keyController = TextEditingController(text: currentConfig.apiKey);
+    final modelController = TextEditingController(text: currentConfig.model);
+
+    // Local mutable state
+    LLMProvider selectedProvider = currentConfig.provider;
+    List<String> availableModels = [];
+    bool isFetchingModels = false;
+    bool isTestingConnection = false;
+    bool obscureKey = true;
+    String? testResult;
+    String activeConfigName = llmConfigs.active?.name ?? '';
+
+    String defaultUrlForProvider(LLMProvider p) {
+      switch (p) {
+        case LLMProvider.openai:
+          return 'https://api.openai.com/v1';
+        case LLMProvider.claude:
+          return 'https://api.anthropic.com';
+        case LLMProvider.openRouter:
+          return 'https://openrouter.ai/api/v1';
+        case LLMProvider.gemini:
+          return 'https://generativelanguage.googleapis.com/v1';
+        case LLMProvider.ollama:
+          return 'http://localhost:11434';
+        case LLMProvider.koboldCpp:
+          return 'http://localhost:5001';
+        case LLMProvider.deepSeek:
+          return 'https://api.deepseek.com/v1';
+        case LLMProvider.qwen:
+          return 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+        case LLMProvider.openAICompatible:
+          return 'http://localhost:8080/v1';
+      }
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, setState) {
+          return Center(
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: screenWidth - 48 < 550 ? screenWidth - 48 : 550.0,
+                constraints: BoxConstraints(maxHeight: screenHeight * 0.85),
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1C1C1C) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 40,
+                      offset: const Offset(0, 20),
+                    ),
+                  ],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Title bar
+                    _buildDialogHeader(
+                      isDark: isDark,
+                      currentConfigName: activeConfigName,
+                      onShowSwitcher: () {
+                        final configs = ref.read(llmConfigsProvider).configs;
+                        _showConfigSwitcherDialog(
+                          ctx: ctx,
+                          ref: ref,
+                          allConfigs: configs,
+                          currentConfigName: activeConfigName,
+                          onSwitchConfig: (config) async {
+                            await ref.read(llmConfigsProvider.notifier).setActive(config.id);
+                            final newConfig = ref.read(llmConfigProvider);
+                            setState(() {
+                              activeConfigName = config.name;
+                              nameController.text = config.name;
+                              urlController.text = newConfig.apiUrl;
+                              keyController.text = newConfig.apiKey;
+                              modelController.text = newConfig.model;
+                              selectedProvider = newConfig.provider;
+                              availableModels = [];
+                              testResult = null;
+                            });
+                          },
+                          onNewConfig: () {
+                            setState(() {
+                              activeConfigName = '';
+                              nameController.clear();
+                              selectedProvider = LLMProvider.openAICompatible;
+                              urlController.text = defaultUrlForProvider(LLMProvider.openAICompatible);
+                              keyController.clear();
+                              modelController.clear();
+                              availableModels = [];
+                              testResult = null;
+                            });
+                          },
+                          isDark: isDark,
+                        );
+                      },
+                      onClose: () => Navigator.pop(dialogContext),
+                    ),
+                    // Scrollable content area
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1. Config name
+                            _buildSectionLabel('方案名称', isDark),
+                            const SizedBox(height: 8),
+                            _buildDialogTextField(
+                              controller: nameController,
+                              hint: '例如：GPT-4默认',
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 20),
+                            // 2. Provider type
+                            _buildSectionLabel('接口类型', isDark),
+                            const SizedBox(height: 8),
+                            _buildProviderChips(
+                              selectedProvider: selectedProvider,
+                              isDark: isDark,
+                              onSelect: (p) {
+                                setState(() {
+                                  selectedProvider = p;
+                                  urlController.text = defaultUrlForProvider(p);
+                                  availableModels = [];
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            // 3. API URL
+                            _buildSectionLabel('API 地址', isDark),
+                            const SizedBox(height: 8),
+                            _buildDialogTextField(
+                              controller: urlController,
+                              hint: 'https://api.openai.com/v1',
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 20),
+                            // 4. API key
+                            _buildSectionLabel('API 密钥', isDark),
+                            const SizedBox(height: 8),
+                            _buildDialogTextField(
+                              controller: keyController,
+                              hint: 'sk-...',
+                              isDark: isDark,
+                              obscureText: obscureKey,
+                              suffix: GestureDetector(
+                                onTap: () => setState(() => obscureKey = !obscureKey),
+                                child: Icon(
+                                  obscureKey ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+                                  size: 18,
+                                  color: isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            // 5. Fetch available models
+                            _buildDialogActionButton(
+                              label: isFetchingModels ? '拉取中...' : '拉取可用模型',
+                              icon: CupertinoIcons.cloud_download,
+                              isDark: isDark,
+                              isLoading: isFetchingModels,
+                              onTap: () async {
+                                final url = urlController.text.trim();
+                                final key = keyController.text.trim();
+                                if (url.isEmpty || key.isEmpty) {
+                                  _showDialogSnackBar(rootContext, '请先填写 API 地址和密钥');
+                                  return;
+                                }
+                                setState(() => isFetchingModels = true);
+                                try {
+                                  final tempConfig = currentConfig.copyWith(
+                                    provider: selectedProvider,
+                                    apiUrl: url,
+                                    apiKey: key,
+                                    model: modelController.text.trim(),
+                                  );
+                                  await ref.read(modelFetchProvider.notifier).fetchModels(tempConfig);
+                                  if (!ctx.mounted) return;
+                                  final fetchState = ref.read(modelFetchProvider);
+                                  setState(() {
+                                    isFetchingModels = false;
+                                    if (fetchState.status == ModelFetchStatus.success) {
+                                      availableModels = fetchState.models;
+                                    }
+                                  });
+                                  if (fetchState.status == ModelFetchStatus.error) {
+                                    _showDialogSnackBar(ctx, '拉取失败: ${fetchState.errorMessage ?? "请检查地址和密钥"}');
+                                  } else if (availableModels.isNotEmpty) {
+                                    _showModelPickerDialog(
+                                      ctx,
+                                      availableModels,
+                                      (m) => setState(() => modelController.text = m),
+                                      isDark,
+                                    );
+                                  }
+                                } catch (e) {
+                                  setState(() => isFetchingModels = false);
+                                  if (ctx.mounted) _showDialogSnackBar(ctx, '拉取失败: $e');
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            // 6. Model name (manual entry + list selection)
+                            _buildSectionLabel(
+                              availableModels.isNotEmpty ? '模型名称（可从列表选择）' : '模型名称（手动输入）',
+                              isDark,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildDialogTextField(
+                              controller: modelController,
+                              hint: 'gpt-4-turbo',
+                              isDark: isDark,
+                            ),
+                            if (availableModels.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              _buildSecondaryButton(
+                                label: '从列表选择',
+                                icon: CupertinoIcons.list_bullet,
+                                isDark: isDark,
+                                onTap: () => _showModelPickerDialog(
+                                  ctx,
+                                  availableModels,
+                                  (m) => setState(() => modelController.text = m),
+                                  isDark,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 20),
+                            // 7. Test connection
+                            _buildDialogActionButton(
+                              label: isTestingConnection ? '测试中...' : '测试连接',
+                              icon: CupertinoIcons.arrow_2_circlepath,
+                              isDark: isDark,
+                              isLoading: isTestingConnection,
+                              onTap: () async {
+                                final url = urlController.text.trim();
+                                final key = keyController.text.trim();
+                                final model = modelController.text.trim();
+                                if (url.isEmpty || key.isEmpty || model.isEmpty) {
+                                  _showDialogSnackBar(rootContext, '请填写完整配置信息');
+                                  return;
+                                }
+                                setState(() {
+                                  isTestingConnection = true;
+                                  testResult = null;
+                                });
+                                try {
+                                  final tempConfig = currentConfig.copyWith(
+                                    provider: selectedProvider,
+                                    apiUrl: url,
+                                    apiKey: key,
+                                    model: model,
+                                  );
+                                  await ref.read(connectionTestProvider.notifier).testConnection(tempConfig);
+                                  final testState = ref.read(connectionTestProvider);
+                                  setState(() {
+                                    isTestingConnection = false;
+                                    if (testState.status == ConnectionStatus.success) {
+                                      testResult = '✓ 连接成功';
+                                    } else if (testState.status == ConnectionStatus.error) {
+                                      testResult = '✗ ${testState.message ?? "连接失败"}';
+                                    } else {
+                                      testResult = null;
+                                    }
+                                  });
+                                } catch (e) {
+                                  setState(() {
+                                    isTestingConnection = false;
+                                    testResult = '✗ 错误: $e';
+                                  });
+                                }
+                              },
+                            ),
+                            if (testResult != null) ...[
+                              const SizedBox(height: 12),
+                              _buildTestResult(testResult!, isDark),
+                            ],
+                            const SizedBox(height: 20),
+                            // 8. Probe deep detection
+                            _buildSecondaryButton(
+                              label: '极客Probe深度检测',
+                              icon: CupertinoIcons.speedometer,
+                              isDark: isDark,
+                              onTap: () {
+                                Navigator.pop(dialogContext);
+                                context.push(AppRoutes.modelDetection);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Bottom action bar
+                    _buildDialogFooter(
+                      isDark: isDark,
+                      onCancel: () => Navigator.pop(dialogContext),
+                      onSave: () async {
+                        final name = nameController.text.trim();
+                        final url = urlController.text.trim();
+                        final key = keyController.text.trim();
+                        final model = modelController.text.trim();
+                        if (name.isEmpty || url.isEmpty || key.isEmpty || model.isEmpty) {
+                          _showDialogSnackBar(rootContext, '请填写完整配置信息');
+                          return;
+                        }
+                        // 1. Write runtime config
+                        if (selectedProvider != currentConfig.provider) {
+                          await ref.read(llmConfigProvider.notifier).updateProvider(selectedProvider);
+                        }
+                        ref.read(llmConfigProvider.notifier).updateApiUrl(url);
+                        ref.read(llmConfigProvider.notifier).updateApiKey(key);
+                        ref.read(llmConfigProvider.notifier).updateModel(model);
+                        // 2. Sync the multi-config table (update or create the current config)
+                        // Detect the "new" state: an empty activeConfigName means the user
+                        // pressed "New config" (onNewConfig only clears the form; previously
+                        // onSave unconditionally upserted with active?.id, overwriting the
+                        // old config entirely).
+                        final active = ref.read(llmConfigsProvider).active;
+                        final now = DateTime.now();
+                        final isNew = activeConfigName.isEmpty || active == null;
+                        final configId =
+                            isNew ? now.millisecondsSinceEpoch.toString() : active.id;
+                        debugPrint('[Bug1] onSave: isNew=$isNew, configId=$configId');
+                        await ref.read(llmConfigsProvider.notifier).upsert(LlmConfigsCompanion(
+                          id: drift.Value(configId),
+                          name: drift.Value(name),
+                          provider: drift.Value(selectedProvider.name),
+                          endpoint: drift.Value(url),
+                          apiKey: drift.Value(key),
+                          model: drift.Value(model),
+                          enabled: const drift.Value(true),
+                          isDefault: const drift.Value(true),
+                          defaultSettingsJson: drift.Value(active?.defaultSettingsJson ?? '{}'),
+                          createdAt: drift.Value(active?.createdAt ?? now),
+                          modifiedAt: drift.Value(now),
+                        ));
+                        if (isNew) {
+                          // Auto-activate a newly created config: the setActive transaction
+                          // clears the old config's isDefault flag (all rows false, then the
+                          // target true), preventing two true rows from making
+                          // getSingleOrNull throw a StateError; it also applies the
+                          // just-saved config to runtime so cold-start
+                          // applyActiveMultiConfig isn't overwritten by the old config.
+                          await ref.read(llmConfigsProvider.notifier).setActive(configId);
+                        }
+                        if (rootContext.mounted) {
+                          Navigator.pop(dialogContext);
+                          _showDialogSnackBar(rootContext, '配置已保存');
+                        }
+                      },
+                      onSaveAsNew: () async {
+                        final name = nameController.text.trim();
+                        final url = urlController.text.trim();
+                        final key = keyController.text.trim();
+                        final model = modelController.text.trim();
+                        if (name.isEmpty || url.isEmpty || key.isEmpty || model.isEmpty) {
+                          _showDialogSnackBar(ctx, '请填写完整配置信息');
+                          return;
+                        }
+                        final now = DateTime.now();
+                        final newId = now.millisecondsSinceEpoch.toString();
+                        await ref.read(llmConfigsProvider.notifier).upsert(LlmConfigsCompanion(
+                          id: drift.Value(newId),
+                          name: drift.Value(name),
+                          provider: drift.Value(selectedProvider.name),
+                          endpoint: drift.Value(url),
+                          apiKey: drift.Value(key),
+                          model: drift.Value(model),
+                          enabled: const drift.Value(true),
+                          isDefault: const drift.Value(true),
+                          defaultSettingsJson: const drift.Value('{}'),
+                          createdAt: drift.Value(now),
+                          modifiedAt: drift.Value(now),
+                        ));
+                        await ref.read(llmConfigsProvider.notifier).setActive(newId);
+                        final runtimeConfig = ref.read(llmConfigProvider);
+                        if (selectedProvider != runtimeConfig.provider) {
+                          await ref.read(llmConfigProvider.notifier).updateProvider(selectedProvider);
+                        }
+                        ref.read(llmConfigProvider.notifier).updateApiUrl(url);
+                        ref.read(llmConfigProvider.notifier).updateApiKey(key);
+                        ref.read(llmConfigProvider.notifier).updateModel(model);
+                        if (ctx.mounted) {
+                          setState(() => activeConfigName = name);
+                          _showDialogSnackBar(ctx, '已保存为新方案');
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ).then((_) {
+      nameController.dispose();
+      urlController.dispose();
+      keyController.dispose();
+      modelController.dispose();
+    });
+  }
+
+  // Dialog components (all built from scratch, no QuickSetupCard reuse)
+
+  Widget _buildDialogHeader({
+    required bool isDark,
+    required String currentConfigName,
+    required VoidCallback onShowSwitcher,
+    required VoidCallback onClose,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(CupertinoIcons.chat_bubble_2_fill, size: 20, color: Color(0xFF42A5F5)),
+          const SizedBox(width: 8),
+          Text(
+            '对话模型配置',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+            ),
+          ),
+          const Spacer(),
+          // Config dropdown menu
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            minSize: 0,
+            onPressed: onShowSwitcher,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  currentConfigName.isEmpty ? '默认方案' : currentConfigName,
+                  style: const TextStyle(fontSize: 14, color: DesignTokens.primary),
+                ),
+                const SizedBox(width: 4),
+                const Icon(CupertinoIcons.chevron_down, size: 14, color: DesignTokens.primary),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            minSize: 0,
+            onPressed: onClose,
+            child: Icon(
+              CupertinoIcons.xmark_circle_fill,
+              size: 24,
+              color: isDark ? const Color(0xFF6C6C6C) : const Color(0xFFBDBDBD),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogFooter({
+    required bool isDark,
+    required VoidCallback onCancel,
+    required VoidCallback onSave,
+    required VoidCallback onSaveAsNew,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: CupertinoButton(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  alignment: Alignment.center,
+                  color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(10),
+                  onPressed: onCancel,
                   child: Text(
-                    metrics.status == MetricsStatus.measuring ? '测试中…' : '测试连接',
+                    '取消',
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                      fontSize: 15,
+                      color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
-              GestureDetector(
-                onTap: metrics.stabilityStatus == MetricsStatus.measuring
-                    ? null
-                    : () => ref
-                        .read(connectionMetricsProvider.notifier)
-                        .measureStability(config),
-                child: Container(
-                  width: double.infinity,
+              const SizedBox(width: 12),
+              Expanded(
+                child: CupertinoButton(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.4),
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    metrics.stabilityStatus == MetricsStatus.measuring
-                        ? '深度检测中…'
-                        : '深度检测（3次采样）',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
+                  color: DesignTokens.primary,
+                  borderRadius: BorderRadius.circular(10),
+                  onPressed: onSave,
+                  child: const Text('保存', style: TextStyle(fontSize: 15, color: Colors.white)),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                '深度检测会发送 3 次测试消息，消耗少量额度',
-                style: TextStyle(
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Save as new config
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            onPressed: onSaveAsNew,
+            child: const Text(
+              '保存为新方案',
+              style: TextStyle(fontSize: 15, color: DesignTokens.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionLabel(String label, bool isDark) {
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+      ),
+    );
+  }
+
+  Widget _buildDialogTextField({
+    required TextEditingController controller,
+    required String hint,
+    required bool isDark,
+    bool obscureText = false,
+    Widget? suffix,
+  }) {
+    return CupertinoTextField(
+      controller: controller,
+      placeholder: hint,
+      obscureText: obscureText,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      style: TextStyle(
+        fontSize: 14,
+        color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+      ),
+      suffix: suffix,
+    );
+  }
+
+  Widget _buildProviderChips({
+    required LLMProvider selectedProvider,
+    required bool isDark,
+    required ValueChanged<LLMProvider> onSelect,
+  }) {
+    const providers = <LLMProvider, (String, String)>{
+      LLMProvider.openAICompatible: ('OpenAI兼容', '推荐·多数中转'),
+      LLMProvider.openai: ('OpenAI', '官方'),
+      LLMProvider.claude: ('Claude', 'Anthropic'),
+      LLMProvider.gemini: ('Gemini', 'Google'),
+      LLMProvider.deepSeek: ('DeepSeek', '深度求索'),
+      LLMProvider.qwen: ('通义千问', '阿里'),
+      LLMProvider.openRouter: ('OpenRouter', '聚合'),
+      LLMProvider.ollama: ('Ollama', '本地'),
+    };
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: providers.entries.map((e) {
+        final isSelected = selectedProvider == e.key;
+        final name = e.value.$1;
+        final desc = e.value.$2;
+        return GestureDetector(
+          onTap: () => onSelect(e.key),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? DesignTokens.primary.withValues(alpha: 0.15)
+                  : (isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5)),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected
+                    ? DesignTokens.primary
+                    : (isDark ? const Color(0xFF3C3C3C) : const Color(0xFFE0E0E0)),
+                width: 1.5,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? DesignTokens.primary
+                        : (isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C)),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  desc,
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Theme.of(context).textTheme.bodySmall?.color),
+                    color: isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildDialogActionButton({
+    required String label,
+    required IconData icon,
+    required bool isDark,
+    required VoidCallback onTap,
+    bool isLoading = false,
+  }) {
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
+      borderRadius: BorderRadius.circular(10),
+      onPressed: isLoading ? null : onTap,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (isLoading)
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation(DesignTokens.primary),
               ),
+            )
+          else
+            Icon(icon, size: 18, color: DesignTokens.primary),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecondaryButton({
+    required String label,
+    required IconData icon,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
+      borderRadius: BorderRadius.circular(10),
+      onPressed: onTap,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFFAB47BC)),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTestResult(String result, bool isDark) {
+    final isSuccess = result.startsWith('✓');
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isSuccess
+            ? const Color(0xFF4CAF50).withValues(alpha: 0.1)
+            : const Color(0xFFF44336).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isSuccess ? Icons.check_circle : Icons.error,
+            size: 18,
+            color: isSuccess ? const Color(0xFF4CAF50) : const Color(0xFFF44336),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              result,
+              style: TextStyle(
+                fontSize: 14,
+                color: isSuccess ? const Color(0xFF4CAF50) : const Color(0xFFF44336),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showModelPickerDialog(
+    BuildContext context,
+    List<String> models,
+    ValueChanged<String> onSelect,
+    bool isDark,
+  ) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (dialogCtx) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: MediaQuery.of(dialogCtx).size.width - 64 < 400
+                ? MediaQuery.of(dialogCtx).size.width - 64
+                : 400.0,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(dialogCtx).size.height * 0.6,
+            ),
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1C1C1C) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Text(
+                        '选择模型',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+                        ),
+                      ),
+                      const Spacer(),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        minSize: 0,
+                        onPressed: () => Navigator.pop(dialogCtx),
+                        child: Icon(
+                          CupertinoIcons.xmark_circle_fill,
+                          size: 24,
+                          color: isDark ? const Color(0xFF6C6C6C) : const Color(0xFFBDBDBD),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Divider(height: 1, color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0)),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: models.length,
+                    itemBuilder: (_, i) {
+                      final m = models[i];
+                      return ListTile(
+                        title: Text(
+                          m,
+                          style: TextStyle(
+                            color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+                          ),
+                        ),
+                        onTap: () {
+                          onSelect(m);
+                          Navigator.pop(dialogCtx);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Config switcher dialog (centered Dialog, no BottomSheet)
+  void _showConfigSwitcherDialog({
+    required BuildContext ctx,
+    required WidgetRef ref,
+    required List<LlmConfig> allConfigs,
+    required String currentConfigName,
+    required Future<void> Function(LlmConfig) onSwitchConfig,
+    required VoidCallback onNewConfig,
+    required bool isDark,
+  }) {
+    showDialog<void>(
+      context: ctx,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (dialogCtx) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: MediaQuery.of(dialogCtx).size.width - 64 < 400
+                ? MediaQuery.of(dialogCtx).size.width - 64
+                : 400.0,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(dialogCtx).size.height * 0.7,
+            ),
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1C1C1C) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title bar
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(CupertinoIcons.square_stack_3d_up_fill, size: 20, color: Color(0xFFFFA726)),
+                      const SizedBox(width: 8),
+                      Text(
+                        '切换方案',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+                        ),
+                      ),
+                      const Spacer(),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        minSize: 0,
+                        onPressed: () => Navigator.pop(dialogCtx),
+                        child: Icon(
+                          CupertinoIcons.xmark_circle_fill,
+                          size: 24,
+                          color: isDark ? const Color(0xFF6C6C6C) : const Color(0xFFBDBDBD),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Config list
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    children: [
+                      ...allConfigs.map((config) {
+                        final isActive = config.name == currentConfigName && config.isDefault;
+                        final displayName = config.name.isEmpty ? '未命名方案' : config.name;
+                        final urlDisplay = config.endpoint
+                            .replaceAll('https://', '')
+                            .replaceAll('http://', '');
+                        return Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              onSwitchConfig(config);
+                              Navigator.pop(dialogCtx);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isActive
+                                        ? CupertinoIcons.checkmark_circle_fill
+                                        : CupertinoIcons.circle,
+                                    size: 20,
+                                    color: isActive
+                                        ? DesignTokens.primary
+                                        : (isDark ? const Color(0xFF6C6C6C) : const Color(0xFFBDBDBD)),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          displayName,
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                                            color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '$urlDisplay • ${config.model ?? '未配置'}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Rename / delete
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      CupertinoButton(
+                                        padding: const EdgeInsets.all(4),
+                                        minSize: 0,
+                                        onPressed: () {
+                                          Navigator.pop(dialogCtx);
+                                          _showRenameDialog(ctx, ref, config, isDark);
+                                        },
+                                        child: Icon(
+                                          CupertinoIcons.pencil,
+                                          size: 18,
+                                          color: isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93),
+                                        ),
+                                      ),
+                                      if (allConfigs.length > 1)
+                                        CupertinoButton(
+                                          padding: const EdgeInsets.all(4),
+                                          minSize: 0,
+                                          onPressed: () {
+                                            Navigator.pop(dialogCtx);
+                                            _showDeleteConfirmDialog(ctx, ref, config, isDark);
+                                          },
+                                          child: const Icon(
+                                            CupertinoIcons.trash,
+                                            size: 18,
+                                            color: Color(0xFFF44336),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                // New config
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: CupertinoButton(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    color: DesignTokens.primary,
+                    borderRadius: BorderRadius.circular(10),
+                    onPressed: () {
+                      Navigator.pop(dialogCtx);
+                      onNewConfig();
+                    },
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(CupertinoIcons.add_circled, size: 18, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text('新建方案', style: TextStyle(fontSize: 15, color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showRenameDialog(
+    BuildContext context,
+    WidgetRef ref,
+    LlmConfig config,
+    bool isDark,
+  ) {
+    final controller = TextEditingController(text: config.name);
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (dialogCtx) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: MediaQuery.of(dialogCtx).size.width - 64 < 400
+                ? MediaQuery.of(dialogCtx).size.width - 64
+                : 400.0,
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1C1C1C) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '重命名方案',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                CupertinoTextField(
+                  controller: controller,
+                  placeholder: '输入新名称',
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: CupertinoButton(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
+                        borderRadius: BorderRadius.circular(10),
+                        onPressed: () => Navigator.pop(dialogCtx),
+                        child: Text(
+                          '取消',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: CupertinoButton(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        color: DesignTokens.primary,
+                        borderRadius: BorderRadius.circular(10),
+                        onPressed: () async {
+                          final newName = controller.text.trim();
+                          if (newName.isEmpty) return;
+                          await ref.read(llmConfigsProvider.notifier).upsert(LlmConfigsCompanion(
+                            id: drift.Value(config.id),
+                            name: drift.Value(newName),
+                            provider: drift.Value(config.provider),
+                            endpoint: drift.Value(config.endpoint),
+                            apiKey: drift.Value(config.apiKey ?? ''),
+                            model: drift.Value(config.model),
+                            enabled: drift.Value(config.enabled),
+                            isDefault: drift.Value(config.isDefault),
+                            defaultSettingsJson: drift.Value(config.defaultSettingsJson),
+                            createdAt: drift.Value(config.createdAt),
+                            modifiedAt: drift.Value(DateTime.now()),
+                          ));
+                          if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                        },
+                        child: const Text('保存', style: TextStyle(fontSize: 15, color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).then((_) => controller.dispose());
+  }
+
+  void _showDeleteConfirmDialog(
+    BuildContext context,
+    WidgetRef ref,
+    LlmConfig config,
+    bool isDark,
+  ) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (dialogCtx) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: MediaQuery.of(dialogCtx).size.width - 64 < 400
+                ? MediaQuery.of(dialogCtx).size.width - 64
+                : 400.0,
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1C1C1C) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 40,
+                  offset: const Offset(0, 20),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  CupertinoIcons.exclamationmark_triangle_fill,
+                  size: 48,
+                  color: Color(0xFFF44336),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '确认删除方案？',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '方案"${config.name.isEmpty ? "未命名方案" : config.name}"将被永久删除',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: CupertinoButton(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF5F5F5),
+                        borderRadius: BorderRadius.circular(10),
+                        onPressed: () => Navigator.pop(dialogCtx),
+                        child: Text(
+                          '取消',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: CupertinoButton(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        color: const Color(0xFFF44336),
+                        borderRadius: BorderRadius.circular(10),
+                        onPressed: () async {
+                          await ref.read(llmConfigsProvider.notifier).delete(config.id);
+                          if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                        },
+                        child: const Text('删除', style: TextStyle(fontSize: 15, color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDialogSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Widget _buildCompactInfoRow(String label, String value, bool isDark) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$label: ', style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8C8C8C) : const Color(0xFF8E8E93))),
+        Expanded(
+          child: Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C)), maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactStatusIcon(ApiStatus status) {
+    return switch (status) {
+      ApiStatus.connected => const Icon(Icons.check_circle, size: 18, color: Color(0xFF4CAF50)),
+      ApiStatus.notConfigured => const Icon(Icons.circle_outlined, size: 18, color: Color(0xFF9E9E9E)),
+      ApiStatus.error => const Icon(Icons.error, size: 18, color: Color(0xFFF44336)),
+      ApiStatus.testing => const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+    };
+  }
+
+  Widget _buildImageGenConfigCard(BuildContext context, WidgetRef ref, bool isDark) {
+    final settings = ref.watch(imageGenSettingsProvider);
+    final status = settings.enabled ? ApiStatus.connected : ApiStatus.notConfigured;
+    final providerName = settings.provider.displayName;
+    final modelName = settings.model.isNotEmpty ? settings.model : '未配置';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1C) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: isDark
+            ? null
+            : Border.all(color: Colors.black.withValues(alpha: 0.05), width: 0.5),
+        boxShadow: isDark
+            ? null
+            : [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(CupertinoIcons.photo_fill, size: 20, color: Color(0xFFEC407A)),
+                const SizedBox(width: 8),
+                const Text('图像生成', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                _buildCompactStatusIcon(status),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildCompactInfoRow('服务', providerName, isDark),
+            const SizedBox(height: 6),
+            _buildCompactInfoRow('模型', modelName, isDark),
+            const SizedBox(height: 6),
+            _buildCompactInfoRow('状态', settings.enabled ? '已启用' : '未启用', isDark),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: CupertinoButton(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                color: DesignTokens.primary,
+                borderRadius: BorderRadius.circular(8),
+                minSize: 0,
+                onPressed: () => showImageGenConfigDialog(context, ref),
+                child: const Text('完整配置', style: TextStyle(fontSize: 13, color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsCard(
+      BuildContext context, WidgetRef ref, bool isDark) {
+    // Core block removed (its features moved into the individual dialogs);
+    // extended to four tiles: preset, worldbook, regex, prompt.
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildQuickActionTile(
+              icon: CupertinoIcons.square_stack_3d_up_fill,
+              iconColor: const Color(0xFFFFA726),
+              label: '预设',
+              isDark: isDark,
+              onTap: () => showAIPresetDialog(context, ref),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildQuickActionTile(
+              icon: CupertinoIcons.book_fill,
+              iconColor: const Color(0xFF26A69A),
+              label: '世界书',
+              isDark: isDark,
+              onTap: () => showGlobalWorldbookDialog(context, ref),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildQuickActionTile(
+              icon: CupertinoIcons.wand_stars,
+              iconColor: const Color(0xFFAB47BC),
+              label: '正则',
+              isDark: isDark,
+              onTap: () => showRegexSystemDialog(context, ref),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildQuickActionTile(
+              icon: CupertinoIcons.list_bullet,
+              iconColor: const Color(0xFF42A5F5),
+              label: '提示词',
+              isDark: isDark,
+              onTap: () => showPromptManagerDialog(context, ref),
+            ),
+          ),
+          // The "Memory" tile was removed from the quick-actions row:
+          // its entry point now lives in the top status card (the global book also
+          // keeps only the "Worldbook" tile here).
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionTile({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1C1C1C) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: isDark
+                ? null
+                : Border.all(color: Colors.black.withValues(alpha: 0.05), width: 0.5),
+            boxShadow: isDark
+                ? null
+                : [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))],
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: iconColor, size: 24),
+              const SizedBox(height: 6),
+              Text(label, style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFFF0F0F0) : const Color(0xFF2C2C2C)), textAlign: TextAlign.center),
             ],
           ),
         ),
@@ -1412,584 +1947,73 @@ class _ConnectionStatusCard extends ConsumerWidget {
     );
   }
 }
-class _MetricCell extends StatelessWidget {
+
+// Mini slider row (reused as-is from the former Geek Core dashboard _MiniSlider)
+class _MiniSlider extends StatelessWidget {
   final String label;
-  final String value;
-  const _MetricCell({required this.label, required this.value});
+  final double value;
+  final double min;
+  final double max;
+  final int divisions;
+  final String display;
+  final ValueChanged<double> onChanged;
 
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).textTheme.bodyLarge?.color),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-                fontSize: 11,
-                color: Theme.of(context).textTheme.bodySmall?.color),
-          ),
-        ],
-      ),
-    );
-  }
-}
-/// ══════════════════════════════════════════════════════════
-/// 快速接入卡片
-/// 面向新手：填 API 地址 + 密钥 → 一键拉取模型 → 下拉选择 → 立即可用。
-/// 直接读写 llmConfig（聊天实际使用的配置），每次修改自动持久化，
-/// 无需再去"多方案"里新建预设。高级用户仍可使用下方的预设系统。
-/// ══════════════════════════════════════════════════════════
-class QuickSetupCard extends ConsumerStatefulWidget {
-  const QuickSetupCard({super.key});
-
-  @override
-  ConsumerState<QuickSetupCard> createState() => _QuickSetupCardState();
-}
-
-class _QuickSetupCardState extends ConsumerState<QuickSetupCard> {
-  late final TextEditingController _urlController;
-  late final TextEditingController _keyController;
-  bool _obscureKey = true; // API 密钥默认遮罩
-
-  @override
-  void initState() {
-    super.initState();
-    // 用当前已保存的配置初始化输入框
-    final config = ref.read(llmConfigProvider);
-    _urlController = TextEditingController(text: config.apiUrl);
-    _keyController = TextEditingController(text: config.apiKey);
-  }
-
-  @override
-  void dispose() {
-    _urlController.dispose();
-    _keyController.dispose();
-    super.dispose();
-  }
+  const _MiniSlider({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.display,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final config = ref.watch(llmConfigProvider);
-    // 配置异步加载完成 / 切换方案后，同步刷新输入框，避免显示旧的默认值
-    ref.listen<LLMConfig>(llmConfigProvider, (prev, next) {
-      if (_urlController.text != next.apiUrl) {
-        _urlController.text = next.apiUrl;
-      }
-      if (_keyController.text != next.apiKey) {
-        _keyController.text = next.apiKey;
-      }
-    });
-    final fetchState = ref.watch(modelFetchProvider);
-    final isLoading = fetchState.status == ModelFetchStatus.loading;
-
-    // 监听拉取结果：成功弹出模型选择，失败提示错误
-    ref.listen<ModelFetchState>(modelFetchProvider, (prev, next) {
-      if (next.status == ModelFetchStatus.success && next.models.isNotEmpty) {
-        _showModelPicker(next.models);
-      } else if (next.status == ModelFetchStatus.error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('拉取模型失败：${next.errorMessage ?? "请检查地址和密钥"}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    });
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 标题 + 引导语
-          Row(
-            children: [
-              Icon(Icons.rocket_launch, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              const Text('快速接入',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '填入 API 地址和密钥，点击"拉取模型"即可开始使用。',
-            style: theme.textTheme.bodySmall,
-          ),
-          const SizedBox(height: 16),
-
-          // ── 快速切换 LLM 方案 ──
-          // 读取已保存的多套 API 配置，下拉即可切换当前使用的方案。
-          // 仅当保存了至少一套方案时才显示。
-          Builder(builder: (context) {
-            final llmState = ref.watch(llmConfigsProvider);
-            final configs = llmState.configs;
-            final activeId = llmState.active?.id;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Column(
-                children: [
-                  if (configs.isNotEmpty)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: '当前方案',
-                              prefixIcon: Icon(Icons.swap_horiz),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                isExpanded: true,
-                                value: configs.any((c) => c.id == activeId)
-                                    ? activeId
-                                    : null,
-                                hint: const Text('选择方案'),
-                                items: configs
-                                    .map((c) => DropdownMenuItem(
-                                          value: c.id,
-                                          child: Text(
-                                            c.name.isEmpty
-                                                ? '未命名方案'
-                                                : c.name,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ))
-                                    .toList(),
-                                onChanged: (id) {
-                                  if (id == null) return;
-                                  ref
-                                      .read(llmConfigsProvider.notifier)
-                                      .setActive(id);
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon:
-                              const Icon(Icons.drive_file_rename_outline),
-                          tooltip: '重命名当前方案',
-                          onPressed: _renameActiveConfig,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          tooltip: '删除当前方案',
-                          onPressed: activeId == null
-                              ? null
-                              : () => _confirmDeleteActiveConfig(activeId),
-                        ),
-                      ],
-                    ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _saveAsNewConfig,
-                      icon: const Icon(Icons.add),
-                      label: const Text('把当前配置保存为新方案'),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-          // 接口类型选择（大多数第三方中转选"OpenAI 兼容"）
-          _buildProviderSelector(config),
-          const SizedBox(height: 12),
-
-          // API 地址
-          TextField(
-            controller: _urlController,
-            decoration: const InputDecoration(
-              labelText: 'API 地址',
-              hintText: 'https://api.openai.com/v1',
-              prefixIcon: Icon(Icons.link),
-            ),
-            // 失焦即保存
-            onChanged: (v) =>
-                ref.read(llmConfigProvider.notifier).updateApiUrl(v.trim()),
-          ),
-          const SizedBox(height: 12),
-
-          // API 密钥
-          TextField(
-            controller: _keyController,
-            obscureText: _obscureKey,
-            decoration: InputDecoration(
-              labelText: 'API 密钥',
-              hintText: 'sk-...',
-              prefixIcon: const Icon(Icons.key),
-              suffixIcon: IconButton(
-                icon: Icon(
-                    _obscureKey ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _obscureKey = !_obscureKey),
-              ),
-            ),
-            onChanged: (v) =>
-                ref.read(llmConfigProvider.notifier).updateApiKey(v.trim()),
-          ),
-          const SizedBox(height: 12),
-
-          // 当前选中的模型显示（可点击快捷切换）
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                final models = ref.read(modelFetchProvider).models;
-                if (models.isNotEmpty) {
-                  // 已有拉取结果，直接弹出选择
-                  _showModelPicker(models);
-                } else {
-                  // 尚未拉取，先确保配置写入再拉取
-                  final notifier = ref.read(llmConfigProvider.notifier);
-                  notifier.updateApiUrl(_urlController.text.trim());
-                  notifier.updateApiKey(_keyController.text.trim());
-                  ref
-                      .read(modelFetchProvider.notifier)
-                      .fetchModels(ref.read(llmConfigProvider));
-                }
-              },
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.memory, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        config.model.isEmpty ? '尚未选择模型（点击选择）' : config.model,
-                        style: TextStyle(
-                          color: config.model.isEmpty
-                              ? theme.textTheme.bodySmall?.color
-                              : null,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Icon(Icons.unfold_more, size: 18,
-                        color: theme.textTheme.bodySmall?.color),
-                  ],
+    const color = DesignTokens.primary;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: theme.textTheme.bodyLarge?.color,
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-
-          // 拉取模型按钮（核心动作）
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: isLoading
-                  ? null
-                  : () {
-                      // 先确保输入框内容已写入配置，再拉取
-                      final notifier = ref.read(llmConfigProvider.notifier);
-                      notifier.updateApiUrl(_urlController.text.trim());
-                      notifier.updateApiKey(_keyController.text.trim());
-                      final latest = ref.read(llmConfigProvider);
-                      ref
-                          .read(modelFetchProvider.notifier)
-                          .fetchModels(latest);
-                    },
-              icon: isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.download),
-              label: Text(isLoading ? '正在拉取模型…' : '拉取模型并选择'),
+            Text(
+              display,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          // 保底：自动拉取失败时，手动重新拉取模型列表
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: isLoading
-                  ? null
-                  : () {
-                      final notifier = ref.read(llmConfigProvider.notifier);
-                      notifier.updateApiUrl(_urlController.text.trim());
-                      notifier.updateApiKey(_keyController.text.trim());
-                      ref
-                          .read(modelFetchProvider.notifier)
-                          .fetchModels(ref.read(llmConfigProvider));
-                    },
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('刷新模型列表'),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // 确认并启用：强制写入当前输入内容 + 明确反馈，消除"是否已生效"的不确定感
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.tonalIcon(
-              onPressed: () {
-                final notifier = ref.read(llmConfigProvider.notifier);
-                notifier.updateApiUrl(_urlController.text.trim());
-                notifier.updateApiKey(_keyController.text.trim());
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('✓ 配置已保存并启用'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.check_circle_outline, size: 18),
-              label: const Text('确认并启用'),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const _ConnectionStatusCard(),
-        ],
-      ),
-    );
-  }
-
-  /// 接口类型下拉：默认 OpenAI 兼容，覆盖绝大多数第三方中转 API。
-  Widget _buildProviderSelector(LLMConfig config) {
-    return InputDecorator(
-      decoration: const InputDecoration(
-        labelText: '接口类型',
-        prefixIcon: Icon(Icons.hub),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<LLMProvider>(
-          isExpanded: true,
-          value: config.provider,
-          items: const [
-            DropdownMenuItem(
-              value: LLMProvider.openAICompatible,
-              child: Text('OpenAI 兼容（推荐，多数中转选这个）'),
-            ),
-            DropdownMenuItem(
-                value: LLMProvider.openai, child: Text('OpenAI 官方')),
-            DropdownMenuItem(
-                value: LLMProvider.claude, child: Text('Claude')),
-            DropdownMenuItem(
-                value: LLMProvider.gemini, child: Text('Gemini')),
-            DropdownMenuItem(
-                value: LLMProvider.deepSeek, child: Text('DeepSeek')),
-            DropdownMenuItem(value: LLMProvider.qwen, child: Text('通义千问')),
-            DropdownMenuItem(
-                value: LLMProvider.ollama, child: Text('Ollama（本地）')),
           ],
-          onChanged: (v) {
-            if (v != null) {
-              ref.read(llmConfigProvider.notifier).updateProvider(v);
-            }
-          },
         ),
-      ),
-    );
-  }
-
-  /// 弹出底部面板，展示拉取到的模型列表供选择。
-  void _showModelPicker(List<String> models) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final current = ref.read(llmConfigProvider).model;
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('选择模型',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.only(bottom: 100),
-                  itemCount: models.length,
-                  itemBuilder: (_, i) {
-                    final m = models[i];
-                    return ListTile(
-                      title: Text(m),
-                      trailing: m == current
-                          ? const Icon(Icons.check, color: Colors.green)
-                          : null,
-                      onTap: () {
-                        ref.read(llmConfigProvider.notifier).updateModel(m);
-                        Navigator.pop(ctx);
-                      },
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 4,
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+            activeTrackColor: color,
+            inactiveTrackColor:
+                theme.textTheme.bodySmall?.color?.withValues(alpha: 0.18),
+            thumbColor: color,
           ),
-        );
-      },
-    );
-  }
-
-  /// 把当前填写的配置保存为一套新的 LLM 方案。
-  void _saveAsNewConfig() {
-    final nameController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('保存为新方案'),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: '方案名称',
-            hintText: '例如：我的中转站',
+          child: Slider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            divisions: divisions,
+            onChanged: onChanged,
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              final config = ref.read(llmConfigProvider);
-              final now = DateTime.now();
-              final id = now.millisecondsSinceEpoch.toString();
-              final companion = LlmConfigsCompanion(
-                id: drift.Value(id),
-                name: drift.Value(name.isEmpty ? '未命名方案' : name),
-                provider: drift.Value(config.provider.name),
-                endpoint: drift.Value(config.apiUrl),
-                apiKey: drift.Value(config.apiKey),
-                model: drift.Value(
-                    config.model.isEmpty ? null : config.model),
-                createdAt: drift.Value(now),
-                modifiedAt: drift.Value(now),
-              );
-              await ref
-                  .read(llmConfigsProvider.notifier)
-                  .upsert(companion);
-              await ref.read(llmConfigsProvider.notifier).setActive(id);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('保存'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 给当前选中的方案改名。
-  void _renameActiveConfig() {
-    final state = ref.read(llmConfigsProvider);
-    final active = state.active;
-    if (active == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先选择一个方案')),
-      );
-      return;
-    }
-    final nameController = TextEditingController(text: active.name);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('重命名方案'),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: '方案名称'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              final companion = LlmConfigsCompanion(
-                id: drift.Value(active.id),
-                name: drift.Value(name.isEmpty ? '未命名方案' : name),
-                provider: drift.Value(active.provider),
-                endpoint: drift.Value(active.endpoint),
-                apiKey: drift.Value(active.apiKey),
-                model: drift.Value(active.model),
-                createdAt: drift.Value(active.createdAt),
-                modifiedAt: drift.Value(DateTime.now()),
-              );
-              await ref
-                  .read(llmConfigsProvider.notifier)
-                  .upsert(companion);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('保存'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDeleteActiveConfig(String id) {
-    final state = ref.read(llmConfigsProvider);
-    final active = state.active;
-    if (active == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先选择一个方案')),
-      );
-      return;
-    }
-    final name = active.name.isEmpty ? '未命名方案' : active.name;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('删除方案'),
-        content: Text('将删除方案「$name」，此操作不可恢复。确定吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await ref.read(llmConfigsProvider.notifier).delete(id);
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('已删除方案「$name」')),
-                );
-              }
-            },
-            child: const Text('删除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }

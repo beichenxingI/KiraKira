@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 const String _kTermsAgreedKey = 'agreed_terms_v1';
 bool _termsDialogShowing = false;
 
-/// 首次启动强制显示免责声明。已同意过则不显示。
+/// Force-shows the disclaimer on first launch; skipped once already agreed.
 Future<void> maybeShowTermsDialog(
     BuildContext context, SharedPreferences prefs) async {
   if (prefs.getBool(_kTermsAgreedKey) == true) return;
@@ -23,7 +23,7 @@ Future<void> maybeShowTermsDialog(
     ),
     );
   } finally {
-    _termsDialogShowing = false; // 无论如何都复位，杜绝卡死
+    _termsDialogShowing = false; // Always reset so the dialog can never get stuck
   }
 }
 
@@ -62,7 +62,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
               Text('KiraKira',
                   style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 13,
+                      fontSize: DesignTokens.fontSizeSm,
                       letterSpacing: 1.5)),
               const SizedBox(height: 4),
               Text(t.title,
@@ -76,7 +76,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                       color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 14)),
               const SizedBox(height: 20),
-              // 语言切换
+              // Language switcher
               Row(
                 children: [
                   Text('${t.language} ',
@@ -88,7 +88,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                 ],
               ),
               const SizedBox(height: 20),
-              // 三张卡片
+              // Three cards
               Flexible(
                 child: SingleChildScrollView(
                   child: Column(
@@ -101,7 +101,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                       Text(t.warning,
                           style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 13,
+                              fontSize: DesignTokens.fontSizeSm,
                               height: 1.6)),
                       const SizedBox(height: 12),
                       _licenseLine(t),
@@ -110,7 +110,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                 ),
               ),
               const SizedBox(height: 16),
-              // 复选框
+              // Checkbox
               InkWell(
                 onTap: () => setState(() => _agreed = !_agreed),
                 child: Row(
@@ -125,13 +125,13 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                     Expanded(
                       child: Text(t.checkbox,
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 15)),
+                              color: Colors.white, fontSize: DesignTokens.fontSizeBodyLarge)),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
-              // 同意按钮
+              // Agree button
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
@@ -161,7 +161,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                   child: Text(t.disagree,
                       style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.4),
-                          fontSize: 13)),
+                          fontSize: DesignTokens.fontSizeSm)),
                 ),
               ),
             ],
@@ -180,7 +180,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
             color: on ? _accent : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
           ),
           child: Text(label,
               style: TextStyle(
@@ -238,7 +238,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
                 Text(body,
                     style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 13,
+                        fontSize: DesignTokens.fontSizeSm,
                         height: 1.6)),
               ],
             ),
@@ -257,7 +257,7 @@ class _TermsDialogContentState extends State<_TermsDialogContent> {
             TextSpan(
               style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 13,
+                  fontSize: DesignTokens.fontSizeSm,
                   height: 1.6),
               children: [
                 TextSpan(text: t.licensePrefix),

@@ -16,12 +16,36 @@ class VariablesService {
   /// Key is chatId, value is map of variable name to value
   final Map<String, Map<String, dynamic>> _localVariables = {};
 
+  /// Script-level variables (per-script, app-wide, persisted in SP).
+  /// ST semantics: script variables are isolated per scriptId, cross-chat, and persisted at device level.
+  /// Key is scriptId, value is map of variable name to value.
+  final Map<String, Map<String, dynamic>> _scriptVariables = {};
+
+  /// Storage key for script-level variables
+  static const _scriptStorageKey = 'script_variables';
+
+  bool _scriptsLoaded = false;
+
   /// Storage key for global variables
   static const _globalStorageKey = 'global_variables';
 
+  /// Idempotency flag: global variables are loaded from SP only once.
+  /// Previously only opening the variables settings page triggered loading,
+  /// so writing global variables at startup would overwrite the existing
+  /// archive with an empty map. All global write paths go through initialize().
+  bool _globalsLoaded = false;
+
   /// Initialize the service and load global variables
   Future<void> initialize() async {
-    await _loadGlobalVariables();
+    if (_globalsLoaded && _scriptsLoaded) return;
+    if (!_globalsLoaded) {
+      await _loadGlobalVariables();
+      _globalsLoaded = true;
+    }
+    if (!_scriptsLoaded) {
+      await _loadScriptVariables();
+      _scriptsLoaded = true;
+    }
   }
 
   Future<void> _loadGlobalVariables() async {
@@ -49,7 +73,49 @@ class VariablesService {
     }
   }
 
-  // ==================== Global Variables ====================
+  // Script variables (per-script, app-wide)
+  // Aligned with ST script-variable semantics: isolated per scriptId, cross-chat, persisted at device level.
+
+  Future<void> _loadScriptVariables() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString(_scriptStorageKey);
+      if (jsonStr == null) return;
+      final decoded = jsonDecode(jsonStr);
+      if (decoded is! Map) return;
+      decoded.forEach((k, v) {
+        if (k is String && v is Map) {
+          _scriptVariables[k] = Map<String, dynamic>.from(v);
+        }
+      });
+    } catch (e) {
+      print('VariablesService: Error loading script variables: $e');
+    }
+  }
+
+  Future<void> _saveScriptVariables() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_scriptStorageKey, jsonEncode(_scriptVariables));
+    } catch (e) {
+      print('VariablesService: Error saving script variables: $e');
+    }
+  }
+
+  /// Read all variables of a script (sync, memory-backed; ensure initialize() called).
+  Map<String, dynamic> getScriptVariables(String scriptId) {
+    if (scriptId.isEmpty) return {};
+    return Map<String, dynamic>.from(_scriptVariables[scriptId] ?? const {});
+  }
+
+  /// Write (replace) all variables of a script and persist.
+  Future<void> setScriptVariables(String scriptId, Map<String, dynamic> vars) async {
+    if (scriptId.isEmpty) return;
+    _scriptVariables[scriptId] = Map<String, dynamic>.from(vars);
+    await _saveScriptVariables();
+  }
+
+  // Global variables
 
   /// Get a global variable value
   dynamic getGlobalVariable(String name, {String? index}) {
@@ -94,6 +160,7 @@ class VariablesService {
 
   /// Set a global variable value
   Future<void> setGlobalVariable(String name, dynamic value, {String? index, String? asType}) async {
+    await initialize(); // Load existing archive before writing to avoid losing data via whole-map overwrite
     if (name.isEmpty) {
       throw ArgumentError('Variable name cannot be empty');
     }
@@ -114,7 +181,7 @@ class VariablesService {
             current = [];
           }
           // Extend list if needed
-          while ((current as List).length <= numIndex) {
+          while ((current).length <= numIndex) {
             current.add(null);
           }
           current[numIndex] = convertedValue;
@@ -122,7 +189,7 @@ class VariablesService {
           if (current is! Map) {
             current = {};
           }
-          (current as Map)[index] = convertedValue;
+          (current)[index] = convertedValue;
         }
         
         _globalVariables[name] = jsonEncode(current);
@@ -143,6 +210,7 @@ class VariablesService {
 
   /// Delete a global variable
   Future<void> deleteGlobalVariable(String name) async {
+    await initialize(); // Deleting with an unloaded in-memory map would also erase other keys
     _globalVariables.remove(name);
     await _saveGlobalVariables();
   }
@@ -160,6 +228,7 @@ class VariablesService {
 
   /// Add to a global variable (increment number or append string/array)
   Future<dynamic> addGlobalVariable(String name, dynamic value) async {
+    await initialize(); // Load before read-modify-write
     final currentValue = getGlobalVariable(name);
     
     // Try to handle as array
@@ -200,7 +269,7 @@ class VariablesService {
     return addGlobalVariable(name, -1);
   }
 
-  // ==================== Local Variables (Per-Chat) ====================
+  // Local variables (per-chat)
 
   /// Get a local variable value for a specific chat
   dynamic getLocalVariable(String chatId, String name, {String? index}) {
@@ -267,7 +336,7 @@ class VariablesService {
           if (current is! List) {
             current = [];
           }
-          while ((current as List).length <= numIndex) {
+          while ((current).length <= numIndex) {
             current.add(null);
           }
           current[numIndex] = convertedValue;
@@ -275,7 +344,7 @@ class VariablesService {
           if (current is! Map) {
             current = {};
           }
-          (current as Map)[index] = convertedValue;
+          (current)[index] = convertedValue;
         }
         
         _localVariables[chatId]![name] = jsonEncode(current);
@@ -326,10 +395,10 @@ class VariablesService {
     return {'variables': Map<String, dynamic>.from(vars)};
   }
 
-  /// 局部变量持久化存储 key 前缀
+  /// Storage key prefix for persisted local variables
   static String _localStorageKey(String chatId) => 'local_variables_$chatId';
 
-  /// 从 SharedPreferences 恢复某个聊天的局部变量（进入聊天时调用）
+  /// Restore a chat's local variables from SharedPreferences (called when entering the chat)
   Future<void> loadLocalVariablesFromPrefs(String chatId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -345,7 +414,7 @@ class VariablesService {
     }
   }
 
-  /// 把某个聊天的局部变量落盘到 SharedPreferences（写变量后调用）
+  /// Persist a chat's local variables to SharedPreferences (called after writing variables)
   Future<void> saveLocalVariablesToPrefs(String chatId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -402,7 +471,7 @@ class VariablesService {
     return addLocalVariable(chatId, name, -1);
   }
 
-  // ==================== Variable Resolution ====================
+  // Variable resolution
 
   /// Resolve a variable name to its value
   /// Checks local variables first, then global
@@ -418,7 +487,7 @@ class VariablesService {
     return name; // Return the name as-is if not found
   }
 
-  // ==================== Macro Support ====================
+  // Macro support
 
   /// Process variable macros in a string
   /// Supports: {{getvar::name}}, {{setvar::name::value}}, {{addvar::name::value}},

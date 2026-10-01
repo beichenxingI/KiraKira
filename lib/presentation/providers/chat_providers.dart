@@ -19,16 +19,29 @@ import 'package:kirakira/domain/services/macro_service.dart';
 import 'package:kirakira/domain/services/variables_service.dart';
 import 'package:kirakira/domain/services/chat_summarization_service.dart';
 import 'package:kirakira/presentation/providers/group_providers.dart';
+import 'package:kirakira/presentation/providers/llm_configs_provider.dart';
 import 'package:kirakira/presentation/providers/persona_providers.dart';
 import 'package:kirakira/presentation/providers/prompt_manager_providers.dart';
 import 'package:kirakira/presentation/providers/settings_providers.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:uuid/uuid.dart';
 import 'package:kirakira/presentation/providers/image_gen_providers.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
+import 'package:kirakira/presentation/providers/tts_providers.dart';
 import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
+import 'package:kirakira/data/models/vector_storage.dart'
+    show EmbeddingProvider, EmbeddingProviderExtension;
+import 'package:kirakira/data/repositories/chronicle_repository.dart';
+import 'package:kirakira/presentation/providers/chronicle_providers.dart';
+import 'package:kirakira/data/models/chronicle.dart'
+    show
+        MemoryEntity,
+        MemoryEntry,
+        MemoryRelationship,
+        EmotionNode,
+        WindowedMessages;
+import 'package:kirakira/core/utils/file_utils.dart';
 
 // Note: Repository providers are defined in their respective repository files
 // llmServiceProvider is defined in settings_providers.dart
@@ -36,10 +49,6 @@ import 'package:kirakira/presentation/providers/vector_storage_providers.dart';
 /// Current active chat ID
 final activeChatIdProvider = StateProvider<String?>((ref) => null);
 
-/// isolate 中读文件并编码 base64，避免大图阻塞主线程
-String _encodeFileToB64(String path) {
-  return base64Encode(File(path).readAsBytesSync());
-}
 
 /// Active chat state
 class ActiveChatState {
@@ -51,10 +60,10 @@ class ActiveChatState {
   final List<ChatMessage> messages;
   final bool isLoading;
   final bool isGenerating;
-  final bool isGeneratingImage; // 自动生图进行中（用于呼吸✨提示）
-  final String? generatingImageMsgId; // 正在自动生图的消息id
-  final double imageGenProgress; // 自动生图进度 0~1
-  final String? imageGenError; // 自动生图失败信息（一次性提醒）
+  final bool isGeneratingImage; // Auto image generation in progress (drives the pulsing indicator)
+  final String? generatingImageMsgId; // ID of the message currently generating an image
+  final double imageGenProgress; // Auto image generation progress, 0~1
+  final String? imageGenError; // Auto image generation error (one-shot notice)
   final String? error;
   final String?
       currentResponderId; // Which character is currently responding (group chat)
@@ -109,7 +118,7 @@ class ActiveChatState {
           ? null
           : (generatingImageMsgId ?? this.generatingImageMsgId),
       imageGenProgress: imageGenProgress ?? this.imageGenProgress,
-      imageGenError: imageGenError, // 一次性，不传即清空
+      imageGenError: imageGenError, // One-shot: cleared when omitted
       error: error,
       currentResponderId: clearCurrentResponder
           ? null
@@ -132,6 +141,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   bool _isCancelling = false;
   int _generationToken = 0;
 
+  // IDs of entries already injected by the fixed layer, used for recall layer deduplication
+  Set<String> _lastF6EntryIds = {};
+
   ActiveChatNotifier({
     required ChatRepository chatRepository,
     required CharacterRepository characterRepository,
@@ -152,10 +164,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   /// Cancel current generation
   Future<void> cancelGeneration() async {
     _isCancelling = true;
-    _generationToken++; // 令牌失效：任何在跑的循环立即作废
-    // 循环会因令牌失效直接 return，跳过收尾清理，故在此删掉纯空壳。
-    // 判据同失败处理：最后一条是 assistant 且内容为空 = 没收到任何内容的思考中气泡。
-    // 半截回复 content 非空 → 保留不删。
+    _generationToken++; // Invalidate the token: any running loop aborts immediately
+    // Loops return right away on token invalidation and skip cleanup, so remove the
+    // empty placeholder here. Same criterion as failure handling: the last message is
+    // an assistant with empty content = a thinking bubble that received nothing.
+    // A partial reply with non-empty content is kept.
     final msgs = List<ChatMessage>.from(state.messages);
     if (msgs.isNotEmpty &&
         msgs.last.role == MessageRole.assistant &&
@@ -170,13 +183,22 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     });
   }
 
+  /// Updates the active chat's character snapshot (fixes stale data after a character edit).
+  /// Swaps only the character field and does not set isLoading, avoiding a full-page
+  /// reload flicker; LLM prompt assembly (sendMessage/_buildContextUpTo) reads this snapshot.
+  /// Pass a new instance (content changed, id unchanged): _charSub only watches the id,
+  /// so no re-injection storm is triggered.
+  void updateCharacterSnapshot(Character character) {
+    state = state.copyWith(character: character);
+  }
+
   /// Load a chat by ID
   Future<void> loadChat(String chatId) async {
-    _generationToken++; // 切换聊天前作废正在跑的生成，杜绝串台
-    _isCancelling = true; // 先掐断上一个聊天正在跑的生成
+    _generationToken++; // Invalidate any running generation before switching chats
+    _isCancelling = true; // Cut off generation still running for the previous chat
     state = state.copyWith(isLoading: true, error: null);
-    // 关键：本聊天加载后立刻复位，否则这面停止旗会一直举着，
-    // 导致之后所有生成刚收到几个 token 就被 break 掉（空回复但扣费）。
+    // Must reset right after this chat loads; otherwise the stop flag stays set and
+    // every later generation breaks after a few tokens (empty reply but still billed).
     _isCancelling = false;
 
     try {
@@ -190,7 +212,31 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           await _characterRepository.getCharacter(chat.characterId);
       final messages = await _chatRepository.getMessages(chatId);
 
-      // 恢复本聊天的局部变量（酒馆助手 getVariables 存档）
+      // Temporary debug: verify the character data loaded by loadChat
+      debugPrint('═══ [loadChat] 读取角色数据 ═══');
+      debugPrint('[loadChat] chatId = $chatId');
+      debugPrint('[loadChat] characterId = ${chat.characterId}');
+      debugPrint('[loadChat] character != null: ${character != null}');
+      if (character != null) {
+        debugPrint('[loadChat] character.id = ${character.id}');
+        debugPrint('[loadChat] character.name = ${character.name}');
+        debugPrint('[loadChat] description 长度: ${character.description.length}');
+        if (character.description.isNotEmpty) {
+          final preview = character.description.length > 80 
+              ? character.description.substring(0, 80) 
+              : character.description;
+          debugPrint('[loadChat] description 开头: $preview');
+        }
+        debugPrint('[loadChat] systemPrompt 长度: ${character.systemPrompt.length}');
+        debugPrint('[loadChat] extensions 键: ${character.extensions.keys.join(", ")}');
+        debugPrint('[loadChat] characterBook != null: ${character.characterBook != null}');
+        if (character.characterBook != null) {
+          debugPrint('[loadChat] characterBook 条目数: ${character.characterBook!.entries.length}');
+        }
+      }
+      debugPrint('═══ [loadChat] 结束 ═══\n');
+
+      // Restore this chat's local variables (TavernHelper getVariables archive)
       await VariablesService.instance.loadLocalVariablesFromPrefs(chatId);
 
       // Check if this is a group chat
@@ -231,14 +277,18 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         );
       }
 
-      // ═══ RAG：为本聊天自动准备专属向量集合并激活 ═══
+      // RAG: prepare and activate a dedicated vector collection for this chat
       try {
         final vsService = _ref.read(vectorStorageServiceProvider);
         if (vsService.getCollection(chatId) == null) {
+          // Dimensions are read dynamically from the current embedding provider
+          // (local bge = 384) instead of the hardcoded 512, a historical mistake:
+          // the local model actually outputs 384 dimensions.
+          final vsSettings = _ref.read(vectorStorageSettingsProvider);
           vsService.createCollectionWithId(
             id: chatId,
             name: chat.title,
-            dimensions: 512,
+            dimensions: vsSettings.embeddingProvider.defaultDimensions,
           );
           _ref.read(vectorCollectionsProvider.notifier).refresh();
         }
@@ -246,7 +296,13 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
             .read(vectorStorageSettingsProvider.notifier)
             .setActiveCollection(chatId);
       } catch (e) {
-        // 集合准备失败不阻断聊天加载
+        // Collection setup failures must not block chat loading
+      }
+
+      // One-time legacy summary migration (async, does not block loading)
+      if (chat.summaries.isNotEmpty) {
+        final orchestrator = _ref.read(chronicleOrchestratorProvider);
+        unawaited(orchestrator.migrateOldSummaries(chat));
       }
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProvider error: $e\n$stackTrace');
@@ -296,9 +352,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         final processedGreeting =
             MacroService(macroContext).process(greetingText);
 
-        // 主开场白 + 所有备用开场白(alternate_greetings)一起放进 swipes，
-        // 与 SillyTavern 对齐：swipe 0 是主开场白，swipe 1+ 是备用开场白。
-        // 重前端卡常用 setChatMessage 切到 swipe 1 进入真正的游戏开局。
+        // The primary greeting plus all alternate greetings go into swipes,
+        // matching SillyTavern: swipe 0 is the primary greeting, swipe 1+ are alternates.
+        // Front-loaded cards commonly use setChatMessage to switch to swipe 1 for the
+        // actual story start.
         final allSwipes = <String>[processedGreeting];
         for (final alt in character.alternateGreetings) {
           if (alt.trim().isEmpty) continue;
@@ -469,7 +526,18 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       error: null,
     );
 
-    await _checkAndSummarize(config);
+    // Chronicle takes over compaction (queues async summarization); falls back to the
+    // legacy summary path when disabled or on failure
+    final chronicleHandled = await _ref
+        .read(chronicleOrchestratorProvider)
+        .checkAndEnqueue(
+          chatId: state.chat!.id,
+          messages: state.messages,
+          llmConfig: config,
+        );
+    if (!chronicleHandled) {
+      await _checkAndSummarize(config);
+    }
 
     final context = await _buildContext();
 
@@ -500,7 +568,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
-          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          // Validate the token: stop and discard immediately if it expired or the chat
+          // switched, so output can never bleed into another chat
           if (myToken != _generationToken || state.chat?.id != myChatId) {
             return;
           }
@@ -545,8 +614,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         state = state.copyWith(messages: updatedMessages);
       }
 
-      // 空回复处理：AI 什么都没返回 → 删掉空壳消息，提示"收到空回复"，不落库。
-      // 避免留一条空气泡让人误以为卡住。被用户 cancel 的半截不走这里（上面已 break/return）。
+      // Empty reply handling: if the AI returned nothing, drop the placeholder
+      // message, surface an "empty reply" error, and skip persistence so no empty
+      // bubble is left looking stuck. A user-cancelled partial reply never reaches
+      // here (the loop already broke/returned above).
       if (finalContent.trim().isEmpty) {
         final withoutEmpty = List<ChatMessage>.from(state.messages)
           ..removeWhere((m) => m.id == assistantMessage.id);
@@ -570,13 +641,16 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
       state = state.copyWith(isGenerating: false);
 
-      // 自动生图（不阻塞主流程，失败也不影响对话）
+      // Auto image generation (does not block the main flow; failures do not affect the chat)
       _maybeAutoGenerateImage(finalMessage, config);
+      // Auto-play: speak the new AI reply after it is persisted (does not block the main flow)
+      _maybeAutoSpeak(finalMessage);
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProvider sendMessage error: $e\n$stackTrace');
-      // 失败（503/400/网络等）时删掉还在"思考中"的空壳消息，避免永远转圈。
-      // 判据：最后一条是 assistant 且内容为空 = 那个没收到任何 token 的空壳。
-      // 若流式已收到部分内容才断，content 非空 → 保留不删。
+      // On failure (503/400/network etc.) remove the still-"thinking" placeholder so
+      // the UI never spins forever. Criterion: the last message is an assistant with
+      // empty content = a placeholder that received no tokens. If the stream broke
+      // after partial content arrived, content is non-empty and the message is kept.
       final msgs = List<ChatMessage>.from(state.messages);
       if (msgs.isNotEmpty &&
           msgs.last.role == MessageRole.assistant &&
@@ -590,8 +664,9 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       );
     }
   }
-  /// 自动生图：根据 autoImageMode 档位，从 AI 回复中提取 <image> 标签生图。
-  /// 用文件名 ai_auto_{messageId}_* 作为"已生图"标志，杜绝重进重复生成。
+  /// Auto image generation: extracts <image> tags from the AI reply according to the
+  /// autoImageMode setting. File names matching ai_auto_{messageId}_* act as the
+  /// "already generated" marker so re-entry never regenerates duplicates.
   Future<void> _maybeAutoGenerateImage(ChatMessage msg, LLMConfig config) async {
     try {
       final settings = _ref.read(imageGenSettingsProvider);
@@ -603,26 +678,28 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
       final chatId = msg.chatId;
 
-      // 提取 <image>...</image> 标签内容
+      // Extract the <image>...</image> tag content
       String? prompt = ImageGenerationService.extractImagePrompt(msg.content);
       debugPrint('[自动生图] 提取标签: ${prompt ?? "(无标签)"}');
 
       if (prompt == null || prompt.isEmpty) {
-        // 没标签：仅提示词档位不兜底，直接结束
+        // No tag: prompt-only mode has no fallback, so exit here
         if (mode == AutoImageMode.promptOnly) return;
 
-        // 去掉标签后的纯正文
+        // Plain body with the tags stripped out
         final body = msg.content
             .replaceAll(RegExp(r'<image>[\s\S]*?</image>', caseSensitive: false), '')
             .trim();
 
-        // 问题2：无实质内容就跳过（太短的回复没有视觉场景，别生废图）
+        // Skip when there is no substantial content: a reply this short has no visual
+        // scene worth rendering
         if (body.length < 10) {
           debugPrint('[自动生图] 跳过: 正文过短无视觉内容');
           return;
         }
 
-        // 问题1：调一次 LLM 把正文提炼成英文视觉标签（比直接塞正文质量高）
+        // Call the LLM once to distill the body into English visual tags, which yields
+        // better results than sending the raw text
         prompt = await _extractVisualTags(body, config);
         if (prompt == null || prompt.isEmpty) {
           debugPrint('[自动生图] 跳过: 提炼视觉标签失败');
@@ -631,10 +708,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         debugPrint('[自动生图] 提炼标签: $prompt');
       }
 
-      // promptOnly 档位：只提取标签，不出图
+      // promptOnly mode: extract tags without generating an image
       if (mode == AutoImageMode.promptOnly) return;
 
-      // 防重生：检查该消息是否已有自动生成的图片
+      // Duplicate guard: check whether this message already has auto-generated images
       final base = await getApplicationDocumentsDirectory();
       final dir = Directory(p.join(base.path, 'chat_images', chatId));
       if (!await dir.exists()) await dir.create(recursive: true);
@@ -642,22 +719,28 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           .listSync()
           .whereType<File>()
           .any((f) => p.basename(f.path).startsWith('ai_auto_${msg.id}_'));
-      if (already) return; // 已生过图，跳过
+      if (already) return; // Image already generated, skip
 
-      // 调用生图服务（占位符转圈 + 呼吸✨）
+      // Invoke the image service (spinner placeholder with pulsing indicator)
       state = state.copyWith(
         isGeneratingImage: true,
         generatingImageMsgId: msg.id,
         imageGenProgress: 0,
       );
       final service = _ref.read(imageGenServiceProvider);
-      // SSE 进度回调 → 更新占位符进度
+      // SSE progress callback updates the placeholder progress
       service.onProgress = (p) {
         state = state.copyWith(imageGenProgress: p);
       };
       try {
+        // Prepend the user-configured positive prefix to the final prompt
+        // (e.g. "masterpiece, best quality, ")
+        final prefix = settings.positivePromptPrefix;
+        final finalPrompt = (prefix != null && prefix.isNotEmpty)
+            ? '$prefix${prompt.trim()}'
+            : prompt;
         final result = await service.generate(ImageGenRequest(
-          prompt: prompt,
+          prompt: finalPrompt,
           width: settings.defaultWidth,
           height: settings.defaultHeight,
           steps: settings.defaultSteps,
@@ -672,7 +755,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
             final name = 'ai_auto_${msg.id}_$i.${result.format}';
             final filePath = p.join(dir.path, name);
             await File(filePath).writeAsBytes(result.images[i]);
-            // 修断层：把生成的图加进消息 attachments，触发气泡显示
+            // Add the generated image to the message's attachments so the bubble renders it
             await addAttachmentToMessage(
               msg.id,
               ChatAttachment(
@@ -687,7 +770,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
           debugPrint('[自动生图] 消息 ${msg.id} 生成 ${result.images.length} 张，已加入 attachments');
         }
       } finally {
-        service.onProgress = null; // 解绑，避免影响手动生图
+        service.onProgress = null; // Unbind so manual generation is unaffected
         state = state.copyWith(
           isGeneratingImage: false,
           clearGeneratingImageMsgId: true,
@@ -700,24 +783,62 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
   }
 
-  /// 二次调用 LLM，把一段正文提炼成英文逗号分隔的视觉标签。
-  /// 失败返回 null。注意：这会产生一次额外的 API 调用（额度消耗）。
+  /// Speaks a newly persisted AI reply automatically.
+  /// Triggers only when ttsSettings.autoPlay is enabled and the message is a non-empty
+  /// assistant message; if a new reply arrives while already speaking, speakByStyle
+  /// stops first and reads the latest one. Does not block the main flow and swallows
+  /// all exceptions (TTS failures do not affect the chat).
+  void _maybeAutoSpeak(ChatMessage msg) {
+    try {
+      final ttsSettings = _ref.read(ttsSettingsProvider);
+      if (!ttsSettings.autoPlay) return;
+      if (!ttsSettings.enabled) return;
+      if (msg.role != MessageRole.assistant) return;
+      if (msg.content.trim().isEmpty) return;
+      _ref.read(ttsSpeakProvider)(msg.content);
+    } catch (e) {
+      debugPrint('[autoPlay] 自动朗读失败: $e');
+    }
+  }
+
+  /// Makes a second LLM call to distill a passage into comma-separated English visual
+  /// tags. Returns null on failure. Note: this consumes one extra API call.
+  /// If extractionInstruction is non-empty it replaces the hardcoded default instruction.
+  /// When enableAutoPromptGeneration and autoPromptConfigId are set, the selected API
+  /// service config is used instead of the default llmConfigProvider.
   Future<String?> _extractVisualTags(String body, LLMConfig config) async {
     try {
       final truncated = body.length > 600 ? body.substring(0, 600) : body;
-      final messages = <Map<String, dynamic>>[
-        {
-          'role': 'system',
-          'content':
-              'You are a prompt extractor for an image generator. '
+      final settings = _ref.read(imageGenSettingsProvider);
+      final instruction = (settings.extractionInstruction != null &&
+              settings.extractionInstruction!.isNotEmpty)
+          ? settings.extractionInstruction!
+          : 'You are a prompt extractor for an image generator. '
               'Read the text and output ONLY a comma-separated list of English '
               'visual tags describing the scene (characters, appearance, actions, '
               'environment, lighting). No sentences, no explanation, tags only. '
-              'If there is no visual scene, output: NONE',
-        },
+              'If there is no visual scene, output: NONE';
+      final messages = <Map<String, dynamic>>[
+        {'role': 'system', 'content': instruction},
         {'role': 'user', 'content': truncated},
       ];
-      final resp = await _llmService.generateWithReasoning(messages, config);
+      // Prefer the user-selected API service (overrides model/key/endpoint)
+      LLMConfig effectiveConfig = config;
+      if (settings.enableAutoPromptGeneration &&
+          settings.autoPromptConfigId != null) {
+        final configs = _ref.read(llmConfigsProvider);
+        final selected = configs.configs
+            .where((c) => c.id == settings.autoPromptConfigId)
+            .firstOrNull;
+        if (selected != null) {
+          effectiveConfig = config.copyWith(
+            model: selected.model ?? config.model,
+            apiKey: selected.apiKey ?? config.apiKey,
+            apiUrl: selected.endpoint,
+          );
+        }
+      }
+      final resp = await _llmService.generateWithReasoning(messages, effectiveConfig);
       final tags = resp.content.trim();
       if (tags.isEmpty || tags.toUpperCase().contains('NONE')) return null;
       return tags;
@@ -727,12 +848,29 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
   }
 
+  /// Regeneration entropy injection: nudges temperature up at low settings so identical
+  /// context does not yield near-duplicate output, and randomizes a fixed seed
+  /// (-1 means no seed is sent, letting the server choose).
+  LLMConfig _withRegenerateEntropy(LLMConfig config) {
+    final double bumped = config.temperature < 0.6
+        ? (config.temperature + 0.15).clamp(0.0, 2.0).toDouble()
+        : config.temperature;
+    final int seed = config.seed == -1
+        ? -1
+        : DateTime.now().millisecondsSinceEpoch % 100000;
+    return config.copyWith(temperature: bumped, seed: seed);
+  }
+
   /// Regenerate the last assistant message
   Future<void> regenerateLastMessage(LLMConfig config) async {
     if (state.messages.isEmpty) return;
 
     final lastMessage = state.messages.last;
     if (lastMessage.role != MessageRole.assistant) return;
+
+    // Entropy injection: regeneration shares the original context, so entropy is needed
+    // to avoid near-duplicate output at low temperature
+    config = _withRegenerateEntropy(config);
 
     state = state.copyWith(isGenerating: true, error: null);
 
@@ -750,7 +888,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
-          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          // Validate the token: stop and discard immediately if it expired or the chat
+          // switched, so output can never bleed into another chat
           if (myToken != _generationToken || state.chat?.id != myChatId) {
             return;
           }
@@ -877,6 +1016,36 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     updatedMessages[messageIndex] = updatedMessage;
     state = state.copyWith(messages: updatedMessages);
   }
+  /// Updates per-swipe variables for a single message (MVU setChatMessages target)
+  Future<void> updateMessageSwipesData(
+      String messageId, List<Map<String, dynamic>> swipesData) async {
+    final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex < 0) return;
+
+    final updatedMessage =
+        state.messages[messageIndex].copyWith(swipesData: swipesData);
+
+    await _chatRepository.updateMessage(updatedMessage);
+
+    final updatedMessages = List<ChatMessage>.from(state.messages);
+    updatedMessages[messageIndex] = updatedMessage;
+    state = state.copyWith(messages: updatedMessages);
+  }
+
+  /// Hides/shows a single message (/hide and /unhide target, SillyTavern is_system semantics)
+  Future<void> setMessageHidden(String messageId, bool hidden) async {
+    final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex < 0) return;
+
+    final updatedMessage =
+        state.messages[messageIndex].copyWith(isHidden: hidden);
+
+    await _chatRepository.updateMessage(updatedMessage);
+
+    final updatedMessages = List<ChatMessage>.from(state.messages);
+    updatedMessages[messageIndex] = updatedMessage;
+    state = state.copyWith(messages: updatedMessages);
+  }
 
   /// Delete a message
   Future<void> deleteMessage(String messageId) async {
@@ -930,7 +1099,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final message = state.messages[messageIndex];
     if (message.role != MessageRole.assistant) return;
 
-    // 先追加一条空占位 swipe，让用户看到"思考中"，知道 reroll 正在进行
+    // Entropy injection: regeneration shares the original context, so entropy is needed
+    // to avoid near-duplicate output at low temperature
+    config = _withRegenerateEntropy(config);
+
+    // Append an empty placeholder swipe first so the user sees a "thinking" state while rerolling
     final placeholderSwipes = List<String>.from(message.swipes)..add('');
     final placeholderMessage = message.copyWith(
       content: '',
@@ -970,7 +1143,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
             contentBuffer.write(chunk.content);
           }
 
-          // 从当前 state 取最新消息（含占位 swipe），只更新最后那条 swipe
+          // Read the latest message from state (including the placeholder swipe) and
+          // update only the last swipe
           final current = state.messages[messageIndex];
           final streamSwipes = List<String>.from(current.swipes);
           streamSwipes[streamSwipes.length - 1] = contentBuffer.toString();
@@ -1012,7 +1186,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         finalReasoning = response.reasoning;
       }
 
-      // 取流式结束后的最新 state，把最后一条 swipe 定稿并存库
+      // Read the latest state after streaming ends, finalize the last swipe, and persist it
       final latestMessage = state.messages[messageIndex];
       final finalSwipes = List<String>.from(latestMessage.swipes);
       finalSwipes[finalSwipes.length - 1] = finalContent;
@@ -1047,7 +1221,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       );
     } catch (e, stackTrace) {
       debugPrint('❌ ChatProvider regenerateMessage error: $e\n$stackTrace');
-      // 取消或失败时，若最后一条 swipe 是空占位就移除，避免留空壳
+      // On cancel or failure, remove the trailing empty placeholder swipe so no empty shell remains
       final msgs = List<ChatMessage>.from(state.messages);
       final current = msgs[messageIndex];
       if (current.swipes.length > 1 && current.swipes.last.trim().isEmpty) {
@@ -1089,24 +1263,26 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       await _generateAssistantResponse(config);
     }
   }
-  /// 重试：按被点消息的角色分流。
-  /// - AI 消息：删掉这条及之后所有，从上一条重新生成。
-  /// - 用户消息：保留这条，删掉之后所有，接着这条重新生成。
+  /// Retry: branches on the role of the tapped message.
+  /// - Assistant message: delete it and everything after it, then regenerate from the
+  ///   previous message.
+  /// - User message: keep it, delete everything after it, then regenerate from it.
   Future<void> retryMessage(String messageId, LLMConfig config) async {
     final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
     if (messageIndex < 0) return;
     final message = state.messages[messageIndex];
 
-    // 确定要保留到第几条（含）：AI 保留到上一条，用户保留到自己。
+    // Determine how far to keep (inclusive): for an assistant message keep up to the
+    // previous one, for a user message keep through itself.
     final keepUpTo =
         message.role == MessageRole.assistant ? messageIndex : messageIndex + 1;
 
-    // 先把要删的 id 全部固定下来（避免 state 变动导致漏删）
+    // Capture all IDs to delete up front so state changes cannot cause missed deletions
     final deleteIds =
         state.messages.sublist(keepUpTo).map((m) => m.id).toList();
-    // 先更新内存 state，UI 立即反映
+    // Update in-memory state first so the UI reflects it immediately
     state = state.copyWith(messages: state.messages.sublist(0, keepUpTo));
-    // 再逐条从数据库删除，单条失败不影响其他
+    // Then delete from the database one by one; a single failure does not affect the rest
     for (final delId in deleteIds) {
       try {
         await _chatRepository.deleteMessage(delId);
@@ -1115,12 +1291,12 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
     }
 
-    // 基于剩余上下文重新生成一条 AI 回复
+    // Generate a new AI reply from the remaining context
     await _generateAssistantResponse(config);
   }
 
-  /// 继续：仅 AI 消息可用。新建一条 AI 气泡，
-  /// 上下文包含被继续的这条消息，让模型衔接着往下写新内容。
+  /// Continue: only available for assistant messages. Creates a new assistant bubble
+  /// whose context includes the message being continued so the model picks up from it.
   Future<void> continueMessage(String messageId, LLMConfig config) async {
     if (state.chat == null) return;
     final messageIndex = state.messages.indexWhere((m) => m.id == messageId);
@@ -1130,10 +1306,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     state = state.copyWith(isGenerating: true, error: null);
     try {
-      // 上下文截到被继续的消息为止（含），模型据此衔接
+      // Truncate the context through the continued message (inclusive) so the model
+      // continues from it
       final context = await _buildContextUpTo(messageIndex + 1);
 
-      // 新建一条空的 AI 气泡，内容从空开始
+      // Create a new empty assistant bubble that starts from scratch
       final newMessage = ChatMessage(
         id: _generateId(),
         chatId: state.chat!.id,
@@ -1267,7 +1444,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
-          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          // Validate the token: stop and discard immediately if it expired or the chat
+          // switched, so output can never bleed into another chat
           if (myToken != _generationToken || state.chat?.id != myChatId) {
             return;
           }
@@ -1328,9 +1506,11 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
       state = state.copyWith(isGenerating: false);
 
-      // 重新生成：删掉该消息的旧自动图，再重新生图
+      // On regeneration, clear this message's old auto-generated images before regenerating
       await _clearAutoImages(finalMessage);
       _maybeAutoGenerateImage(finalMessage, config);
+      // Auto-play the regenerated reply as well
+      _maybeAutoSpeak(finalMessage);
     } catch (e, stackTrace) {
       debugPrint(
           '❌ ChatProvider _generateAssistantResponse error: $e\n$stackTrace');
@@ -1340,7 +1520,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       );
     }
   }
-  /// 删除某条消息的旧自动生成图（重新生成时调用，让防重生失效以便重新出图）。
+  /// Removes a message's old auto-generated images (called on regeneration to reset
+  /// the duplicate guard).
   Future<void> _clearAutoImages(ChatMessage msg) async {
     try {
       final base = await getApplicationDocumentsDirectory();
@@ -1357,13 +1538,14 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       debugPrint('[自动生图] 清理旧图失败: $e');
     }
   }
-  /// 重新生成某条消息的自动配图：先生成成功，才替换旧图；失败则旧图纹丝不动。
+  /// Regenerates a message's auto image: the old image is replaced only after generation
+  /// succeeds, so a failure leaves the existing image untouched.
   Future<void> regenerateAutoImage(String messageId, LLMConfig config) async {
     final idx = state.messages.indexWhere((m) => m.id == messageId);
     if (idx < 0) return;
     final msg = state.messages[idx];
 
-    // 提取原 <image> 标签 prompt（不改提示词，就用原来的）
+    // Extract the original <image> tag prompt and reuse it unchanged
     final prompt = ImageGenerationService.extractImagePrompt(msg.content);
     if (prompt == null || prompt.isEmpty) {
       state = state.copyWith(imageGenError: '未找到图像标签，无法重新生成');
@@ -1373,7 +1555,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final settings = _ref.read(imageGenSettingsProvider);
     final service = _ref.read(imageGenServiceProvider);
 
-    // 占位符转圈（复用块1的状态）
+    // Spinner placeholder (reuses the same state as the first block)
     state = state.copyWith(
       isGeneratingImage: true,
       generatingImageMsgId: msg.id,
@@ -1384,9 +1566,14 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     };
 
     try {
-      // 1. 先生成到内存，旧图完全不动
+      // 1. Generate into memory first; the old image stays untouched
+      // Prepend the configured positive prompt prefix
+      final prefix = settings.positivePromptPrefix;
+      final finalPrompt = (prefix != null && prefix.isNotEmpty)
+          ? '$prefix${prompt.trim()}'
+          : prompt;
       final result = await service.generate(ImageGenRequest(
-        prompt: prompt,
+        prompt: finalPrompt,
         width: settings.defaultWidth,
         height: settings.defaultHeight,
         steps: settings.defaultSteps,
@@ -1399,15 +1586,16 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         throw Exception('未返回图片');
       }
 
-      // 2. 生成成功了，才开始替换 —— 到这一步失败风险已过
+      // 2. Replacement starts only after generation succeeds; the failure risk has passed
       final base = await getApplicationDocumentsDirectory();
       final dir = Directory(p.join(base.path, 'chat_images', msg.chatId));
       if (!await dir.exists()) await dir.create(recursive: true);
 
-      // 2a. 旧图重命名保留（会话相册仍可见），并让防重生失效
+      // 2a. Rename old images so they stay visible in the session gallery, and the
+      // duplicate guard resets
       await _clearAutoImages(msg);
 
-      // 2b. 从 attachments 移除旧的 ai_auto 图
+      // 2b. Remove the old ai_auto images from attachments
       final kept = msg.attachments
           .where((a) => !a.id.startsWith('ai_auto_${msg.id}_'))
           .toList();
@@ -1417,8 +1605,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       msgs[idx] = cleared;
       state = state.copyWith(messages: msgs);
 
-      // 2c. 写新图 + 挂新 attachment（照 674-685 的模式）
-      // 用时间戳让新图路径唯一，避开 base64 缓存(同名会命中旧图缓存导致不刷新)
+      // 2c. Write the new image and attach it to the message
+      // The timestamp keeps the new path unique so the base64 cache cannot serve the old image
       final ts = DateTime.now().millisecondsSinceEpoch;
       for (var i = 0; i < result.images.length; i++) {
         final name = 'ai_auto_${msg.id}_${ts}_$i.${result.format}';
@@ -1437,7 +1625,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
       debugPrint('[重新生成] 消息 ${msg.id} 完成，旧图已保留');
     } catch (e) {
-      // 3. 失败：旧图/旧 attachments 全程未动，气泡原图仍在
+      // 3. On failure: old images and attachments were never touched, so the bubble
+      // still shows the original
       debugPrint('[重新生成] 失败: $e');
       state = state.copyWith(imageGenError: '重新生成失败，已保留原图');
     } finally {
@@ -1455,21 +1644,29 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       {bool excludeLastAssistant = false}) async {
     final messages = <Map<String, dynamic>>[];
 
-    // 自动生图：非关闭时，注入配图指令，教 AI 输出 <image> 视觉标签
+    // Auto image generation: when not off, inject the illustration instruction that
+    // teaches the AI to emit <image> visual tags
     final imgSettings = _ref.read(imageGenSettingsProvider);
     if (imgSettings.autoImageMode != AutoImageMode.off && imgSettings.enabled) {
-      messages.add({
-        'role': 'system',
-        'content':
-            '【配图指令】当你的回复描绘了具体的视觉场景（人物、动作、环境）时，'
-            '在回复的最末尾追加一行图像描述，格式严格为：\n'
-            '<image>用英文逗号分隔的视觉标签，例如：1girl, silver hair, '
-            'white dress, garden, sunlight</image>\n'
-            '只写画面能看到的视觉元素，不要写心理、对话或剧情。',
-      });
+      // User-defined <image> tag instruction takes priority; the hardcoded default is
+      // used when empty
+      final tagInstruction = imgSettings.imageTagInstruction;
+      final content = (tagInstruction != null && tagInstruction.isNotEmpty)
+          ? tagInstruction
+          : '【配图指令】当你的回复描绘了具体的视觉场景（人物、动作、环境）时，'
+              '在回复的最末尾追加一行图像描述，格式严格为：\n'
+              '<image>用英文逗号分隔的视觉标签，例如：1girl, silver hair, '
+              'white dress, garden, sunlight</image>\n'
+              '只写画面能看到的视觉元素，不要写心理、对话或剧情。';
+      messages.add({'role': 'system', 'content': content});
     }
     final character = state.character;
     final chat = state.chat;
+
+    // Read the global settings once; reused by the window, fixed layer, and recall
+    // layer below. When Chronicle is enabled, legacy raw RAG text injection is taken
+    // over and disabled (the recall layer's wiki summaries replace it).
+    final chronicleSettings = _ref.read(chronicleSettingsProvider);
 
     // Get chat messages - use summaries if available
     var chatMessages = state.messages;
@@ -1492,50 +1689,41 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       chatMessages = recentMessages;
     }
 
+    // Four-window sliding split replaces full-history injection
+    // When Chronicle is enabled it takes over history splitting: unarchived (all
+    // unarchived, highest attention at the end) / hot (recently archived) / warm /
+    // cold (older archived), each window covering hotWindowSize turns (x2 messages).
+    // Hidden messages (isHidden) never enter the prompt. Falls back to the legacy
+    // behavior on failure.
+    // Split result is captured so zone boundary markers can be inserted below.
+    WindowedMessages? chronicleWindowed;
+    if (chat != null && chronicleSettings.enabled) {
+      try {
+        final chronicleRepo = _ref.read(chronicleRepositoryProvider);
+        final archivedIds = await chronicleRepo.getArchivedMessageIds(chat.id);
+        final windowed = _summarizationService.getWindowedMessages(
+          archivedMessageIds: archivedIds,
+          allMessages: chatMessages.where((m) => !m.isHidden).toList(),
+          windowSize: chronicleSettings.hotWindowSize,
+        );
+        chronicleWindowed = windowed;
+        chatMessages = windowed.injectionOrder;
+        debugPrint('[CHRONICLE] 四窗口注入：'
+            '冷${windowed.cold.length}/温${windowed.warm.length}/热${windowed.hot.length}/'
+            '未总结${windowed.unarchived.length} '
+            '(归档${archivedIds.length}条)');
+      } catch (e) {
+        debugPrint('[CHRONICLE] 窗口切分失败，回落全量注入: $e');
+      }
+    }
+
     // Find matching World Info entries
     List<WorldInfoEntry> worldInfoEntries = [];
     if (character != null) {
       worldInfoEntries =
-          await _findMatchingWorldInfoEntries(character!, chatMessages);
+          await _findMatchingWorldInfoEntries(character, chatMessages);
     }
-    // ═══ RAG 向量检索注入 ═══
-    // 把用户最新消息转向量 → 检索知识库 → 命中内容作为背景注入。
-    // 整段容错：embedding/检索任何失败都只跳过 RAG，绝不阻断对话发送。
-    try {
-      final vsSettings = _ref.read(vectorStorageSettingsProvider);
-      if (vsSettings.enabled &&
-          vsSettings.includeInPrompt &&
-          vsSettings.activeCollectionId != null &&
-          chatMessages.isNotEmpty) {
-        // 取最后一条 user 消息作为检索 query
-        final userMsgs =
-            chatMessages.where((m) => m.role == MessageRole.user);
-        final query =
-            userMsgs.isNotEmpty ? userMsgs.last.content.trim() : '';
-        if (query.isNotEmpty) {
-          final embedder = _ref.read(embeddingServiceProvider);
-          final vsService = _ref.read(vectorStorageServiceProvider);
-          final queryVec = await embedder.generateEmbedding(query, vsSettings);
-          final results = vsService.search(
-            collectionId: vsSettings.activeCollectionId!,
-            queryEmbedding: queryVec,
-            topK: vsSettings.topK,
-            similarityThreshold: vsSettings.similarityThreshold,
-          );
-          if (results.isNotEmpty) {
-            final contextStr = vsService.generateContext(results);
-            final injected = vsSettings.promptTemplate
-                .replaceAll('{{context}}', contextStr);
-            messages.add({'role': 'system', 'content': injected});
-            debugPrint('🔍 RAG 注入 ${results.length} 条检索结果');
-          } else {
-            debugPrint('🔍 RAG 无命中（阈值 ${vsSettings.similarityThreshold}）');
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('⚠️ RAG 检索跳过（不影响对话）: $e');
-    }
+    // Chronicle has taken over context injection; the legacy RAG retrieval block was removed
 
     // Get Prompt Manager configuration
     final promptConfig = _ref.read(promptManagerProvider);
@@ -1599,14 +1787,15 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
     }
 
-    // Separate sections into:
-    // 1. Pre-chat sections (before chatHistory)
-    // 2. Chat history
-    // 3. Post-chat sections (after chatHistory)
-    // 4. Depth-based injections
-    final preChatSections = <PromptSection>[];
-    final postChatSections = <PromptSection>[];
-    final depthBasedSections = <PromptSection>[];
+    // Explicit F/B/W bucketing:
+    //   F (front) = before chat history; B (before) = inserted into history by depth;
+    //   W (absolute) = after chat history.
+    //   When bucket is null it is derived by the existing rules (depth-based check plus
+    //   the relative position of chatHistory), keeping character card / worldbook /
+    //   jailbreak injection behavior exactly as before.
+    final fSections = <PromptSection>[];
+    final bSections = <PromptSection>[];
+    final wSections = <PromptSection>[];
     bool foundChatHistory = false;
 
     for (final section in enabledSections) {
@@ -1615,21 +1804,34 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         continue;
       }
 
-      // Check if this section has depth-based injection
-      if (section.injectionPosition == 1 && section.injectionDepth != null) {
-        depthBasedSections.add(section);
+      final bucket = section.bucket;
+      // Bucket B: explicit before, or the existing depth-based check when auto-derived
+      if (bucket == PromptBucket.before ||
+          (bucket == null &&
+              section.injectionPosition == 1 &&
+              section.injectionDepth != null)) {
+        bSections.add(section);
         continue;
       }
 
-      if (foundChatHistory) {
-        postChatSections.add(section);
+      final bool afterChat;
+      if (bucket == PromptBucket.absolute) {
+        afterChat = true;
+      } else if (bucket == PromptBucket.front) {
+        afterChat = false;
       } else {
-        preChatSections.add(section);
+        afterChat = foundChatHistory;
+      }
+
+      if (afterChat) {
+        wSections.add(section);
+      } else {
+        fSections.add(section);
       }
     }
 
     // Build pre-chat messages
-    for (final section in preChatSections) {
+    for (final section in fSections) {
       final sectionMessages = await _buildSectionMessages(
         section,
         character,
@@ -1642,6 +1844,27 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       messages.addAll(sectionMessages);
     }
 
+    // Variable state injection: scan message swipesData backwards for the latest valid
+    // stat_data, matching the read semantics of MVU getLastValidVariable.
+    // Format aligns with the Tavern MVU variable persistence format.
+    final statData = _getLatestStatData(chatMessages);
+    if (statData != null && statData.isNotEmpty) {
+      const maxLen = 5000;
+      var json = jsonEncode(statData);
+      if (json.length > maxLen) {
+        json = '${json.substring(0, maxLen)}...（已截断，变量状态过长）';
+      }
+      messages.add({
+        'role': 'system',
+        'content': '[当前已持久化变量状态]\n'
+            '以下是从MVU变量更新中解析并持久化的最新状态。后续回复应基于这些状态继续推进，'
+            '并在需要变更状态时输出新的变量更新指令。\n'
+            '$json\n'
+            '[/当前已持久化变量状态]',
+      });
+      debugPrint('[MVU] 注入变量状态到提示词: ${statData.keys.length} keys');
+    }
+
     // Add summary message if we have summaries
     if (summaries.isNotEmpty) {
       final latestSummary = summaries.last;
@@ -1650,11 +1873,92 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         chatId: state.chat!.id,
       );
       messages.add({
-        'role': 'assistant',
-        'content': summaryMessage.content,
+        'role': 'system',
+        'content': '[Conversation Summary]\n${summaryMessage.content}',
       });
       debugPrint(
           '📌 Added summary to context: ${latestSummary.content.substring(0, min(100, latestSummary.content.length))}...');
+    }
+
+    // Wiki fixed layer injection
+    // Contents: anchor/always-injected entries + main entity states + key relationships
+    // + live emotions + high-importance event titles.
+    // Budget: 650 tokens with a ±30% estimation error; content over the budget is
+    // trimmed in ascending importance order.
+    if (chat != null && chronicleSettings.enabled) {
+      try {
+        final chronicleRepo = _ref.read(chronicleRepositoryProvider);
+        final fixedEntries = await chronicleRepo.getFixedLayerEntries(chat.id);
+        final entities = await chronicleRepo.getMainEntities(chat.id);
+        final relationships = await chronicleRepo.getKeyRelationships(chat.id);
+        final emotions = await chronicleRepo.getActiveEmotions(chat.id);
+        // Record the injected entry IDs so the recall layer can deduplicate against them
+        _lastF6EntryIds = fixedEntries.map((e) => e.id).toSet();
+
+        final brief = _buildChronicleMemoryBrief(
+          fixedEntries: fixedEntries,
+          entities: entities,
+          relationships: relationships,
+          emotions: emotions,
+          tokenBudget: 650,
+        );
+        if (brief.isNotEmpty) {
+          messages.add({
+            'role': 'system',
+            'content': '[Chronicle Memory]\n$brief\n[/Chronicle Memory]',
+          });
+          debugPrint(
+              '[CHRONICLE] F-6固定层注入：约${(brief.length / 3.35).ceil()} tokens');
+        }
+      } catch (e) {
+        debugPrint('[CHRONICLE] F-6注入跳过（不影响对话）: $e');
+      }
+    }
+
+    // Wiki recall layer injection (runs alongside RAG rather than replacing it)
+    // Recalls wiki entries with a hybrid score (vector 0.5 + keyword 0.2 + recency 0.1
+    // + emotion 0.1 + importance 0.1), excludes entries already injected by the fixed
+    // layer, uses a 400 token budget, and triggers an early summary asynchronously on
+    // topic shift.
+    if (chat != null && chronicleSettings.enabled && chatMessages.isNotEmpty) {
+      try {
+        ChatMessage? lastUserMsg;
+        for (var i = chatMessages.length - 1; i >= 0; i--) {
+          if (chatMessages[i].role == MessageRole.user) {
+            lastUserMsg = chatMessages[i];
+            break;
+          }
+        }
+        if (lastUserMsg != null && lastUserMsg.content.trim().isNotEmpty) {
+          final recall = _ref.read(chronicleRecallServiceProvider);
+          final recallResult = await recall.recallAndBuild(
+            chatId: chat.id,
+            query: lastUserMsg.content,
+            allMessages: state.messages,
+            topK: chronicleSettings.ragTopK,
+            excludeEntryIds: _lastF6EntryIds,
+            tokenBudget: 400,
+            emotionRecallEnabled: chronicleSettings.emotionRecallEnabled,
+          );
+          if (recallResult.blockText.isNotEmpty) {
+            messages.add({
+              'role': 'system',
+              'content':
+                  '[Chronicle Recalled]\n${recallResult.blockText}\n[/Chronicle Recalled]',
+            });
+            debugPrint(
+                '[CHRONICLE] F-7召回层注入：${recallResult.entryIds.length}条词条');
+          }
+          if (recallResult.topicShift) {
+            // Topic shift triggers an asynchronous early summary without blocking this send
+            unawaited(_ref
+                .read(chronicleOrchestratorProvider)
+                .onTopicShift(chat.id, state.messages));
+          }
+        }
+      } catch (e) {
+        debugPrint('[CHRONICLE] F-7注入跳过（不影响对话）: $e');
+      }
     }
 
     // Add chat messages with depth-based injections
@@ -1667,8 +1971,54 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final authorNote = chat?.authorNote ?? '';
     final authorNoteDepth = chat?.authorNoteDepth ?? 4;
 
+    // Chronicle zone boundaries in injection order (cold, warm, hot, unarchived);
+    // markers are only injected when the four-window split is active.
+    final zoneWindowed = chronicleWindowed;
+    final coldZoneEnd = zoneWindowed?.cold.length ?? 0;
+    final warmZoneEnd = coldZoneEnd + (zoneWindowed?.warm.length ?? 0);
+    final hotZoneEnd = warmZoneEnd + (zoneWindowed?.hot.length ?? 0);
+    final unarchivedZoneStart = hotZoneEnd;
+    final zoneMarkersActive = zoneWindowed != null;
+
     for (var i = 0; i < chatMessages.length; i++) {
       final msg = chatMessages[i];
+
+      // Zone boundary markers: label each zone so the model can tell archived
+      // history from the current conversation (Lost in the Middle effect).
+      if (zoneMarkersActive) {
+        if (i == 0 && coldZoneEnd > 0) {
+          messages.add({
+            'role': 'system',
+            'content': '[Historical Context - Cold Zone]\n'
+                'This zone contains $coldZoneEnd older archived messages from the distant past. '
+                'Low attention priority: reference only when long-term continuity is needed.',
+          });
+        } else if (i == coldZoneEnd && warmZoneEnd > coldZoneEnd) {
+          messages.add({
+            'role': 'system',
+            'content': '[Historical Context - Warm Zone]\n'
+                'This zone contains ${warmZoneEnd - coldZoneEnd} archived messages from the recent past. '
+                'Mid attention priority: use for recent plot developments and character interactions.',
+          });
+        } else if (i == warmZoneEnd && hotZoneEnd > warmZoneEnd) {
+          messages.add({
+            'role': 'system',
+            'content': '[Historical Context - Hot Zone]\n'
+                'This zone contains the ${hotZoneEnd - warmZoneEnd} most recent archived messages. '
+                'High attention priority: this is the immediate history leading into '
+                'the current conversation below.',
+          });
+        } else if (i == unarchivedZoneStart &&
+            unarchivedZoneStart < chatMessages.length) {
+          messages.add({
+            'role': 'system',
+            'content': '[Current Conversation - Unarchived Zone]\n'
+                'This is the active conversation zone with maximum attention priority. '
+                'These ${chatMessages.length - unarchivedZoneStart} messages are not archived yet '
+                'and form the ongoing dialogue; base your response primarily on this section.',
+          });
+        }
+      }
 
       // Depth is counted from the end (most recent = depth 0)
       final depthFromEnd = chatMessages.length - 1 - i;
@@ -1685,7 +2035,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
 
       // Check if any depth-based prompt sections should be inserted
-      for (final section in depthBasedSections) {
+      for (final section in bSections) {
         if (section.injectionDepth == depthFromEnd) {
           final sectionMessages = await _buildSectionMessages(
             section,
@@ -1708,6 +2058,18 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         messages.add({
           'role': 'system',
           'content': '[Author\'s Note]\n$processedNote',
+        });
+      }
+
+      // Flag the user's latest message as the required response target
+      if (msg.role == MessageRole.user && i == chatMessages.length - 1) {
+        messages.add({
+          'role': 'system',
+          'content': "[USER'S LATEST MESSAGE - RESPOND TO THIS]\n"
+              "This is the user's most recent input that you MUST respond to. "
+              'Base your reply on the current conversation (Unarchived Zone), '
+              'recent history (Hot Zone), and long-term background '
+              '(Warm/Cold Zones and Chronicle entries).',
         });
       }
 
@@ -1738,7 +2100,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
 
     // Build post-chat messages
-    for (final section in postChatSections) {
+    for (final section in wSections) {
       final sectionMessages = await _buildSectionMessages(
         section,
         character,
@@ -1755,6 +2117,134 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
   }
 
   /// Build messages for a single prompt section
+  /// Scans the message list backwards for the latest valid stat_data (same semantics
+  /// as MVU getLastValidVariable)
+  Map<String, dynamic>? _getLatestStatData(List<ChatMessage> messages) {
+    for (int i = messages.length - 1; i >= 0; i--) {
+      final msg = messages[i];
+      if (msg.role != MessageRole.assistant) continue;
+      final swipesData = msg.swipesData;
+      if (swipesData.isEmpty) continue;
+      final swIdx = msg.currentSwipeIndex >= 0 && msg.currentSwipeIndex < swipesData.length
+          ? msg.currentSwipeIndex : 0;
+      final data = swipesData[swIdx];
+      final stat = data['stat_data'];
+      if (stat is Map && stat.isNotEmpty) {
+        return Map<String, dynamic>.from(stat);
+      }
+    }
+    return null;
+  }
+
+  /// Determines whether section.content is still the prefilled default (not user-edited).
+  /// Empty or identical to getDefaultContent counts as untouched; anything else means
+  /// the user actually edited it. Implements the priority:
+  /// user edit > character card field > default text.
+  bool _isUntouchedSectionContent(PromptSection section) {
+    final c = section.content;
+    if (c == null || c.trim().isEmpty) return true;
+    return c.trim() ==
+        PromptSection.getDefaultContent(section.type).trim();
+  }
+
+  /// Builds the fixed-layer memory brief block.
+  /// Priority: (1) anchor entries (2) main entity states (3) key relationships
+  /// (4) live emotions (5) high-importance event titles.
+  /// Budget control: tokens are a ±30% estimate, so char budget = token*3.35;
+  /// content over the limit is trimmed in ascending entry importance order.
+  String _buildChronicleMemoryBrief({
+    required List<MemoryEntry> fixedEntries,
+    required List<MemoryEntity> entities,
+    required List<MemoryRelationship> relationships,
+    required List<EmotionNode> emotions,
+    int tokenBudget = 650,
+  }) {
+    final budgetChars = (tokenBudget * 3.35).ceil();
+    final entityNameById = <String, String>{
+      for (final e in entities) e.id: e.name,
+    };
+
+    final sections = <String>[];
+
+    // (1) Anchor/always-injected entries: trimmed in descending importance first (the
+    // budget semantics are unchanged), then sorted ascending by turnIndex.
+    // Ordering fix: entries carry a turn prefix so the main model can tell the order of
+    // events and avoid confusing cause and effect.
+    if (fixedEntries.isNotEmpty) {
+      String turnLabel(int idx) => idx <= 0 ? '早期' : '第$idx轮';
+      String lineOf(MemoryEntry e) =>
+          '· [${turnLabel(e.turnIndex)}] ${e.title}：${e.content}';
+      final byImportance = [...fixedEntries]
+        ..sort((a, b) => b.importance.compareTo(a.importance));
+      final kept = <MemoryEntry>[];
+      var used = 0;
+      for (final e in byImportance) {
+        final cost = lineOf(e).length + 1; // +1 for the newline
+        if (kept.isNotEmpty && used + cost > budgetChars) break;
+        kept.add(e);
+        used += cost;
+      }
+      kept.sort((a, b) => a.turnIndex.compareTo(b.turnIndex));
+      final lines = <String>[for (final e in kept) lineOf(e)];
+      sections.add('【关键记忆】\n${lines.join('\n')}');
+    }
+
+    // (2) Current state of main entities
+    if (entities.isNotEmpty) {
+      final lines = <String>[];
+      for (final e in entities) {
+        var line = '· ${e.name}';
+        if (e.description.isNotEmpty) line += '（${e.description}）';
+        if (e.currentState.isNotEmpty) line += '：${e.currentState}';
+        lines.add(line);
+      }
+      sections.add('【人物与实体】\n${lines.join('\n')}');
+    }
+
+    // (3) Key relationships
+    if (relationships.isNotEmpty) {
+      final lines = <String>[];
+      for (final r in relationships) {
+        final from = entityNameById[r.fromEntityId] ?? '？';
+        final to = entityNameById[r.toEntityId] ?? '？';
+        final line = '· $from 与 $to（${r.relationType} ${r.strength}）'
+            '${r.description.isNotEmpty ? '：${r.description}' : ''}';
+        lines.add(line);
+      }
+      sections.add('【关系】\n${lines.join('\n')}');
+    }
+
+    // (4) Live emotions
+    if (emotions.isNotEmpty) {
+      final lines = <String>[];
+      for (final emo in emotions) {
+        final name = entityNameById[emo.entityId] ?? '？';
+        lines.add(
+            '· $name 对玩家感到${emo.emotion}（强度${emo.intensity}）${emo.trigger.isNotEmpty ? '，起因：${emo.trigger}' : ''}');
+      }
+      sections.add('【当前情感】\n${lines.join('\n')}');
+    }
+
+    // Assemble and trim to budget: drop sections from the tail (lowest priority) first;
+    // the entry section is already sorted by importance within (1).
+    final buffer = StringBuffer();
+    for (var i = 0; i < sections.length; i++) {
+      final section = sections[i];
+      if (buffer.length + section.length + 1 <= budgetChars) {
+        if (buffer.isNotEmpty) buffer.writeln();
+        buffer.write(section);
+      } else if (i == 0) {
+        // Section (1) alone exceeds the budget: keep its head (highest importance is first)
+        buffer.write(section.substring(0, budgetChars));
+        break;
+      } else {
+        break; // Drop lower-priority sections that do not fit
+      }
+    }
+
+    return buffer.toString();
+  }
+
   Future<List<Map<String, dynamic>>> _buildSectionMessages(
     PromptSection section,
     Character? character,
@@ -1769,13 +2259,19 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     switch (section.type) {
       case PromptSectionType.systemPrompt:
-        // Use custom content from section if available, otherwise use character's system prompt
-        final content = section.content?.isNotEmpty == true
-            ? section.content!
-            : (character?.systemPrompt.isNotEmpty == true
-                ? character!.systemPrompt
-                : PromptSection.getDefaultContent(
-                    PromptSectionType.systemPrompt));
+        // Priority fix: user edit > character card system_prompt > default text.
+        // (The old logic let the prefilled generic default always win because it was
+        // never empty, silently discarding the character card's system_prompt.)
+        final String content;
+        if (!_isUntouchedSectionContent(section)) {
+          content = section.content!;
+        } else if (character != null &&
+            character.systemPrompt.isNotEmpty) {
+          content = character.systemPrompt;
+        } else {
+          content = PromptSection.getDefaultContent(
+              PromptSectionType.systemPrompt);
+        }
         if (content.isNotEmpty) {
           // Add world info before system prompt (using 'before' position as proxy)
           final beforeEntries = groupedEntries[WorldInfoPosition.before];
@@ -1957,13 +2453,19 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         break;
 
       case PromptSectionType.postHistoryInstructions:
-        // Use custom content from section if available
-        final content = section.content?.isNotEmpty == true
-            ? section.content!
-            : (character?.postHistoryInstructions.isNotEmpty == true
-                ? character!.postHistoryInstructions
-                : PromptSection.getDefaultContent(
-                    PromptSectionType.postHistoryInstructions));
+        // Same fix as systemPrompt: the prefilled default jailbreak text always won the
+        // priority inversion, silently discarding the character card's
+        // post_history_instructions.
+        final String content;
+        if (!_isUntouchedSectionContent(section)) {
+          content = section.content!;
+        } else if (character != null &&
+            character.postHistoryInstructions.isNotEmpty) {
+          content = character.postHistoryInstructions;
+        } else {
+          content = PromptSection.getDefaultContent(
+              PromptSectionType.postHistoryInstructions);
+        }
         if (content.isNotEmpty) {
           messages.add({'role': role, 'content': processMacros(content)});
         }
@@ -2034,7 +2536,30 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final chat = state.chat;
 
     // Get chat messages up to (but not including) the specified index
-    final chatMessages = state.messages.sublist(0, messageIndex);
+    var chatMessages = state.messages.sublist(0, messageIndex);
+
+    // Four-window sliding split (regenerate/edit path matches the main path)
+    // Split result is captured so zone boundary markers can be inserted below.
+    WindowedMessages? chronicleWindowed;
+    if (chat != null) {
+      try {
+        final chronicleSettings = _ref.read(chronicleSettingsProvider);
+        if (chronicleSettings.enabled) {
+          final chronicleRepo = _ref.read(chronicleRepositoryProvider);
+          final archivedIds =
+              await chronicleRepo.getArchivedMessageIds(chat.id);
+          final windowed = _summarizationService.getWindowedMessages(
+            archivedMessageIds: archivedIds,
+            allMessages: chatMessages.where((m) => !m.isHidden).toList(),
+            windowSize: chronicleSettings.hotWindowSize,
+          );
+          chronicleWindowed = windowed;
+          chatMessages = windowed.injectionOrder;
+        }
+      } catch (_) {
+        // Fall back to the legacy behavior on failure
+      }
+    }
 
     // Find matching World Info entries
     List<WorldInfoEntry> worldInfoEntries = [];
@@ -2093,10 +2618,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
     }
 
-    // Separate sections into pre-chat, post-chat, and depth-based
-    final preChatSections = <PromptSection>[];
-    final postChatSections = <PromptSection>[];
-    final depthBasedSections = <PromptSection>[];
+    // Explicit F/B/W bucketing (same rules as _buildContext, preserving existing behavior)
+    final fSections = <PromptSection>[];
+    final bSections = <PromptSection>[];
+    final wSections = <PromptSection>[];
     bool foundChatHistory = false;
 
     for (final section in enabledSections) {
@@ -2105,20 +2630,33 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         continue;
       }
 
-      if (section.injectionPosition == 1 && section.injectionDepth != null) {
-        depthBasedSections.add(section);
+      final bucket = section.bucket;
+      if (bucket == PromptBucket.before ||
+          (bucket == null &&
+              section.injectionPosition == 1 &&
+              section.injectionDepth != null)) {
+        bSections.add(section);
         continue;
       }
 
-      if (foundChatHistory) {
-        postChatSections.add(section);
+      final bool afterChat;
+      if (bucket == PromptBucket.absolute) {
+        afterChat = true;
+      } else if (bucket == PromptBucket.front) {
+        afterChat = false;
       } else {
-        preChatSections.add(section);
+        afterChat = foundChatHistory;
+      }
+
+      if (afterChat) {
+        wSections.add(section);
+      } else {
+        fSections.add(section);
       }
     }
 
     // Build pre-chat messages
-    for (final section in preChatSections) {
+    for (final section in fSections) {
       final sectionMessages = await _buildSectionMessages(
         section,
         character,
@@ -2140,8 +2678,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         chatId: state.chat!.id,
       );
       messages.add({
-        'role': 'assistant',
-        'content': summaryMessage.content,
+        'role': 'system',
+        'content': '[Conversation Summary]\n${summaryMessage.content}',
       });
       debugPrint(
           '📌 Added summary to context: ${latestSummary.content.substring(0, min(100, latestSummary.content.length))}...');
@@ -2157,8 +2695,54 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     final authorNote = chat?.authorNote ?? '';
     final authorNoteDepth = chat?.authorNoteDepth ?? 4;
 
+    // Chronicle zone boundaries in injection order (cold, warm, hot, unarchived);
+    // markers are only injected when the four-window split is active.
+    final zoneWindowed = chronicleWindowed;
+    final coldZoneEnd = zoneWindowed?.cold.length ?? 0;
+    final warmZoneEnd = coldZoneEnd + (zoneWindowed?.warm.length ?? 0);
+    final hotZoneEnd = warmZoneEnd + (zoneWindowed?.hot.length ?? 0);
+    final unarchivedZoneStart = hotZoneEnd;
+    final zoneMarkersActive = zoneWindowed != null;
+
     for (var i = 0; i < chatMessages.length; i++) {
       final msg = chatMessages[i];
+
+      // Zone boundary markers: label each zone so the model can tell archived
+      // history from the current conversation (Lost in the Middle effect).
+      if (zoneMarkersActive) {
+        if (i == 0 && coldZoneEnd > 0) {
+          messages.add({
+            'role': 'system',
+            'content': '[Historical Context - Cold Zone]\n'
+                'This zone contains $coldZoneEnd older archived messages from the distant past. '
+                'Low attention priority: reference only when long-term continuity is needed.',
+          });
+        } else if (i == coldZoneEnd && warmZoneEnd > coldZoneEnd) {
+          messages.add({
+            'role': 'system',
+            'content': '[Historical Context - Warm Zone]\n'
+                'This zone contains ${warmZoneEnd - coldZoneEnd} archived messages from the recent past. '
+                'Mid attention priority: use for recent plot developments and character interactions.',
+          });
+        } else if (i == warmZoneEnd && hotZoneEnd > warmZoneEnd) {
+          messages.add({
+            'role': 'system',
+            'content': '[Historical Context - Hot Zone]\n'
+                'This zone contains the ${hotZoneEnd - warmZoneEnd} most recent archived messages. '
+                'High attention priority: this is the immediate history leading into '
+                'the current conversation below.',
+          });
+        } else if (i == unarchivedZoneStart &&
+            unarchivedZoneStart < chatMessages.length) {
+          messages.add({
+            'role': 'system',
+            'content': '[Current Conversation - Unarchived Zone]\n'
+                'This is the active conversation zone with maximum attention priority. '
+                'These ${chatMessages.length - unarchivedZoneStart} messages are not archived yet '
+                'and form the ongoing dialogue; base your response primarily on this section.',
+          });
+        }
+      }
 
       // Depth is counted from the end (most recent = depth 0)
       final depthFromEnd = chatMessages.length - 1 - i;
@@ -2175,7 +2759,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
 
       // Check if any depth-based prompt sections should be inserted
-      for (final section in depthBasedSections) {
+      for (final section in bSections) {
         if (section.injectionDepth == depthFromEnd) {
           final sectionMessages = await _buildSectionMessages(
             section,
@@ -2198,6 +2782,18 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         messages.add({
           'role': 'system',
           'content': '[Author\'s Note]\n$processedNote',
+        });
+      }
+
+      // Flag the user's latest message as the required response target
+      if (msg.role == MessageRole.user && i == chatMessages.length - 1) {
+        messages.add({
+          'role': 'system',
+          'content': "[USER'S LATEST MESSAGE - RESPOND TO THIS]\n"
+              "This is the user's most recent input that you MUST respond to. "
+              'Base your reply on the current conversation (Unarchived Zone), '
+              'recent history (Hot Zone), and long-term background '
+              '(Warm/Cold Zones and Chronicle entries).',
         });
       }
 
@@ -2227,7 +2823,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
 
     // Build post-chat messages
-    for (final section in postChatSections) {
+    for (final section in wSections) {
       final sectionMessages = await _buildSectionMessages(
         section,
         character,
@@ -2293,11 +2889,12 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       });
     }
 
-    // Add image attachments as base64（isolate 中读文件+编码，避免主线程卡顿）
+    // Add image attachments as base64 (file read and encoding run in an isolate to
+    // avoid blocking the main thread)
     for (final attachment in msg.attachments) {
       try {
         if (File(attachment.path).existsSync()) {
-          final base64Data = await compute(_encodeFileToB64, attachment.path);
+          final base64Data = await compute(encodeFileToBase64, attachment.path);
           final mimeType = attachment.mimeType ?? 'image/jpeg';
           contentParts.add({
             'type': 'image_url',
@@ -2321,9 +2918,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     return DateTime.now().millisecondsSinceEpoch.toString() +
         (DateTime.now().microsecond % 1000).toString().padLeft(3, '0');
   }
-  /// RAG：把一条消息 embed 后幂等写入本聊天的向量集合。
-  /// document.id 用 messageId → swipe/重生成/编辑同一消息只保留最新一条。
-  /// 整段容错：embedding 失败只跳过，绝不阻断对话。
+  /// Embeds a message and writes it idempotently into this chat's vector collection.
+  /// document.id uses messageId so swipes/regeneration/edits of the same message keep
+  /// only the latest entry. Fully fault-tolerant: an embedding failure is skipped and
+  /// never blocks the conversation.
   Future<void> _indexMessageToVector({
     required String chatId,
     required String messageId,
@@ -2334,15 +2932,16 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       if (text.isEmpty) return;
 
       final vsSettings = _ref.read(vectorStorageSettingsProvider);
-      if (!vsSettings.enabled) return; // 用户没开 RAG 就不做，省算力
+      if (!vsSettings.enabled) return; // Skip when RAG is disabled by the user, saving compute
 
       final vsService = _ref.read(vectorStorageServiceProvider);
-      // 集合应已由 loadChat 建好；保险起见没有就建
+      // loadChat should already have created the collection; create it here as a safety net
       if (vsService.getCollection(chatId) == null) {
+        // Dimensions are read dynamically (local bge = 384) instead of hardcoded 512
         vsService.createCollectionWithId(
           id: chatId,
           name: state.chat?.title ?? 'Chat',
-          dimensions: 512,
+          dimensions: vsSettings.embeddingProvider.defaultDimensions,
         );
       }
 
@@ -2354,7 +2953,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         documentId: messageId,
         content: text,
         embedding: vec,
-        metadata: {'messageId': messageId},
+        metadata: {'type': 'message', 'messageId': messageId},
       );
       _ref.read(vectorCollectionsProvider.notifier).refresh();
     } catch (e) {
@@ -2417,7 +3016,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         existingSummaries: chat.summaries,
         config: config,
         characterName: character?.name,
-        userName: persona?.name?.isNotEmpty == true ? persona!.name : 'User',
+        userName: persona?.name.isNotEmpty == true ? persona!.name : 'User',
       );
 
       // Add summary to chat
@@ -2438,8 +3037,10 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     }
   }
 
-  /// 手动全量总结：忽略阈值与现有总结，基于全部消息重新生成一份，覆盖旧总结。
-  /// 返回 null 表示成功，否则返回错误信息。用于自动总结失败/效果差时的保底手刹。
+  /// Manual full summary: ignores the threshold and existing summaries, regenerates one
+  /// from all messages, and replaces the old summaries. Returns null on success or an
+  /// error message otherwise; acts as a fallback when auto-summarization fails or
+  /// produces poor results.
   Future<String?> manualSummarize() async {
     final chat = state.chat;
     if (chat == null) return '当前没有可总结的对话';
@@ -2448,7 +3049,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
 
     final config = _ref.read(llmConfigProvider);
 
-    // 放开输出限制，避免总结被 maxTokens 截断
+    // Raise the output limit so the summary is not truncated by maxTokens
     final summaryConfig = config.copyWith(maxTokens: 16384);
 
     try {
@@ -2460,16 +3061,17 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
       }
       persona ??= await _personaRepository.getDefaultPersona();
 
-      // 全量：总结全部消息，且不基于旧总结（existingSummaries 传空 = 全新生成）
+      // Full pass: summarize every message without building on old summaries (passing
+      // empty existingSummaries generates from scratch)
       final summary = await _summarizationService.generateSummary(
         messages: state.messages,
         existingSummaries: const [],
         config: summaryConfig,
         characterName: character?.name,
-        userName: persona?.name?.isNotEmpty == true ? persona!.name : 'User',
+        userName: persona?.name.isNotEmpty == true ? persona!.name : 'User',
       );
 
-      // 替换（而非追加）：手动总结推倒重来，只保留这一份
+      // Replace rather than append: a manual summary starts over and only this one is kept
       final updatedChat = chat.copyWith(summaries: [summary]);
       await _chatRepository.updateChat(updatedChat);
       state = state.copyWith(chat: updatedChat);
@@ -2512,9 +3114,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     return sortedMessages.length;
   }
 
-  // ============================================
-  // AUTHOR'S NOTE METHODS
-  // ============================================
+  // Author's Note methods
 
   /// Update Author's Note content
   Future<void> updateAuthorNote(String content) async {
@@ -2560,9 +3160,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     state = state.copyWith(chat: updatedChat);
   }
 
-  // ============================================
-  // BOOKMARK / BRANCHING METHODS
-  // ============================================
+  // Bookmark / branching methods
 
   /// Get the message index for a given message ID
   int getMessageIndex(String messageId) {
@@ -2615,9 +3213,7 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
     return state.messages.any((m) => m.id == bookmark.messageId);
   }
 
-  // ============================================
-  // GROUP CHAT METHODS
-  // ============================================
+  // Group chat methods
 
   /// Send a message in group chat and get responses from characters
   Future<void> sendGroupMessage(
@@ -2802,7 +3398,8 @@ class ActiveChatNotifier extends StateNotifier<ActiveChatState> {
         final String myChatId = state.chat!.id;
         await for (final chunk
             in _llmService.generateStreamWithReasoning(context, config)) {
-          // 验票：令牌过期或聊天已切走，立即停止并丢弃，杜绝串台
+          // Validate the token: stop and discard immediately if it expired or the chat
+          // switched, so output can never bleed into another chat
           if (myToken != _generationToken || state.chat?.id != myChatId) {
             return;
           }

@@ -2,10 +2,15 @@
     <!-- 相册访问权限（photo_manager 应用内选图） -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- STT 语音识别（sherpa-onnx 本地流式识别需要麦克风） -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <application android:networkSecurityConfig="@xml/network_security_config"
         android:label="KiraKira"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:largeHeap="true">
+        <!-- P5-12: largeHeap 扩展应用堆内存,缓解狐神等大脚本的内存压力(P5-11诊断P0) -->
         <activity 
             android:name=".MainActivity"
             android:exported="true"

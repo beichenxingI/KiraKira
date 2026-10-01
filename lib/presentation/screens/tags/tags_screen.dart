@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kirakira/data/models/tag.dart';
 import 'package:kirakira/presentation/providers/tag_providers.dart';
@@ -21,11 +22,11 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.tags),
+        title: Text(AppLocalizations.of(context).tags),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)!.createTag,
+            tooltip: AppLocalizations.of(context).createTag,
             onPressed: () => _showCreateTagDialog(context),
           ),
         ],
@@ -42,7 +43,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => ref.read(tagNotifierProvider.notifier).refresh(),
-                child: Text(AppLocalizations.of(context)!.retry),
+                child: Text(AppLocalizations.of(context).retry),
               ),
             ],
           ),
@@ -55,7 +56,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           final usageCounts = usageCountsAsync.valueOrNull ?? {};
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: DesignTokens.paddingCard,
             itemCount: tags.length,
             itemBuilder: (context, index) {
               final tag = tags[index];
@@ -78,22 +79,22 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.label_outline,
             size: 64,
             color: AppTheme.textMuted,
           ),
           const SizedBox(height: 16),
           Text(
-            AppLocalizations.of(context)!.noTagsYet,
+            AppLocalizations.of(context).noTagsYet,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: DesignTokens.fontSizeXl, fontWeight: DesignTokens.weightSemibold,
               color: AppTheme.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            AppLocalizations.of(context)!.createTagsToOrganize,
+            AppLocalizations.of(context).createTagsToOrganize,
             style: const TextStyle(
               color: AppTheme.textMuted,
             ),
@@ -102,7 +103,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           ElevatedButton.icon(
             onPressed: () => _showCreateTagDialog(context),
             icon: const Icon(Icons.add),
-            label: Text(AppLocalizations.of(context)!.createTag),
+            label: Text(AppLocalizations.of(context).createTag),
           ),
         ],
       ),
@@ -142,12 +143,12 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteTag),
-        content: Text(AppLocalizations.of(context)!.deleteTagConfirmation(tag.name)),
+        title: Text(AppLocalizations.of(context).deleteTag),
+        content: Text(AppLocalizations.of(context).deleteTagConfirmation(tag.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -155,7 +156,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
               await ref.read(tagNotifierProvider.notifier).deleteTag(tag.id);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(AppLocalizations.of(context)!.delete),
+            child: Text(AppLocalizations.of(context).delete),
           ),
         ],
       ),
@@ -187,13 +188,13 @@ class _TagListItem extends StatelessWidget {
           height: 40,
           decoration: BoxDecoration(
             color: tag.colorValue.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
           ),
           child: Center(
             child: tag.icon != null && tag.icon!.isNotEmpty
                 ? Text(
                     tag.icon!,
-                    style: const TextStyle(fontSize: 20),
+                    style: const TextStyle(fontSize: 20) // Emoji render size; engineering value, not a design token
                   )
                 : Icon(
                     Icons.label,
@@ -203,7 +204,7 @@ class _TagListItem extends StatelessWidget {
         ),
         title: Text(tag.name),
         subtitle: Text(
-          AppLocalizations.of(context)!.characterCount(usageCount, usageCount == 1 ? '' : 's'),
+          AppLocalizations.of(context).characterCount(usageCount, usageCount == 1 ? '' : 's'),
           style: const TextStyle(color: AppTheme.textMuted),
         ),
         trailing: Row(
@@ -234,7 +235,7 @@ class _TagListItem extends StatelessWidget {
                   value: 'edit',
                   child: ListTile(
                     leading: const Icon(Icons.edit),
-                    title: Text(AppLocalizations.of(context)!.edit),
+                    title: Text(AppLocalizations.of(context).edit),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -242,7 +243,7 @@ class _TagListItem extends StatelessWidget {
                   value: 'delete',
                   child: ListTile(
                     leading: const Icon(Icons.delete, color: Colors.red),
-                    title: Text(AppLocalizations.of(context)!.delete, style: const TextStyle(color: Colors.red)),
+                    title: Text(AppLocalizations.of(context).delete, style: const TextStyle(color: Colors.red)),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -295,7 +296,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
     final isEditing = widget.tag != null;
 
     return AlertDialog(
-      title: Text(isEditing ? AppLocalizations.of(context)!.editTag : AppLocalizations.of(context)!.createTag),
+      title: Text(isEditing ? AppLocalizations.of(context).editTag : AppLocalizations.of(context).createTag),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -304,8 +305,8 @@ class _TagEditDialogState extends State<_TagEditDialog> {
             TextField(
               controller: _nameController,
               decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.tagName,
-                hintText: AppLocalizations.of(context)!.enterTagName,
+                labelText: AppLocalizations.of(context).tagName,
+                hintText: AppLocalizations.of(context).enterTagName,
               ),
               autofocus: true,
               textCapitalization: TextCapitalization.words,
@@ -314,16 +315,16 @@ class _TagEditDialogState extends State<_TagEditDialog> {
             TextField(
               controller: _iconController,
               decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.iconEmoji,
-                hintText: AppLocalizations.of(context)!.enterEmojiOptional,
+                labelText: AppLocalizations.of(context).iconEmoji,
+                hintText: AppLocalizations.of(context).enterEmojiOptional,
               ),
               maxLength: 2,
             ),
             const SizedBox(height: 16),
             Text(
-              AppLocalizations.of(context)!.color,
+              AppLocalizations.of(context).color,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: DesignTokens.fontSizeXs,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -364,14 +365,14 @@ class _TagEditDialogState extends State<_TagEditDialog> {
             const SizedBox(height: 16),
             // Preview
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: DesignTokens.paddingCard,
               decoration: BoxDecoration(
                 color: AppTheme.darkCard,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
               ),
               child: Row(
                 children: [
-                  Text('${AppLocalizations.of(context)!.preview}: '),
+                  Text('${AppLocalizations.of(context).preview}: '),
                   const SizedBox(width: 8),
                   _buildTagChip(),
                 ],
@@ -383,7 +384,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
       actions: [
         TextButton(
           onPressed: _isSaving ? null : () => Navigator.pop(context),
-          child: Text(AppLocalizations.of(context)!.cancel),
+          child: Text(AppLocalizations.of(context).cancel),
         ),
         ElevatedButton(
           onPressed: _isSaving ? null : _save,
@@ -393,7 +394,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(isEditing ? AppLocalizations.of(context)!.save : AppLocalizations.of(context)!.create),
+              : Text(isEditing ? AppLocalizations.of(context).save : AppLocalizations.of(context).create),
         ),
       ],
     );
@@ -407,7 +408,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: _selectedColor.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
         border: Border.all(color: _selectedColor),
       ),
       child: Row(
@@ -433,7 +434,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.pleaseEnterTagName)),
+        SnackBar(content: Text(AppLocalizations.of(context).pleaseEnterTagName)),
       );
       return;
     }
@@ -452,7 +453,7 @@ class _TagEditDialogState extends State<_TagEditDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)!.error}: $e')),
+          SnackBar(content: Text('${AppLocalizations.of(context).error}: $e')),
         );
       }
     } finally {
@@ -488,7 +489,7 @@ class TagChip extends StatelessWidget {
           color: selected
               ? tag.colorValue.withValues(alpha: 0.3)
               : tag.colorValue.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
           border: Border.all(
             color: selected ? tag.colorValue : tag.colorValue.withValues(alpha: 0.5),
             width: selected ? 2 : 1,
@@ -498,6 +499,7 @@ class TagChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (tag.icon != null && tag.icon!.isNotEmpty) ...[
+              // Emoji render size; engineering value, not a design token
               Text(tag.icon!, style: const TextStyle(fontSize: 14)),
               const SizedBox(width: 4),
             ],
@@ -506,7 +508,7 @@ class TagChip extends StatelessWidget {
               style: TextStyle(
                 color: tag.colorValue,
                 fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                fontSize: 13,
+                fontSize: DesignTokens.fontSizeSm,
               ),
             ),
             if (onDelete != null) ...[

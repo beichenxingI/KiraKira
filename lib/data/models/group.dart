@@ -40,7 +40,7 @@ class Group with _$Group {
     required DateTime createdAt,
     required DateTime modifiedAt,
     
-    // === New fields for SillyTavern compatibility ===
+    // New fields for SillyTavern compatibility
     
     /// Tags for organization
     @Default([]) List<String> tags,
@@ -102,7 +102,7 @@ class GroupMember with _$GroupMember {
     @Default([]) List<String> triggerWords, // Words that trigger this character
     @Default(0) int insertionOrder, // Order in the list
     
-    // === New fields for SillyTavern compatibility ===
+    // New fields for SillyTavern compatibility
     
     /// Depth prompt for this member (inserted at specific depth)
     String? depthPrompt,
@@ -158,12 +158,12 @@ class GroupSettings with _$GroupSettings {
     /// Max responses per turn (0 = unlimited)
     @Default(1) int maxResponses,
     
-    // === Legacy field mapping ===
+    // Legacy field mapping
     /// Response mode (legacy, maps to activationStrategy)
     @JsonKey(includeFromJson: false, includeToJson: false)
     GroupResponseMode? responseMode,
     
-    // === New fields for SillyTavern compatibility ===
+    // New fields for SillyTavern compatibility
     
     /// Whether to auto-select next speaker
     @Default(true) bool autoSelectSpeaker,

@@ -84,6 +84,45 @@ class PromptManagerNotifier extends StateNotifier<PromptManagerConfig> {
     await _saveConfig();
   }
 
+  /// Append a new custom prompt at the end of the list (order = max + 1, repositionable by drag).
+  /// Identifier is a UUID, matching the style of custom prompts imported from SillyTavern.
+  Future<void> addCustomSection(
+    String name,
+    String content,
+    String role, {
+    bool enabled = true,
+  }) async {
+    final maxOrder = state.sections.fold<int>(
+      -1,
+      (m, s) => s.order > m ? s.order : m,
+    );
+    final section = PromptSection(
+      type: PromptSectionType.custom,
+      name: name,
+      enabled: enabled,
+      order: maxOrder + 1,
+      content: content,
+      identifier: const Uuid().v4(),
+      role: role,
+    );
+    state = state.copyWith(sections: [...state.sections, section]);
+    await _saveConfig();
+  }
+
+  /// Delete the custom prompt at [index] into sortedSections; only custom sections are deletable, built-ins can only be toggled.
+  Future<void> deleteCustomSectionByIndex(int index) async {
+    final sorted = state.sortedSections;
+    if (index < 0 || index >= sorted.length) return;
+    final section = sorted[index];
+    if (!section.isCustom) return;
+    final remaining = state.sections
+        .where((s) =>
+            !(s.identifier == section.identifier && s.type == section.type))
+        .toList();
+    state = state.copyWith(sections: remaining);
+    await _saveConfig();
+  }
+
   /// Reset to default configuration
   Future<void> resetToDefault() async {
     state = PromptManagerConfig.defaultConfig();

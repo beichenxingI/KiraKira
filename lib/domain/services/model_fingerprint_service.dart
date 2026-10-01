@@ -10,12 +10,12 @@ enum DetectionLevel { quick, normal, deep }
 class ModelFingerprintService {
   static final _questions = FingerprintQuestions.all;
 
-  // 快速档：覆盖全7个打分维度 + 2道家族线索题
+  // Quick level: covers all 7 scoring dimensions plus 2 family clue questions
   static const _quickIds = {
     'M1', 'M2', 'L1', 'C1', 'W1', 'K1', 'H1', 'R1', 'D1', 'D3',
   };
 
-  // 正常档：各维度保留大部分 + 全部家族线索题
+  // Normal level: keeps most of each dimension plus all family clue questions
   static const _normalIds = {
     'M1', 'M2', 'M3', 'L1', 'L2', 'L3', 'C1', 'C2', 'C3',
     'W1', 'W2', 'W3', 'K1', 'K2', 'H1', 'H2', 'H3', 'R1', 'R2',
@@ -42,16 +42,17 @@ class ModelFingerprintService {
     DetectionLevel level = DetectionLevel.deep,
     void Function(int current, int total, String questionId)? onProgress,
   }) async {
-    // 局部变量遮蔽静态字段：本方法内所有 _questions 引用自动使用按档位过滤后的题目
-    final _questions = _questionsForLevel(level);
-    // 深度档强制开启掺假一致性检测
+    // Local variable shadows the static field: all _questions references in this
+    // method use the level-filtered questions
+    final questions = _questionsForLevel(level);
+    // Deep level forces the consistency (adulteration) check on
     if (level == DetectionLevel.deep) checkConsistency = true;
     final scores = <QuestionScore>[];
     int tokens = 0;
 
-    for (var i = 0; i < _questions.length; i++) {
-      final q = _questions[i];
-      onProgress?.call(i + 1, _questions.length, q.id);
+    for (var i = 0; i < questions.length; i++) {
+      final q = questions[i];
+      onProgress?.call(i + 1, questions.length, q.id);
       try {
         final stream = await provider.sendMessage(
           LlmRequest(messages: [{'role': 'user', 'content': q.prompt}], maxTokens: 400, temperature: 0.3),
@@ -61,7 +62,8 @@ class ModelFingerprintService {
         await for (final t in stream.timeout(const Duration(seconds: 45))) { buf.write(t); }
         tokens += buf.length ~/ 4;
         final response = buf.toString();
-        // differentiation 题只做家族侦探线索，不参与能力打分、不烧裁判额度
+        // differentiation questions only serve as family-detection clues;
+        // they are not scored and do not consume judge quota
         final score = (q.dimension == 'differentiation' ||
                 q.dimension == 'safety_style')
             ? 0.0
@@ -80,14 +82,14 @@ class ModelFingerprintService {
     // Group by dimension, weighted average
     final dimScores = <String, List<double>>{};
     final dimWeights = <String, double>{};
-    for (var i = 0; i < _questions.length; i++) {
-      final dim = _questions[i].dimension;
+    for (var i = 0; i < questions.length; i++) {
+      final dim = questions[i].dimension;
       if (dim == 'differentiation' || dim == 'safety_style') {
         continue;
       }
       dimScores.putIfAbsent(dim, () => []);
-      dimScores[dim]!.add(scores[i].score * _questions[i].weight);
-      dimWeights[dim] = (dimWeights[dim] ?? 0) + _questions[i].weight;
+      dimScores[dim]!.add(scores[i].score * questions[i].weight);
+      dimWeights[dim] = (dimWeights[dim] ?? 0) + questions[i].weight;
     }
     final dimensions = <String, double>{};
     for (final e in dimScores.entries) {
@@ -98,15 +100,15 @@ class ModelFingerprintService {
     // Overall
     final allScores = <double>[];
     for (var i = 0; i < scores.length; i++) {
-      if (_questions[i].dimension == 'differentiation' ||
-          _questions[i].dimension == 'safety_style') {
+      if (questions[i].dimension == 'differentiation' ||
+          questions[i].dimension == 'safety_style') {
         continue;
       }
-      allScores.add(scores[i].score * _questions[i].weight);
+      allScores.add(scores[i].score * questions[i].weight);
     }
     final overall = allScores.isNotEmpty ? (allScores.fold(0.0, (a, b) => a + b) / allScores.length.toDouble() * 100).clamp(0.0, 100.0) : 0.0;
 
-    // Family matching：维度分接近度 + 行为特征证据
+    // Family matching: dimension score proximity plus behavioral evidence
     final behaviorEvidence = _scanBehaviorEvidence(scores);
     ModelFamilyMatch? closest;
     double bestMatch = 0;
@@ -121,7 +123,7 @@ class ModelFingerprintService {
         }
       }
       var avg = count > 0 ? match / count : 0.0;
-      // 命中行为特征的家族获得加权，让"硬证据"能扭转纯分数的撞车
+      // Families with behavioral evidence hits get a bonus so hard evidence can break ties in pure scores
       final hits = behaviorEvidence[family.name] ?? const [];
       avg += hits.length * 0.05;
       if (avg > bestMatch) {
@@ -143,7 +145,7 @@ class ModelFingerprintService {
     bool mixedPool = false;
     if (checkConsistency) {
       consistency = await _consistencyCheck(provider, credential);
-      // 一致性低于 0.6 视为疑似多模型混池
+      // Consistency below 0.6 is treated as a suspected multi-model mixed pool
       mixedPool = consistency < 0.6;
     }
 
@@ -159,14 +161,15 @@ class ModelFingerprintService {
       downgradeNote: downgradeNote,
     );
   }
-  /// 缩水判定：实测维度分 vs 家族基准分，落差超阈值标"疑似精简版"。
-  /// dimensions 是 0~100，featureScores 是 0~1，比对前先归一化。
+  /// Downgrade detection: compares measured dimension scores against family baseline
+  /// scores, flagging a "suspected trimmed version" when the gap exceeds the threshold.
+  /// dimensions are 0-100 and featureScores are 0-1; normalize before comparing.
   String? _detectDowngrade(
     Map<String, double> dimensions,
     ModelFamilyMatch? closest,
   ) {
     if (closest == null) return null;
-    // 找到对应的家族 profile
+    // Find the matching family profile
     final profile = ModelFamilyProfiles.all
         .where((f) => f.name == closest.familyName)
         .firstOrNull;
@@ -177,32 +180,33 @@ class ModelFingerprintService {
     final lowDims = <String>[];
 
     for (final entry in profile.featureScores.entries) {
-      final actual = (dimensions[entry.key] ?? 0) / 100; // 归一化到 0~1
+      final actual = (dimensions[entry.key] ?? 0) / 100; // Normalize to 0-1
       final baseline = entry.value;
-      final gap = baseline - actual; // 正数=实测低于基准
+      final gap = baseline - actual; // Positive means measured is below baseline
       totalGap += gap;
       count++;
-      if (gap > 0.20) lowDims.add(entry.key); // 单维落差 >20% 单独记录
+      if (gap > 0.20) lowDims.add(entry.key); // Record dimensions with a single-dimension gap over 20%
     }
 
     if (count == 0) return null;
     final avgGap = totalGap / count;
 
     if (avgGap > 0.15) {
-      // 平均落差 >15%，保守判定为"疑似精简/缩水"
+      // Average gap over 15%: conservatively judged as suspected trimmed/downgraded
       final dimHint = lowDims.isNotEmpty ? '（${lowDims.join('、')} 维度明显偏低）' : '';
       return '实测能力低于 ${closest.familyName} 家族基准约 ${(avgGap * 100).round()}%$dimHint，疑似精简版或缩水模型，仅供参考。';
     }
     if (avgGap < -0.10) {
-      // 实测高于基准 >10%，也值得记录
+      // Measured over 10% above baseline is also worth noting
       return '实测能力超出 ${closest.familyName} 家族基准约 ${(-avgGap * 100).round()}%，表现优于预期。';
     }
-    return null; // 正常范围，不标注
+    return null; // Within normal range, no annotation
   }
 
-  /// 掺假检测：temp=0 时同一问题连发多次，正常模型应给近乎一致的答案。
-  /// 差异过大 → 疑似背后不是同一个模型（多模型混池）。费额度，需用户开启。
-  /// 返回一致性分 0~1（越高越一致）。
+  /// Adulteration detection: sends the same question multiple times at temperature=0;
+  /// a healthy model should return nearly identical answers. Large divergence suggests
+  /// the backend is not a single model (mixed pool). Consumes quota, so it is opt-in.
+  /// Returns a consistency score of 0-1 (higher means more consistent).
   Future<double> _consistencyCheck(
     LlmProvider provider,
     ApiCredential credential, {
@@ -213,7 +217,7 @@ class ModelFingerprintService {
     for (var i = 0; i < rounds; i++) {
       try {
         final stream = await provider.sendMessage(
-          LlmRequest(
+          const LlmRequest(
             messages: [
               {'role': 'user', 'content': probe}
             ],
@@ -228,11 +232,11 @@ class ModelFingerprintService {
         }
         answers.add(buf.toString().trim());
       } catch (_) {
-        // 单轮失败跳过，不影响其余轮次
+        // Skip failed rounds without affecting the rest
       }
     }
-    if (answers.length < 2) return 1.0; // 样本不足，不下掺假结论
-    // 两两比对相似度，取平均
+    if (answers.length < 2) return 1.0; // Not enough samples, no adulteration conclusion
+    // Compare pairwise similarity and average
     double totalSim = 0;
     int pairs = 0;
     for (var i = 0; i < answers.length; i++) {
@@ -244,7 +248,7 @@ class ModelFingerprintService {
     return pairs > 0 ? totalSim / pairs : 1.0;
   }
 
-  /// 基于字符集合的 Jaccard 相似度，0~1。朴素但零依赖、可解释。
+  /// Character-set based Jaccard similarity, 0-1. Naive but dependency-free and explainable.
   double _similarity(String a, String b) {
     if (a.isEmpty && b.isEmpty) return 1.0;
     if (a.isEmpty || b.isEmpty) return 0.0;
@@ -254,10 +258,11 @@ class ModelFingerprintService {
     final union = setA.union(setB).length;
     return union > 0 ? inter / union : 1.0;
   }
-  /// 路A：用可解释的规则扫描回答文本，命中哪些家族的行为特征。
-  /// 返回 family.name -> 命中的证据描述列表。每条都能说清"因为检测到X"。
+  /// Path A: scans response text with explainable rules to find which families' behavioral
+  /// traits were matched. Returns family.name -> a list of evidence descriptions,
+  /// each stating what was detected.
   Map<String, List<String>> _scanBehaviorEvidence(List<QuestionScore> scores) {
-    // 把所有回答拼成一大段待扫描文本
+    // Concatenate all responses into one text for scanning
     final allText =
         scores.map((s) => s.observation ?? '').join('\n').toLowerCase();
     final evidence = <String, List<String>>{};
@@ -266,57 +271,58 @@ class ModelFingerprintService {
       evidence.putIfAbsent(family, () => []).add(reason);
     }
 
-    // DeepSeek / Qwen 系：R1 思维链标签
+    // DeepSeek / Qwen families: R1 chain-of-thought tags
     if (allText.contains('<think>') || allText.contains('</think>')) {
       hit('DeepSeek', '出现 <think> 思维链标签（R1系列特征）');
     }
-    // OpenAI 系：固定英文拒绝措辞
+    // OpenAI family: fixed English refusal wording
     if (allText.contains('i cannot assist') ||
         allText.contains("i can't assist") ||
         allText.contains('as an ai language model')) {
       hit('OpenAI', '出现固定拒绝/免责措辞（OpenAI典型话术）');
     }
-    // Claude 系：温和长解释式表达
+    // Claude family: gentle, long-winded explanation style
     if (allText.contains('i appreciate') ||
         allText.contains('i understand your') ||
         allText.contains("i'd be happy to")) {
       hit('Claude', '出现温和铺垫式措辞（Claude典型语气）');
     }
-    // Gemini 系：大量 Markdown 结构化
+    // Gemini family: heavy Markdown structuring
     final mdMarks =
         RegExp(r'(^|\n)\s*(#{1,3}\s|\*\s|-\s|\d+\.\s)').allMatches(allText).length;
     if (mdMarks >= 6) {
       hit('Gemini', '大量使用 Markdown 标题/列表（Gemini排版偏好）');
     }
-    // Llama 系：中文题却大量英文夹杂
+    // Llama family: heavy English mixing in Chinese-language questions
     final cjk = RegExp(r'[\u4e00-\u9fa5]').allMatches(allText).length;
     final latin = RegExp(r'[a-z]').allMatches(allText).length;
     if (cjk > 20 && latin > cjk * 2) {
       hit('Llama', '中文语境下英文占比偏高（中文能力弱的特征）');
     }
 
-    // 抗审查姿势识别：只看 safety_style 题的回答，记录"怎么拒/怎么绕"
+    // Safety stance detection: only inspects safety_style responses, recording
+    // how the model refuses or deflects boundary questions
     final safetyText = scores
         .where((s) => s.dimension == 'safety_style')
         .map((s) => s.observation ?? '')
         .join('\n')
         .toLowerCase();
     if (safetyText.isNotEmpty) {
-      // 硬拒绝：直接顶回去
+      // Hard refusal: flat refusal
       if (safetyText.contains('i cannot') ||
           safetyText.contains('i can\'t help') ||
           safetyText.contains('无法提供') ||
           safetyText.contains('不能协助')) {
         hit('OpenAI', '边界题采取硬拒绝姿势（OpenAI/严格策略特征）');
       }
-      // 软劝退：温和铺垫式劝阻
+      // Soft refusal: gentle, hedged discouragement
       if (safetyText.contains('i understand') ||
           safetyText.contains('理解你') ||
           safetyText.contains('建议你') ||
           safetyText.contains('需要提醒')) {
         hit('Claude', '边界题采取温和劝退姿势（Claude特征）');
       }
-      // 先答应后绕开：出现转折词后偏离，国产模型招牌动作
+      // Agree then deflect: pivots after transition words, a signature of some domestic models
       if (RegExp(r'不过|但是|其实|换个角度|我们可以聊').hasMatch(safetyText) &&
           !safetyText.contains('i cannot')) {
         hit('Qwen', '边界题出现"先应后绕"倾向（部分国产模型特征）');
@@ -325,7 +331,7 @@ class ModelFingerprintService {
 
     return evidence;
   }
-  /// 根据维度返回对应的评分尺子（硬题评对错，软题评品质）
+  /// Returns the scoring rubric for a dimension (correctness for hard questions, quality for soft ones)
   String _rubricFor(String dimension) {
     switch (dimension) {
       case 'math':
@@ -368,7 +374,7 @@ class ModelFingerprintService {
     }
   }
 
-  /// 用裁判AI给回答打分，返回 0.0~1.0。裁判失败时回退到规则打分。
+  /// Scores a response with the judge AI, returning 0.0-1.0. Falls back to rule scoring on judge failure.
   Future<double> _judgeScore(
     FingerprintQuestion q,
     String response,

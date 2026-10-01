@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:kirakira/domain/services/image_generation_service.dart';
@@ -54,12 +55,12 @@ class ExtractedImagesWidget extends StatelessWidget {
     return GestureDetector(
       onTap: () => _openFullScreen(context, url),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         child: Container(
           constraints: BoxConstraints(maxHeight: maxHeight),
           decoration: BoxDecoration(
             color: AppTheme.darkBackground,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
           ),
           child: CachedNetworkImage(
             imageUrl: url,
@@ -89,7 +90,7 @@ class ExtractedImagesWidget extends StatelessWidget {
                 children: [
                   const Icon(Icons.broken_image, color: AppTheme.textMuted),
                   const SizedBox(height: 8),
-                  Text(
+                  const Text(
                     'Failed to load image',
                     style: TextStyle(color: AppTheme.textMuted, fontSize: 12),
                   ),

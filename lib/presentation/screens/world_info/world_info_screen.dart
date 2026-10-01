@@ -1,4 +1,5 @@
-﻿import 'dart:convert';
+import 'dart:convert';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
@@ -11,8 +12,7 @@ import 'package:kirakira/presentation/providers/character_providers.dart';
 import 'package:kirakira/presentation/providers/world_info_providers.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/l10n/generated/app_localizations.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:kirakira/presentation/utils/export_delivery.dart';
 
 /// Log a message to the console
 void _log(String message, {String? error, StackTrace? stackTrace}) {
@@ -57,12 +57,12 @@ class WorldInfoScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.file_download),
-            tooltip: AppLocalizations.of(context)!.import,
+            tooltip: AppLocalizations.of(context).import,
             onPressed: () => _importWorldInfo(context, ref),
           ),
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)!.createLorebook,
+            tooltip: AppLocalizations.of(context).createLorebook,
             onPressed: () => _showCreateDialog(context, ref),
           ),
         ],
@@ -79,7 +79,7 @@ class WorldInfoScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => ref.read(worldInfoNotifierProvider.notifier).refresh(),
-                child: Text(AppLocalizations.of(context)!.retry),
+                child: Text(AppLocalizations.of(context).retry),
               ),
             ],
           ),
@@ -124,7 +124,7 @@ class WorldInfoScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            AppLocalizations.of(context)!.noLorebooksYet,
+            AppLocalizations.of(context).noLorebooksYet,
             style: const TextStyle(
               fontSize: 18,
               color: AppTheme.textSecondary,
@@ -134,7 +134,7 @@ class WorldInfoScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              AppLocalizations.of(context)!.lorebooksInjectContext,
+              AppLocalizations.of(context).lorebooksInjectContext,
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppTheme.textMuted),
             ),
@@ -143,7 +143,7 @@ class WorldInfoScreen extends ConsumerWidget {
           ElevatedButton.icon(
             onPressed: () => _showCreateDialog(context, ref),
             icon: const Icon(Icons.add),
-            label: Text(AppLocalizations.of(context)!.createLorebook),
+            label: Text(AppLocalizations.of(context).createLorebook),
           ),
         ],
       ),
@@ -155,7 +155,7 @@ class WorldInfoScreen extends ConsumerWidget {
       context: context,
       builder: (context) => _WorldInfoDialog(
         ref: ref,
-        title: AppLocalizations.of(context)!.createLorebook,
+        title: AppLocalizations.of(context).createLorebook,
         initialCharacterId: characterId,
         initialIsGlobal: isGlobal,
         lockToGlobal: isGlobal,
@@ -177,7 +177,7 @@ class WorldInfoScreen extends ConsumerWidget {
       context: context,
       builder: (context) => _WorldInfoDialog(
         ref: ref,
-        title: AppLocalizations.of(context)!.editGroup,
+        title: AppLocalizations.of(context).editGroup,
         initialName: worldInfo.name,
         initialDescription: worldInfo.description,
         initialIsGlobal: worldInfo.isGlobal,
@@ -201,12 +201,12 @@ class WorldInfoScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteGroup),
-        content: Text(AppLocalizations.of(context)!.deleteLorebookConfirmation(worldInfo.name)),
+        title: Text(AppLocalizations.of(context).deleteGroup),
+        content: Text(AppLocalizations.of(context).deleteLorebookConfirmation(worldInfo.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           TextButton(
             onPressed: () {
@@ -214,7 +214,7 @@ class WorldInfoScreen extends ConsumerWidget {
               ref.read(worldInfoNotifierProvider.notifier).deleteWorldInfo(worldInfo.id);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(AppLocalizations.of(context)!.delete),
+            child: Text(AppLocalizations.of(context).delete),
           ),
         ],
       ),
@@ -304,14 +304,14 @@ class WorldInfoScreen extends ConsumerWidget {
       
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n!.importedAndApplied(name))),
+          SnackBar(content: Text(l10n.importedAndApplied(name))),
         );
       }
     } catch (e, st) {
       _log('Import failed', error: e.toString(), stackTrace: st);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)!.importFailed(e.toString())}')),
+          SnackBar(content: Text(AppLocalizations.of(context).importFailed(e.toString()))),
         );
       }
     }
@@ -428,7 +428,7 @@ class _WorldInfoCard extends StatelessWidget {
       color: AppTheme.darkCard,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -441,7 +441,7 @@ class _WorldInfoCard extends StatelessWidget {
                   color: worldInfo.enabled
                       ? AppTheme.primaryColor.withValues(alpha: 0.2)
                       : AppTheme.textMuted.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                 ),
                 child: Icon(
                   Icons.auto_stories,
@@ -477,7 +477,7 @@ class _WorldInfoCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              AppLocalizations.of(context)!.globalScope,
+                              AppLocalizations.of(context).globalScope,
                               style: const TextStyle(
                                 fontSize: 10,
                                 color: AppTheme.accentColor,
@@ -489,7 +489,7 @@ class _WorldInfoCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      AppLocalizations.of(context)!.entriesCount(worldInfo.entries.length),
+                      AppLocalizations.of(context).entriesCount(worldInfo.entries.length),
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 14,
@@ -536,7 +536,7 @@ class _WorldInfoCard extends StatelessWidget {
                     value: 'edit',
                     child: ListTile(
                       leading: const Icon(Icons.edit),
-                      title: Text(AppLocalizations.of(context)!.edit),
+                      title: Text(AppLocalizations.of(context).edit),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -544,7 +544,7 @@ class _WorldInfoCard extends StatelessWidget {
                     value: 'export',
                     child: ListTile(
                       leading: const Icon(Icons.file_upload),
-                      title: Text(AppLocalizations.of(context)!.export),
+                      title: Text(AppLocalizations.of(context).export),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -552,7 +552,7 @@ class _WorldInfoCard extends StatelessWidget {
                     value: 'delete',
                     child: ListTile(
                       leading: const Icon(Icons.delete, color: Colors.red),
-                      title: Text(AppLocalizations.of(context)!.delete, style: const TextStyle(color: Colors.red)),
+                      title: Text(AppLocalizations.of(context).delete, style: const TextStyle(color: Colors.red)),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -570,21 +570,21 @@ class _WorldInfoCard extends StatelessWidget {
       final json = worldInfo.toJson();
       final jsonString = const JsonEncoder.withIndent('  ').convert(json);
 
-      final tempDir = await getTemporaryDirectory();
       final fileName = '${worldInfo.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}.json';
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsString(jsonString);
 
-      // ignore: deprecated_member_use
-      await Share.shareXFiles(
-        [XFile(file.path)],
+      // Unified export delivery: share or save to file
+      await deliverExportFile(
+        context: context,
+        fileName: fileName,
+        bytes: utf8.encode(jsonString),
         subject: 'KiraKira World Info: ${worldInfo.name}',
+        ext: 'json',
       );
     } catch (e) {
       if (context.mounted) {
         final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n!.exportFailed(e.toString()))),
+          SnackBar(content: Text(l10n.exportFailed(e.toString()))),
         );
       }
     }
@@ -657,7 +657,7 @@ class _WorldInfoDialogState extends State<_WorldInfoDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     
     // Get character list from provider
     final charactersAsync = widget.ref.watch(characterListProvider);
@@ -700,7 +700,7 @@ class _WorldInfoDialogState extends State<_WorldInfoDialog> {
             ),
             const SizedBox(height: 8),
 
-            // 全局入口：锁定为全局，只显示只读说明
+            // Global entry: locked to global scope, read-only description only
             if (widget.lockToGlobal)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -716,7 +716,7 @@ class _WorldInfoDialogState extends State<_WorldInfoDialog> {
                 ),
               ),
 
-            // 非锁定：显示完整三个作用域选项
+            // Not locked: show all three scope options
             if (!widget.lockToGlobal) ...[
               // Global scope option
               RadioListTile<_WorldInfoScope>(
@@ -818,7 +818,7 @@ class _WorldInfoDialogState extends State<_WorldInfoDialog> {
   }
 
   Future<void> _save() async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -905,7 +905,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: AppLocalizations.of(context)!.addEntry,
+            tooltip: AppLocalizations.of(context).addEntry,
             onPressed: () => _showEntryDialog(context, ref, null),
           ),
         ],
@@ -948,7 +948,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
           ),
           const SizedBox(height: 16),
           Text(
-            AppLocalizations.of(context)!.noEntriesYet,
+            AppLocalizations.of(context).noEntriesYet,
             style: TextStyle(
               fontSize: 18,
               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
@@ -956,14 +956,14 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            AppLocalizations.of(context)!.addEntriesWithKeywords,
+            AppLocalizations.of(context).addEntriesWithKeywords,
             style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () => _showEntryDialog(context, ref, null),
             icon: const Icon(Icons.add),
-            label: Text(AppLocalizations.of(context)!.addEntry),
+            label: Text(AppLocalizations.of(context).addEntry),
           ),
         ],
       ),
@@ -985,12 +985,12 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteEntry),
-        content: Text(AppLocalizations.of(context)!.deleteEntryConfirmation(entry.keys.join(", "))),
+        title: Text(AppLocalizations.of(context).deleteEntry),
+        content: Text(AppLocalizations.of(context).deleteEntryConfirmation(entry.keys.join(', '))),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           TextButton(
             onPressed: () {
@@ -998,7 +998,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
               ref.read(worldInfoNotifierProvider.notifier).deleteEntry(entry.id);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(AppLocalizations.of(context)!.delete),
+            child: Text(AppLocalizations.of(context).delete),
           ),
         ],
       ),
@@ -1029,7 +1029,7 @@ class _WorldInfoEntryCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${l10n!.copiedToClipboard}: ${entry.keys.join(", ")}'),
+        content: Text('${l10n.copiedToClipboard}: ${entry.keys.join(", ")}'),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -1037,14 +1037,14 @@ class _WorldInfoEntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: Theme.of(context).cardColor,
       child: InkWell(
         onTap: onTap,
         onLongPress: () => _copyToClipboard(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1134,7 +1134,7 @@ class _WorldInfoEntryCard extends StatelessWidget {
 /// Dialog for creating/editing World Info Entry
 class _WorldInfoEntryDialog extends StatefulWidget {
   final String title;
-  final WorldInfoEntry? entry;
+  final WorldInfoEntry? entry = null;
   final Future<void> Function(
     List<String> keys,
     String content,
@@ -1148,7 +1148,6 @@ class _WorldInfoEntryDialog extends StatefulWidget {
 
   const _WorldInfoEntryDialog({
     required this.title,
-    this.entry,
     required this.onSave,
   });
 
@@ -1202,22 +1201,22 @@ class _WorldInfoEntryDialogState extends State<_WorldInfoEntryDialog> {
   }
 
   String _getPositionLabel(BuildContext context, WorldInfoPosition position) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     switch (position) {
       case WorldInfoPosition.before:
-        return l10n.beforeCharacterDefinition;  // ↑Char
+        return l10n.beforeCharacterDefinition;  // before Char
       case WorldInfoPosition.after:
-        return l10n.afterCharacterDefinition;   // ↓Char
+        return l10n.afterCharacterDefinition;   // after Char
       case WorldInfoPosition.ANTop:
-        return l10n.beforeAuthorNote;           // ↑AT
+        return l10n.beforeAuthorNote;           // before AN
       case WorldInfoPosition.ANBottom:
-        return l10n.afterAuthorNote;            // ↓AT
+        return l10n.afterAuthorNote;            // after AN
       case WorldInfoPosition.atDepth:
-        return l10n.atDepth;                    // @D
+        return l10n.atDepth;                    // at depth
       case WorldInfoPosition.EMTop:
-        return l10n.beforeExampleMessages;      // ↑EM
+        return l10n.beforeExampleMessages;      // before EM
       case WorldInfoPosition.EMBottom:
-        return l10n.afterExampleMessages;       // ↓EM
+        return l10n.afterExampleMessages;       // after EM
       case WorldInfoPosition.outlet:
         return 'Outlet';                        // Named outlet
     }
@@ -1225,7 +1224,7 @@ class _WorldInfoEntryDialogState extends State<_WorldInfoEntryDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
       title: Text(widget.title),
       content: SizedBox(
@@ -1347,7 +1346,7 @@ class _WorldInfoEntryDialogState extends State<_WorldInfoEntryDialog> {
   }
 
   Future<void> _save() async {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final keys = _keysController.text
         .split(',')
         .map((k) => k.trim())
@@ -1409,8 +1408,7 @@ class _WorldInfoEntryDialogState extends State<_WorldInfoEntryDialog> {
     }
   }
 }
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?//  Entry edit dialog (showDialog version 鈥?Phase E)
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+// Entry edit dialog (showDialog version)
 class _EntryEditDialog extends ConsumerStatefulWidget {
   final String worldInfoId;
   final WorldInfoEntry? entry;
@@ -1535,7 +1533,7 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
 
     return Dialog(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 500),
@@ -1647,7 +1645,7 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
                         Container(
                           decoration: BoxDecoration(
                             color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
                             border: Border.all(color: Theme.of(context).dividerColor),
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -1728,7 +1726,7 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusSm)),
                     ),
                     child: _isSaving
                         ? SizedBox(
@@ -1753,7 +1751,7 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
       text,
       style: TextStyle(
         color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
-        fontSize: 13,
+        fontSize: DesignTokens.fontSizeSm,
         fontWeight: FontWeight.w500,
       ),
     );
@@ -1765,20 +1763,20 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
       hintText: hint,
       hintStyle: TextStyle(
         color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-        fontSize: 13,
+        fontSize: DesignTokens.fontSizeSm,
       ),
       filled: true,
       fillColor: theme.cardColor,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
         borderSide: BorderSide(color: theme.dividerColor),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
         borderSide: BorderSide(color: theme.dividerColor),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
         borderSide: BorderSide(color: theme.colorScheme.primary),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1810,4 +1808,3 @@ class _EntryEditDialogState extends ConsumerState<_EntryEditDialog> {
     );
   }
 }
-

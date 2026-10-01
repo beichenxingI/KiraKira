@@ -1,9 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 
-/// 已解析路径的静态缓存：同一个 imagePath 只解析一次，
-/// 避免每次重建都异步解析导致闪一帧占位符（白图根因）。
+// TODO(token, pending approval): avatarFallback 11 colors (lightness grayscale + 1 primary) as missing-image fallback,
+// proposal in outline §4. Until approved, fall back to darkSurface/surfaceContainerHighest.
+
+/// Static cache of resolved paths: each imagePath is resolved only once,
+/// avoiding an async resolution on every rebuild that flashes a placeholder frame (root cause of the white image).
 final Map<String, String> _resolvedPathCache = {};
 
 Future<String> _resolveAvatarPath(String imagePath) async {
@@ -15,6 +19,14 @@ Future<String> _resolveAvatarPath(String imagePath) async {
 }
 
 String? _cachedPath(String imagePath) => _resolvedPathCache[imagePath];
+
+/// Placeholder background color while loading: darkSurface in dark mode, Theme-adapted in light mode
+Color _placeholderColor(BuildContext context) {
+  final theme = Theme.of(context);
+  return theme.brightness == Brightness.dark
+      ? DesignTokens.darkSurface
+      : theme.colorScheme.surfaceContainerHighest;
+}
 
 /// Widget that displays character avatar image
 /// Handles both absolute and relative paths for mobile compatibility
@@ -34,8 +46,8 @@ class CharacterAvatarImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 按控件实际分配宽度 × 屏幕像素密度算解码宽度，
-        // 列表小图用小尺寸、详情大图用大尺寸，自适应不糊。
+        // Decode width = the widget's actually allocated width x device pixel ratio,
+        // so small list thumbnails decode small and large detail images decode large, staying sharp at any size.
         final dpr = MediaQuery.of(context).devicePixelRatio;
         final logicalW =
             constraints.maxWidth.isFinite && constraints.maxWidth > 0
@@ -71,12 +83,16 @@ class CharacterAvatarImage extends StatelessWidget {
               );
             } else {
               return Container(
-                color: Colors.grey[800],
+                color: _placeholderColor(context),
                 child: const Center(
                   child: SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor:
+                          AlwaysStoppedAnimation(DesignTokens.primary),
+                    ),
                   ),
                 ),
               );
@@ -103,7 +119,7 @@ class CharacterAvatarCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 圆形头像直径约 2*radius，按高分屏预留，解码宽度取 radius*6。
+    // Circular avatar diameter is about 2*radius; leaving headroom for high-DPI screens, decode width is radius*6.
     final int decodeWidth = (radius * 6).round();
     final cached = _cachedPath(imagePath);
     if (cached != null) {
@@ -143,11 +159,14 @@ class CharacterAvatarCircle extends StatelessWidget {
         } else {
           return CircleAvatar(
             radius: radius,
-            backgroundColor: Colors.grey[800],
+            backgroundColor: _placeholderColor(context),
             child: const SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation(DesignTokens.primary),
+              ),
             ),
           );
         }
@@ -169,7 +188,7 @@ class CharacterBackgroundImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 背景图铺满屏幕，需要较高分辨率，降采样宽度给大一些。
+    // Background image covers the full screen and needs higher resolution, so the downsample width is larger.
     const int decodeWidth = 1080;
     final cached = _cachedPath(imagePath);
     if (cached != null) {

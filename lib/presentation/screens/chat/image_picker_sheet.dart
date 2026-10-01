@@ -2,12 +2,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 
-/// 应用内相册选择器：从底部弹出的网格，全程不离开 App，
-/// 避免跳转系统相册 Activity 导致 InAppWebView 的 PlatformView 命中区域失效。
+/// In-app photo picker: a bottom-sheet grid that never leaves the app,
+/// avoiding the system gallery Activity, which would invalidate hit-testing
+/// for InAppWebView's PlatformView.
 ///
-/// 用法：
+/// Usage:
 ///   final files = await showImagePickerSheet(context, maxSelection: 9);
-///   files 为选中图片的原始字节 + 建议文件名，可能为 null（取消）。
+///   files holds the raw bytes and suggested filename of each selected image; null on cancel.
 class PickedImage {
   final Uint8List bytes;
   final String name;
@@ -93,7 +94,7 @@ class _ImagePickerSheetState extends State<_ImagePickerSheet> {
       height: screenH * 0.7,
       child: Column(
         children: [
-          // 顶部拖动条 + 标题栏
+          // Drag handle + title bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(

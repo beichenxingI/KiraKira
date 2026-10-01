@@ -1,11 +1,12 @@
-import 'dart:async';
+﻿import 'dart:async';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Widget that renders HTML content using a WebView for full CSS support
-// 全局串行队列，防止多个WebView同时初始化导致渲染进程崩溃
+// Global serial queue: prevents multiple WebViews initializing at once, which crashes the renderer process
 class _WebViewLoadQueue {
   static final _WebViewLoadQueue _instance = _WebViewLoadQueue._();
   _WebViewLoadQueue._();
@@ -83,7 +84,7 @@ class _HtmlWebViewWidgetState extends State<HtmlWebViewWidget> with AutomaticKee
       return;
     }
     setState(() => _isReady = true);
-    // 安全兜底：5秒内没收到contentHeight就强制释放队列
+    // Safety fallback: force-release the queue if no contentHeight arrives within 5 seconds
     Future.delayed(const Duration(seconds: 5), _releaseQueue);
   }
 
@@ -99,7 +100,7 @@ class _HtmlWebViewWidgetState extends State<HtmlWebViewWidget> with AutomaticKee
 
   @override
   void dispose() {
-    _releaseQueue(); // 如果WebView被销毁时还占着队列，释放掉
+    _releaseQueue(); // Release the queue if the WebView is destroyed while still holding it
     _webViewController = null;
     super.dispose();
   }
@@ -238,7 +239,7 @@ $htmlContent
     } catch(e) {}
   }
 
-  // 展开/折叠等交互后，连测几次拿到稳定的最终高度
+  // After interactions such as expand/collapse, measure several times to obtain a stable final height
   function measureAfterInteraction() {
     sendHeight();
     setTimeout(sendHeight, 50);
@@ -248,7 +249,7 @@ $htmlContent
 
   var debouncedSendHeight = debounce(sendHeight, 200);
 
-  // 点击是展开面板的触发器：瞬间展开无过渡，点击后补测高度
+  // Clicks trigger panel expansion (instant, no transition); re-measure height after the click
   document.addEventListener('click', function() {
     measureAfterInteraction();
   }, true);
@@ -309,7 +310,7 @@ $htmlContent
       onLongPress: widget.onLongPress,
       child: AnimatedSize(
         duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
+        curve: DesignTokens.curveEmphasized,
         alignment: Alignment.topCenter,
         child: SizedBox(
           height: _contentHeight,

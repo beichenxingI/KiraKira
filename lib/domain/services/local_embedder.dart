@@ -3,14 +3,15 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:onnxruntime/onnxruntime.dart';
 import 'package:kirakira/domain/services/bge_tokenizer.dart';
 
-/// 本地 bge-small-zh embedding 推理器（ONNX Runtime）。
+/// Local bge-small-zh embedding inference engine (ONNX Runtime).
 ///
-/// ── 致未来的你 ──
-/// 云端 embedding 的痛点（中转站定价虚高、重度用户被账单劝退）到此为止。
-/// 这里文字→向量全程在设备上跑：零 token 费、离线、隐私不出设备。
-/// 管线：分词(BgeTokenizer) → ONNX 推理 → CLS pooling → L2 归一化。
-/// bge 官方用 CLS pooling（取首 token），不是 mean pooling，别改错。
-/// ──
+/// Notes for future maintainers:
+/// The cloud embedding pain points (inflated relay pricing, heavy users priced
+/// out by the bill) end here. Text-to-vector runs entirely on-device: zero token
+/// cost, offline, privacy since data never leaves the device.
+/// Pipeline: tokenization (BgeTokenizer), then ONNX inference, then CLS pooling,
+/// then L2 normalization. bge officially uses CLS pooling (first token), not mean
+/// pooling; do not change this.
 class LocalEmbedder {
   static const _modelPath = 'assets/models/bge-small-zh/model.onnx';
 
@@ -18,7 +19,7 @@ class LocalEmbedder {
   OrtSession? _session;
   bool _envInited = false;
 
-  /// 懒加载：首次调用时初始化 ORT 环境、加载模型和词表。
+  /// Lazy loading: initializes the ORT environment, loads the model and vocabulary on first call.
   Future<void> _ensureReady() async {
     if (_session != null) return;
     if (!_envInited) {
@@ -32,7 +33,7 @@ class LocalEmbedder {
     _session = OrtSession.fromBuffer(bytes, options);
   }
 
-  /// 单段文字 → 归一化向量（384维）。
+  /// Convert a single text to a normalized vector (384 dims).
   Future<List<double>> embed(String text) async {
     await _ensureReady();
 
@@ -41,7 +42,7 @@ class LocalEmbedder {
     final mask = List<int>.filled(seqLen, 1);
     final typeIds = List<int>.filled(seqLen, 0);
 
-    // shape [1, seqLen]，元素为 int → ORT 识别为 int64（bge 要求）
+    // Shape [1, seqLen]; int elements are read by ORT as int64 (required by bge)
     final inputIds = OrtValueTensor.createTensorWithDataList(
         [ids], [1, seqLen]);
     final attentionMask = OrtValueTensor.createTensorWithDataList(
@@ -62,7 +63,7 @@ class LocalEmbedder {
       // last_hidden_state: [1, seqLen, 384]
       final raw = outputs.first?.value;
       final hidden = (raw as List).first as List; // [seqLen, 384]
-      final cls = (hidden.first as List) // CLS = 首 token 向量
+      final cls = (hidden.first as List) // CLS = first token vector
           .map((e) => (e as num).toDouble())
           .toList();
       return _l2Normalize(cls);

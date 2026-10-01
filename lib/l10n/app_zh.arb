@@ -994,7 +994,7 @@
   "createLorebook": "创建",
   "noLorebooksYet": "暂无世界书",
   "lorebooksInjectContext": "聊天",
-  "entriesCount": "计数",
+  "entriesCount": "{count} 条",
   "deleteLorebookConfirmation": "删除",
   "enterLorebookName": "名称",
   "optionalDescriptionHint": "描述",

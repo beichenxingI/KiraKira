@@ -78,7 +78,7 @@ class DeepSeekProvider implements LlmProvider {
       final firstTokenCompleter = Completer<int>();
 
       final stream = await sendMessage(
-        LlmRequest(messages: [
+        const LlmRequest(messages: [
           {'role': 'user', 'content': 'Hello'}
         ], maxTokens: 10),
         credential,

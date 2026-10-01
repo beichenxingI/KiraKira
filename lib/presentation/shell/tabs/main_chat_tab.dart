@@ -1,4 +1,5 @@
-import 'dart:async';
+﻿import 'dart:async';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -36,7 +37,7 @@ class _MainChatTabState extends State<MainChatTab> {
     final dateStr = DateFormat('\u4eca\u5929\u662f yyyy\u5e74M\u6708d\u65e5 EEEE', 'zh_CN').format(_now);
     final timeStr = DateFormat('HH:mm:ss', 'zh_CN').format(_now);
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a2e),
+      backgroundColor: DesignTokens.darkBackground,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -51,7 +52,7 @@ class _MainChatTabState extends State<MainChatTab> {
             const SizedBox(height: 300),
             Container(width:200, height:4, decoration: BoxDecoration(gradient: const LinearGradient(colors:[Color(0xFFFCD34D), Color(0xFFF59E0B)]), borderRadius: BorderRadius.circular(2))),
             const SizedBox(height:8),
-            Text('/* TODO: Live2D \u770b\u677f\u5a18\u63a5\u5165\u4f4d\u7f6e */', style: TextStyle(color: Colors.white.withValues(alpha:0.12), fontSize: 11)),
+            Text('/* TODO: Live2D \u770b\u677f\u5a18\u63a5\u5165\u4f4d\u7f6e */', style: TextStyle(color: Colors.white.withValues(alpha:0.12), fontSize: DesignTokens.fontSizeCaption)),
           ],
         ),
       ),

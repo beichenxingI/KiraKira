@@ -24,20 +24,21 @@ final activePersonaProvider = FutureProvider<Persona?>((ref) async {
   // Return default persona if no active persona is set
   return repo.getDefaultPersona();
 });
-/// 按角色解析生效人设：手动选 > 角色绑定 > 默认。
-/// characterId 为空时退回"手动选 > 默认"。
+/// Resolves the effective persona per character: manual selection > character
+/// binding > default.
+/// With a null characterId the fallback is manual selection > default.
 final personaForCharacterProvider =
     FutureProvider.family<Persona?, String?>((ref, characterId) async {
   final repo = ref.watch(personaRepositoryProvider);
 
-  // 第1级：用户在当前会话手动选中的人设，优先级最高
+  // Tier 1: persona manually selected in the current session (highest priority)
   final activeId = ref.watch(activePersonaIdProvider);
   if (activeId != null) {
     final manual = await repo.getPersona(activeId);
     if (manual != null) return manual;
   }
 
-  // 第2级：当前角色绑定的人设
+  // Tier 2: persona bound to the current character
   if (characterId != null) {
     final all = await repo.getAllPersonas();
     for (final p in all) {
@@ -47,7 +48,7 @@ final personaForCharacterProvider =
     }
   }
 
-  // 第3级：默认人设
+  // Tier 3: default persona
   return repo.getDefaultPersona();
 });
 
@@ -93,12 +94,16 @@ class PersonaNotifier extends StateNotifier<AsyncValue<List<Persona>>> {
 
     await _repository.createPersona(persona);
     await _loadPersonas();
+    _ref.invalidate(activePersonaProvider);
   }
 
   Future<void> updatePersona(Persona persona) async {
     final updated = persona.copyWith(updatedAt: DateTime.now());
     await _repository.updatePersona(updated);
     await _loadPersonas();
+    // Invalidate so the settings-page user card / persona row re-reads after a
+    // rename or avatar change.
+    _ref.invalidate(activePersonaProvider);
   }
 
   Future<void> deletePersona(String id) async {
@@ -109,19 +114,23 @@ class PersonaNotifier extends StateNotifier<AsyncValue<List<Persona>>> {
     }
 
     await _repository.deletePersona(id);
-    
+
     // If the deleted persona was active, reset to default
     final activeId = _ref.read(activePersonaIdProvider);
     if (activeId == id) {
       _ref.read(activePersonaIdProvider.notifier).state = null;
     }
-    
+
     await _loadPersonas();
+    _ref.invalidate(activePersonaProvider);
   }
 
   Future<void> setDefaultPersona(String id) async {
     await _repository.setDefaultPersona(id);
     await _loadPersonas();
+    // Default persona changed: with no manual selection activePersonaProvider
+    // falls back to the default, so it must be invalidated and rebuilt.
+    _ref.invalidate(activePersonaProvider);
   }
 
   Future<void> setActivePersona(String id) async {

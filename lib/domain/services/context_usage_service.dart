@@ -83,7 +83,7 @@ class ContextUsageService {
   }) {
     final components = <ContextComponentUsage>[];
 
-    // ============ PROMPT SECTIONS ============
+    // Prompt sections
     final promptSectionChildren = <ContextComponentUsage>[];
     int promptSectionTotal = 0;
 
@@ -108,7 +108,7 @@ class ContextUsageService {
       ));
     }
 
-    // ============ WORLD INFO / LOREBOOK ============
+    // World info / lorebook
     if (worldInfoEntries != null && worldInfoEntries.isNotEmpty) {
       final worldInfoTokens = _calculateWorldInfoTokens(worldInfoEntries);
       if (worldInfoTokens.tokenCount > 0) {
@@ -116,7 +116,7 @@ class ContextUsageService {
       }
     }
 
-    // ============ AUTHOR'S NOTE ============
+    // Author's note
     if (chat != null && chat.authorNoteEnabled && chat.authorNote.isNotEmpty) {
       final authorNoteTokens = _tokenizerService.estimateTokenCount(chat.authorNote);
       components.add(ContextComponentUsage(
@@ -126,7 +126,7 @@ class ContextUsageService {
       ));
     }
 
-    // ============ SUMMARIES ============
+    // Summaries
     if (chat != null && chat.summaries.isNotEmpty) {
       final summaryChildren = <ContextComponentUsage>[];
       int summaryTotal = 0;
@@ -149,7 +149,7 @@ class ContextUsageService {
       ));
     }
 
-    // ============ CHAT HISTORY ============
+    // Chat history
     final chatHistoryTokens = _calculateChatHistoryTokens(messages);
     if (chatHistoryTokens.tokenCount > 0) {
       components.add(chatHistoryTokens);
@@ -182,7 +182,7 @@ class ContextUsageService {
   }) {
     final components = <ContextComponentUsage>[];
 
-    // ============ PROMPT SECTIONS ============
+    // Prompt sections
     if (enabledSections != null && enabledSections.isNotEmpty) {
       final promptSectionChildren = <ContextComponentUsage>[];
       int promptSectionTotal = 0;
@@ -232,7 +232,7 @@ class ContextUsageService {
       }
     }
 
-    // ============ WORLD INFO / LOREBOOK ============
+    // World info / lorebook
     if (worldInfoEntries != null && worldInfoEntries.isNotEmpty) {
       final worldInfoTokens = _calculateWorldInfoTokens(worldInfoEntries);
       if (worldInfoTokens.tokenCount > 0) {
@@ -240,7 +240,7 @@ class ContextUsageService {
       }
     }
 
-    // ============ AUTHOR'S NOTE ============
+    // Author's note
     if (chat != null && chat.authorNoteEnabled && chat.authorNote.isNotEmpty) {
       components.add(ContextComponentUsage(
         name: "Author's Note",
@@ -249,7 +249,7 @@ class ContextUsageService {
       ));
     }
 
-    // ============ SUMMARIES ============
+    // Summaries
     if (chat != null && chat.summaries.isNotEmpty) {
       final summaryText = chat.summaries.map((s) => s.content).join('\n');
       components.add(ContextComponentUsage(
@@ -259,7 +259,7 @@ class ContextUsageService {
       ));
     }
 
-    // ============ CHAT HISTORY ============
+    // Chat history
     final chatHistoryTokens = _calculateChatHistoryTokens(messages);
     if (chatHistoryTokens.tokenCount > 0) {
       components.add(chatHistoryTokens);

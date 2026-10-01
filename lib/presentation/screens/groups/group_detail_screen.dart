@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kirakira/data/models/group.dart';
@@ -77,7 +77,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     await ref.read(groupListProvider.notifier).updateGroup(updatedGroup);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.groupSaved)),
+        SnackBar(content: Text(AppLocalizations.of(context).groupSaved)),
       );
     }
   }
@@ -86,17 +86,17 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteGroup),
-        content: Text(AppLocalizations.of(context)!.deleteGroupAndChats(_group?.name ?? '')),
+        title: Text(AppLocalizations.of(context).deleteGroup),
+        content: Text(AppLocalizations.of(context).deleteGroupAndChats(_group?.name ?? '')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(AppLocalizations.of(context)!.delete),
+            child: Text(AppLocalizations.of(context).delete),
           ),
         ],
       ),
@@ -118,7 +118,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
 
     if (availableCharacters.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.noMoreCharactersAvailable)),
+        SnackBar(content: Text(AppLocalizations.of(context).noMoreCharactersAvailable)),
       );
       return;
     }
@@ -182,15 +182,15 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: Text(AppLocalizations.of(context)!.loading)),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).loading)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_group == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(AppLocalizations.of(context)!.error)),
-        body: Center(child: Text(AppLocalizations.of(context)!.characterNotFoundMessage)),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).error)),
+        body: Center(child: Text(AppLocalizations.of(context).characterNotFoundMessage)),
       );
     }
 
@@ -200,17 +200,17 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.play_arrow),
-            tooltip: AppLocalizations.of(context)!.startChatAction,
+            tooltip: AppLocalizations.of(context).startChatAction,
             onPressed: _group!.members.isNotEmpty ? _startGroupChat : null,
           ),
           IconButton(
             icon: const Icon(Icons.save),
-            tooltip: AppLocalizations.of(context)!.save,
+            tooltip: AppLocalizations.of(context).save,
             onPressed: _saveGroup,
           ),
           IconButton(
             icon: const Icon(Icons.delete),
-            tooltip: AppLocalizations.of(context)!.delete,
+            tooltip: AppLocalizations.of(context).delete,
             onPressed: _deleteGroup,
           ),
         ],
@@ -226,14 +226,14 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    AppLocalizations.of(context)!.groupInfo,
+                    AppLocalizations.of(context).groupInfo,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _nameController,
                     decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.name,
+                      labelText: AppLocalizations.of(context).name,
                       border: const OutlineInputBorder(),
                     ),
                   ),
@@ -241,7 +241,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                   TextField(
                     controller: _descriptionController,
                     decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.descriptionOptionalLabel,
+                      labelText: AppLocalizations.of(context).descriptionOptionalLabel,
                       border: const OutlineInputBorder(),
                     ),
                     maxLines: 3,
@@ -260,12 +260,12 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    AppLocalizations.of(context)!.responseMode,
+                    AppLocalizations.of(context).responseMode,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    AppLocalizations.of(context)!.howCharactersTakeTurns,
+                    AppLocalizations.of(context).howCharactersTakeTurns,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 16),
@@ -297,12 +297,12 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        AppLocalizations.of(context)!.membersCount(_group!.members.length),
+                        AppLocalizations.of(context).membersCount(_group!.members.length),
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       IconButton(
                         icon: const Icon(Icons.add),
-                        tooltip: AppLocalizations.of(context)!.addMember,
+                        tooltip: AppLocalizations.of(context).addMember,
                         onPressed: _addMember,
                       ),
                     ],
@@ -311,7 +311,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                   if (_group!.members.isEmpty)
                     Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Text(AppLocalizations.of(context)!.noMembersYet),
+                      child: Text(AppLocalizations.of(context).noMembersYet),
                     )
                   else
                     ReorderableListView.builder(
@@ -355,30 +355,30 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
   String _getResponseModeTitle(GroupResponseMode mode, BuildContext context) {
     switch (mode) {
       case GroupResponseMode.sequential:
-        return AppLocalizations.of(context)!.sequential;
+        return AppLocalizations.of(context).sequential;
       case GroupResponseMode.random:
-        return AppLocalizations.of(context)!.random;
+        return AppLocalizations.of(context).random;
       case GroupResponseMode.all:
-        return AppLocalizations.of(context)!.allAtOnce;
+        return AppLocalizations.of(context).allAtOnce;
       case GroupResponseMode.manual:
-        return AppLocalizations.of(context)!.manual;
+        return AppLocalizations.of(context).manual;
       case GroupResponseMode.natural:
-        return AppLocalizations.of(context)!.natural;
+        return AppLocalizations.of(context).natural;
     }
   }
 
   String _getResponseModeDescription(GroupResponseMode mode, BuildContext context) {
     switch (mode) {
       case GroupResponseMode.sequential:
-        return AppLocalizations.of(context)!.charactersRespondInOrder;
+        return AppLocalizations.of(context).charactersRespondInOrder;
       case GroupResponseMode.random:
-        return AppLocalizations.of(context)!.randomCharacterResponds;
+        return AppLocalizations.of(context).randomCharacterResponds;
       case GroupResponseMode.all:
-        return AppLocalizations.of(context)!.allNonMutedCharactersRespond;
+        return AppLocalizations.of(context).allNonMutedCharactersRespond;
       case GroupResponseMode.manual:
-        return AppLocalizations.of(context)!.youSelectWhoResponds;
+        return AppLocalizations.of(context).youSelectWhoResponds;
       case GroupResponseMode.natural:
-        return AppLocalizations.of(context)!.aiDecidesBasedOnContext;
+        return AppLocalizations.of(context).aiDecidesBasedOnContext;
     }
   }
 }
@@ -412,9 +412,9 @@ class _MemberTile extends StatelessWidget {
           leading: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ReorderableDragStartListener(
+              const ReorderableDragStartListener(
                 index: 0,
-                child: const Icon(Icons.drag_handle),
+                child: Icon(Icons.drag_handle),
               ),
               const SizedBox(width: 8),
               CircleAvatar(
@@ -431,7 +431,7 @@ class _MemberTile extends StatelessWidget {
             ),
           ),
           subtitle: Text(
-            '${AppLocalizations.of(context)!.talkativenessPercent(member.talkativeness)} ${member.triggerWords.isNotEmpty ? '• ${AppLocalizations.of(context)!.triggers(member.triggerWords.join(", "))}' : ''}',
+            '${AppLocalizations.of(context).talkativenessPercent(member.talkativeness)} ${member.triggerWords.isNotEmpty ? '• ${AppLocalizations.of(context).triggers(member.triggerWords.join(", "))}' : ''}',
           ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
@@ -441,17 +441,17 @@ class _MemberTile extends StatelessWidget {
                   member.isMuted ? Icons.volume_off : Icons.volume_up,
                   color: member.isMuted ? Colors.grey : null,
                 ),
-                tooltip: member.isMuted ? AppLocalizations.of(context)!.unmute : AppLocalizations.of(context)!.mute,
+                tooltip: member.isMuted ? AppLocalizations.of(context).unmute : AppLocalizations.of(context).mute,
                 onPressed: onToggleMute,
               ),
               IconButton(
                 icon: const Icon(Icons.settings),
-                tooltip: AppLocalizations.of(context)!.settings,
+                tooltip: AppLocalizations.of(context).settings,
                 onPressed: onEdit,
               ),
               IconButton(
                 icon: const Icon(Icons.remove_circle_outline),
-                tooltip: AppLocalizations.of(context)!.removeMember,
+                tooltip: AppLocalizations.of(context).removeMember,
                 onPressed: onRemove,
               ),
             ],
@@ -470,7 +470,7 @@ class _AddMemberDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(AppLocalizations.of(context)!.addMemberToGroup),
+      title: Text(AppLocalizations.of(context).addMemberToGroup),
       content: SizedBox(
         width: double.maxFinite,
         height: 400,
@@ -483,7 +483,7 @@ class _AddMemberDialog extends StatelessWidget {
               title: Text(character.name),
               subtitle: character.creatorNotes != null
                   ? Text(
-                      character.creatorNotes!,
+                      character.creatorNotes,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     )
@@ -496,7 +496,7 @@ class _AddMemberDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(AppLocalizations.of(context)!.cancel),
+          child: Text(AppLocalizations.of(context).cancel),
         ),
       ],
     );
@@ -546,12 +546,12 @@ class _MemberSettingsDialogState extends State<_MemberSettingsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(AppLocalizations.of(context)!.memberSettings),
+      title: Text(AppLocalizations.of(context).memberSettings),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(AppLocalizations.of(context)!.talkativenessLabel(_talkativeness.round())),
+          Text(AppLocalizations.of(context).talkativenessLabel(_talkativeness.round())),
           Slider(
             value: _talkativeness,
             min: 0,
@@ -564,21 +564,21 @@ class _MemberSettingsDialogState extends State<_MemberSettingsDialog> {
           ),
           const SizedBox(height: 8),
           Text(
-            AppLocalizations.of(context)!.higherValuesMoreLikely,
+            AppLocalizations.of(context).higherValuesMoreLikely,
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _triggerWordsController,
             decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.triggerWords,
-              hintText: AppLocalizations.of(context)!.triggerWordsHint,
+              labelText: AppLocalizations.of(context).triggerWords,
+              hintText: AppLocalizations.of(context).triggerWordsHint,
               border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            AppLocalizations.of(context)!.characterWillRespondWhenTriggered,
+            AppLocalizations.of(context).characterWillRespondWhenTriggered,
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],
@@ -586,7 +586,7 @@ class _MemberSettingsDialogState extends State<_MemberSettingsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(AppLocalizations.of(context)!.cancel),
+          child: Text(AppLocalizations.of(context).cancel),
         ),
         TextButton(
           onPressed: () {
@@ -604,7 +604,7 @@ class _MemberSettingsDialogState extends State<_MemberSettingsDialog> {
               ),
             );
           },
-          child: Text(AppLocalizations.of(context)!.save),
+          child: Text(AppLocalizations.of(context).save),
         ),
       ],
     );

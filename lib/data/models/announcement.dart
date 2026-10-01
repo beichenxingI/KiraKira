@@ -1,17 +1,32 @@
-/// 公告数据模型
+/// Announcement data model.
 ///
-/// 对应远程 announcement.json 的结构。字段全部可选降级：
-/// 任何字段缺失或为空都不影响解析，UI层自行判断是否展示。
+/// Dual track: update (update announcements, deduplicated by hash) and daily
+/// (daily announcements, deduplicated by id plus time-window filtering).
+/// Maps to the remote announcement.json structure. All fields are optional
+/// with graceful degradation: missing or empty fields never break parsing;
+/// the UI layer decides whether to display.
+enum AnnouncementType {
+  update, // Update announcement
+  daily, // Daily announcement
+}
+
 class Announcement {
-  final String version; // 公告版本号，用于判断是否已读
-  final String title; // 公告标题
-  final String content; // 公告正文，支持 \n 换行
-  final String imageUrl; // 顶部横幅图，空则不显示
-  final String downloadUrl; // 新版下载地址，空则不显示下载按钮
-  final bool forceUpdate; // 是否强制更新（我们始终 false，保持开源友好）
-  final String minAppVersion; // 最低兼容版本
+  final String id; // Unique id (update announcements use the first 8 hash chars, daily use the JSON id)
+  final AnnouncementType type; // Type
+  final String version; // Reserved field (used by update announcements, empty for daily)
+  final String title; // Announcement title
+  final String content; // Announcement body, Markdown format
+  final String imageUrl; // Top banner image, hidden when empty
+  final String downloadUrl; // New version download URL, download button hidden when empty
+  final bool forceUpdate; // Reserved but unused
+  final String minAppVersion; // Reserved but unused
+  final DateTime? publishTime; // Daily announcements only
+  final DateTime? expireTime; // Daily announcements only
+  final int priority; // Daily announcement sort weight (default 0, higher = higher priority)
 
   const Announcement({
+    this.id = '',
+    this.type = AnnouncementType.update,
     this.version = '',
     this.title = '',
     this.content = '',
@@ -19,11 +34,36 @@ class Announcement {
     this.downloadUrl = '',
     this.forceUpdate = false,
     this.minAppVersion = '',
+    this.publishTime,
+    this.expireTime,
+    this.priority = 0,
   });
 
-  /// 从远程 JSON 解析，任何字段缺失都安全降级为默认值
-  factory Announcement.fromJson(Map<String, dynamic> json) {
+  /// Parse from remote JSON; any missing field safely degrades to a default value.
+  ///
+  /// [computedHash] is used by update announcements to build the id
+  /// ('update-' + first 8 hash chars). Daily announcements require the JSON id,
+  /// falling back to a timestamp when missing.
+  factory Announcement.fromJson(Map<String, dynamic> json,
+      {String? computedHash}) {
+    final typeStr = json['type'] as String?;
+    final type = typeStr == 'daily'
+        ? AnnouncementType.daily
+        : AnnouncementType.update;
+
+    String id;
+    if (type == AnnouncementType.update) {
+      id = computedHash != null && computedHash.length >= 8
+          ? 'update-${computedHash.substring(0, 8)}'
+          : 'update-unknown';
+    } else {
+      id = (json['id'] as String?) ??
+          'daily-${DateTime.now().millisecondsSinceEpoch}';
+    }
+
     return Announcement(
+      id: id,
+      type: type,
       version: (json['version'] ?? '').toString(),
       title: (json['title'] ?? '').toString(),
       content: (json['content'] ?? '').toString(),
@@ -31,15 +71,26 @@ class Announcement {
       downloadUrl: (json['downloadUrl'] ?? '').toString(),
       forceUpdate: json['forceUpdate'] == true,
       minAppVersion: (json['minAppVersion'] ?? '').toString(),
+      publishTime: json['publishTime'] != null
+          ? DateTime.tryParse(json['publishTime'].toString())
+          : null,
+      expireTime: json['expireTime'] != null
+          ? DateTime.tryParse(json['expireTime'].toString())
+          : null,
+      priority: (json['priority'] as num?)?.toInt() ?? 0,
     );
   }
 
-  /// 是否有可展示的内容（标题或正文非空才弹窗）
+  /// Whether there is displayable content (dialog only when title or body is non-empty)
   bool get hasContent => title.trim().isNotEmpty || content.trim().isNotEmpty;
 
-  /// 是否有配图
+  /// Whether an image is present
   bool get hasImage => imageUrl.trim().isNotEmpty;
 
-  /// 是否有下载链接
+  /// Whether a download link is present
   bool get hasDownload => downloadUrl.trim().isNotEmpty;
+
+  /// Whether the daily announcement has expired
+  bool get isExpired =>
+      expireTime != null && DateTime.now().isAfter(expireTime!);
 }

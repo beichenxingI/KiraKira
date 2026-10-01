@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 
 class KiraDialog extends StatelessWidget {
@@ -26,7 +27,7 @@ class KiraDialog extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 400, maxHeight: 560),
         decoration: BoxDecoration(
           color: AppTheme.darkCard,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -71,7 +72,7 @@ class KiraDialog extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   color: AppTheme.textPrimary,
-                  fontSize: 15,
+                  fontSize: DesignTokens.fontSizeBodyLarge,
                   fontWeight: FontWeight.w600,
                 ),
                 overflow: TextOverflow.ellipsis,

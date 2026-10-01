@@ -12,6 +12,7 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  cupertino_icons: ^1.0.8
 
   # State Management
   flutter_riverpod: ^2.4.9
@@ -34,6 +35,7 @@ dependencies:
   
   # Networking
   dio: ^5.4.0
+  crypto: ^3.0.3
 
   # 本地 embedding 推理（ONNX）
   onnxruntime: ^1.4.1
@@ -77,6 +79,8 @@ dependencies:
   figma_squircle: ^0.6.3
   just_audio: ^0.10.6
   flutter_tts: ^4.2.5
+  sherpa_onnx: ^1.13.8
+  record: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -92,6 +96,8 @@ dev_dependencies:
   go_router_builder: ^2.4.1
   flutter_launcher_icons: ^0.14.4
 
+  path_provider_platform_interface: any
+  plugin_platform_interface: any
 flutter:
   uses-material-design: true
   generate: true
@@ -104,6 +110,7 @@ flutter:
     - assets/icon/
     - assets/world_info/
     - assets/libs/
+    - assets/chat/
   
   fonts:
     - family: LXGWWenKai

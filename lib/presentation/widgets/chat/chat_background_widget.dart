@@ -1,4 +1,5 @@
-import 'dart:io';
+﻿import 'dart:io';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -224,7 +225,7 @@ class BackgroundPreview extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
           border: selected
               ? Border.all(color: Theme.of(context).colorScheme.primary, width: 3)
               : Border.all(color: Colors.grey.withValues(alpha: 0.3)),

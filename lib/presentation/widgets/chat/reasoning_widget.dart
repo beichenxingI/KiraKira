@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:kirakira/presentation/theme/app_theme.dart';
 import 'package:kirakira/presentation/widgets/chat/message_content_widget.dart';
@@ -53,7 +54,7 @@ class _ReasoningWidgetState extends State<ReasoningWidget>
     
     _expandAnimation = CurvedAnimation(
       parent: _animationController,
-      curve: Curves.easeInOut,
+      curve: DesignTokens.curveEmphasized,
     );
     
     _rotationAnimation = Tween<double>(
@@ -87,8 +88,8 @@ class _ReasoningWidgetState extends State<ReasoningWidget>
     Clipboard.setData(ClipboardData(text: widget.reasoning));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(AppLocalizations.of(context)!.reasoningCopiedToClipboard),
-        duration: Duration(seconds: 1),
+        content: Text(AppLocalizations.of(context).reasoningCopiedToClipboard),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
@@ -103,7 +104,7 @@ class _ReasoningWidgetState extends State<ReasoningWidget>
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: AppTheme.darkBackground.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         border: Border.all(
           color: _getAccentColor().withValues(alpha: 0.3),
           width: 1,
@@ -133,22 +134,22 @@ class _ReasoningWidgetState extends State<ReasoningWidget>
                       style: TextStyle(
                         color: _getAccentColor(),
                         fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                        fontSize: DesignTokens.fontSizeSm,
                       ),
                     ),
                   ),
                   // Character count
                   Text(
-                    AppLocalizations.of(context)!.charsCount(widget.reasoning.length),
-                    style: TextStyle(
+                    AppLocalizations.of(context).charsCount(widget.reasoning.length),
+                    style: const TextStyle(
                       color: AppTheme.textMuted,
-                      fontSize: 11,
+                      fontSize: DesignTokens.fontSizeCaption,
                     ),
                   ),
                   const SizedBox(width: 8),
                   // Copy button
                   IconButton(
-                    icon: Icon(
+                    icon: const Icon(
                       Icons.copy,
                       size: 16,
                       color: AppTheme.textMuted,
@@ -159,7 +160,7 @@ class _ReasoningWidgetState extends State<ReasoningWidget>
                       minWidth: 24,
                       minHeight: 24,
                     ),
-                    tooltip: AppLocalizations.of(context)!.copyReasoning,
+                    tooltip: AppLocalizations.of(context).copyReasoning,
                   ),
                   // Expand/collapse arrow
                   RotationTransition(
@@ -188,7 +189,7 @@ class _ReasoningWidgetState extends State<ReasoningWidget>
                   child: MessageContentWidget(
                     content: widget.reasoning,
                     textColor: widget.textColor ?? AppTheme.textSecondary,
-                    fontSize: 13,
+                    fontSize: DesignTokens.fontSizeSm,
                     selectable: true,
                   ),
                 ),
@@ -262,7 +263,7 @@ class _StreamingReasoningWidgetState extends State<StreamingReasoningWidget>
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _pulseController,
-      curve: Curves.easeInOut,
+      curve: DesignTokens.curveEmphasized,
     ));
     
     if (widget.isStreaming) {
@@ -297,7 +298,7 @@ class _StreamingReasoningWidgetState extends State<StreamingReasoningWidget>
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: AppTheme.darkBackground.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         border: Border.all(
           color: _getAccentColor().withValues(alpha: 0.3),
           width: 1,
@@ -343,7 +344,7 @@ class _StreamingReasoningWidgetState extends State<StreamingReasoningWidget>
                         style: TextStyle(
                           color: _getAccentColor(),
                           fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                          fontSize: DesignTokens.fontSizeSm,
                         ),
                       ),
                       if (widget.isStreaming) ...[
@@ -362,10 +363,10 @@ class _StreamingReasoningWidgetState extends State<StreamingReasoningWidget>
                 ),
                 // Character count
                 Text(
-                  AppLocalizations.of(context)!.charsCount(widget.reasoning.length),
-                  style: TextStyle(
+                  AppLocalizations.of(context).charsCount(widget.reasoning.length),
+                  style: const TextStyle(
                     color: AppTheme.textMuted,
-                    fontSize: 11,
+                    fontSize: DesignTokens.fontSizeCaption,
                   ),
                 ),
               ],
@@ -382,7 +383,7 @@ class _StreamingReasoningWidgetState extends State<StreamingReasoningWidget>
               child: MessageContentWidget(
                 content: widget.reasoning,
                 textColor: AppTheme.textSecondary,
-                fontSize: 13,
+                fontSize: DesignTokens.fontSizeSm,
                 selectable: true,
               ),
             ),
@@ -394,11 +395,11 @@ class _StreamingReasoningWidgetState extends State<StreamingReasoningWidget>
             Padding(
               padding: const EdgeInsets.all(12),
               child: Text(
-                AppLocalizations.of(context)!.thinking,
-                style: TextStyle(
+                AppLocalizations.of(context).thinking,
+                style: const TextStyle(
                   color: AppTheme.textMuted,
                   fontStyle: FontStyle.italic,
-                  fontSize: 13,
+                  fontSize: DesignTokens.fontSizeSm,
                 ),
               ),
             ),

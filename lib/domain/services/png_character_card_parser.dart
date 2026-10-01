@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -10,10 +9,10 @@ class PngCharacterCardParser {
     final now = DateTime.now();
     report.writeln('========================================');
     report.writeln('KiraKira PNG 导入诊断报告');
-    report.writeln('时间: ' + now.toString());
-    if (sourcePath != null) report.writeln('文件: ' + sourcePath);
-    report.writeln('文件大小: ' + bytes.length.toString() + ' 字节');
-    report.writeln('PNG 签名: ' + bytes.take(8).toList().toString());
+    report.writeln('时间: $now');
+    if (sourcePath != null) report.writeln('文件: $sourcePath');
+    report.writeln('文件大小: ${bytes.length} 字节');
+    report.writeln('PNG 签名: ${bytes.take(8).toList()}');
     report.writeln('========================================');
 
     if (bytes.length < 8) {
@@ -46,17 +45,17 @@ class PngCharacterCardParser {
     }
 
     report.writeln('【文本块信息】');
-    report.writeln('找到的文本块数量: ' + chunks.length.toString());
+    report.writeln('找到的文本块数量: ${chunks.length}');
     for (final c in chunks) {
-      report.writeln('  - 块类型: ' + c.type + ', 键名: ' + c.keyword + ', 数据长度: ' + c.dataLength.toString() + ', 前50个字符: ' + c.first50.toString());
+      report.writeln('  - 块类型: ${c.type}, 键名: ${c.keyword}, 数据长度: ${c.dataLength}, 前50个字符: ${c.first50}');
     }
     report.writeln('========================================');
     report.writeln('【解码尝试】');
     for (final c in chunks) {
       final val = _safeDecodeText(Uint8List.fromList(c.first50));
-      report.writeln('UTF-8(' + c.keyword + '): ' + (_tryUtf8(val) ? 'success' : 'failed'));
-      report.writeln('Latin-1(' + c.keyword + '): ' + (_tryLatin1(val) ? 'success' : 'failed'));
-      report.writeln('Base64+UTF-8(' + c.keyword + '): ' + (_tryBase64(val) ? 'success' : 'failed'));
+      report.writeln('UTF-8(${c.keyword}): ${_tryUtf8(val) ? 'success' : 'failed'}');
+      report.writeln('Latin-1(${c.keyword}): ${_tryLatin1(val) ? 'success' : 'failed'}');
+      report.writeln('Base64+UTF-8(${c.keyword}): ${_tryBase64(val) ? 'success' : 'failed'}');
     }
     report.writeln('========================================');
     report.writeln('【最终错误】');
@@ -88,14 +87,14 @@ class PngCharacterCardParser {
       final dir = await getDownloadsDirectory();
       if (dir != null) {
         final ts = DateTime.now().toIso8601String().replaceAll(':', '').replaceAll('.', '');
-        final file = File(dir.path + '/kirakira_diagnostic_' + ts + '.txt');
+        final file = File('${dir.path}/kirakira_diagnostic_$ts.txt');
         await file.writeAsString(report);
-        debugPrint('[PNG-DIAG] Report saved to: ' + file.path);
+        debugPrint('[PNG-DIAG] Report saved to: ${file.path}');
       } else {
         debugPrint('[PNG-DIAG] Downloads directory not available');
       }
     } catch (e) {
-      debugPrint('[PNG-DIAG] Failed to save report: ' + e.toString());
+      debugPrint('[PNG-DIAG] Failed to save report: $e');
     }
   }
 }

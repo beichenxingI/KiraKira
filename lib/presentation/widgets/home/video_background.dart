@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
-/// 循环播放的视频背景，自动静音（声音交给独立背景音乐控制）
+/// Looping video background, muted automatically (audio is handled by the separate background music control)
 class VideoBackground extends StatefulWidget {
   final String path;
   final bool muted;
@@ -41,7 +41,7 @@ class _VideoBackgroundState extends State<VideoBackground> {
     }
   }
 
-  /// 供外部生命周期调用
+  /// For external lifecycle calls
   void pause() => _controller?.pause();
   void resume() => _controller?.play();
 
@@ -57,7 +57,7 @@ class _VideoBackgroundState extends State<VideoBackground> {
     if (c == null || !c.value.isInitialized) {
       return const SizedBox.shrink();
     }
-    // 用 FittedBox + cover 铺满全屏
+    // FittedBox + cover fills the whole screen
     return FittedBox(
       fit: BoxFit.cover,
       clipBehavior: Clip.hardEdge,
