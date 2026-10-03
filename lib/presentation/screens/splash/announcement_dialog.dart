@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -62,31 +61,32 @@ class _AnnouncementCard extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.16),
-                    DesignTokens.darkBackground.withValues(alpha: 0.55),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: accent.withValues(alpha: 0.2),
-                    blurRadius: 30,
-                    spreadRadius: 2,
-                  ),
+          // Perf: BackdropFilter (sigma 20) removed — the per-frame blur was a frame-drop
+          // source on dialog pop. Opacity raised so the card stays readable as a solid
+          // translucent surface over the dimmed barrier.
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.18),
+                  DesignTokens.darkBackground.withValues(alpha: 0.88),
                 ],
               ),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.2),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.2),
+                  blurRadius: 30,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
               child: Stack(
                 children: [
                   Column(
@@ -179,9 +179,8 @@ class _AnnouncementCard extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        ),
-      ),
+           ),
+         ),
     );
   }
 

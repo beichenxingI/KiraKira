@@ -1,4 +1,4 @@
-// lib/presentation/screens/settings/settings_screen.dart
+﻿// lib/presentation/screens/settings/settings_screen.dart
 /// Settings home (application-level settings only — 3 groups fit on one screen; advanced features moved to Core)
 library;
 
@@ -43,6 +43,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:kirakira/presentation/providers/theme_providers.dart';
 import 'package:kirakira/data/models/app_theme_config.dart';
 import 'package:kirakira/presentation/widgets/common/common.dart';
+import 'package:kirakira/core/utils/android_version.dart';
 import 'settings_search_index.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -158,6 +159,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: '变量管理',
                 subtitle: '全局变量与对话变量 CRUD',
                 onTap: () => showVariablesDialog(context, ref),
+              ),
+              KiraGroupedTile(
+                icon: Icons.science_outlined,
+                iconBg: Colors.transparent,
+                iconColor: const Color(0xFFFFB74D),
+                title: 'WebView 渲染模式',
+                subtitle: '实验：VD / HC / HCPP 渲染性能选择',
+                onTap: () => _showRenderModeDialog(context),
               ),
               // The "RAG vector storage" entry has been removed:
               // vector capabilities are used internally by Chronicle (worldbook vectorization / topic switch detection),
@@ -280,6 +289,102 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
     ];
+  }
+
+  /// Experimental: WebView render mode picker (VD / HC / HCPP).
+  /// The mode is read by the chat page when it creates its WebView, so a change takes
+  /// effect on the next chat page entry (no live switch).
+  Future<void> _showRenderModeDialog(BuildContext context) async {
+    final currentMode = ref.read(webViewRenderModeProvider);
+    final sdkInt = await AndroidVersion.sdkInt;
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('WebView 渲染模式'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<WebViewRenderMode>(
+                title: const Text('自动（推荐）'),
+                subtitle: Text(sdkInt >= 34
+                    ? 'Android 14+：使用 HCPP 最优性能模式'
+                    : '旧版 Android：使用性能优先模式（VD）'),
+                value: WebViewRenderMode.auto,
+                groupValue: currentMode,
+                onChanged: (val) {
+                  if (val != null) {
+                    ref.read(webViewRenderModeProvider.notifier).setMode(val);
+                    Navigator.pop(ctx);
+                    _showRenderModeChangedHint(context);
+                  }
+                },
+              ),
+              RadioListTile<WebViewRenderMode>(
+                title: const Text('性能优先'),
+                subtitle: const Text('流畅滑动，长按选择可能有问题'),
+                value: WebViewRenderMode.virtualDisplay,
+                groupValue: currentMode,
+                onChanged: (val) {
+                  if (val != null) {
+                    ref.read(webViewRenderModeProvider.notifier).setMode(val);
+                    Navigator.pop(ctx);
+                    _showRenderModeChangedHint(context);
+                  }
+                },
+              ),
+              RadioListTile<WebViewRenderMode>(
+                title: const Text('兼容性优先'),
+                subtitle: const Text('完美文字选择，可能卡顿'),
+                value: WebViewRenderMode.hybridComposition,
+                groupValue: currentMode,
+                onChanged: (val) {
+                  if (val != null) {
+                    ref.read(webViewRenderModeProvider.notifier).setMode(val);
+                    Navigator.pop(ctx);
+                    _showRenderModeChangedHint(context);
+                  }
+                },
+              ),
+              RadioListTile<WebViewRenderMode>(
+                title: const Text('实验：HCPP (Android 14+)'),
+                subtitle: Text(sdkInt >= 34
+                    ? '最优性能 + 完美兼容'
+                    : '需要 Android 14 或更高版本'),
+                value: WebViewRenderMode.hcpp,
+                groupValue: currentMode,
+                onChanged: sdkInt >= 34
+                    ? (val) {
+                        if (val != null) {
+                          ref.read(webViewRenderModeProvider.notifier).setMode(val);
+                          Navigator.pop(ctx);
+                          _showRenderModeChangedHint(context);
+                        }
+                      }
+                    : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRenderModeChangedHint(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('渲染模式已更新，退出聊天页重新进入生效'),
+        duration: Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Widget _buildSettingCard({
@@ -968,3 +1073,4 @@ class _TranslationTile extends ConsumerWidget {
     );
   }
 }
+

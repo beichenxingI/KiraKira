@@ -1,15 +1,13 @@
 // lib/presentation/widgets/common/kira_glass_bar.dart
-/// KiraGlassBar, the frosted-glass shell for bottom bars / floating toolbars (A-T6)
+/// KiraGlassBar, the shell for bottom bars / floating toolbars (A-T6)
 ///
-/// iOS "Material Thin" feel: ClipRRect + BackdropFilter (sigma 22/20) +
-/// translucent base color (dark darkSurface 0.72 / light white 0.72).
+/// Perf: BackdropFilter (sigma 22/20) was removed — the per-frame blur over scrolling
+/// content was a measured frame-drop source (dialog / popup pop, list scroll).
+/// The shell is now a solid semi-transparent color (0.92) on every tab.
 ///
-/// WebView platform views conflict with BackdropFilter (rendering fails on the chat tab),
-/// so the chat tab must pass [enabledBlur] = false, degrading to a 0.92 opaque
-/// solid shell with no blur that still looks translucent.
+/// [enabledBlur] is kept for API compatibility but is now a no-op: both values render
+/// the same solid shell (the old chat-tab blur workaround is no longer needed).
 library;
-
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
@@ -24,7 +22,7 @@ class KiraGlassBar extends StatelessWidget {
 
   final Widget child;
 
-  /// Pass false for the chat tab (WebView platform view); other tabs default to true
+  /// Deprecated no-op: kept so existing callers compile unchanged.
   final bool enabledBlur;
 
   /// Clip radius; pass radiusFull (30) for the bottom-bar capsule
@@ -33,17 +31,12 @@ class KiraGlassBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final sigma = isDark ? 22.0 : 20.0;
     final base = isDark ? DesignTokens.darkSurface : Colors.white;
-    final color = base.withValues(alpha: enabledBlur ? 0.72 : 0.92);
+    // Solid shell: slightly higher alpha than the old blurred base so content behind
+    // barely bleeds through (keeps the translucent look without per-frame blur cost).
+    final color = base.withValues(alpha: 0.92);
 
-    Widget content = Container(color: color, child: child);
-    if (enabledBlur) {
-      content = BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-        child: content,
-      );
-    }
+    final content = Container(color: color, child: child);
     final r = radius;
     return r != null ? ClipRRect(borderRadius: r, child: content) : content;
   }

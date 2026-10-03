@@ -58,6 +58,7 @@ import 'package:kirakira/presentation/utils/export_delivery.dart';
 import 'package:path/path.dart' as p;
 import 'package:kirakira/presentation/widgets/common/character_avatar_image.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
+import 'package:kirakira/core/utils/android_version.dart';
 import 'package:kirakira/presentation/providers/context_usage_providers.dart';
 import 'package:image/image.dart' as img;
 import 'package:kirakira/presentation/providers/tts_providers.dart';
@@ -187,7 +188,12 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   final GlobalKey _webViewKey = GlobalKey();
   final FocusNode _inputFocus = FocusNode();
   late final ChatBridge _bridge = ChatBridge(
-    onLog: (m) => debugPrint('[bridge] $m'),
+    // Perf: bridge logging only in debug builds. Every inbound/outbound bridge
+    // message used to debugPrint (flooding the UI thread / logcat in release,
+    // especially during streaming where appendToken crosses per token). The
+    // callback is pure observability; release builds pass null so every
+    // onLog?.call site in ChatBridge is a zero-cost no-op.
+    onLog: kDebugMode ? (m) => debugPrint('[bridge] $m') : null,
   );
   bool _wasGenerating = false;
   late final AnimationController _maskController = AnimationController(
@@ -592,15 +598,31 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
 
   double _keyboardHeight = 0;
   bool _keyboardVisible = false;
+  // Perf: keyboard-settle injector (one trailing layoutVars push 400ms after a
+  // keyboard transition, when the animation has fully settled).
+  Timer? _keyboardSettleTimer;
+  // Perf: last-seen viewport geometry (logical px). The keyboard animation changes
+  // viewInsets every frame but never the physical size, so a size delta cleanly
+  // separates real resizes (rotation / split-screen) from keyboard-animation jitter.
+  double _lastMetricsWidth = 0;
+  double _lastMetricsHeight = 0;
+  // Perf: dedup key of the last layoutVars payload — identical payloads skip the
+  // bridge round trip entirely (same pattern as _cachedHtmlShellKey).
+  String? _lastLayoutVarsKey;
   bool _funcPanelOpen = false;
   bool _topBarVisible = true; // top bar scroll hide/show; direction detection happens on the JS side, this only receives the result
   int _pushEpoch = 0; // push generation counter: a new _pushMessages invalidates in-flight history backfill loops
+  int _androidSdkInt = 0; // Android API level (async-detected once; used by the render mode setting)
   // HTML dialog wait table: callbackId -> Completer, results come back over the bridge via dialogResult
   final Map<String, Completer<dynamic>> _dialogCompleters = {};
 
    @override
   void initState() {
     super.initState();
+    // Perf: detect the Android API level once (cached) so the render mode setting can
+    // auto-select per device. Never triggers setState: the WebView reads the value when
+    // it is created (_webViewMounted flips true), long after this future resolves.
+    AndroidVersion.sdkInt.then((v) => _androidSdkInt = v);
                     // register the EJS render function so LLMService can render the prompt before sending
                     ref.read(ejsRenderRegistryProvider).register(
                       (text) => _handleRenderEJS({'text': text}),
@@ -633,6 +655,10 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     _inputController.addListener(_syncHasInput);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      // Render-mode ordering guarantee: resolve the Android API level BEFORE the WebView is
+      // created (creation reads it in _shouldUseHybridComposition). The roundtrip is a few ms
+      // and fully hidden behind the loading mask, so this adds no visible wait.
+      _androidSdkInt = await AndroidVersion.sdkInt;
       // Optimization: the 5 asset loads are independent (each writes only its own static cache), so load in parallel.
       // Serial loading is a noticeable dead wait during the mask phase on low-end devices.
       await Future.wait([
@@ -718,6 +744,16 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     final bottom = view.viewInsets.bottom / view.devicePixelRatio;
     final visible = bottom > 0;
     if (visible && bottom > _keyboardHeight) _keyboardHeight = bottom; // cache the keyboard height
+    // Perf: viewport geometry without the keyboard. The keyboard animation changes
+    // viewInsets every frame but never the physical size, so a size delta cleanly
+    // separates real resizes (rotation / split-screen / foldable) from
+    // keyboard-animation jitter.
+    final width = view.physicalSize.width / view.devicePixelRatio;
+    final height = view.physicalSize.height / view.devicePixelRatio;
+    final sizeChanged = (width - _lastMetricsWidth).abs() > 0.5 ||
+        (height - _lastMetricsHeight).abs() > 0.5;
+    _lastMetricsWidth = width;
+    _lastMetricsHeight = height;
     if (visible != _keyboardVisible) {
       setState(() => _keyboardVisible = visible); // rebuild only on visible <-> hidden transitions
       // Push keyboard state to the WebView: compensate with body bottom padding, otherwise when
@@ -726,10 +762,23 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         'visible': visible,
         'height': visible ? _keyboardHeight : 0,
       });
+      // Perf: the old code called _injectLayoutVars() on EVERY didChangeMetrics frame
+      // (60-120 FPS during the keyboard animation), each one sending 14 CSS variable
+      // writes + a body padding rewrite over the bridge -> full-document style recalc
+      // + relayout per frame -> extreme lag even with a single message. Now: push once
+      // per visible<->hidden transition + once 400ms later when the animation has fully
+      // settled; per-frame metrics jitter can no longer flood the bridge.
+      _injectLayoutVars();
+      _keyboardSettleTimer?.cancel();
+      _keyboardSettleTimer = Timer(const Duration(milliseconds: 400), () {
+        if (mounted) _injectLayoutVars();
+      });
+    } else if (sizeChanged) {
+      // Real resize (rotation / split-screen / foldable posture): push the new geometry.
+      // During the keyboard animation the transition gate above already handled the
+      // push; re-injecting here would flood the bridge again.
+      _injectLayoutVars();
     }
-    // Sync layout CSS variables to the WebView (keyboard height / status bar / nav bar / viewport height)
-    // Frequency is gated by visible != _keyboardVisible transitions, so per-frame metrics jitter cannot flood the bridge
-    _injectLayoutVars();
   }
 
   /// Top bar show/hide toggle (setState only on state transitions; the scroll events themselves are already collapsed on the JS side)
@@ -895,12 +944,30 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
     final mq = MediaQuery.of(context);
     final statusBarHeight = mq.viewPadding.top;
     final navBarHeight = mq.viewPadding.bottom;
-    final keyboardHeight = mq.viewInsets.bottom;
+    // Perf: use the cached keyboard height while the keyboard is open.
+    // mq.viewInsets.bottom is the mid-animation value on keyboard-open frames
+    // (didChangeMetrics fires per frame during the animation); the cache holds the
+    // final height immediately, so the input bar lands at the right height on the
+    // first push instead of chasing the animation. Semantics match the
+    // keyboardInsets bridge payload ('height': visible ? _keyboardHeight : 0).
+    final keyboardHeight = (_keyboardVisible && _keyboardHeight > 0)
+        ? _keyboardHeight
+        : mq.viewInsets.bottom;
     // visualViewport is not necessarily available inside the WebView, so use the actual visible height (minus the keyboard)
     final viewportHeight = mq.size.height - keyboardHeight;
     // Theme color injection (follows dark/light)
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Perf: dedup identical payloads — every call used to unconditionally
+    // jsonEncode + evaluateJavascript; identical payloads now skip the round trip
+    // (protects the other call sites: didChangePlatformBrightness / _sendTopBarInsets).
+    final key = '$keyboardHeight|$statusBarHeight|$navBarHeight|$viewportHeight|'
+        '$_topBarVisible|${_hex(cs.surface)}|'
+        '${_hex(isDark ? const Color(0xFF7C4DFF) : cs.primary)}|'
+        '${_hex(cs.onSurface)}|${_hex(cs.onSurfaceVariant)}|'
+        '${_hex(isDark ? const Color(0xFF20242C) : const Color(0xFFF1F3F6))}';
+    if (key == _lastLayoutVarsKey) return;
+    _lastLayoutVarsKey = key;
     _bridge.send(BridgeType.layoutVars, {
       'keyboardHeight': keyboardHeight,
       'statusBarHeight': statusBarHeight,
@@ -968,6 +1035,7 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
   @override
   void dispose() {
     _minLoadingTimer?.cancel();
+    _keyboardSettleTimer?.cancel();
     // Clear the EJS render function registration (leaving the chat page, back to a safe state)
     try {
       ref.read(ejsRenderRegistryProvider).clear();
@@ -1318,7 +1386,9 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                     allowFileAccessFromFileURLs: true,
                     allowUniversalAccessFromFileURLs: true,
                     mediaPlaybackRequiresUserGesture: false,
-                    useHybridComposition: true,
+                    // Perf: render mode comes from the experimental setting (VD / HC / HCPP).
+                    // Default auto: HC on Android 14+, VD below — see _shouldUseHybridComposition.
+                    useHybridComposition: _shouldUseHybridComposition(),
                   ),
                   // Previously nobody handled the Android renderer being killed by the system OOM
                   // killer -> permanent white screen with no logs.
@@ -1388,10 +1458,18 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                           break;
                         case 'warn':
                           DebugLogService().log(t, level: 'WARN', source: '卡片日志');
-                          debugPrint('[卡片警告] $t');
+                          // Perf: warn entries are always kept in the DebugLogService
+                          // ring buffer; the console print is debug-only.
+                          if (kDebugMode) {
+                            debugPrint('[卡片警告] $t');
+                          }
                           break;
                         default:
-                          debugPrint('[卡片日志] $t');
+                          // Perf: info-level card logs are pure noise in release
+                          // (the ring buffer only keeps ERROR/WARN anyway).
+                          if (kDebugMode) {
+                            debugPrint('[卡片日志] $t');
+                          }
                           break;
                       }
                     });
@@ -1765,20 +1843,25 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
                 : -(56 + MediaQuery.viewPaddingOf(context).top),
             left: 0,
             right: 0,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(20),
-              ),
-              child: Container(
-                height: 56 + MediaQuery.viewPaddingOf(context).top, // top bar two-line title 44 -> 56
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.82),
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(20),
-                  ),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.08),
+            // Perf: the RepaintBoundary sits on the child (AnimatedPositioned itself must stay
+            // a direct Stack child): the slide animation then only moves the cached layer
+            // instead of repainting the frosted surface every frame.
+            child: RepaintBoundary(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(20),
+                ),
+                child: Container(
+                  height: 56 + MediaQuery.viewPaddingOf(context).top, // top bar two-line title 44 -> 56
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.82),
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(20),
+                    ),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
                     ),
                   ),
                 ),
@@ -1788,53 +1871,57 @@ class _WebViewChatStageState extends ConsumerState<WebViewChatStage> with Ticker
         ], // end Stack children
       ), // end body Stack
         ),
-        IgnorePointer(
-          child: FadeTransition(
-            opacity: _maskAnim,
-            child: Container(
-              color: activeGlassPalette.pageBackground,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: _starPulseUp ? 1.0 : 0.0),
-                      duration: const Duration(milliseconds: 1200),
-                      builder: (context, value, child) {
-                        final t = (value - 0.5).abs() * 2;
-                        final scale = 0.9 + (0.2 * (1 - t));
-                        final opacity = 0.7 + (0.3 * (1 - t));
+        // Perf: RepaintBoundary isolates the mask fade + star pulse animation from the WebView
+        // platform view: while the mask fades out, only this layer repaints, never the page below.
+        RepaintBoundary(
+          child: IgnorePointer(
+            child: FadeTransition(
+              opacity: _maskAnim,
+              child: Container(
+                color: activeGlassPalette.pageBackground,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: _starPulseUp ? 1.0 : 0.0),
+                        duration: const Duration(milliseconds: 1200),
+                        builder: (context, value, child) {
+                          final t = (value - 0.5).abs() * 2;
+                          final scale = 0.9 + (0.2 * (1 - t));
+                          final opacity = 0.7 + (0.3 * (1 - t));
 
-                        return Opacity(
-                          opacity: opacity,
-                          child: Transform.scale(
-                            scale: scale,
-                            child: const Icon(
-                              Icons.stars,
-                              size: 64,
-                              color: Colors.white,
+                          return Opacity(
+                            opacity: opacity,
+                            child: Transform.scale(
+                              scale: scale,
+                              child: const Icon(
+                                Icons.stars,
+                                size: 64,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                      onEnd: () {
-                        if (mounted) {
-                          setState(() {
-                            _starPulseUp = !_starPulseUp;
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '加载中…',
-                      style: TextStyle(
-                        fontSize: DesignTokens.fontSizeBodyLarge,
-                        fontWeight: FontWeight.w500,
-                        color: activeGlassPalette.primaryText,
+                          );
+                        },
+                        onEnd: () {
+                          if (mounted) {
+                            setState(() {
+                              _starPulseUp = !_starPulseUp;
+                            });
+                          }
+                        },
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      Text(
+                        '加载中…',
+                        style: TextStyle(
+                          fontSize: DesignTokens.fontSizeBodyLarge,
+                          fontWeight: FontWeight.w500,
+                          color: activeGlassPalette.primaryText,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -7424,28 +7511,39 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     final docCount = RegExp(r'<!DOCTYPE|<html', caseSensitive: false)
         .allMatches(processed)
         .length;
-    print('[WV-1] id=${m.id} role=${m.role.name} len=${m.content.length} '
-        'script=$wvScript style=$wvStyle htmlTag=$wvHtmlTag '
-        'fence=${htmlFenceMatch != null} fenceCount=${htmlFenceMatches.length} '
-        'docCount=$docCount peeled=$codeBlockPeeled rich=$looksLikeHtml');
+    if (kDebugMode) {
+      // Perf: per-message serialization trace — ~4-5 prints per message per push
+      // (50-message initial batch + history batches) flooded logcat; release
+      // builds skip them entirely.
+      print('[WV-1] id=${m.id} role=${m.role.name} len=${m.content.length} '
+          'script=$wvScript style=$wvStyle htmlTag=$wvHtmlTag '
+          'fence=${htmlFenceMatch != null} fenceCount=${htmlFenceMatches.length} '
+          'docCount=$docCount peeled=$codeBlockPeeled rich=$looksLikeHtml');
+    }
     // Length trace across steps (raw->regex->fenceUnwrap->split->render) to locate the step that
     // escapes or swallows content.
     // afterRegex now records the real regex output length before peeling (<codeBlockMatch>),
     // otherwise it always equals afterUnwrap.
-    print('[WV-2] id=${m.id} raw=${m.content.length} afterRegex=$afterRegexPrePeel '
-        'afterUnwrap=${processed.length} body=${bodyForRender.length} rendered=${rendered.length}');
+    if (kDebugMode) {
+      print('[WV-2] id=${m.id} raw=${m.content.length} afterRegex=$afterRegexPrePeel '
+          'afterUnwrap=${processed.length} body=${bodyForRender.length} rendered=${rendered.length}');
+    }
     // Segs production audit: produced or not, how many segments, each segment's type + length;
     // when null, give the reason (silent failures forbidden).
     if (segs != null) {
       final segDetail = segs
           .map((s) => '${s['type']}:${(s['html'] as String?)?.length ?? 0}')
           .join(',');
-      print('[WV-3] id=${m.id} segs=${segs.length} [$segDetail]');
+      if (kDebugMode) {
+        print('[WV-3] id=${m.id} segs=${segs.length} [$segDetail]');
+      }
     } else {
       final reason = htmlFenceMatches.isEmpty
           ? 'no-html-fence(全消息无```html围栏)'
           : 'fenceCount<=1(单前端,走旧 prose/html 字段)';
-      print('[WV-3] id=${m.id} segs=null reason=$reason');
+      if (kDebugMode) {
+        print('[WV-3] id=${m.id} segs=null reason=$reason');
+      }
     }
     // Drop audit: content actually dropped. Iron rule 5 in practice -- without it the next
     // silent drop would go unnoticed.
@@ -7461,9 +7559,11 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       droppedRaw = processed.length - fenceBodyLen - htmlFenceMatch.start;
     }
     final warnTag = droppedRaw > 500 ? ' <== WARN: 疑似静默丢弃!' : '';
-    print('[WV-4] id=${m.id} processed=${processed.length} '
-        'droppedRaw=$droppedRaw (${segs != null ? 'segs模式=0' : 'no-segs单围栏路径'})'
-        '$warnTag');
+    if (kDebugMode) {
+      print('[WV-4] id=${m.id} processed=${processed.length} '
+          'droppedRaw=$droppedRaw (${segs != null ? 'segs模式=0' : 'no-segs单围栏路径'})'
+          '$warnTag');
+    }
     return {
       'id': m.id,
       'role': m.role.name,
@@ -7709,6 +7809,10 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       buf.write(
         '<img class="att-img" data-att-path="$encPath" '
         'style="aspect-ratio:$w/$h;" '
+        // Perf: lazy decode/load. The src arrives later via the setImage bridge channel;
+        // loading="lazy" only takes effect once the src is set, and decoding="async" keeps
+        // image decode off the renderer main thread.
+        'loading="lazy" decoding="async" '
         'data-id="${m.id}" data-act="openImages" />',
       );
     }
@@ -7721,7 +7825,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
     // invalidated by epoch
     _pushEpoch++;
     final epoch = _pushEpoch;
-    debugPrint('[图片诊断] _pushMessages 开始执行 epoch=$epoch');
+    if (kDebugMode) {
+      debugPrint('[图片诊断] _pushMessages 开始执行 epoch=$epoch');
+    }
     final chatState = ref.read(activeChatProvider);
     final character = chatState.character;
     final persona = await ref.read(activePersonaProvider.future)
@@ -7749,7 +7855,9 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
       initialList.add(_safeSerializeMessage(messages[i], i, lastAiIndex, character, scripts));
     }
     // Send the most recent messages first
-    debugPrint('[图片诊断] _pushMessages 发送 setMessages, 条数=${initialList.length}');
+    if (kDebugMode) {
+      debugPrint('[图片诊断] _pushMessages 发送 setMessages, 条数=${initialList.length}');
+    }
     // Avatar + name: one copy of each globally, sent once with the first screen (kept out of
     // every message to avoid bloat and stutter)
     // persona was already read at the top of the function (with a 3s timeout fallback), so the
@@ -7900,6 +8008,30 @@ final effectiveSwipesData = (i == 0 && m.swipesData.isEmpty)
         '请确认安装包完整;如问题持续,请联系开发。'
         '</div>'
         '</div></body></html>';
+  }
+
+  /// Determine the WebView render mode from the experimental setting + device API level.
+  /// `useHybridComposition` is only read when the WebView is created (initialSettings), so a
+  /// mode change takes effect the next time a chat page creates its WebView (exit + re-enter).
+  bool _shouldUseHybridComposition() {
+    final mode = ref.watch(webViewRenderModeProvider);
+    final sdkInt = _androidSdkInt;
+    switch (mode) {
+      case WebViewRenderMode.auto:
+        // sdkInt == 0 means detection failed / non-Android: fall back to HC (the
+        // pre-change behavior) instead of silently switching to VD.
+        if (sdkInt == 0) return true;
+        // Android 14+ ships the improved HC path (HCPP); older devices use VD, whose
+        // compositor runs off the UI thread (smooth scrolling, fewer dialog-pop drops).
+        return sdkInt >= 34;
+      case WebViewRenderMode.virtualDisplay:
+        return false;
+      case WebViewRenderMode.hybridComposition:
+        return true;
+      case WebViewRenderMode.hcpp:
+        // HCPP is only available on Android 14+; older devices fall back to plain HC behavior.
+        return sdkInt >= 34;
+    }
   }
 
   // Cached key for _htmlShell: replaceAll has to scan 313KB x 4, and InAppWebView only uses

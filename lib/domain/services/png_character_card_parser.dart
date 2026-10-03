@@ -82,6 +82,9 @@ class PngCharacterCardParser {
   }
 
   static Future<void> _saveReport(String report) async {
+    // Diagnostic report only: debug builds. In production it accumulated a
+    // timestamped .txt in Downloads on every failed parse.
+    if (!kDebugMode) return;
     debugPrint(report);
     try {
       final dir = await getDownloadsDirectory();

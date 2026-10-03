@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
@@ -35,6 +35,60 @@ void _log(String message, {String? error, StackTrace? stackTrace}) {
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('Must be overridden in ProviderScope');
 });
+
+/// WebView render mode options (experimental performance setting).
+enum WebViewRenderMode {
+  /// Auto: HC on Android 14+ (improved HC path), otherwise VD for smooth scrolling.
+  auto,
+
+  /// Virtual Display: best performance (scrolling off the UI thread);
+  /// long-press text selection may have quirks on some devices.
+  virtualDisplay,
+
+  /// Hybrid Composition: best compatibility (IME / touch selection),
+  /// lower performance (composited on the UI thread).
+  hybridComposition,
+
+  /// HCPP: Android 14+ improved HC path (best of both worlds);
+  /// falls back to plain HC behavior on older devices.
+  hcpp,
+}
+
+/// WebView render mode (experimental): persisted across app restarts.
+/// Changing it takes effect the next time a chat page creates its WebView.
+final webViewRenderModeProvider =
+    StateNotifierProvider<WebViewRenderModeNotifier, WebViewRenderMode>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return WebViewRenderModeNotifier(prefs);
+});
+
+/// Notifier for WebView render mode with persistence.
+/// Follows the existing pattern (LLMConfigNotifier / AppSettingsNotifier):
+/// StateNotifierProvider + SharedPreferences-backed state.
+class WebViewRenderModeNotifier extends StateNotifier<WebViewRenderMode> {
+  final SharedPreferences _prefs;
+  static const _key = 'webview_render_mode';
+
+  WebViewRenderModeNotifier(this._prefs) : super(WebViewRenderMode.auto) {
+    _loadFromPrefs();
+  }
+
+  /// Load saved mode from SharedPreferences (unknown values fall back to auto).
+  void _loadFromPrefs() {
+    final saved = _prefs.getString(_key);
+    if (saved == null) return;
+    state = WebViewRenderMode.values.firstWhere(
+      (e) => e.name == saved,
+      orElse: () => WebViewRenderMode.auto,
+    );
+  }
+
+  /// Update mode and persist to SharedPreferences.
+  Future<void> setMode(WebViewRenderMode mode) async {
+    state = mode;
+    await _prefs.setString(_key, mode.name);
+  }
+}
 
 /// Provider for LLM service
 final llmServiceProvider = Provider<LLMService>((ref) {
@@ -1098,3 +1152,4 @@ final connectionMetricsProvider = StateNotifierProvider<
   final llmService = ref.watch(llmServiceProvider);
   return ConnectionMetricsNotifier(llmService);
 });
+

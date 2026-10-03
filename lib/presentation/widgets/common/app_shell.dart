@@ -22,9 +22,13 @@ class AppShell extends StatelessWidget {
           left: 0,
           right: 0,
           bottom: 0,
-          child: _KiraNav(
-            sel: _calcIndex(context),
-            onTap: (i) => _onTap(context, i),
+          child: RepaintBoundary(
+            // Perf: isolate the nav bar's paints from the scrolling page content, so animated
+            // nav items never force the page subtree to repaint.
+            child: _KiraNav(
+              sel: _calcIndex(context),
+              onTap: (i) => _onTap(context, i),
+            ),
           ),
         ),
       ]),

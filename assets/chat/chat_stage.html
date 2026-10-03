@@ -3926,7 +3926,12 @@ function injectBridge(html, id, floorIdx) {
       'parent.postMessage({__thLog:true,text:"[卡片:"+level+"] "+parts.join(" ")},"*");}catch(e){}' +
       '};};' +
       'var _c=window.console||{};' +
-      'console.log=_log("log");console.error=_log("error");console.warn=_log("warn");console.info=_log("info");' +
+      // Perf: only override console in debug builds. The flag lives on the main
+      // document (parent.__kiraDebug, baked in from kDebugMode); srcdoc/blob card
+      // iframes share its origin so the read is safe. In production the card
+      // console.* calls stay native no-ops instead of one postMessage per call
+      // (the per-call forwarding was the main source of the log-spam flood).
+      'try{if(window.parent&&window.parent.__kiraDebug){console.log=_log("log");console.error=_log("error");console.warn=_log("warn");console.info=_log("info");}}catch(e){}' +
       'window.onerror=function(msg,src,line,col,err){' +
       'try{parent.postMessage({__thLog:true,text:"[卡片:onerror] "+msg+" @"+line+":"+col+(err&&err.stack?" | "+err.stack:"")},"*");}catch(e){}' +
       'return false;};' +
@@ -4319,7 +4324,12 @@ function injectBridge(html, id, floorIdx) {
 
   window.addEventListener('message', function(e) {
     var d = e.data;
-    if (d && d.__thLog) {
+    // Perf: only forward card logs in debug builds. __thLog is log-only (no
+    // functional behavior depends on it — snapshots/events ride separate
+    // envelopes below), and in release the sendToFlutter gate in chat_bridge.js
+    // would drop them anyway; skipping here also avoids the iframe→main
+    // postMessage processing per log.
+    if (d && d.__thLog && window.__kiraDebug) {
       sendToFlutter('log', { text: d.text });
     }
     // Card snapshot request response (sent only back to the requesting iframe).
@@ -5430,16 +5440,24 @@ function injectBridge(html, id, floorIdx) {
     }
 
     // RAF loop: check each frame whether scrollTop is stable; exit after 2 stable frames.
+    // Perf: window.innerHeight is invariant for the whole loop, so it is read once
+    // instead of per frame. document.body.scrollHeight stays a per-frame read: it is
+    // the stability signal itself (async iframe/img content changes it as it loads),
+    // and during streaming that layout pass runs anyway at paint time, so the read
+    // is amortized into the unavoidable layout rather than an extra forced reflow.
+    var _vpH = window.innerHeight;
     function rafLoop() {
-      snapBottom();
       var cur = window.scrollY || 0;
-      var target = document.body.scrollHeight - window.innerHeight;
-      // Within 2px of the target and identical to the previous frame = no movement this frame = one stable frame.
+      var target = document.body.scrollHeight - _vpH;
       if (Math.abs(cur - target) < 2 && cur === _lastScrollTop) {
         _stableFrames++;
         if (_stableFrames >= 2) return; // stable for 2 consecutive frames, exit
+        // Perf: already within 2px of the bottom and nothing moved this frame --
+        // the scrollIntoView would be a no-op that still pays style/layout work,
+        // so skip it; stability is detected from the unchanged scrollTop itself.
       } else {
         _stableFrames = 0;
+        snapBottom();
       }
       _lastScrollTop = cur;
       if (Date.now() - _startTime < MAX_DURATION) {
@@ -5719,7 +5737,30 @@ function injectBridge(html, id, floorIdx) {
   window.__renderStreamMd = streamMarkdown;
 
   // Streaming incremental append: raw text accumulates as the single source of truth, and a
-  // rAF-throttled render converts it to Markdown (including unclosed code block completion).
+  // time-throttled render converts it to Markdown (including unclosed code block completion).
+  // Perf: the render body is shared by the immediate path and the trailing path below.
+  function _renderStreamNode(stream) {
+    stream._rafPending = false;
+    if (!stream.parentNode) return;   // already removed by updateMessage; do not render again
+    var raw = stream._raw || '';
+    try {
+      stream.style.whiteSpace = '';
+      stream.innerHTML = (window.__renderStreamMd ? window.__renderStreamMd(raw) : (window.__escHtml ? window.__escHtml(raw) : raw));
+    } catch(e) {
+      // On render exception, fall back to plain text (pre-wrap preserves newlines); the final
+      // Dart render still overwrites it when generation ends.
+      stream.style.whiteSpace = 'pre-wrap';
+      stream.textContent = raw;
+    }
+    stream._lastRenderAt = Date.now();
+    if (__stickBottom && __scrollAnchor === null) window.scrollTo(0, document.body.scrollHeight); // do not yank to the bottom while an anchor is pending restoration
+  }
+  // Perf: re-render at most once per 50ms (~20 FPS) instead of once per RAF frame
+  // (~60 FPS). For a long generation the full markdown re-parse over an ever-growing
+  // string ran ~60x/sec (O(n²) over the stream); the throttle cuts the re-parses
+  // 3-5x while the stream stays visually live. A single trailing timer guarantees
+  // the final tokens are rendered even if the stream ends mid-window.
+  var STREAM_RENDER_INTERVAL = 50;
   function appendToken(id, token) {
     var wrap = document.querySelector('.msg[data-id="' + id + '"]');
     if (!wrap) return;
@@ -5735,22 +5776,21 @@ function injectBridge(html, id, floorIdx) {
     }
     stream._raw = (stream._raw || '') + token;   // raw text: the single source of truth for rendering (never wiped by innerHTML)
     if (stream._rafPending) return;
+    var _elapsed = Date.now() - (stream._lastRenderAt || 0);
+    if (_elapsed < STREAM_RENDER_INTERVAL) {
+      // Too soon since the last render: schedule ONE trailing render (deduped) so
+      // the latest tokens are never dropped, instead of rendering every frame.
+      if (stream._renderTimer) return;
+      stream._renderTimer = setTimeout(function () {
+        stream._renderTimer = null;
+        if (stream._rafPending) return;   // an immediate render was scheduled meanwhile
+        stream._rafPending = true;
+        requestAnimationFrame(function(){ _renderStreamNode(stream); });
+      }, STREAM_RENDER_INTERVAL - _elapsed);
+      return;
+    }
     stream._rafPending = true;
-    requestAnimationFrame(function(){
-      stream._rafPending = false;
-      if (!stream.parentNode) return;   // already removed by updateMessage; do not render again
-      var raw = stream._raw || '';
-      try {
-        stream.style.whiteSpace = '';
-        stream.innerHTML = (window.__renderStreamMd ? window.__renderStreamMd(raw) : (window.__escHtml ? window.__escHtml(raw) : raw));
-      } catch(e) {
-        // On render exception, fall back to plain text (pre-wrap preserves newlines); the final
-        // Dart render still overwrites it when generation ends.
-        stream.style.whiteSpace = 'pre-wrap';
-        stream.textContent = raw;
-      }
-      if (__stickBottom && __scrollAnchor === null) window.scrollTo(0, document.body.scrollHeight); // do not yank to the bottom while an anchor is pending restoration
-    });
+    requestAnimationFrame(function(){ _renderStreamNode(stream); });
   }
   registerBridgeHandler('appendToken', function (p) {
     appendToken(p.id, p.token);
@@ -5761,7 +5801,7 @@ function injectBridge(html, id, floorIdx) {
   // on retries and generation end.
   // Targeted update swaps only one bubble's content; on failure (node missing / card message) it
   // falls back to needFullPush for Dart to handle.
-  registerBridgeHandler('updateMessage', function (p) {
+  function __updateMessageTargeted(p) {
     try {
       var id = p && p.id;
       if (!id) return;
@@ -5771,6 +5811,16 @@ function injectBridge(html, id, floorIdx) {
       }
       var wrap = document.querySelector('.msg[data-id="' + id + '"]');
       if (!wrap) {
+        // Perf: retry briefly before the full-rebuild fallback. The node may be missing only
+        // because a concurrent append/prepend batch has not mounted it yet; a capped retry
+        // (max 2 attempts, 100ms apart) avoids a pointless root.innerHTML='' rebuild while a
+        // retry loop is impossible (attempts counted on the payload, never reset on miss).
+        var attempts = (p.__retryCount || 0) + 1;
+        if (attempts <= 2) {
+          p.__retryCount = attempts;
+          setTimeout(function () { __updateMessageTargeted(p); }, 100);
+          return;
+        }
         sendToFlutter('action', { action: 'needFullPush', id: id });
         return;
       }
@@ -5800,7 +5850,8 @@ function injectBridge(html, id, floorIdx) {
       try { sendToFlutter('log', { text: '[updateMessage] 失败: ' + e }); } catch (_e2) {}
       sendToFlutter('action', { action: 'needFullPush', id: p && p.id });
     }
-  });
+  }
+  registerBridgeHandler('updateMessage', __updateMessageTargeted);
   registerBridgeHandler('removeMessage', function (p) {
     try {
       var ids = (p && p.ids) || ((p && p.id) ? [p.id] : []);
@@ -6474,10 +6525,9 @@ function injectBridge(html, id, floorIdx) {
       for (var i = 0; i < imgs.length; i++) {
         (function(img){
           // Once an image finishes loading, its expanded height changes the body height;
-          // force a reflow so the WebView recalculates the scroll bounds, otherwise scrolling
-          // up gets stuck.
+          // notify so scroll bounds recalc on the next read (layout happens lazily at
+          // paint / next layout read, so the explicit reflow read was redundant).
           img.onload = function(){
-            void document.body.offsetHeight; // force a reflow
             window.dispatchEvent(new Event('resize'));
           };
           img.src = 'data:' + (p.mime || 'image/jpeg') + ';base64,' + p.b64;
@@ -6509,7 +6559,6 @@ function injectBridge(html, id, floorIdx) {
       ph.innerHTML = '<div class="att-spinner"></div>'
                    + '<div class="att-gen-label">生成中… <span class="att-gen-pct">0%</span></div>';
       box.appendChild(ph);
-      void document.body.offsetHeight;
       window.dispatchEvent(new Event('resize'));
     } catch(e) {
       parent.postMessage({__thLog:true, text:'[setGenerating] 失败: ' + e}, '*');
@@ -6527,7 +6576,6 @@ function injectBridge(html, id, floorIdx) {
     try {
       var ph = document.querySelector('[data-gen-id="' + p.genId + '"]');
       if (ph && ph.parentNode) ph.parentNode.removeChild(ph);
-      void document.body.offsetHeight;
       window.dispatchEvent(new Event('resize'));
     } catch(e) {
       parent.postMessage({__thLog:true, text:'[clearGenerating] 失败: ' + e}, '*');

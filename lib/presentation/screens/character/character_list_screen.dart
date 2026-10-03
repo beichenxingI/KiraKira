@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:kirakira/presentation/theme/design_tokens.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,7 +17,7 @@ import 'package:kirakira/presentation/widgets/common/kira_search_bar.dart';
 import 'package:kirakira/presentation/dialogs/character_preview_dialog.dart';
 import 'package:kirakira/presentation/dialogs/character_edit_dialog.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:archive/archive.dart';
+import 'package:archive/archive_io.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:kirakira/presentation/utils/export_delivery.dart';
 import 'package:kirakira/presentation/screens/import/import_screen.dart'
@@ -226,111 +228,198 @@ for (final c in selected) {
     }
   }
 
-  /// Import ZIP: pick archive, unpack, and restore each character by file extension
+  // Progress stream driving the import dialog (broadcast so the dialog builder
+  // can attach at any time; one import at a time in practice).
+  final StreamController<String> _zipImportProgress = StreamController<String>.broadcast();
+
+  /// Import ZIP: stream-extract in a background isolate, then run the standard
+  /// import pipeline per extracted file with progress.
+  ///
+  /// Two phases (fixes OOM + ANR on multi-GB ZIPs):
+  ///   1. compute(): ZipDecoder().decodeBuffer(InputFileStream) parses the
+  ///      archive as zero-copy file-stream references; each entry inflates
+  ///      alone, is written to temp, and released. Peak memory = largest
+  ///      single entry, never the whole archive. UI thread never blocks.
+  ///   2. Main isolate: each extracted file goes through the full existing
+  ///      pipeline (importFromPng/CharX/Json -> createCharacter -> regex ->
+  ///      embedded lorebook) — repositories/Riverpod require the root isolate —
+  ///      with per-file progress, then the temp file is deleted immediately.
   Future<void> _importFromZip() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['zip'],
-    );
-    if (result == null || result.files.isEmpty) return;
-    final zipFile = result.files.first;
-
-    // Get bytes: prefer in-memory bytes, otherwise read from path (handles content:// URIs)
-    Uint8List? zipBytes = zipFile.bytes;
-    if (zipBytes == null && zipFile.path != null) {
-      zipBytes = await File(zipFile.path!).readAsBytes();
-    }
-    if (zipBytes == null) return;
-
-    if (!mounted) return;
-    final navigator = Navigator.of(context, rootNavigator: true);
-    final messenger = ScaffoldMessenger.of(context);
-    bool loadingShown = true;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      useRootNavigator: true,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-    void closeLoading() {
-      if (loadingShown) {
-        loadingShown = false;
-        navigator.pop();
-      }
-    }
-
-    int ok = 0, fail = 0;
     try {
-      final importService = ref.read(importServiceProvider);
-      final repo = ref.read(characterRepositoryProvider);
-      final worldInfoRepo = ref.read(worldInfoRepositoryProvider);
-      final archive = ZipDecoder().decodeBytes(zipBytes);
-      final tmpDir = await getTemporaryDirectory();
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['zip'],
+        withData: false, // never let the picker load the whole ZIP into memory
+      );
+      if (result == null || result.files.isEmpty) return;
+      final platformFile = result.files.first;
 
-      for (final entry in archive) {
-        if (!entry.isFile) continue;
-        final name = entry.name.split('/').last;
-        final ext = name.split('.').last.toLowerCase();
-        try {
-          Character c;
-          switch (ext) {
-            case 'png':
-              c = await importService.importFromPngBytes(
-                  Uint8List.fromList(entry.content as List<int>));
-              break;
-            case 'json':
-              c = await importService.importFromJson(
-                  utf8.decode(entry.content as List<int>));
-              break;
-            case 'charx':
-              final f = File(p.join(tmpDir.path,
-                  '${DateTime.now().microsecondsSinceEpoch}_$name'));
-              await f.writeAsBytes(entry.content as List<int>);
-              c = await importService.importFromCharX(f.path);
-              break;
-            default:
-              continue; // Skip non-character-card files
-          }
-          // Persist to database (regex scripts stored with the extensions)
-          final created = await repo.createCharacter(c);
-          // On import, regex scripts are written to a dedicated table (same as the
-          // import_screen main path)
-          try {
-            final rawList = c.extensions['regex_scripts'];
-            if (rawList is List && rawList.isNotEmpty) {
-              await ref
-                  .read(regexScriptRepositoryProvider)
-                  .importCharacterScriptsFromRaw(created.id, rawList);
-            }
-          } catch (e) {
-            debugPrint('[Phase2] ZIP导入正则写表失败(extensions 保留): $e');
-          }
-          // Extract the embedded worldbook as a standalone WorldInfo (reuses single-import logic)
-          if (c.characterBook != null && c.characterBook!.entries.isNotEmpty) {
-            await importEmbeddedLorebook(
-                worldInfoRepo, created.id, c.characterBook!, created.name);
-          }
-          ok++;
-        } catch (e) {
-          fail++;
-          debugPrint('❌ ZIP内 $name 导入失败: $e');
+      if (!mounted) return;
+      final navigator = Navigator.of(context, rootNavigator: true);
+      final messenger = ScaffoldMessenger.of(context);
+      bool loadingShown = true;
+      // Idempotent close: exit paths can race (success / error / dispose) and a
+      // stuck dialog would block the page (same guarantee as before).
+      void closeLoading() {
+        if (loadingShown) {
+          loadingShown = false;
+          navigator.pop();
         }
       }
 
-      closeLoading();
-      ref.read(characterListProvider.notifier).refresh();
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('导入完成：成功 $ok 个${fail > 0 ? '，失败 $fail 个' : ''}')),
-        );
+      _zipImportProgress.add('准备中...');
+
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        useRootNavigator: true,
+        builder: (_) => PopScope(
+          canPop: false,
+          child: Center(
+            child: AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  const Text('正在导入角色卡...'),
+                  const SizedBox(height: 8),
+                  StreamBuilder<String>(
+                    stream: _zipImportProgress.stream,
+                    builder: (context, snapshot) => Text(
+                      snapshot.data ?? '准备中...',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      int ok = 0, fail = 0;
+      try {
+        // Resolve a real file path for the streaming reader (content:// URIs can
+        // come back pathless on some platforms; materialize bytes as fallback).
+        var zipPath = platformFile.path;
+        if (zipPath == null) {
+          final bytes = platformFile.bytes;
+          if (bytes == null) {
+            throw Exception('无法读取文件路径');
+          }
+          final cache = await getTemporaryDirectory();
+          zipPath = p.join(cache.path,
+              'zip_pick_${DateTime.now().millisecondsSinceEpoch}.zip');
+          await File(zipPath).writeAsBytes(bytes, flush: true);
+        }
+
+        final cache = await getTemporaryDirectory();
+        final extractDir = Directory(p.join(cache.path,
+            'zip_import_${DateTime.now().millisecondsSinceEpoch}'));
+        try {
+          // Phase 1: background isolate — streaming structure parse + per-entry
+          // extract. Returns temp file paths only (sendable across isolates).
+          _zipImportProgress.add('正在解压...');
+          final extract = await compute(
+            _extractZipToTemp,
+            _ZipExtractParams(zipPath: zipPath, tempDirPath: extractDir.path),
+          );
+          if (extract.error != null) {
+            throw Exception(extract.error);
+          }
+          if (extract.files.isEmpty) {
+            messenger.showSnackBar(
+                const SnackBar(content: Text('ZIP 中没有可导入的角色卡文件')));
+            return;
+          }
+
+          // Phase 2: full import pipeline on the root isolate (DB writes +
+          // Riverpod stay here by design), one file at a time with progress;
+          // temp file deleted immediately after each file.
+          final importService = ref.read(importServiceProvider);
+          final repo = ref.read(characterRepositoryProvider);
+          final worldInfoRepo = ref.read(worldInfoRepositoryProvider);
+          for (var i = 0; i < extract.files.length; i++) {
+            final path = extract.files[i];
+            final name = p.basename(path);
+            _zipImportProgress.add('正在导入 ${i + 1}/${extract.files.length}: $name');
+            try {
+              final ext = p.extension(path).toLowerCase().replaceFirst('.', '');
+              Character c;
+              switch (ext) {
+                case 'png':
+                  c = await importService.importFromPng(path);
+                  break;
+                case 'json':
+                  c = await importService
+                      .importFromJson(await File(path).readAsString());
+                  break;
+                case 'charx':
+                  c = await importService.importFromCharX(path);
+                  break;
+                default:
+                  continue;
+              }
+              // Persist to database (regex scripts stored with the extensions)
+              final created = await repo.createCharacter(c);
+              try {
+                final rawList = c.extensions['regex_scripts'];
+                if (rawList is List && rawList.isNotEmpty) {
+                  await ref
+                      .read(regexScriptRepositoryProvider)
+                      .importCharacterScriptsFromRaw(created.id, rawList);
+                }
+              } catch (e) {
+                debugPrint('[Phase2] ZIP导入正则写表失败(extensions 保留): $e');
+              }
+              // Extract the embedded worldbook as a standalone WorldInfo
+              if (c.characterBook != null && c.characterBook!.entries.isNotEmpty) {
+                await importEmbeddedLorebook(
+                    worldInfoRepo, created.id, c.characterBook!, created.name);
+              }
+              ok++;
+            } catch (e) {
+              fail++;
+              debugPrint('❌ ZIP内 $name 导入失败: $e');
+            } finally {
+              // Per-file cleanup: nothing accumulates across an import.
+              try {
+                await File(path).delete();
+              } catch (_) {}
+            }
+          }
+        } finally {
+          // Whole-directory cleanup (covers entries skipped on early exit too).
+          try {
+            if (await extractDir.exists()) {
+              await extractDir.delete(recursive: true);
+            }
+          } catch (_) {}
+        }
+
+        closeLoading();
+        ref.read(characterListProvider.notifier).refresh();
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(content: Text('导入完成：成功 $ok 个${fail > 0 ? '，失败 $fail 个' : ''}')),
+          );
+        }
+      } catch (e, st) {
+        debugPrint('❌ 导入ZIP失败: $e\n$st');
+        closeLoading();
+        if (mounted) {
+          messenger.showSnackBar(SnackBar(content: Text('导入失败: $e')));
+        }
+      } finally {
+        closeLoading();
       }
     } catch (e, st) {
       debugPrint('❌ 导入ZIP失败: $e\n$st');
       if (mounted) {
-        messenger.showSnackBar(SnackBar(content: Text('导入失败: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('导入失败: $e')));
       }
-    } finally {
-      closeLoading();
     }
   }
   static String _two(int n) => n.toString().padLeft(2, '0');
@@ -343,6 +432,7 @@ for (final c in selected) {
   void dispose() {
     _searchController.dispose();
     _pageController.dispose();
+    _zipImportProgress.close();
     super.dispose();
   }
 
@@ -561,27 +651,31 @@ for (final c in selected) {
                           itemCount: pageItems.length,
                           itemBuilder: (context, index) {
                             final c = pageItems[index];
-                            return _StaggeredEntrance(
-                              index: index,
-                              child: _CharacterGridCard(
-                                character: c,
-                                selectionMode: _selectionMode,
-                                isSelected: _selectedIds.contains(c.id),
-                                onTap: () {
-                                  if (_selectionMode) {
-                                    _toggleSelect(c.id);
-                                  } else {
-                                    // Tapping a card opens a lightweight preview dialog
-                                    showCharacterPreviewDialog(context, ref, c);
-                                  }
-                                },
-                                onLongPress: () {
-                                  if (!_selectionMode) {
-                                    _enterSelection(c.id);
-                                  } else {
-                                    _toggleSelect(c.id);
-                                  }
-                                },
+                            return RepaintBoundary(
+                              // Perf: isolate each card's repaint from its siblings, so
+                              // selection toggles / entrance animations repaint one card only.
+                              child: _StaggeredEntrance(
+                                itemId: c.id,
+                                child: _CharacterGridCard(
+                                  character: c,
+                                  selectionMode: _selectionMode,
+                                  isSelected: _selectedIds.contains(c.id),
+                                  onTap: () {
+                                    if (_selectionMode) {
+                                      _toggleSelect(c.id);
+                                    } else {
+                                      // Tapping a card opens a lightweight preview dialog
+                                      showCharacterPreviewDialog(context, ref, c);
+                                    }
+                                  },
+                                  onLongPress: () {
+                                    if (!_selectionMode) {
+                                      _enterSelection(c.id);
+                                    } else {
+                                      _toggleSelect(c.id);
+                                    }
+                                  },
+                                ),
                               ),
                             );
                           },
@@ -710,27 +804,42 @@ for (final c in selected) {
 
 }
 
-class _StaggeredEntrance extends StatelessWidget {
-  final int index;
+class _StaggeredEntrance extends StatefulWidget {
+  final String itemId; // stable identity (character id), not the list index
   final Widget child;
 
-  const _StaggeredEntrance({required this.index, required this.child});
+  const _StaggeredEntrance({required this.itemId, required this.child});
+
+  @override
+  State<_StaggeredEntrance> createState() => _StaggeredEntranceState();
+}
+
+class _StaggeredEntranceState extends State<_StaggeredEntrance> {
+  // Perf: track which items already played their entrance animation (per app run).
+  // GridView.builder re-mounts items on every scroll-in; without this cache each mount
+  // replayed opacity+translate, which stuttered the scroll. The set is bounded by the
+  // character count (small strings), so it never needs eviction.
+  static final Set<String> _animatedIds = {};
+  late final bool _shouldAnimate;
+
+  @override
+  void initState() {
+    super.initState();
+    // Set.add returns false when the id was already present -> animate only on first appearance.
+    _shouldAnimate = _animatedIds.add(widget.itemId);
+  }
 
   @override
   Widget build(BuildContext context) {
-    const duration = DesignTokens.durationMd;
-    // Stagger delay capped at 12 items so long lists don't wait too long at the tail
-    final delay = index.clamp(0, 12) * 50;
-    final total = duration + delay;
-    final intervalBegin = delay / total;
+    if (!_shouldAnimate) {
+      // Already animated this run: render the final state directly (zero animation cost).
+      return widget.child;
+    }
+    // First appearance: play the entrance once (uniform duration, no per-index stagger delay).
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: total),
-      curve: Interval(
-        intervalBegin,
-        1,
-        curve: DesignTokens.curveDecelerate,
-      ),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
       builder: (context, t, child) => Opacity(
         opacity: t,
         child: Transform.translate(
@@ -738,7 +847,7 @@ class _StaggeredEntrance extends StatelessWidget {
           child: child,
         ),
       ),
-      child: child,
+      child: widget.child,
     );
   }
 }
@@ -1328,5 +1437,90 @@ class _KiraMarketTab extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ZIP streaming extraction (background isolate via compute)
+// ---------------------------------------------------------------------------
+
+/// Parameters for the background extraction isolate (sendable: plain Strings).
+class _ZipExtractParams {
+  final String zipPath;
+  final String tempDirPath;
+  const _ZipExtractParams({required this.zipPath, required this.tempDirPath});
+}
+
+/// Extraction outcome (sendable: List<String> + String?).
+class _ZipExtractResult {
+  final List<String> files;
+  final String? error;
+  const _ZipExtractResult(this.files, {this.error});
+}
+
+/// Stream-extract character-card entries from a ZIP into [params.tempDirPath].
+///
+/// Runs off the UI isolate. Memory model (archive 3.6.1):
+///   - decodeBuffer(InputFileStream): the ZIP structure is parsed as zero-copy
+///     file-stream references (InputFileStream.readBytes returns a clone view,
+///     FileBuffer pages through a 1 MB window) — the archive is NOT loaded.
+///   - entry.content inflates only the single accessed entry;
+///     entry.clear() releases it right after the write.
+/// Peak memory = largest single entry, regardless of archive size (1 GB+ OK).
+/// No size cap by product requirement; a central-directory advisory log is kept
+/// for zip-bomb visibility only.
+Future<_ZipExtractResult> _extractZipToTemp(_ZipExtractParams params) async {
+  try {
+    final zipFile = File(params.zipPath);
+    if (!await zipFile.exists()) {
+      return const _ZipExtractResult([], error: 'ZIP 文件不存在');
+    }
+    final outDir = Directory(params.tempDirPath);
+    await outDir.create(recursive: true);
+
+    final input = InputFileStream(params.zipPath);
+    try {
+      final archive = ZipDecoder().decodeBuffer(input);
+
+      // Zip-bomb advisory only (no hard limit): sizes come from the central
+      // directory — no inflation happens in this loop.
+      var claimed = 0;
+      for (final f in archive.files) {
+        claimed += f.size;
+      }
+      if (claimed > 10 * 1024 * 1024 * 1024) {
+        debugPrint('[ZIP] 中心目录声称解压后 '
+            '${(claimed / 1024 / 1024 / 1024).toStringAsFixed(1)} GB '
+            '(无上限,流式按需解压)');
+      }
+
+      final extracted = <String>[];
+      for (final entry in archive) {
+        if (!entry.isFile) continue;
+        final name = entry.name.split('/').last;
+        final ext = name.split('.').last.toLowerCase();
+        // Same card types as the original import switch; everything else skipped.
+        if (ext != 'png' && ext != 'json' && ext != 'charx') continue;
+        // Unique flattened name (timestamp + index): no path separators (zip-slip
+        // impossible on a bare basename) and no cross-entry collisions.
+        final outPath = p.join(outDir.path,
+            '${DateTime.now().microsecondsSinceEpoch}_${extracted.length}_$name');
+        final sink = await File(outPath).create(recursive: true);
+        final fp = await sink.open(mode: FileMode.write);
+        try {
+          await fp.writeFrom(entry.content as List<int>);
+        } finally {
+          await fp.close();
+        }
+        entry.clear(); // release this entry's bytes before the next one
+        extracted.add(outPath);
+      }
+      return _ZipExtractResult(extracted);
+    } finally {
+      await input.close();
+    }
+  } catch (e, st) {
+    debugPrint('❌ [ZIP] 解压失败: $e\n$st');
+    return _ZipExtractResult(const [], error: '$e');
   }
 }

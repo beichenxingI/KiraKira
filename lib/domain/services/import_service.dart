@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'package:archive/archive.dart';
+import 'package:archive/archive_io.dart';
 import 'package:kirakira/data/models/character.dart';
 import 'package:kirakira/domain/services/png_character_card_parser.dart';
 import 'package:kirakira/core/utils/path_utils.dart';
@@ -20,23 +20,8 @@ class ImportService {
   Future<Character> importFromPng(String filePath) async {
     final file = File(filePath);
     final bytes = await file.readAsBytes();
-
-    // DIAGNOSTIC: log file info and dump to temp
-    debugPrint('[PNG-FILE] path=$filePath');
-    debugPrint('[PNG-FILE] size=${bytes.length}');
-    debugPrint('[PNG-FILE] exists=${await file.exists()}');
-    if (bytes.isNotEmpty) {
-      final sig = String.fromCharCodes(bytes.take(8));
-      debugPrint('[PNG-FILE] first8bytes=$sig');
-      final tempPath = '$filePath.dump.bin';
-      await File(tempPath).writeAsBytes(bytes);
-      debugPrint('[PNG-FILE] dumped to=$tempPath');
-    try {
-      File('$filePath.diagnostic.txt').writeAsStringSync('PNG file at: $filePath\nSize: ${bytes.length} bytes\nFirst 8 bytes: ${bytes.take(8).toList()}');
-      debugPrint('[PNG-FILE] diagnostic info saved');
-    } catch (_) {}
-    }
-
+    // (Removed: debug dump of the whole file to <path>.dump.bin + .diagnostic.txt
+    // — doubled I/O on every import and accumulated files in production.)
     return importFromPngBytes(bytes);
   }
 
@@ -59,44 +44,52 @@ class ImportService {
 
   /// Import character from CharX archive
   Future<Character> importFromCharX(String filePath) async {
-    final file = File(filePath);
-    final bytes = await file.readAsBytes();
-    
-    // Extract archive
-    final archive = ZipDecoder().decodeBytes(bytes);
-    
-    // Find card.json
-    ArchiveFile? cardFile;
-    ArchiveFile? avatarFile;
-    
-    for (final file in archive) {
-      if (file.name == 'card.json') {
-        cardFile = file;
-      } else if (file.name.endsWith('.png') || file.name.endsWith('.jpg')) {
-        avatarFile = file;
+    // Streaming decode: the archive structure is read as file-stream references
+    // (no whole-file buffer), and each entry inflates lazily on access — peak
+    // memory = largest single entry instead of the whole archive (fixes OOM
+    // on large / nested CharX files).
+    final inputStream = InputFileStream(filePath);
+    try {
+      final archive = ZipDecoder().decodeBuffer(inputStream);
+
+      // Find card.json (no content access here — structure scan only)
+      ArchiveFile? cardFile;
+      ArchiveFile? avatarFile;
+
+      for (final file in archive) {
+        if (file.name == 'card.json') {
+          cardFile = file;
+        } else if (file.name.endsWith('.png') || file.name.endsWith('.jpg')) {
+          avatarFile = file;
+        }
       }
+
+      if (cardFile == null) {
+        throw Exception('No card.json found in CharX archive');
+      }
+
+      // Parse JSON (single entry materialized, then released)
+      final json = utf8.decode(cardFile.content as List<int>);
+      cardFile.clear();
+      final data = jsonDecode(json) as Map<String, dynamic>;
+
+      // Parse character
+      final character = _parseCharacterJson(data);
+
+      // Save avatar if found (single entry materialized, then released)
+      String? avatarPath;
+      if (avatarFile != null) {
+        final avatarBytes = Uint8List.fromList(avatarFile.content as List<int>);
+        avatarFile.clear();
+        avatarPath = await _saveAvatar(character.id, avatarBytes);
+      }
+
+      return character.copyWith(
+        assets: avatarPath != null ? CharacterAssets(avatarPath: avatarPath) : null,
+      );
+    } finally {
+      await inputStream.close();
     }
-    
-    if (cardFile == null) {
-      throw Exception('No card.json found in CharX archive');
-    }
-    
-    // Parse JSON
-    final json = utf8.decode(cardFile.content as List<int>);
-    final data = jsonDecode(json) as Map<String, dynamic>;
-    
-    // Parse character
-    final character = _parseCharacterJson(data);
-    
-    // Save avatar if found
-    String? avatarPath;
-    if (avatarFile != null) {
-      avatarPath = await _saveAvatar(character.id, Uint8List.fromList(avatarFile.content as List<int>));
-    }
-    
-    return character.copyWith(
-      assets: avatarPath != null ? CharacterAssets(avatarPath: avatarPath) : null,
-    );
   }
 
   /// Import character from JSON string
@@ -253,7 +246,9 @@ class ImportService {
   
   Character _parseCharacterJson(Map<String, dynamic> json) {
     // Parse entry point: spec and branch determination
-    print('[IMP-1] entry keys=${json.keys.toList()} spec=${json['spec']} hasData=${json.containsKey('data')}');
+    if (kDebugMode) {
+      print('[IMP-1] entry keys=${json.keys.toList()} spec=${json['spec']} hasData=${json.containsKey('data')}');
+    }
     String name = '';
     String description = '';
     String personality = '';
@@ -341,8 +336,10 @@ class ImportService {
       extensions = dataExtensions is Map
           ? {...Map<String, dynamic>.from(dataExtensions), 'aicc': aiccExt}
           : {'aicc': aiccExt};
-      print('[IMP-1] AICC-Chat card: name=$name greetings=${greetings is List ? greetings.length : 0} '
-          'examples=${examples is List ? examples.length : 0}');
+      if (kDebugMode) {
+        print('[IMP-1] AICC-Chat card: name=$name greetings=${greetings is List ? greetings.length : 0} '
+            'examples=${examples is List ? examples.length : 0}');
+      }
     }
     // Check for V3 format (also matches V2 with spec field)
     else if (json.containsKey('spec') && json.containsKey('data')) {
@@ -368,15 +365,20 @@ class ImportService {
       
       // Parse character book (embedded lorebook)
       if (data['character_book'] != null) {
-        print('[ImportService] Found character_book in data, parsing...');
+        if (kDebugMode) print('[ImportService] Found character_book in data, parsing...');
         characterBook = _parseCharacterBook(data['character_book'] as Map<String, dynamic>);
-        print('[ImportService] Parsed character_book with ${characterBook.entries.length ?? 0} entries');
+        if (kDebugMode) {
+          print('[ImportService] Parsed character_book with ${characterBook.entries.length ?? 0} entries');
+        }
       } else {
-        print('[ImportService] No character_book found in data. Data keys: ${data.keys.toList()}');
+        if (kDebugMode) {
+          print('[ImportService] No character_book found in data. Data keys: ${data.keys.toList()}');
+        }
       }
 
       // [IMP-2] data field survey (report when non-empty)
       void f(String k, dynamic v) {
+        if (!kDebugMode) return;
         final ok = v != null && ('$v'.isNotEmpty);
         print('[IMP-2] $k=${ok ? (v is List ? 'list(${v.length})' : (v is String ? 'len=${v.length}' : v)) : 'EMPTY'}');
       }
@@ -395,7 +397,9 @@ class ImportService {
       f('character_version', version.isEmpty ? null : version);
 
       // [IMP-4] Extensions top-level keys and regex_scripts presence
-      print('[IMP-4] extKeys=${extensions.keys.toList()} regexScriptsCount=${(extensions['regex_scripts'] as List<dynamic>?)?.length ?? 'null'}');
+      if (kDebugMode) {
+        print('[IMP-4] extKeys=${extensions.keys.toList()} regexScriptsCount=${(extensions['regex_scripts'] as List<dynamic>?)?.length ?? 'null'}');
+      }
     }
     // Check for V2 format
     else if (json.containsKey('data')) {
@@ -473,8 +477,10 @@ class ImportService {
   CharacterBook _parseCharacterBook(Map<String, dynamic> json) {
     final rawEntries = json['entries'];
     // [IMP-3] Entry shape detection: use arrays directly; for map shape (ST partial exports/old cards), take values as a list
-    print('[IMP-3] book=${json['name']} entriesRawType=${rawEntries?.runtimeType} '
-        'count=${rawEntries is List ? rawEntries.length : (rawEntries is Map ? rawEntries.length : 'null')}');
+    if (kDebugMode) {
+      print('[IMP-3] book=${json['name']} entriesRawType=${rawEntries?.runtimeType} '
+          'count=${rawEntries is List ? rawEntries.length : (rawEntries is Map ? rawEntries.length : 'null')}');
+    }
     List<dynamic> entriesJson;
     if (rawEntries is List) {
       entriesJson = rawEntries;
@@ -486,9 +492,12 @@ class ImportService {
     for (final e in entriesJson.take(10)) {
       if (e is Map) {
         final k = e['keys'];
-        print('[IMP-3] entry id=${e['id']} keys=${k is List ? k.take(3).toList() : k} '
-            'constant=${e['constant']} contentLen=${(e['content']?.toString() ?? '').length} '
-            'content40=${(e['content']?.toString() ?? '').substring(0, (e['content']?.toString() ?? '').length > 40 ? 40 : (e['content']?.toString() ?? '').length)}');
+        if (kDebugMode) {
+          final contentStr = (e['content']?.toString() ?? '');
+          print('[IMP-3] entry id=${e['id']} keys=${k is List ? k.take(3).toList() : k} '
+              'constant=${e['constant']} contentLen=${contentStr.length} '
+              'content40=${contentStr.substring(0, contentStr.length > 40 ? 40 : contentStr.length)}');
+        }
       }
     }
     final entries = entriesJson.whereType<Map>().map((e) {
@@ -909,7 +918,9 @@ Future<void> importEmbeddedLorebook(
 ) async {
   final worldInfoName = characterBook.name ?? '$characterName Lorebook';
   // [IMP-5] Entry count to write before persisting
-  print('[IMP-5] creating WI "$worldInfoName" for char=$characterId entriesToWrite=${characterBook.entries.length}');
+  if (kDebugMode) {
+    print('[IMP-5] creating WI "$worldInfoName" for char=$characterId entriesToWrite=${characterBook.entries.length}');
+  }
   final worldInfo = await worldInfoRepo.createWorldInfo(
     name: worldInfoName,
     description:
@@ -951,9 +962,11 @@ Future<void> importEmbeddedLorebook(
     }
 
     // [IMP-5] Per-entry write details (constant/order/enabled/caseSensitive/extensions passed through)
-    print('[IMP-5] addEntry keys=${entry.keys.take(3).toList()} constant=${entry.constant} '
-        'enabled=${entry.enabled} order=${entry.insertionOrder} '
-        'contentLen=${entry.content.length} comment=${entry.name.isNotEmpty ? entry.name : entry.comment}');
+    if (kDebugMode) {
+      print('[IMP-5] addEntry keys=${entry.keys.take(3).toList()} constant=${entry.constant} '
+          'enabled=${entry.enabled} order=${entry.insertionOrder} '
+          'contentLen=${entry.content.length} comment=${entry.name.isNotEmpty ? entry.name : entry.comment}');
+    }
     await worldInfoRepo.addEntry(
       worldInfoId: worldInfo.id,
       keys: entry.keys,
@@ -974,7 +987,9 @@ Future<void> importEmbeddedLorebook(
   }
   // [IMP-6] Read back after persisting: actual entry count (compare with IMP-5; the difference is dropped entries)
   final written = await worldInfoRepo.getEntriesForWorldInfo(worldInfo.id);
-  print('[IMP-6] readback WI="${worldInfo.name}" id=${worldInfo.id} entriesInDb=${written.length} (expected ${characterBook.entries.length})');
+  if (kDebugMode) {
+    print('[IMP-6] readback WI="${worldInfo.name}" id=${worldInfo.id} entriesInDb=${written.length} (expected ${characterBook.entries.length})');
+  }
 }
 
 /// Reassembles a CharacterBook from the world_infos table (live data), fixing stale worldbook export.

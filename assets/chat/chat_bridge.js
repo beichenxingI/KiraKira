@@ -47,6 +47,13 @@
   // Inbound send: everything in the WebView that must notify Flutter goes through here.
   window.sendToFlutter = function (type, payload) {
     try {
+      // Perf: drop debug-log traffic in release builds at the source. Every
+      // sendToFlutter('log') used to cross the bridge (jsonDecode + onLog debugPrint
+      // on the Dart side); the 'log' handler is pure observability — no functional
+      // behavior depends on it — so log noise only needs to exist in debug builds.
+      // window.__kiraDebug is baked in from kDebugMode (see chat_stage.html head)
+      // and is assigned before this script runs (bridge is embedded further down).
+      if (type === 'log' && !window.__kiraDebug) return;
       var msg = { type: type, payload: payload || {} };
       if (window.flutter_inappwebview) {
         window.flutter_inappwebview.callHandler('bridge', JSON.stringify(msg));
